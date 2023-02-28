@@ -1,0 +1,23 @@
+{
+  "name": "beancount-lsp",
+  "version": "0.0.0",
+  "description": "BeanCount language server",
+  "private": "true",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "beancount",
+    "lsp",
+    "language"
+  ],
+  "author": "fengkx",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^18.14.2",
+    "@typescript-eslint/eslint-plugin": "^5.54.0",
+    "@typescript-eslint/parser": "^5.54.0",
+    "eslint": "^8.35.0",
+    "typescript": "^4.9.5"
+  }
+}
