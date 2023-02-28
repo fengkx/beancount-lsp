@@ -1,0 +1,212 @@
+{
+  "name": "beancount",
+  "rules": {
+    "file": {
+      "type": "REPEAT",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "SYMBOL",
+            "name": "directive"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "new_line"
+          }
+        ]
+      }
+    },
+    "directive": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "open_directive"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "close_directive"
+        }
+      ]
+    },
+    "open_directive": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "date",
+          "content": {
+            "type": "SYMBOL",
+            "name": "date"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "directive_type",
+          "content": {
+            "type": "TOKEN",
+            "content": {
+              "type": "STRING",
+              "value": "open"
+            }
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "account_name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "account_name"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "currencies",
+          "content": {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "currency"
+                  },
+                  {
+                    "type": "REPEAT",
+                    "content": {
+                      "type": "SEQ",
+                      "members": [
+                        {
+                          "type": "STRING",
+                          "value": ","
+                        },
+                        {
+                          "type": "SYMBOL",
+                          "name": "currency"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "close_directive": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "date",
+          "content": {
+            "type": "SYMBOL",
+            "name": "date"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "directive_type",
+          "content": {
+            "type": "TOKEN",
+            "content": {
+              "type": "STRING",
+              "value": "close"
+            }
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "account_name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "account_name"
+          }
+        }
+      ]
+    },
+    "account_name": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "account_type"
+        },
+        {
+          "type": "REPEAT1",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "STRING",
+                "value": ":"
+              },
+              {
+                "type": "PATTERN",
+                "value": "[A-Z][A-Za-z0-9\\-]*"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "account_type": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "Assets"
+        },
+        {
+          "type": "STRING",
+          "value": "Expenses"
+        },
+        {
+          "type": "STRING",
+          "value": "Liabilities"
+        },
+        {
+          "type": "STRING",
+          "value": "Equity"
+        },
+        {
+          "type": "STRING",
+          "value": "Income"
+        }
+      ]
+    },
+    "date": {
+      "type": "PATTERN",
+      "value": "\\d{4}-\\d{2}-\\d{2}"
+    },
+    "currency": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PATTERN",
+        "value": "[A-Z][A-Z0-9\\'\\._\\-]{0,22}[A-Z0-9]"
+      }
+    },
+    "new_line": {
+      "type": "PATTERN",
+      "value": "\\n"
+    }
+  },
+  "extras": [
+    {
+      "type": "PATTERN",
+      "value": "( |\\r|\\t)+"
+    }
+  ],
+  "conflicts": [],
+  "precedences": [],
+  "externals": [],
+  "inline": [],
+  "supertypes": []
+}
+

@@ -1,0 +1,194 @@
+[
+  {
+    "type": "account_name",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "account_type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "account_type",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "close_directive",
+    "named": true,
+    "fields": {
+      "account_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "account_name",
+            "named": true
+          }
+        ]
+      },
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "directive_type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "close",
+            "named": false
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "directive",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "close_directive",
+          "named": true
+        },
+        {
+          "type": "open_directive",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "file",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "directive",
+          "named": true
+        },
+        {
+          "type": "new_line",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "open_directive",
+    "named": true,
+    "fields": {
+      "account_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "account_name",
+            "named": true
+          }
+        ]
+      },
+      "currencies": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": ",",
+            "named": false
+          },
+          {
+            "type": "currency",
+            "named": true
+          }
+        ]
+      },
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "directive_type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "open",
+            "named": false
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": ",",
+    "named": false
+  },
+  {
+    "type": ":",
+    "named": false
+  },
+  {
+    "type": "Assets",
+    "named": false
+  },
+  {
+    "type": "Equity",
+    "named": false
+  },
+  {
+    "type": "Expenses",
+    "named": false
+  },
+  {
+    "type": "Income",
+    "named": false
+  },
+  {
+    "type": "Liabilities",
+    "named": false
+  },
+  {
+    "type": "close",
+    "named": false
+  },
+  {
+    "type": "currency",
+    "named": true
+  },
+  {
+    "type": "date",
+    "named": true
+  },
+  {
+    "type": "new_line",
+    "named": true
+  },
+  {
+    "type": "open",
+    "named": false
+  }
+]
