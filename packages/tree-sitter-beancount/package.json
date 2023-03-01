@@ -5,13 +5,55 @@
   "description": "tree sitter for beancount",
   "main": "bindings/node",
   "scripts": {
-    "generate": "tree-sitter generate",
+    "generate": "wireit",
+    "build-wasm": "wireit",
+    "build-node": "wireit",
+    "build": "wireit",
+    "playground": "wireit",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "wireit": {
+    "generate": {
+      "command": "tree-sitter generate"
+    },
+    "build-wasm": {
+      "command": "tree-sitter build-wasm",
+      "dependencies": [
+        "generate"
+      ]
+    },
+    "configure": {
+      "command": "node-gyp configure",
+      "dependencies": [
+        "generate"
+      ]
+    },
+    "build-node": {
+      "command": "node-gyp build",
+      "dependencies": [
+        "configure"
+      ]
+    },
+    "build": {
+      "dependencies": [
+        "build-node",
+        "build-wasm"
+      ]
+    },
+    "playground": {
+      "command": "tree-sitter playground",
+      "dependencies": [
+        "build-wasm"
+      ]
+    }
   },
   "keywords": [],
   "author": "fengkx",
   "license": "MIT",
   "dependencies": {
     "nan": "^2.17.0"
+  },
+  "devDependencies": {
+    "node-gyp": "^9.3.1"
   }
 }
