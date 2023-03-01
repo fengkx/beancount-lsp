@@ -10,7 +10,8 @@
     "build-node": "wireit",
     "build": "wireit",
     "playground": "wireit",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build-playground": "wireit",
+    "test": "wireit"
   },
   "wireit": {
     "generate": {
@@ -36,15 +37,27 @@
     },
     "build": {
       "dependencies": [
+        "test",
         "build-node",
         "build-wasm"
+      ]
+    },
+    "test": {
+      "command": "tree-sitter test",
+      "dependencies": [
+        "generate"
       ]
     },
     "playground": {
       "command": "tree-sitter playground",
       "dependencies": [
         "build-wasm"
-      ]
+      ],
+      "service": {
+        "readyWhen": {
+          "lineMatches": "Started playground on .+\\d+"
+        }
+      }
     }
   },
   "keywords": [],
