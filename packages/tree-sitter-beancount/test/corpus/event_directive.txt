@@ -1,0 +1,15 @@
+====
+Event directive
+====
+2014-07-09 event "location" "Paris, France" ; testing 测试
+----
+(file
+    (directive
+        (event_directive
+            (date)
+            (str)
+            (str)
+        )
+    )
+    (comment)
+)

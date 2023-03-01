@@ -6,16 +6,19 @@
   "main": "bindings/node",
   "scripts": {
     "generate": "wireit",
-    "build-wasm": "wireit",
-    "build-node": "wireit",
+    "build:wasm": "wireit",
+    "build:node": "wireit",
+    "build:playground": "wireit",
     "build": "wireit",
     "playground": "wireit",
-    "build-playground": "wireit",
     "test": "wireit"
   },
   "wireit": {
     "generate": {
-      "command": "tree-sitter generate"
+      "command": "tree-sitter generate",
+      "files": [
+        "./grammar.js"
+      ]
     },
     "build-wasm": {
       "command": "tree-sitter build-wasm",
@@ -44,6 +47,10 @@
     },
     "test": {
       "command": "tree-sitter test",
+      "files": [
+        "./test/**/*.txt"
+      ],
+      "output": [],
       "dependencies": [
         "generate"
       ]
@@ -53,6 +60,11 @@
       "dependencies": [
         "build-wasm"
       ],
+      "files": [
+        "./tree-sitter-beancount.wasm",
+        "./grammar.js"
+      ],
+      "outputs": [],
       "service": {
         "readyWhen": {
           "lineMatches": "Started playground on .+\\d+"
