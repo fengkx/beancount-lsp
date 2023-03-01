@@ -56,11 +56,16 @@
     }
   },
   {
+    "type": "colon",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "directive",
     "named": true,
     "fields": {},
     "children": {
-      "multiple": false,
+      "multiple": true,
       "required": true,
       "types": [
         {
@@ -68,10 +73,126 @@
           "named": true
         },
         {
+          "type": "document_directive",
+          "named": true
+        },
+        {
+          "type": "event_directive",
+          "named": true
+        },
+        {
+          "type": "metadata",
+          "named": true
+        },
+        {
+          "type": "new_line",
+          "named": true
+        },
+        {
+          "type": "note_directive",
+          "named": true
+        },
+        {
           "type": "open_directive",
+          "named": true
+        },
+        {
+          "type": "price_directive",
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "document_directive",
+    "named": true,
+    "fields": {
+      "account_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "account_name",
+            "named": true
+          }
+        ]
+      },
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "directive_type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "document",
+            "named": false
+          }
+        ]
+      },
+      "document_path": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "str",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "event_directive",
+    "named": true,
+    "fields": {
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "directive_type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "event",
+            "named": false
+          }
+        ]
+      },
+      "eventName": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "str",
+            "named": true
+          }
+        ]
+      },
+      "eventValue": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "str",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -83,6 +204,10 @@
       "required": false,
       "types": [
         {
+          "type": "comment",
+          "named": true
+        },
+        {
           "type": "directive",
           "named": true
         },
@@ -91,6 +216,112 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "metadata",
+    "named": true,
+    "fields": {
+      "colon": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "colon",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "account_name",
+          "named": true
+        },
+        {
+          "type": "currency",
+          "named": true
+        },
+        {
+          "type": "date",
+          "named": true
+        },
+        {
+          "type": "decimal",
+          "named": true
+        },
+        {
+          "type": "metadata_key",
+          "named": true
+        },
+        {
+          "type": "str",
+          "named": true
+        },
+        {
+          "type": "tag",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "metadata_key",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "new_line",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "note_directive",
+    "named": true,
+    "fields": {
+      "account_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "account_name",
+            "named": true
+          }
+        ]
+      },
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "directive_type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "note",
+            "named": false
+          }
+        ]
+      },
+      "note": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "str",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -144,6 +375,82 @@
     }
   },
   {
+    "type": "price_directive",
+    "named": true,
+    "fields": {
+      "commodity": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "currency",
+            "named": true
+          }
+        ]
+      },
+      "currency": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "currency",
+            "named": true
+          }
+        ]
+      },
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "directive_type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "price",
+            "named": false
+          }
+        ]
+      },
+      "price": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "decimal",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "\n",
+    "named": false
+  },
+  {
+    "type": "\r",
+    "named": false
+  },
+  {
+    "type": "!",
+    "named": false
+  },
+  {
+    "type": "#",
+    "named": false
+  },
+  {
+    "type": "*",
+    "named": false
+  },
+  {
     "type": ",",
     "named": false
   },
@@ -176,6 +483,10 @@
     "named": false
   },
   {
+    "type": "comment",
+    "named": true
+  },
+  {
     "type": "currency",
     "named": true
   },
@@ -184,11 +495,39 @@
     "named": true
   },
   {
-    "type": "new_line",
+    "type": "decimal",
     "named": true
   },
   {
+    "type": "document",
+    "named": false
+  },
+  {
+    "type": "event",
+    "named": false
+  },
+  {
+    "type": "note",
+    "named": false
+  },
+  {
     "type": "open",
+    "named": false
+  },
+  {
+    "type": "price",
+    "named": false
+  },
+  {
+    "type": "str",
+    "named": true
+  },
+  {
+    "type": "tag",
+    "named": true
+  },
+  {
+    "type": "txn",
     "named": false
   }
 ]

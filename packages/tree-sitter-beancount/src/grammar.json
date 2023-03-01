@@ -2,31 +2,127 @@
   "name": "beancount",
   "rules": {
     "file": {
-      "type": "REPEAT",
+      "type": "PREC_RIGHT",
+      "value": 2,
       "content": {
-        "type": "CHOICE",
+        "type": "REPEAT",
+        "content": {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "directive"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "new_line"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "comment"
+            }
+          ]
+        }
+      }
+    },
+    "directive": {
+      "type": "PREC_RIGHT",
+      "value": 3,
+      "content": {
+        "type": "SEQ",
         "members": [
           {
-            "type": "SYMBOL",
-            "name": "directive"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "open_directive"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "close_directive"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "event_directive"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "price_directive"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "note_directive"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "document_directive"
+              }
+            ]
           },
           {
-            "type": "SYMBOL",
-            "name": "new_line"
+            "type": "REPEAT",
+            "content": {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "metadata"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "new_line"
+                }
+              ]
+            }
           }
         ]
       }
     },
-    "directive": {
+    "_directive_type": {
       "type": "CHOICE",
       "members": [
         {
-          "type": "SYMBOL",
-          "name": "open_directive"
+          "type": "TOKEN",
+          "content": {
+            "type": "STRING",
+            "value": "open"
+          }
         },
         {
-          "type": "SYMBOL",
-          "name": "close_directive"
+          "type": "TOKEN",
+          "content": {
+            "type": "STRING",
+            "value": "event"
+          }
+        },
+        {
+          "type": "TOKEN",
+          "content": {
+            "type": "STRING",
+            "value": "close"
+          }
+        },
+        {
+          "type": "TOKEN",
+          "content": {
+            "type": "STRING",
+            "value": "price"
+          }
+        },
+        {
+          "type": "TOKEN",
+          "content": {
+            "type": "STRING",
+            "value": "note"
+          }
+        },
+        {
+          "type": "TOKEN",
+          "content": {
+            "type": "STRING",
+            "value": "document"
+          }
         }
       ]
     },
@@ -131,6 +227,174 @@
         }
       ]
     },
+    "price_directive": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "date",
+          "content": {
+            "type": "SYMBOL",
+            "name": "date"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "directive_type",
+          "content": {
+            "type": "TOKEN",
+            "content": {
+              "type": "STRING",
+              "value": "price"
+            }
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "commodity",
+          "content": {
+            "type": "SYMBOL",
+            "name": "currency"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "price",
+          "content": {
+            "type": "SYMBOL",
+            "name": "decimal"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "currency",
+          "content": {
+            "type": "SYMBOL",
+            "name": "currency"
+          }
+        }
+      ]
+    },
+    "note_directive": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "date",
+          "content": {
+            "type": "SYMBOL",
+            "name": "date"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "directive_type",
+          "content": {
+            "type": "TOKEN",
+            "content": {
+              "type": "STRING",
+              "value": "note"
+            }
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "account_name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "account_name"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "note",
+          "content": {
+            "type": "SYMBOL",
+            "name": "str"
+          }
+        }
+      ]
+    },
+    "document_directive": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "date",
+          "content": {
+            "type": "SYMBOL",
+            "name": "date"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "directive_type",
+          "content": {
+            "type": "TOKEN",
+            "content": {
+              "type": "STRING",
+              "value": "document"
+            }
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "account_name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "account_name"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "document_path",
+          "content": {
+            "type": "SYMBOL",
+            "name": "str"
+          }
+        }
+      ]
+    },
+    "event_directive": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "date",
+          "content": {
+            "type": "SYMBOL",
+            "name": "date"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "directive_type",
+          "content": {
+            "type": "TOKEN",
+            "content": {
+              "type": "STRING",
+              "value": "event"
+            }
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "eventName",
+          "content": {
+            "type": "SYMBOL",
+            "name": "str"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "eventValue",
+          "content": {
+            "type": "SYMBOL",
+            "name": "str"
+          }
+        }
+      ]
+    },
     "account_name": {
       "type": "SEQ",
       "members": [
@@ -149,7 +413,7 @@
               },
               {
                 "type": "PATTERN",
-                "value": "[A-Z][A-Za-z0-9\\-]*"
+                "value": "[A-Z][A-Za-z0-9-]*"
               }
             ]
           }
@@ -181,6 +445,77 @@
         }
       ]
     },
+    "txn": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "txn"
+        },
+        {
+          "type": "STRING",
+          "value": "!"
+        },
+        {
+          "type": "STRING",
+          "value": "*"
+        },
+        {
+          "type": "STRING",
+          "value": "#"
+        }
+      ]
+    },
+    "metadata": {
+      "type": "PREC_LEFT",
+      "value": 0,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "SYMBOL",
+            "name": "metadata_key"
+          },
+          {
+            "type": "FIELD",
+            "name": "colon",
+            "content": {
+              "type": "SYMBOL",
+              "name": "colon"
+            }
+          },
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "str"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "decimal"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "date"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "currency"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "account_name"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "tag"
+              }
+            ]
+          }
+        ]
+      }
+    },
     "date": {
       "type": "PATTERN",
       "value": "\\d{4}-\\d{2}-\\d{2}"
@@ -189,12 +524,57 @@
       "type": "TOKEN",
       "content": {
         "type": "PATTERN",
-        "value": "[A-Z][A-Z0-9\\'\\._\\-]{0,22}[A-Z0-9]"
+        "value": "[A-Z][A-Z0-9'._-]{0,22}[A-Z0-9]"
       }
     },
-    "new_line": {
+    "decimal": {
       "type": "PATTERN",
-      "value": "\\n"
+      "value": "\\d+(\\.\\d+)?"
+    },
+    "metadata_key": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "data_key",
+          "content": {
+            "type": "PATTERN",
+            "value": "[a-z][A-Za-z0-9-_]*"
+          }
+        }
+      ]
+    },
+    "str": {
+      "type": "PATTERN",
+      "value": "\"[^\"]*\""
+    },
+    "tag": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PATTERN",
+        "value": "#[A-Za-z0-9\\-_/.]+"
+      }
+    },
+    "comment": {
+      "type": "PATTERN",
+      "value": ";[^\\n]*"
+    },
+    "new_line": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "\n"
+        },
+        {
+          "type": "STRING",
+          "value": "\r"
+        }
+      ]
+    },
+    "colon": {
+      "type": "STRING",
+      "value": ":"
     }
   },
   "extras": [
