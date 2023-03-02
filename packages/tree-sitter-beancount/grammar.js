@@ -1,10 +1,9 @@
 module.exports = grammar({
   name: "beancount",
-  extras: ($) => [/( |\r|\t)+/],
+  extras: ($) => [/( |\r|\t|\n)+/],
   words: ($) => [$._directive_type],
   rules: {
-    file: ($) =>
-      prec.right(2, repeat(choice($.directive, $.new_line, $.comment))),
+    file: ($) => prec.right(2, repeat(choice($.directive, $.comment))),
     directive: ($) =>
       prec.right(
         3,
@@ -17,7 +16,7 @@ module.exports = grammar({
             $.note_directive,
             $.document_directive
           ),
-          repeat(choice($.metadata, $.new_line))
+          repeat(choice($.metadata))
         )
       ),
     _directive_type: ($) =>

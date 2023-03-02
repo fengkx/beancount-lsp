@@ -15,10 +15,6 @@
             },
             {
               "type": "SYMBOL",
-              "name": "new_line"
-            },
-            {
-              "type": "SYMBOL",
               "name": "comment"
             }
           ]
@@ -68,10 +64,6 @@
                 {
                   "type": "SYMBOL",
                   "name": "metadata"
-                },
-                {
-                  "type": "SYMBOL",
-                  "name": "new_line"
                 }
               ]
             }
@@ -580,7 +572,7 @@
   "extras": [
     {
       "type": "PATTERN",
-      "value": "( |\\r|\\t)+"
+      "value": "( |\\r|\\t|\\n)+"
     }
   ],
   "conflicts": [],

@@ -85,10 +85,6 @@
           "named": true
         },
         {
-          "type": "new_line",
-          "named": true
-        },
-        {
           "type": "note_directive",
           "named": true
         },
@@ -210,10 +206,6 @@
         {
           "type": "directive",
           "named": true
-        },
-        {
-          "type": "new_line",
-          "named": true
         }
       ]
     }
@@ -270,11 +262,6 @@
   },
   {
     "type": "metadata_key",
-    "named": true,
-    "fields": {}
-  },
-  {
-    "type": "new_line",
     "named": true,
     "fields": {}
   },
