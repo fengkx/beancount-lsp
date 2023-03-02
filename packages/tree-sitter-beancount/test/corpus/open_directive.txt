@@ -13,18 +13,18 @@ Open directive with metadata
           date: (date)
           account_name: (account_name
             (account_type)))
-        (new_line)
+        
         (metadata
           (metadata_key)
           colon: (colon)
           (str)))
-      (new_line)
+      
       (directive
         (open_directive
           date: (date)
           account_name: (account_name
             (account_type)))
-        (new_line)
+        
         (metadata
           (metadata_key)
           colon: (colon)
@@ -45,22 +45,20 @@ Multiple open directives with comments
           date: (date)
           account_name: (account_name
             (account_type)))
-        (new_line))
+        )
       (directive
         (open_directive
           date: (date)
           account_name: (account_name
             (account_type))))
       (comment)
-      (new_line)
       (directive
         (open_directive
           date: (date)
           account_name: (account_name
             (account_type)))
-        (new_line))
+        )
       (comment)
-      (new_line)
       (directive
         (open_directive
           date: (date)

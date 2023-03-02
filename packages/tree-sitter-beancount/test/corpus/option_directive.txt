@@ -1,0 +1,13 @@
+=====
+Option directive
+=====
+option "operating_currency" "USD"
+-----
+(file
+ (directive
+    (option_directive
+        (str)
+        (str)
+    )
+ )
+)

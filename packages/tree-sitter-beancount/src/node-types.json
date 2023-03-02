@@ -81,11 +81,11 @@
           "named": true
         },
         {
-          "type": "metadata",
+          "type": "include_directive",
           "named": true
         },
         {
-          "type": "new_line",
+          "type": "metadata",
           "named": true
         },
         {
@@ -94,6 +94,14 @@
         },
         {
           "type": "open_directive",
+          "named": true
+        },
+        {
+          "type": "option_directive",
+          "named": true
+        },
+        {
+          "type": "plugin_directive",
           "named": true
         },
         {
@@ -173,7 +181,7 @@
           }
         ]
       },
-      "eventName": {
+      "event_name": {
         "multiple": false,
         "required": true,
         "types": [
@@ -183,7 +191,7 @@
           }
         ]
       },
-      "eventValue": {
+      "event_value": {
         "multiple": false,
         "required": true,
         "types": [
@@ -210,12 +218,24 @@
         {
           "type": "directive",
           "named": true
-        },
-        {
-          "type": "new_line",
-          "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "include_directive",
+    "named": true,
+    "fields": {
+      "file_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "str",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -270,11 +290,6 @@
   },
   {
     "type": "metadata_key",
-    "named": true,
-    "fields": {}
-  },
-  {
-    "type": "new_line",
     "named": true,
     "fields": {}
   },
@@ -369,6 +384,58 @@
           {
             "type": "open",
             "named": false
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "option_directive",
+    "named": true,
+    "fields": {
+      "option_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "str",
+            "named": true
+          }
+        ]
+      },
+      "option_value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "str",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "plugin_directive",
+    "named": true,
+    "fields": {
+      "module_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "str",
+            "named": true
+          }
+        ]
+      },
+      "plugin_config": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "str",
+            "named": true
           }
         ]
       }
@@ -507,11 +574,23 @@
     "named": false
   },
   {
+    "type": "include",
+    "named": false
+  },
+  {
     "type": "note",
     "named": false
   },
   {
     "type": "open",
+    "named": false
+  },
+  {
+    "type": "option",
+    "named": false
+  },
+  {
+    "type": "plugin",
     "named": false
   },
   {

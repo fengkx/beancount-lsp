@@ -15,7 +15,7 @@
             },
             {
               "type": "SYMBOL",
-              "name": "new_line"
+              "name": "_new_line"
             },
             {
               "type": "SYMBOL",
@@ -57,6 +57,18 @@
               {
                 "type": "SYMBOL",
                 "name": "document_directive"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "option_directive"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "plugin_directive"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "include_directive"
               }
             ]
           },
@@ -71,7 +83,7 @@
                 },
                 {
                   "type": "SYMBOL",
-                  "name": "new_line"
+                  "name": "_new_line"
                 }
               ]
             }
@@ -379,7 +391,7 @@
         },
         {
           "type": "FIELD",
-          "name": "eventName",
+          "name": "event_name",
           "content": {
             "type": "SYMBOL",
             "name": "str"
@@ -387,7 +399,82 @@
         },
         {
           "type": "FIELD",
-          "name": "eventValue",
+          "name": "event_value",
+          "content": {
+            "type": "SYMBOL",
+            "name": "str"
+          }
+        }
+      ]
+    },
+    "option_directive": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "option"
+        },
+        {
+          "type": "FIELD",
+          "name": "option_name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "str"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "option_value",
+          "content": {
+            "type": "SYMBOL",
+            "name": "str"
+          }
+        }
+      ]
+    },
+    "plugin_directive": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "plugin"
+        },
+        {
+          "type": "FIELD",
+          "name": "module_name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "str"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "plugin_config",
+              "content": {
+                "type": "SYMBOL",
+                "name": "str"
+              }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        }
+      ]
+    },
+    "include_directive": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "include"
+        },
+        {
+          "type": "FIELD",
+          "name": "file_name",
           "content": {
             "type": "SYMBOL",
             "name": "str"
@@ -559,7 +646,7 @@
       "type": "PATTERN",
       "value": ";[^\\n]*"
     },
-    "new_line": {
+    "_new_line": {
       "type": "CHOICE",
       "members": [
         {

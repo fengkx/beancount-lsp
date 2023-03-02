@@ -4,7 +4,7 @@ module.exports = grammar({
   words: ($) => [$._directive_type],
   rules: {
     file: ($) =>
-      prec.right(2, repeat(choice($.directive, $.new_line, $.comment))),
+      prec.right(2, repeat(choice($.directive, $._new_line, $.comment))),
     directive: ($) =>
       prec.right(
         3,
@@ -15,9 +15,12 @@ module.exports = grammar({
             $.event_directive,
             $.price_directive,
             $.note_directive,
-            $.document_directive
+            $.document_directive,
+            $.option_directive,
+            $.plugin_directive,
+            $.include_directive
           ),
-          repeat(choice($.metadata, $.new_line))
+          repeat(choice($.metadata, $._new_line))
         )
       ),
     _directive_type: ($) =>
@@ -71,9 +74,18 @@ module.exports = grammar({
       seq(
         field("date", $.date),
         field("directive_type", token("event")),
-        field("eventName", $.str),
-        field("eventValue", $.str)
+        field("event_name", $.str),
+        field("event_value", $.str)
       ),
+    option_directive: ($) =>
+      seq("option", field("option_name", $.str), field("option_value", $.str)),
+    plugin_directive: ($) =>
+      seq(
+        "plugin",
+        field("module_name", $.str),
+        optional(field("plugin_config", $.str))
+      ),
+    include_directive: ($) => seq("include", field("file_name", $.str)),
     account_name: ($) =>
       seq($.account_type, repeat1(seq(":", /[A-Z][A-Za-z0-9-]*/))),
     // account_name: ($) =>
@@ -109,7 +121,7 @@ module.exports = grammar({
     str: ($) => /"[^"]*"/,
     tag: ($) => token(/#[A-Za-z0-9\-_/.]+/),
     comment: ($) => /;[^\n]*/,
-    new_line: ($) => choice("\n", "\r"),
+    _new_line: ($) => choice("\n", "\r"),
     colon: ($) => ":",
     // Keys must begin with a lowercase character from a-z and may contain (uppercase or lowercase) letters, numbers, dashes and underscores.
   },
