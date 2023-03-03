@@ -1,7 +1,7 @@
 module.exports = grammar({
   name: "beancount",
   extras: ($) => [/( |\r|\t)+/],
-  words: ($) => [$._directive_type],
+  word: ($) => $.identifier,
   rules: {
     file: ($) =>
       prec.right(2, repeat(choice($.directive, $._new_line, $.comment))),
@@ -97,7 +97,28 @@ module.exports = grammar({
     //   ),
     account_type: ($) =>
       choice("Assets", "Expenses", "Liabilities", "Equity", "Income"),
-    txn: ($) => choice("txn", "!", "*", "#"), //TODO:
+    transaction: ($) =>
+      seq(
+        field("date", $.date),
+        field("txn", $.txn),
+        optional($._txn_strings),
+        // TODO: optional flag
+        $.account_name,
+        $.decimal
+      ),
+    // OPTIONAL
+    _txn_strings: ($) =>
+      choice(
+        seq(alias($.str, $.payee), alias($.str, $.narration)),
+        alias($.str, $.narration)
+      ),
+    txn: ($) =>
+      choice(
+        "txn",
+        "!",
+        "*"
+        // , "#"
+      ), //TODO:
     metadata: ($) =>
       prec.left(
         seq(
@@ -116,13 +137,16 @@ module.exports = grammar({
       ),
     date: ($) => /\d{4}-\d{2}-\d{2}/,
     currency: ($) => token(/[A-Z][A-Z0-9'._-]{0,22}[A-Z0-9]/),
-    decimal: ($) => /\d+(\.\d+)?/,
+    decimal: ($) => /-?\d+(\.\d+)?/,
     metadata_key: ($) => seq(field("data_key", /[a-z][A-Za-z0-9-_]*/)),
     str: ($) => /"[^"]*"/,
     tag: ($) => token(/#[A-Za-z0-9\-_/.]+/),
+    link: ($) => token(/\^[A-Za-z0-9\-_/.]+/),
     comment: ($) => /;[^\n]*/,
     _new_line: ($) => choice("\n", "\r"),
     colon: ($) => ":",
+    identifier: ($) => /[a-z]+/,
+
     // Keys must begin with a lowercase character from a-z and may contain (uppercase or lowercase) letters, numbers, dashes and underscores.
   },
 });

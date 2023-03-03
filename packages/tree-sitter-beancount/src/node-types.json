@@ -498,6 +498,11 @@
     }
   },
   {
+    "type": "txn",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "\n",
     "named": false
   },
@@ -507,10 +512,6 @@
   },
   {
     "type": "!",
-    "named": false
-  },
-  {
-    "type": "#",
     "named": false
   },
   {
@@ -578,6 +579,10 @@
     "named": false
   },
   {
+    "type": "narration",
+    "named": true
+  },
+  {
     "type": "note",
     "named": false
   },
@@ -588,6 +593,10 @@
   {
     "type": "option",
     "named": false
+  },
+  {
+    "type": "payee",
+    "named": true
   },
   {
     "type": "plugin",

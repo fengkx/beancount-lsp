@@ -1,5 +1,6 @@
 {
   "name": "beancount",
+  "word": "identifier",
   "rules": {
     "file": {
       "type": "PREC_RIGHT",
@@ -532,6 +533,84 @@
         }
       ]
     },
+    "transaction": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "date",
+          "content": {
+            "type": "SYMBOL",
+            "name": "date"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "txn",
+          "content": {
+            "type": "SYMBOL",
+            "name": "txn"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "_txn_strings"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "SYMBOL",
+          "name": "account_name"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "decimal"
+        }
+      ]
+    },
+    "_txn_strings": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "SYMBOL",
+                "name": "str"
+              },
+              "named": true,
+              "value": "payee"
+            },
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "SYMBOL",
+                "name": "str"
+              },
+              "named": true,
+              "value": "narration"
+            }
+          ]
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "str"
+          },
+          "named": true,
+          "value": "narration"
+        }
+      ]
+    },
     "txn": {
       "type": "CHOICE",
       "members": [
@@ -546,10 +625,6 @@
         {
           "type": "STRING",
           "value": "*"
-        },
-        {
-          "type": "STRING",
-          "value": "#"
         }
       ]
     },
@@ -616,7 +691,7 @@
     },
     "decimal": {
       "type": "PATTERN",
-      "value": "\\d+(\\.\\d+)?"
+      "value": "-?\\d+(\\.\\d+)?"
     },
     "metadata_key": {
       "type": "SEQ",
@@ -642,6 +717,13 @@
         "value": "#[A-Za-z0-9\\-_/.]+"
       }
     },
+    "link": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PATTERN",
+        "value": "\\^[A-Za-z0-9\\-_/.]+"
+      }
+    },
     "comment": {
       "type": "PATTERN",
       "value": ";[^\\n]*"
@@ -662,6 +744,10 @@
     "colon": {
       "type": "STRING",
       "value": ":"
+    },
+    "identifier": {
+      "type": "PATTERN",
+      "value": "[a-z]+"
     }
   },
   "extras": [
