@@ -200,6 +200,10 @@
           "named": true
         },
         {
+          "type": "pad_directive",
+          "named": true
+        },
+        {
           "type": "plugin_directive",
           "named": true
         },
@@ -527,6 +531,52 @@
     }
   },
   {
+    "type": "pad_directive",
+    "named": true,
+    "fields": {
+      "account": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "account_name",
+            "named": true
+          }
+        ]
+      },
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "directive_type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "pad",
+            "named": false
+          }
+        ]
+      },
+      "from_account": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "account_name",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "paren_num_expr",
     "named": true,
     "fields": {},
@@ -793,6 +843,10 @@
   },
   {
     "type": "option",
+    "named": false
+  },
+  {
+    "type": "pad",
     "named": false
   },
   {

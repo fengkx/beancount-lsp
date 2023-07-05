@@ -1,3 +1,5 @@
+/// <reference types="tree-sitter-cli/dsl" />
+
 module.exports = grammar({
   name: "beancount",
   extras: ($) => [/( |\r|\t)+/],
@@ -19,7 +21,8 @@ module.exports = grammar({
             $.option_directive,
             $.plugin_directive,
             $.include_directive,
-            $.balance_directive
+            $.balance_directive,
+            $.pad_directive
           ),
           repeat(choice($.metadata, $._new_line))
         )
@@ -33,6 +36,13 @@ module.exports = grammar({
         token("note"),
         token("document"),
         token("balance")
+      ),
+    pad_directive: ($) =>
+      seq(
+        field("date", $.date),
+        field("directive_type", token("pad")),
+        field("account", $.account_name),
+        field("from_account", $.account_name)
       ),
     balance_directive: ($) =>
       seq(

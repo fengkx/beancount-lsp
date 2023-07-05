@@ -74,6 +74,10 @@
               {
                 "type": "SYMBOL",
                 "name": "balance_directive"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "pad_directive"
               }
             ]
           },
@@ -146,6 +150,46 @@
           "content": {
             "type": "STRING",
             "value": "balance"
+          }
+        }
+      ]
+    },
+    "pad_directive": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "date",
+          "content": {
+            "type": "SYMBOL",
+            "name": "date"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "directive_type",
+          "content": {
+            "type": "TOKEN",
+            "content": {
+              "type": "STRING",
+              "value": "pad"
+            }
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "account",
+          "content": {
+            "type": "SYMBOL",
+            "name": "account_name"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "from_account",
+          "content": {
+            "type": "SYMBOL",
+            "name": "account_name"
           }
         }
       ]

@@ -1,0 +1,18 @@
+===
+Pad directive
+===
+2023-06-01 pad Assets:Funds Income:Invest
+---
+(file
+    (directive
+        (pad_directive
+            (date)
+            (account_name
+                (account_type)
+            )
+            (account_name
+                (account_type)
+            )
+        )
+    )
+)
