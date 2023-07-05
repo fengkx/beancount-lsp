@@ -20,7 +20,7 @@
         "./grammar.js"
       ]
     },
-    "build-wasm": {
+    "build:wasm": {
       "command": "tree-sitter build-wasm",
       "dependencies": [
         "generate"
@@ -32,7 +32,7 @@
         "generate"
       ]
     },
-    "build-node": {
+    "build:node": {
       "command": "node-gyp build",
       "dependencies": [
         "configure"
@@ -41,8 +41,8 @@
     "build": {
       "dependencies": [
         "test",
-        "build-node",
-        "build-wasm"
+        "build:node",
+        "build:wasm"
       ]
     },
     "test": {
@@ -58,7 +58,7 @@
     "playground": {
       "command": "tree-sitter playground",
       "dependencies": [
-        "build-wasm"
+        "build:wasm"
       ],
       "files": [
         "./tree-sitter-beancount.wasm",
