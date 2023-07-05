@@ -1,0 +1,76 @@
+================================================================================
+Simple Balance
+================================================================================
+
+2012-12-12 balance Assets:Test 50.00 EUR
+
+--------------------------------------------------------------------------------
+
+(beancount_file
+  (balance
+    date: (date)
+    account: (account)
+    amount: (amount
+      number: (number)
+      currency: (currency))))
+
+================================================================================
+Balance with computation
+================================================================================
+
+2012-12-12 balance Assets:Test ( 50.00 / 2 ) * 2  EUR
+
+--------------------------------------------------------------------------------
+
+(beancount_file
+  (balance
+    date: (date)
+    account: (account)
+    amount: (amount
+      number: (binary_num_expr
+        (paren_num_expr
+          (binary_num_expr
+            (number)
+            (number)))
+        (number))
+      currency: (currency))))
+
+================================================================================
+Balance with tolerance
+================================================================================
+
+2012-12-12 balance Assets:Test 20 ~ 50.00 EUR
+
+--------------------------------------------------------------------------------
+
+(beancount_file
+  (balance
+    date: (date)
+    account: (account)
+    amount: (amount_with_tolerance
+      number: (number)
+      tolerance: (number)
+      currency: (currency))))
+
+================================================================================
+Balances with Unicode accounts
+================================================================================
+
+2012-12-12 balance Assets:Täaest 50 EUR
+2012-12-12 balance Ässets:Öest 1 EUR
+
+--------------------------------------------------------------------------------
+
+(beancount_file
+  (balance
+    date: (date)
+    account: (account)
+    amount: (amount
+      number: (number)
+      currency: (currency)))
+  (balance
+    date: (date)
+    account: (account)
+    amount: (amount
+      number: (number)
+      currency: (currency))))

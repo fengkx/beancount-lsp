@@ -1,162 +1,295 @@
 /// <reference types="tree-sitter-cli/dsl" />
+/**
+ * A tree-sitter grammar for Beancount.
+ */
+
+const COMMENT = /;.*/;
+const FLAG = /[!&?%PSTCURM*#]/;
+// Entries should always end with an EOL. To avoid parsing errors on
+// whitespace in the following line, include it in the token.
+const EOL = /\n([ \r\t]+\n)?/;
+// the preceding newline is part of the indent token.
+const INDENT = /\n[ \r\t]+/;
 
 module.exports = grammar({
   name: "beancount",
-  extras: ($) => [/( |\r|\t)+/],
-  word: ($) => $.identifier,
+  extras: () => [/[ \t\r]/],
+  conflicts: ($) => [[$.posting], [$.metadata], [$.tags_and_links]],
+
   rules: {
-    file: ($) =>
-      prec.right(2, repeat(choice($.directive, $._new_line, $.comment))),
-    directive: ($) =>
-      prec.right(
-        3,
-        seq(
-          choice(
-            $.open_directive,
-            $.close_directive,
-            $.event_directive,
-            $.price_directive,
-            $.note_directive,
-            $.document_directive,
-            $.option_directive,
-            $.plugin_directive,
-            $.include_directive,
-            $.balance_directive,
-            $.pad_directive
-          ),
-          repeat(choice($.metadata, $._new_line))
-        )
+    // Each Beancount files consists of a list of (un)dated entries, some lines might be skipped.
+    beancount_file: ($) =>
+      repeat(
+        choice($._skipped_lines, $._dated_directives, $._undated_directives),
       ),
-    _directive_type: ($) =>
+    _skipped_lines: () =>
+      choice(seq(FLAG, /.*/, EOL), seq(":", /.*/, EOL), EOL, seq(COMMENT, EOL)),
+
+    // =======================================================================
+    // Undated directives
+    // =======================================================================
+    _undated_directives: ($) =>
       choice(
-        token("open"),
-        token("event"),
-        token("close"),
-        token("price"),
-        token("note"),
-        token("document"),
-        token("balance")
+        $.include,
+        $.option,
+        $.plugin,
+        $.popmeta,
+        $.poptag,
+        $.pushmeta,
+        $.pushtag,
       ),
-    pad_directive: ($) =>
+    include: ($) => seq(alias("include", "INCLUDE"), $.string, EOL),
+    option: ($) =>
+      seq(
+        alias("option", "OPTION"),
+        field("key", $.string),
+        field("value", $.string),
+        EOL,
+      ),
+    plugin: ($) =>
+      seq(
+        alias("plugin", "PLUGIN"),
+        field("name", $.string),
+        field("config", optional($.string)),
+        EOL,
+      ),
+    pushtag: ($) => seq(alias("pushtag", "PUSHTAG"), field("tag", $.tag), EOL),
+    poptag: ($) => seq(alias("poptag", "POPTAG"), field("tag", $.tag), EOL),
+    pushmeta: ($) =>
+      seq(alias("pushmeta", "PUSHMETA"), field("key_value", $.key_value), EOL),
+    popmeta: ($) => seq(alias("popmeta", "POPMETA"), field("key", $.key), EOL),
+
+    // =======================================================================
+    // Dated directives
+    // =======================================================================
+    _dated_directives: ($) =>
+      choice(
+        $.balance,
+        $.close,
+        $.commodity,
+        $.custom,
+        $.document,
+        $.event,
+        $.note,
+        $.open,
+        $.pad,
+        $.price,
+        $.transaction,
+        $.query,
+      ),
+    balance: ($) =>
       seq(
         field("date", $.date),
-        field("directive_type", token("pad")),
-        field("account", $.account_name),
-        field("from_account", $.account_name)
+        alias("balance", "BALANCE"),
+        field("account", $.account),
+        field("amount", choice($.amount, $.amount_with_tolerance)),
+        field("metadata", optional($.metadata)),
+        EOL,
       ),
-    balance_directive: ($) =>
+    close: ($) =>
       seq(
         field("date", $.date),
-        field("directive_type", token("balance")),
-        field("account_name", $.account_name),
-        field("amount", $.amount)
+        alias("close", "CLOSE"),
+        field("account", $.account),
+        field("metadata", optional($.metadata)),
+        EOL,
       ),
-    open_directive: ($) =>
+    commodity: ($) =>
       seq(
         field("date", $.date),
-        field("directive_type", token("open")),
-        field("account_name", $.account_name),
-        field(
-          "currencies",
-          optional(seq($.currency, repeat(seq(",", $.currency))))
-        )
+        alias("commodity", "COMMODITY"),
+        field("currency", $.currency),
+        field("metadata", optional($.metadata)),
+        EOL,
       ),
-    close_directive: ($) =>
+    custom: ($) =>
       seq(
         field("date", $.date),
-        field("directive_type", token("close")),
-        field("account_name", $.account_name)
+        alias("custom", "CUSTOM"),
+        field("name", $.string),
+        repeat(
+          choice($.string, $.date, $.account, $.bool, $.amount, $._num_expr),
+        ),
+        field("metadata", optional($.metadata)),
+        EOL,
       ),
-    price_directive: ($) =>
+    document: ($) =>
       seq(
         field("date", $.date),
-        field("directive_type", token("price")),
-        field("commodity", $.currency),
-        field("price", $._num_expr),
-        field("currency", $.currency)
+        alias("document", "DOCUMENT"),
+        field("account", $.account),
+        field("filename", $.string),
+        field("tags_and_links", optional($.tags_and_links)),
+        field("metadata", optional($.metadata)),
+        EOL,
       ),
-    amount: ($) =>
-      seq(field("number", $._num_expr), field("currency", $.currency)),
-    note_directive: ($) =>
+    event: ($) =>
       seq(
         field("date", $.date),
-        field("directive_type", token("note")),
-        field("account_name", $.account_name),
-        field("note", $.str)
+        alias("event", "EVENT"),
+        field("type", $.string),
+        field("description", $.string),
+        field("metadata", optional($.metadata)),
+        EOL,
       ),
-    document_directive: ($) =>
+    note: ($) =>
       seq(
         field("date", $.date),
-        field("directive_type", token("document")),
-        field("account_name", $.account_name),
-        field("document_path", $.str)
+        alias("note", "NOTE"),
+        field("account", $.account),
+        field("note", $.string),
+        field("metadata", optional($.metadata)),
+        EOL,
       ),
-    event_directive: ($) =>
+    open: ($) =>
       seq(
         field("date", $.date),
-        field("directive_type", token("event")),
-        field("event_name", $.str),
-        field("event_value", $.str)
+        alias("open", "OPEN"),
+        field("account", $.account),
+        field("currencies", optional($.currency_list)),
+        field("booking", optional($.string)),
+        field("metadata", optional($.metadata)),
+        EOL,
       ),
-    option_directive: ($) =>
-      seq("option", field("option_name", $.str), field("option_value", $.str)),
-    plugin_directive: ($) =>
+    pad: ($) =>
       seq(
-        "plugin",
-        field("module_name", $.str),
-        optional(field("plugin_config", $.str))
+        field("date", $.date),
+        alias("pad", "PAD"),
+        field("account", $.account),
+        field("from_account", $.account),
+        field("metadata", optional($.metadata)),
+        EOL,
       ),
-    include_directive: ($) => seq("include", field("file_name", $.str)),
-    account_name: ($) =>
-      seq($.account_type, repeat1(seq(":", /[A-Z][A-Za-z0-9-]*/))),
-    // account_name: ($) =>
-    //   token(
-    //     seq(
-    //       /Assets|Liabilities|Equity|Income|Expenses/,
-    //       repeat1(seq(":", /[\p{Lu}\p{N}][\p{L}\p{N}\-]*/))
-    //     )
-    //   ),
-    account_type: ($) =>
-      choice("Assets", "Expenses", "Liabilities", "Equity", "Income"),
+    price: ($) =>
+      seq(
+        field("date", $.date),
+        alias("price", "PRICE"),
+        field("currency", $.currency),
+        field("amount", $.amount),
+        field("metadata", optional($.metadata)),
+        EOL,
+      ),
     transaction: ($) =>
       seq(
         field("date", $.date),
-        field("txn", $.txn),
-        optional($._txn_strings),
-        // TODO: optional flag
-        $.account_name,
-        $.amount
-      ),
-    // OPTIONAL
-    _txn_strings: ($) =>
-      choice(
-        seq(alias($.str, $.payee), alias($.str, $.narration)),
-        alias($.str, $.narration)
-      ),
-    txn: ($) =>
-      choice(
-        "txn",
-        "!",
-        "*"
-        // , "#"
-      ), //TODO:
-    metadata: ($) =>
-      prec.left(
-        seq(
-          $.metadata_key,
-          field("colon", $.colon),
+        field("flag", $.flag),
+        optional(
           choice(
-            $.str,
-            $._num_expr,
-            $.date,
-            $.currency,
-            $.account_name,
-            $.tag
-            // TODO: more metadata type
-          )
-        )
+            seq(field("payee", $.string), field("narration", $.string)),
+            seq(field("narration", $.string)),
+          ),
+        ),
+        field("tags_and_links", optional($.tags_and_links)),
+        field("metadata", optional($.metadata)),
+        field("postings", $.postings),
+        EOL,
+      ),
+    query: ($) =>
+      seq(
+        field("date", $.date),
+        alias("query", "QUERY"),
+        field("name", $.string),
+        field("query", $.string),
+        field("metadata", optional($.metadata)),
+        EOL,
       ),
 
+    // =======================================================================
+    // Postings
+    // =======================================================================
+    cost: ($) =>
+      seq("{", field("cost_comp_list", optional($._cost_comp_list)), "}"),
+    total_cost: ($) =>
+      seq("{{", field("cost_comp_list", optional($._cost_comp_list)), "}}"),
+    _cost_comp_list: ($) => seq($._cost_comp, repeat(seq(",", $._cost_comp))),
+    _cost_comp: ($) =>
+      choice(
+        field("merge", alias("*", $.merge)),
+        field("date", $.date),
+        field("string", $.string),
+        field("compound_amount", $.compound_amount),
+      ),
+    compound_amount: ($) =>
+      choice(
+        seq(
+          field("number_per", optional($._num_expr)),
+          field("currency", $.currency),
+        ),
+        seq(
+          field("number_per", $._num_expr),
+          field("currency", optional($.currency)),
+        ),
+        seq(
+          field("number_per", optional($._num_expr)),
+          "#",
+          field("number_total", optional($._num_expr)),
+          field("currency", $.currency),
+        ),
+      ),
+    incomplete_amount: ($) =>
+      choice(field("number", $._num_expr), field("currency", $.currency)),
+    price_annotation: ($) =>
+      seq("@", optional(choice($.amount, $.incomplete_amount))),
+    total_price_annotation: ($) =>
+      seq("@@", optional(choice($.amount, $.incomplete_amount))),
+    posting: ($) =>
+      seq(
+        INDENT,
+        field("flag", optional($.flag)),
+        field("account", $.account),
+        field("amount", optional(choice($.amount, $.incomplete_amount))),
+        field("cost_spec", optional(choice($.cost, $.total_cost))),
+        field(
+          "price_annotation",
+          optional(choice($.price_annotation, $.total_price_annotation)),
+        ),
+        optional(COMMENT),
+        field("metadata", optional($.metadata)),
+      ),
+    postings: ($) => repeat1(choice($.posting, seq(INDENT, COMMENT))),
+
+    // =======================================================================
+    // Various building blocks
+    // =======================================================================
+    tags_and_links: ($) =>
+      repeat1(seq(optional(INDENT), choice($.tag, $.link))),
+    currency_list: ($) => seq($.currency, repeat(seq(",", $.currency))),
+    metadata: ($) => repeat1(seq(INDENT, $.key_value)),
+    key_value: ($) =>
+      seq(
+        field("key", $.key),
+        field(
+          "value",
+          optional(
+            choice(
+              $.string,
+              $.account,
+              $.date,
+              $.currency,
+              $.tag,
+              $.bool,
+              $._num_expr,
+              $.amount,
+            ),
+          ),
+        ),
+      ),
+    amount: ($) =>
+      seq(field("number", $._num_expr), field("currency", $.currency)),
+    amount_with_tolerance: ($) =>
+      seq(
+        field("number", $._num_expr),
+        "~",
+        field("tolerance", $._num_expr),
+        field("currency", $.currency),
+      ),
+
+    // =======================================================================
+    // Numerical expressions
+    // =======================================================================
+    // Since the following node is hidden in the syntax trees, we need to ensure that it
+    // always consists of one node. Otherwise, accessing the children by index
+    // cannot work.
     _num_expr: ($) =>
       choice($.number, $.paren_num_expr, $.unary_num_expr, $.binary_num_expr),
     paren_num_expr: ($) => seq("(", $._num_expr, ")"),
@@ -167,20 +300,38 @@ module.exports = grammar({
         prec.left(2, seq($._num_expr, "*", $._num_expr)),
         prec.left(2, seq($._num_expr, "/", $._num_expr)),
         prec.left(1, seq($._num_expr, "+", $._num_expr)),
-        prec.left(1, seq($._num_expr, "-", $._num_expr))
+        prec.left(1, seq($._num_expr, "-", $._num_expr)),
       ),
-    date: ($) => /\d{4}-\d{2}-\d{2}/,
-    currency: ($) => token(/[A-Z][A-Z0-9'._-]{0,22}[A-Z0-9]/),
-    number: ($) => /-?\d+(\.\d+)?/,
-    metadata_key: ($) => seq(field("data_key", /[a-z][A-Za-z0-9-_]*/)),
-    str: ($) => /"[^"]*"/,
-    tag: ($) => token(/#[A-Za-z0-9\-_/.]+/),
-    link: ($) => token(/\^[A-Za-z0-9\-_/.]+/),
-    comment: ($) => /;[^\n]*/,
-    _new_line: ($) => choice("\n", "\r"),
-    colon: ($) => ":",
-    identifier: ($) => /[a-z]+/,
 
-    // Keys must begin with a lowercase character from a-z and may contain (uppercase or lowercase) letters, numbers, dashes and underscores.
+    // =======================================================================
+    // Tokens
+    // =======================================================================
+    bool: () => token(/TRUE|FALSE/),
+    date: () => token(/[0-9][0-9][0-9][0-9][\-/][0-9][0-9][\-/][0-9][0-9]/),
+    key: () => token(/[a-z][a-zA-Z0-9\-_]+:/),
+    tag: () => token(/#[A-Za-z0-9\-_/.]+/),
+    link: () => token(/\^[A-Za-z0-9\-_/.]+/),
+    string: () => token(/"[^"]*"/),
+    currency: () => token(/[A-Z][A-Z0-9\'\._\-]{0,22}[A-Z0-9]/),
+    number: () => token(/([0-9]+|[0-9][0-9,]+[0-9])(\.[0-9]*)?/),
+    flag: () => token(FLAG),
+    account: () =>
+      token(
+        seq(
+          /[A-Z]|[^\x00-\x7F]/,
+          repeat(/[A-Za-z0-9\-]|[^\x00-\x7F]/),
+          repeat1(
+            seq(
+              ":",
+              /[A-Z0-9]|[^\x00-\x7F]/,
+              repeat(/[A-Za-z0-9\-]|[^\x00-\x7F]/),
+            ),
+          ),
+        ),
+      ),
+    // TODO:
+    // "Correct" UTF-8-aware token rule for accounts. This could be feasible now:
+    // https://github.com/tree-sitter/tree-sitter/issues/464
+    // token(seq(/\p{Lu}[0-9\-\p{L}]*/u, repeat1(/:[0-9\p{Lu}][0-9\-\p{L}]*/u)));
   },
 });

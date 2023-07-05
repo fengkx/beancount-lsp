@@ -1,0 +1,53 @@
+================================================================================
+Balance with some comment lines
+================================================================================
+
+; this is a comment
+* this also
+2012-12-12 balance Assets:Test 50.00 EUR
+
+; one more comment
+
+--------------------------------------------------------------------------------
+
+(beancount_file
+  (balance
+    date: (date)
+    account: (account)
+    amount: (amount
+      number: (number)
+      currency: (currency))))
+
+================================================================================
+Transaction with some comment lines
+================================================================================
+
+; this is a comment
+* this also
+
+2012-12-12 * "asdf"
+    ; one more comment
+    Assets:Test  30.00 EUR
+    ; inline comment
+    Assets:Test  -30.00 USD
+; one more comment
+
+--------------------------------------------------------------------------------
+
+(beancount_file
+  (transaction
+    date: (date)
+    flag: (flag)
+    narration: (string)
+    postings: (postings
+      (posting
+        account: (account)
+        amount: (amount
+          number: (number)
+          currency: (currency)))
+      (posting
+        account: (account)
+        amount: (amount
+          number: (unary_num_expr
+            (number))
+          currency: (currency))))))
