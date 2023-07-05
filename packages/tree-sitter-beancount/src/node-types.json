@@ -1,25 +1,5 @@
 [
   {
-    "type": "account_name",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "account_type",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "account_type",
-    "named": true,
-    "fields": {}
-  },
-  {
     "type": "amount",
     "named": true,
     "fields": {
@@ -58,15 +38,75 @@
     }
   },
   {
-    "type": "balance_directive",
+    "type": "amount_with_tolerance",
     "named": true,
     "fields": {
-      "account_name": {
+      "currency": {
         "multiple": false,
         "required": true,
         "types": [
           {
-            "type": "account_name",
+            "type": "currency",
+            "named": true
+          }
+        ]
+      },
+      "number": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "binary_num_expr",
+            "named": true
+          },
+          {
+            "type": "number",
+            "named": true
+          },
+          {
+            "type": "paren_num_expr",
+            "named": true
+          },
+          {
+            "type": "unary_num_expr",
+            "named": true
+          }
+        ]
+      },
+      "tolerance": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "binary_num_expr",
+            "named": true
+          },
+          {
+            "type": "number",
+            "named": true
+          },
+          {
+            "type": "paren_num_expr",
+            "named": true
+          },
+          {
+            "type": "unary_num_expr",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "balance",
+    "named": true,
+    "fields": {
+      "account": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "account",
             "named": true
           }
         ]
@@ -77,6 +117,10 @@
         "types": [
           {
             "type": "amount",
+            "named": true
+          },
+          {
+            "type": "amount_with_tolerance",
             "named": true
           }
         ]
@@ -91,16 +135,103 @@
           }
         ]
       },
-      "directive_type": {
+      "metadata": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
-            "type": "balance",
-            "named": false
+            "type": "metadata",
+            "named": true
           }
         ]
       }
+    }
+  },
+  {
+    "type": "beancount_file",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "balance",
+          "named": true
+        },
+        {
+          "type": "close",
+          "named": true
+        },
+        {
+          "type": "commodity",
+          "named": true
+        },
+        {
+          "type": "custom",
+          "named": true
+        },
+        {
+          "type": "document",
+          "named": true
+        },
+        {
+          "type": "event",
+          "named": true
+        },
+        {
+          "type": "include",
+          "named": true
+        },
+        {
+          "type": "note",
+          "named": true
+        },
+        {
+          "type": "open",
+          "named": true
+        },
+        {
+          "type": "option",
+          "named": true
+        },
+        {
+          "type": "pad",
+          "named": true
+        },
+        {
+          "type": "plugin",
+          "named": true
+        },
+        {
+          "type": "popmeta",
+          "named": true
+        },
+        {
+          "type": "poptag",
+          "named": true
+        },
+        {
+          "type": "price",
+          "named": true
+        },
+        {
+          "type": "pushmeta",
+          "named": true
+        },
+        {
+          "type": "pushtag",
+          "named": true
+        },
+        {
+          "type": "query",
+          "named": true
+        },
+        {
+          "type": "transaction",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -131,15 +262,15 @@
     }
   },
   {
-    "type": "close_directive",
+    "type": "close",
     "named": true,
     "fields": {
-      "account_name": {
+      "account": {
         "multiple": false,
         "required": true,
         "types": [
           {
-            "type": "account_name",
+            "type": "account",
             "named": true
           }
         ]
@@ -154,344 +285,26 @@
           }
         ]
       },
-      "directive_type": {
+      "metadata": {
         "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "close",
-            "named": false
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "colon",
-    "named": true,
-    "fields": {}
-  },
-  {
-    "type": "directive",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "balance_directive",
-          "named": true
-        },
-        {
-          "type": "close_directive",
-          "named": true
-        },
-        {
-          "type": "document_directive",
-          "named": true
-        },
-        {
-          "type": "event_directive",
-          "named": true
-        },
-        {
-          "type": "include_directive",
-          "named": true
-        },
-        {
-          "type": "metadata",
-          "named": true
-        },
-        {
-          "type": "note_directive",
-          "named": true
-        },
-        {
-          "type": "open_directive",
-          "named": true
-        },
-        {
-          "type": "option_directive",
-          "named": true
-        },
-        {
-          "type": "pad_directive",
-          "named": true
-        },
-        {
-          "type": "plugin_directive",
-          "named": true
-        },
-        {
-          "type": "price_directive",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "document_directive",
-    "named": true,
-    "fields": {
-      "account_name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "account_name",
-            "named": true
-          }
-        ]
-      },
-      "date": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "date",
-            "named": true
-          }
-        ]
-      },
-      "directive_type": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "document",
-            "named": false
-          }
-        ]
-      },
-      "document_path": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "str",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "event_directive",
-    "named": true,
-    "fields": {
-      "date": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "date",
-            "named": true
-          }
-        ]
-      },
-      "directive_type": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "event",
-            "named": false
-          }
-        ]
-      },
-      "event_name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "str",
-            "named": true
-          }
-        ]
-      },
-      "event_value": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "str",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "file",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "comment",
-          "named": true
-        },
-        {
-          "type": "directive",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "include_directive",
-    "named": true,
-    "fields": {
-      "file_name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "str",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "metadata",
-    "named": true,
-    "fields": {
-      "colon": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "colon",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "account_name",
-          "named": true
-        },
-        {
-          "type": "binary_num_expr",
-          "named": true
-        },
-        {
-          "type": "currency",
-          "named": true
-        },
-        {
-          "type": "date",
-          "named": true
-        },
-        {
-          "type": "metadata_key",
-          "named": true
-        },
-        {
-          "type": "number",
-          "named": true
-        },
-        {
-          "type": "paren_num_expr",
-          "named": true
-        },
-        {
-          "type": "str",
-          "named": true
-        },
-        {
-          "type": "tag",
-          "named": true
-        },
-        {
-          "type": "unary_num_expr",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "metadata_key",
-    "named": true,
-    "fields": {}
-  },
-  {
-    "type": "note_directive",
-    "named": true,
-    "fields": {
-      "account_name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "account_name",
-            "named": true
-          }
-        ]
-      },
-      "date": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "date",
-            "named": true
-          }
-        ]
-      },
-      "directive_type": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "note",
-            "named": false
-          }
-        ]
-      },
-      "note": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "str",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "open_directive",
-    "named": true,
-    "fields": {
-      "account_name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "account_name",
-            "named": true
-          }
-        ]
-      },
-      "currencies": {
-        "multiple": true,
         "required": false,
         "types": [
           {
-            "type": ",",
-            "named": false
-          },
+            "type": "metadata",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "commodity",
+    "named": true,
+    "fields": {
+      "currency": {
+        "multiple": false,
+        "required": true,
+        "types": [
           {
             "type": "currency",
             "named": true
@@ -508,38 +321,72 @@
           }
         ]
       },
-      "directive_type": {
+      "metadata": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
-            "type": "open",
-            "named": false
+            "type": "metadata",
+            "named": true
           }
         ]
       }
     }
   },
   {
-    "type": "option_directive",
+    "type": "compound_amount",
     "named": true,
     "fields": {
-      "option_name": {
+      "currency": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
-            "type": "str",
+            "type": "currency",
             "named": true
           }
         ]
       },
-      "option_value": {
+      "number_per": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
-            "type": "str",
+            "type": "binary_num_expr",
+            "named": true
+          },
+          {
+            "type": "number",
+            "named": true
+          },
+          {
+            "type": "paren_num_expr",
+            "named": true
+          },
+          {
+            "type": "unary_num_expr",
+            "named": true
+          }
+        ]
+      },
+      "number_total": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "binary_num_expr",
+            "named": true
+          },
+          {
+            "type": "number",
+            "named": true
+          },
+          {
+            "type": "paren_num_expr",
+            "named": true
+          },
+          {
+            "type": "unary_num_expr",
             "named": true
           }
         ]
@@ -547,7 +394,172 @@
     }
   },
   {
-    "type": "pad_directive",
+    "type": "cost",
+    "named": true,
+    "fields": {
+      "compound_amount": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "compound_amount",
+            "named": true
+          }
+        ]
+      },
+      "cost_comp_list": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": ",",
+            "named": false
+          },
+          {
+            "type": "compound_amount",
+            "named": true
+          },
+          {
+            "type": "date",
+            "named": true
+          },
+          {
+            "type": "merge",
+            "named": true
+          },
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "date": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "merge": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "merge",
+            "named": true
+          }
+        ]
+      },
+      "string": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "currency_list",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "currency",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "custom",
+    "named": true,
+    "fields": {
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "metadata": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "metadata",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "account",
+          "named": true
+        },
+        {
+          "type": "amount",
+          "named": true
+        },
+        {
+          "type": "binary_num_expr",
+          "named": true
+        },
+        {
+          "type": "bool",
+          "named": true
+        },
+        {
+          "type": "date",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_num_expr",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "unary_num_expr",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "document",
     "named": true,
     "fields": {
       "account": {
@@ -555,7 +567,7 @@
         "required": true,
         "types": [
           {
-            "type": "account_name",
+            "type": "account",
             "named": true
           }
         ]
@@ -570,13 +582,372 @@
           }
         ]
       },
-      "directive_type": {
+      "filename": {
         "multiple": false,
         "required": true,
         "types": [
           {
-            "type": "pad",
-            "named": false
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "metadata": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "metadata",
+            "named": true
+          }
+        ]
+      },
+      "tags_and_links": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "tags_and_links",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "event",
+    "named": true,
+    "fields": {
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "description": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "metadata": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "metadata",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "flag",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "include",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "incomplete_amount",
+    "named": true,
+    "fields": {
+      "currency": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "currency",
+            "named": true
+          }
+        ]
+      },
+      "number": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "binary_num_expr",
+            "named": true
+          },
+          {
+            "type": "number",
+            "named": true
+          },
+          {
+            "type": "paren_num_expr",
+            "named": true
+          },
+          {
+            "type": "unary_num_expr",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "key_value",
+    "named": true,
+    "fields": {
+      "key": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "key",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "account",
+            "named": true
+          },
+          {
+            "type": "amount",
+            "named": true
+          },
+          {
+            "type": "binary_num_expr",
+            "named": true
+          },
+          {
+            "type": "bool",
+            "named": true
+          },
+          {
+            "type": "currency",
+            "named": true
+          },
+          {
+            "type": "date",
+            "named": true
+          },
+          {
+            "type": "number",
+            "named": true
+          },
+          {
+            "type": "paren_num_expr",
+            "named": true
+          },
+          {
+            "type": "string",
+            "named": true
+          },
+          {
+            "type": "tag",
+            "named": true
+          },
+          {
+            "type": "unary_num_expr",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "metadata",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "key_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "note",
+    "named": true,
+    "fields": {
+      "account": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "account",
+            "named": true
+          }
+        ]
+      },
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "metadata": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "metadata",
+            "named": true
+          }
+        ]
+      },
+      "note": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "open",
+    "named": true,
+    "fields": {
+      "account": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "account",
+            "named": true
+          }
+        ]
+      },
+      "booking": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "currencies": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "currency_list",
+            "named": true
+          }
+        ]
+      },
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "metadata": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "metadata",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "option",
+    "named": true,
+    "fields": {
+      "key": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "pad",
+    "named": true,
+    "fields": {
+      "account": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "account",
+            "named": true
+          }
+        ]
+      },
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
           }
         ]
       },
@@ -585,7 +956,17 @@
         "required": true,
         "types": [
           {
-            "type": "account_name",
+            "type": "account",
+            "named": true
+          }
+        ]
+      },
+      "metadata": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "metadata",
             "named": true
           }
         ]
@@ -620,25 +1001,25 @@
     }
   },
   {
-    "type": "plugin_directive",
+    "type": "plugin",
     "named": true,
     "fields": {
-      "module_name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "str",
-            "named": true
-          }
-        ]
-      },
-      "plugin_config": {
+      "config": {
         "multiple": false,
         "required": false,
         "types": [
           {
-            "type": "str",
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
             "named": true
           }
         ]
@@ -646,15 +1027,140 @@
     }
   },
   {
-    "type": "price_directive",
+    "type": "popmeta",
     "named": true,
     "fields": {
-      "commodity": {
+      "key": {
         "multiple": false,
         "required": true,
         "types": [
           {
-            "type": "currency",
+            "type": "key",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "poptag",
+    "named": true,
+    "fields": {
+      "tag": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "tag",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "posting",
+    "named": true,
+    "fields": {
+      "account": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "account",
+            "named": true
+          }
+        ]
+      },
+      "amount": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "amount",
+            "named": true
+          },
+          {
+            "type": "incomplete_amount",
+            "named": true
+          }
+        ]
+      },
+      "cost_spec": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "cost",
+            "named": true
+          },
+          {
+            "type": "total_cost",
+            "named": true
+          }
+        ]
+      },
+      "flag": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "flag",
+            "named": true
+          }
+        ]
+      },
+      "metadata": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "metadata",
+            "named": true
+          }
+        ]
+      },
+      "price_annotation": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "price_annotation",
+            "named": true
+          },
+          {
+            "type": "total_price_annotation",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "postings",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "posting",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "price",
+    "named": true,
+    "fields": {
+      "amount": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "amount",
             "named": true
           }
         ]
@@ -679,34 +1185,12 @@
           }
         ]
       },
-      "directive_type": {
+      "metadata": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
-            "type": "price",
-            "named": false
-          }
-        ]
-      },
-      "price": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "binary_num_expr",
-            "named": true
-          },
-          {
-            "type": "number",
-            "named": true
-          },
-          {
-            "type": "paren_num_expr",
-            "named": true
-          },
-          {
-            "type": "unary_num_expr",
+            "type": "metadata",
             "named": true
           }
         ]
@@ -714,9 +1198,287 @@
     }
   },
   {
-    "type": "txn",
+    "type": "price_annotation",
     "named": true,
-    "fields": {}
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "amount",
+          "named": true
+        },
+        {
+          "type": "incomplete_amount",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "pushmeta",
+    "named": true,
+    "fields": {
+      "key_value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "key_value",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "pushtag",
+    "named": true,
+    "fields": {
+      "tag": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "tag",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "query",
+    "named": true,
+    "fields": {
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "metadata": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "metadata",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "query": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "tags_and_links",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "link",
+          "named": true
+        },
+        {
+          "type": "tag",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "total_cost",
+    "named": true,
+    "fields": {
+      "compound_amount": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "compound_amount",
+            "named": true
+          }
+        ]
+      },
+      "cost_comp_list": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": ",",
+            "named": false
+          },
+          {
+            "type": "compound_amount",
+            "named": true
+          },
+          {
+            "type": "date",
+            "named": true
+          },
+          {
+            "type": "merge",
+            "named": true
+          },
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "date": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "merge": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "merge",
+            "named": true
+          }
+        ]
+      },
+      "string": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "total_price_annotation",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "amount",
+          "named": true
+        },
+        {
+          "type": "incomplete_amount",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "transaction",
+    "named": true,
+    "fields": {
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "flag": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "flag",
+            "named": true
+          }
+        ]
+      },
+      "metadata": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "metadata",
+            "named": true
+          }
+        ]
+      },
+      "narration": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "payee": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "postings": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "postings",
+            "named": true
+          }
+        ]
+      },
+      "tags_and_links": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "tags_and_links",
+            "named": true
+          }
+        ]
+      }
+    }
   },
   {
     "type": "unary_num_expr",
@@ -746,15 +1508,7 @@
     }
   },
   {
-    "type": "\n",
-    "named": false
-  },
-  {
-    "type": "\r",
-    "named": false
-  },
-  {
-    "type": "!",
+    "type": "#",
     "named": false
   },
   {
@@ -790,35 +1544,91 @@
     "named": false
   },
   {
-    "type": "Assets",
+    "type": "@",
     "named": false
   },
   {
-    "type": "Equity",
+    "type": "@@",
     "named": false
   },
   {
-    "type": "Expenses",
+    "type": "BALANCE",
     "named": false
   },
   {
-    "type": "Income",
+    "type": "CLOSE",
     "named": false
   },
   {
-    "type": "Liabilities",
+    "type": "COMMODITY",
     "named": false
   },
   {
-    "type": "balance",
+    "type": "CUSTOM",
     "named": false
   },
   {
-    "type": "close",
+    "type": "DOCUMENT",
     "named": false
   },
   {
-    "type": "comment",
+    "type": "EVENT",
+    "named": false
+  },
+  {
+    "type": "INCLUDE",
+    "named": false
+  },
+  {
+    "type": "NOTE",
+    "named": false
+  },
+  {
+    "type": "OPEN",
+    "named": false
+  },
+  {
+    "type": "OPTION",
+    "named": false
+  },
+  {
+    "type": "PAD",
+    "named": false
+  },
+  {
+    "type": "PLUGIN",
+    "named": false
+  },
+  {
+    "type": "POPMETA",
+    "named": false
+  },
+  {
+    "type": "POPTAG",
+    "named": false
+  },
+  {
+    "type": "PRICE",
+    "named": false
+  },
+  {
+    "type": "PUSHMETA",
+    "named": false
+  },
+  {
+    "type": "PUSHTAG",
+    "named": false
+  },
+  {
+    "type": "QUERY",
+    "named": false
+  },
+  {
+    "type": "account",
+    "named": true
+  },
+  {
+    "type": "bool",
     "named": true
   },
   {
@@ -830,55 +1640,23 @@
     "named": true
   },
   {
-    "type": "document",
-    "named": false
-  },
-  {
-    "type": "event",
-    "named": false
-  },
-  {
-    "type": "include",
-    "named": false
-  },
-  {
-    "type": "narration",
+    "type": "key",
     "named": true
   },
   {
-    "type": "note",
-    "named": false
+    "type": "link",
+    "named": true
+  },
+  {
+    "type": "merge",
+    "named": true
   },
   {
     "type": "number",
     "named": true
   },
   {
-    "type": "open",
-    "named": false
-  },
-  {
-    "type": "option",
-    "named": false
-  },
-  {
-    "type": "pad",
-    "named": false
-  },
-  {
-    "type": "payee",
-    "named": true
-  },
-  {
-    "type": "plugin",
-    "named": false
-  },
-  {
-    "type": "price",
-    "named": false
-  },
-  {
-    "type": "str",
+    "type": "string",
     "named": true
   },
   {
@@ -886,7 +1664,23 @@
     "named": true
   },
   {
-    "type": "txn",
+    "type": "{",
+    "named": false
+  },
+  {
+    "type": "{{",
+    "named": false
+  },
+  {
+    "type": "}",
+    "named": false
+  },
+  {
+    "type": "}}",
+    "named": false
+  },
+  {
+    "type": "~",
     "named": false
   }
 ]

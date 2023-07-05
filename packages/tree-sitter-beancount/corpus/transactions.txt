@@ -1,0 +1,190 @@
+================================================================================
+Simple transactions
+================================================================================
+
+2012-12-12 * "asdf"
+    Assets:Test  30.00 EUR
+    Assets:Test  -30.00 USD
+
+2012-12-12 * "asdf"
+    Assets:Test  30.00 EUR
+    Assets:Test
+
+2012-12-12 * "asdf"
+    Assets:Test  30.00 EUR
+    Assets:Test   ; comment in posting line
+
+--------------------------------------------------------------------------------
+
+(beancount_file
+  (transaction
+    date: (date)
+    flag: (flag)
+    narration: (string)
+    postings: (postings
+      (posting
+        account: (account)
+        amount: (amount
+          number: (number)
+          currency: (currency)))
+      (posting
+        account: (account)
+        amount: (amount
+          number: (unary_num_expr
+            (number))
+          currency: (currency)))))
+  (transaction
+    date: (date)
+    flag: (flag)
+    narration: (string)
+    postings: (postings
+      (posting
+        account: (account)
+        amount: (amount
+          number: (number)
+          currency: (currency)))
+      (posting
+        account: (account))))
+  (transaction
+    date: (date)
+    flag: (flag)
+    narration: (string)
+    postings: (postings
+      (posting
+        account: (account)
+        amount: (amount
+          number: (number)
+          currency: (currency)))
+      (posting
+        account: (account)))))
+
+================================================================================
+Transaction with cost spec
+================================================================================
+
+2012-12-12 * "asdf"
+    Assets:Test  30.00 EUR {2012-12-12, "lot-name"}
+    Assets:Test  30.00 EUR {30.00 USD}
+    Assets:Test  30.00 EUR {30.00 # 20 USD}
+    Assets:Test  30.00 {*}
+    Assets:Test
+
+--------------------------------------------------------------------------------
+
+(beancount_file
+  (transaction
+    date: (date)
+    flag: (flag)
+    narration: (string)
+    postings: (postings
+      (posting
+        account: (account)
+        amount: (amount
+          number: (number)
+          currency: (currency))
+        cost_spec: (cost
+          date: (date)
+          string: (string)))
+      (posting
+        account: (account)
+        amount: (amount
+          number: (number)
+          currency: (currency))
+        cost_spec: (cost
+          compound_amount: (compound_amount
+            number_per: (number)
+            currency: (currency))))
+      (posting
+        account: (account)
+        amount: (amount
+          number: (number)
+          currency: (currency))
+        cost_spec: (cost
+          compound_amount: (compound_amount
+            number_per: (number)
+            number_total: (number)
+            currency: (currency))))
+      (posting
+        account: (account)
+        amount: (incomplete_amount
+          number: (number))
+        cost_spec: (cost
+          merge: (merge)))
+      (posting
+        account: (account)))))
+
+================================================================================
+Transaction
+================================================================================
+
+2012-12-12 * "asdf"
+    Assets:Test  30.00 EUR
+    Assets:Test  30.00
+    Assets:Test  30.00 {}
+    Assets:Test  30.00 EUR {} @
+    Assets:Test  30.00 {} @@
+    Assets:Test  30.00 {{}} @@
+    Assets:Test  10.00 EUR {20.00 USD} @ 20.00 USD
+    Assets:Test  EUR
+    Assets:Test
+
+--------------------------------------------------------------------------------
+
+(beancount_file
+  (transaction
+    date: (date)
+    flag: (flag)
+    narration: (string)
+    postings: (postings
+      (posting
+        account: (account)
+        amount: (amount
+          number: (number)
+          currency: (currency)))
+      (posting
+        account: (account)
+        amount: (incomplete_amount
+          number: (number)))
+      (posting
+        account: (account)
+        amount: (incomplete_amount
+          number: (number))
+        cost_spec: (cost))
+      (posting
+        account: (account)
+        amount: (amount
+          number: (number)
+          currency: (currency))
+        cost_spec: (cost)
+        price_annotation: (price_annotation))
+      (posting
+        account: (account)
+        amount: (incomplete_amount
+          number: (number))
+        cost_spec: (cost)
+        price_annotation: (total_price_annotation))
+      (posting
+        account: (account)
+        amount: (incomplete_amount
+          number: (number))
+        cost_spec: (total_cost)
+        price_annotation: (total_price_annotation))
+      (posting
+        account: (account)
+        amount: (amount
+          number: (number)
+          currency: (currency))
+        cost_spec: (cost
+          compound_amount: (compound_amount
+            number_per: (number)
+            currency: (currency)))
+        price_annotation: (price_annotation
+          (amount
+            number: (number)
+            currency: (currency))))
+      (posting
+        account: (account)
+        amount: (incomplete_amount
+          currency: (currency)))
+      (posting
+        account: (account)))))
