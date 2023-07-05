@@ -28,7 +28,7 @@ Open directive with metadata
         (metadata
           (metadata_key)
           colon: (colon)
-          (decimal))))
+          (number))))
 
 ======
 Multiple open directives with comments

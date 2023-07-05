@@ -20,6 +20,101 @@
     "fields": {}
   },
   {
+    "type": "balance_directive",
+    "named": true,
+    "fields": {
+      "account_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "account_name",
+            "named": true
+          }
+        ]
+      },
+      "amount": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "binary_num_expr",
+            "named": true
+          },
+          {
+            "type": "number",
+            "named": true
+          },
+          {
+            "type": "paren_num_expr",
+            "named": true
+          },
+          {
+            "type": "unary_num_expr",
+            "named": true
+          }
+        ]
+      },
+      "currency": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "currency",
+            "named": true
+          }
+        ]
+      },
+      "date": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "date",
+            "named": true
+          }
+        ]
+      },
+      "directive_type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "balance",
+            "named": false
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "binary_num_expr",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "binary_num_expr",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_num_expr",
+          "named": true
+        },
+        {
+          "type": "unary_num_expr",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "close_directive",
     "named": true,
     "fields": {
@@ -68,6 +163,10 @@
       "multiple": true,
       "required": true,
       "types": [
+        {
+          "type": "balance_directive",
+          "named": true
+        },
         {
           "type": "close_directive",
           "named": true
@@ -262,6 +361,10 @@
           "named": true
         },
         {
+          "type": "binary_num_expr",
+          "named": true
+        },
+        {
           "type": "currency",
           "named": true
         },
@@ -270,11 +373,15 @@
           "named": true
         },
         {
-          "type": "decimal",
+          "type": "metadata_key",
           "named": true
         },
         {
-          "type": "metadata_key",
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_num_expr",
           "named": true
         },
         {
@@ -283,6 +390,10 @@
         },
         {
           "type": "tag",
+          "named": true
+        },
+        {
+          "type": "unary_num_expr",
           "named": true
         }
       ]
@@ -416,6 +527,33 @@
     }
   },
   {
+    "type": "paren_num_expr",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "binary_num_expr",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_num_expr",
+          "named": true
+        },
+        {
+          "type": "unary_num_expr",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "plugin_directive",
     "named": true,
     "fields": {
@@ -490,7 +628,19 @@
         "required": true,
         "types": [
           {
-            "type": "decimal",
+            "type": "binary_num_expr",
+            "named": true
+          },
+          {
+            "type": "number",
+            "named": true
+          },
+          {
+            "type": "paren_num_expr",
+            "named": true
+          },
+          {
+            "type": "unary_num_expr",
             "named": true
           }
         ]
@@ -501,6 +651,33 @@
     "type": "txn",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "unary_num_expr",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "binary_num_expr",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_num_expr",
+          "named": true
+        },
+        {
+          "type": "unary_num_expr",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "\n",
@@ -515,11 +692,31 @@
     "named": false
   },
   {
+    "type": "(",
+    "named": false
+  },
+  {
+    "type": ")",
+    "named": false
+  },
+  {
     "type": "*",
     "named": false
   },
   {
+    "type": "+",
+    "named": false
+  },
+  {
     "type": ",",
+    "named": false
+  },
+  {
+    "type": "-",
+    "named": false
+  },
+  {
+    "type": "/",
     "named": false
   },
   {
@@ -547,6 +744,10 @@
     "named": false
   },
   {
+    "type": "balance",
+    "named": false
+  },
+  {
     "type": "close",
     "named": false
   },
@@ -560,10 +761,6 @@
   },
   {
     "type": "date",
-    "named": true
-  },
-  {
-    "type": "decimal",
     "named": true
   },
   {
@@ -585,6 +782,10 @@
   {
     "type": "note",
     "named": false
+  },
+  {
+    "type": "number",
+    "named": true
   },
   {
     "type": "open",

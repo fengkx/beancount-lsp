@@ -70,6 +70,10 @@
               {
                 "type": "SYMBOL",
                 "name": "include_directive"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "balance_directive"
               }
             ]
           },
@@ -135,6 +139,61 @@
           "content": {
             "type": "STRING",
             "value": "document"
+          }
+        },
+        {
+          "type": "TOKEN",
+          "content": {
+            "type": "STRING",
+            "value": "balance"
+          }
+        }
+      ]
+    },
+    "balance_directive": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "date",
+          "content": {
+            "type": "SYMBOL",
+            "name": "date"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "directive_type",
+          "content": {
+            "type": "TOKEN",
+            "content": {
+              "type": "STRING",
+              "value": "balance"
+            }
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "account_name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "account_name"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "amount",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_num_expr"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "currency",
+          "content": {
+            "type": "SYMBOL",
+            "name": "currency"
           }
         }
       ]
@@ -275,7 +334,7 @@
           "name": "price",
           "content": {
             "type": "SYMBOL",
-            "name": "decimal"
+            "name": "_num_expr"
           }
         },
         {
@@ -570,7 +629,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "decimal"
+          "name": "_num_expr"
         }
       ]
     },
@@ -655,7 +714,7 @@
               },
               {
                 "type": "SYMBOL",
-                "name": "decimal"
+                "name": "_num_expr"
               },
               {
                 "type": "SYMBOL",
@@ -678,6 +737,168 @@
         ]
       }
     },
+    "_num_expr": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "number"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "paren_num_expr"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "unary_num_expr"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "binary_num_expr"
+        }
+      ]
+    },
+    "paren_num_expr": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "("
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_num_expr"
+        },
+        {
+          "type": "STRING",
+          "value": ")"
+        }
+      ]
+    },
+    "unary_num_expr": {
+      "type": "PREC",
+      "value": 3,
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "STRING",
+                "value": "-"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_num_expr"
+              }
+            ]
+          },
+          {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "STRING",
+                "value": "+"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_num_expr"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "binary_num_expr": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "PREC_LEFT",
+          "value": 2,
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_num_expr"
+              },
+              {
+                "type": "STRING",
+                "value": "*"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_num_expr"
+              }
+            ]
+          }
+        },
+        {
+          "type": "PREC_LEFT",
+          "value": 2,
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_num_expr"
+              },
+              {
+                "type": "STRING",
+                "value": "/"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_num_expr"
+              }
+            ]
+          }
+        },
+        {
+          "type": "PREC_LEFT",
+          "value": 1,
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_num_expr"
+              },
+              {
+                "type": "STRING",
+                "value": "+"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_num_expr"
+              }
+            ]
+          }
+        },
+        {
+          "type": "PREC_LEFT",
+          "value": 1,
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_num_expr"
+              },
+              {
+                "type": "STRING",
+                "value": "-"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_num_expr"
+              }
+            ]
+          }
+        }
+      ]
+    },
     "date": {
       "type": "PATTERN",
       "value": "\\d{4}-\\d{2}-\\d{2}"
@@ -689,7 +910,7 @@
         "value": "[A-Z][A-Z0-9'._-]{0,22}[A-Z0-9]"
       }
     },
-    "decimal": {
+    "number": {
       "type": "PATTERN",
       "value": "-?\\d+(\\.\\d+)?"
     },

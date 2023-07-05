@@ -18,7 +18,8 @@ module.exports = grammar({
             $.document_directive,
             $.option_directive,
             $.plugin_directive,
-            $.include_directive
+            $.include_directive,
+            $.balance_directive
           ),
           repeat(choice($.metadata, $._new_line))
         )
@@ -30,7 +31,16 @@ module.exports = grammar({
         token("close"),
         token("price"),
         token("note"),
-        token("document")
+        token("document"),
+        token("balance")
+      ),
+    balance_directive: ($) =>
+      seq(
+        field("date", $.date),
+        field("directive_type", token("balance")),
+        field("account_name", $.account_name),
+        field("amount", $._num_expr),
+        field("currency", $.currency)
       ),
     open_directive: ($) =>
       seq(
@@ -53,7 +63,7 @@ module.exports = grammar({
         field("date", $.date),
         field("directive_type", token("price")),
         field("commodity", $.currency),
-        field("price", $.decimal),
+        field("price", $._num_expr),
         field("currency", $.currency)
       ),
     note_directive: ($) =>
@@ -104,7 +114,7 @@ module.exports = grammar({
         optional($._txn_strings),
         // TODO: optional flag
         $.account_name,
-        $.decimal
+        $._num_expr
       ),
     // OPTIONAL
     _txn_strings: ($) =>
@@ -126,7 +136,7 @@ module.exports = grammar({
           field("colon", $.colon),
           choice(
             $.str,
-            $.decimal,
+            $._num_expr,
             $.date,
             $.currency,
             $.account_name,
@@ -135,9 +145,22 @@ module.exports = grammar({
           )
         )
       ),
+
+    _num_expr: ($) =>
+      choice($.number, $.paren_num_expr, $.unary_num_expr, $.binary_num_expr),
+    paren_num_expr: ($) => seq("(", $._num_expr, ")"),
+    unary_num_expr: ($) =>
+      prec(3, choice(seq("-", $._num_expr), seq("+", $._num_expr))),
+    binary_num_expr: ($) =>
+      choice(
+        prec.left(2, seq($._num_expr, "*", $._num_expr)),
+        prec.left(2, seq($._num_expr, "/", $._num_expr)),
+        prec.left(1, seq($._num_expr, "+", $._num_expr)),
+        prec.left(1, seq($._num_expr, "-", $._num_expr))
+      ),
     date: ($) => /\d{4}-\d{2}-\d{2}/,
     currency: ($) => token(/[A-Z][A-Z0-9'._-]{0,22}[A-Z0-9]/),
-    decimal: ($) => /-?\d+(\.\d+)?/,
+    number: ($) => /-?\d+(\.\d+)?/,
     metadata_key: ($) => seq(field("data_key", /[a-z][A-Za-z0-9-_]*/)),
     str: ($) => /"[^"]*"/,
     tag: ($) => token(/#[A-Za-z0-9\-_/.]+/),

@@ -1,0 +1,25 @@
+====
+Balance directive
+====
+2023-06-02 balance Assets:Funds            178558.97+(7969.90+981.68) CNY
+----
+(file
+    (directive
+        (balance_directive
+            (date)
+            (account_name
+                (account_type)
+            )
+            (binary_num_expr
+                (number)
+                (paren_num_expr
+                    (binary_num_expr
+                        (number)
+                        (number)
+                    )
+                )
+            )
+            (currency)
+        )
+    )
+)
