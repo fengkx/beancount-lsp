@@ -49,8 +49,7 @@ module.exports = grammar({
         field("date", $.date),
         field("directive_type", token("balance")),
         field("account_name", $.account_name),
-        field("amount", $._num_expr),
-        field("currency", $.currency)
+        field("amount", $.amount)
       ),
     open_directive: ($) =>
       seq(
@@ -76,6 +75,8 @@ module.exports = grammar({
         field("price", $._num_expr),
         field("currency", $.currency)
       ),
+    amount: ($) =>
+      seq(field("number", $._num_expr), field("currency", $.currency)),
     note_directive: ($) =>
       seq(
         field("date", $.date),
@@ -124,7 +125,7 @@ module.exports = grammar({
         optional($._txn_strings),
         // TODO: optional flag
         $.account_name,
-        $._num_expr
+        $.amount
       ),
     // OPTIONAL
     _txn_strings: ($) =>

@@ -20,20 +20,20 @@
     "fields": {}
   },
   {
-    "type": "balance_directive",
+    "type": "amount",
     "named": true,
     "fields": {
-      "account_name": {
+      "currency": {
         "multiple": false,
         "required": true,
         "types": [
           {
-            "type": "account_name",
+            "type": "currency",
             "named": true
           }
         ]
       },
-      "amount": {
+      "number": {
         "multiple": false,
         "required": true,
         "types": [
@@ -54,13 +54,29 @@
             "named": true
           }
         ]
-      },
-      "currency": {
+      }
+    }
+  },
+  {
+    "type": "balance_directive",
+    "named": true,
+    "fields": {
+      "account_name": {
         "multiple": false,
         "required": true,
         "types": [
           {
-            "type": "currency",
+            "type": "account_name",
+            "named": true
+          }
+        ]
+      },
+      "amount": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "amount",
             "named": true
           }
         ]

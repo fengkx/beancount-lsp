@@ -229,15 +229,7 @@
           "name": "amount",
           "content": {
             "type": "SYMBOL",
-            "name": "_num_expr"
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "currency",
-          "content": {
-            "type": "SYMBOL",
-            "name": "currency"
+            "name": "amount"
           }
         }
       ]
@@ -376,6 +368,27 @@
         {
           "type": "FIELD",
           "name": "price",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_num_expr"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "currency",
+          "content": {
+            "type": "SYMBOL",
+            "name": "currency"
+          }
+        }
+      ]
+    },
+    "amount": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "number",
           "content": {
             "type": "SYMBOL",
             "name": "_num_expr"
@@ -673,7 +686,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "_num_expr"
+          "name": "amount"
         }
       ]
     },

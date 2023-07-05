@@ -10,16 +10,19 @@ Balance directive
             (account_name
                 (account_type)
             )
-            (binary_num_expr
-                (number)
-                (paren_num_expr
-                    (binary_num_expr
-                        (number)
-                        (number)
+            (amount 
+                (binary_num_expr
+                    (number)
+                    (paren_num_expr
+                        (binary_num_expr
+                            (number)
+                            (number)
+                        
+                        )
                     )
                 )
+                (currency)
             )
-            (currency)
         )
     )
 )
