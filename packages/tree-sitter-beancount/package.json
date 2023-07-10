@@ -14,6 +14,8 @@
     "trailingComma": "all"
   },
   "devDependencies": {
+    "nan": "^2.17.0",
+    "node-gyp": "^9.4.0",
     "prettier": "^2.2.1",
     "tree-sitter-cli": "^0.20.8"
   }
