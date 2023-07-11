@@ -13,6 +13,7 @@
         "--extensionDevelopmentPath=${workspaceFolder}/packages/lsp-client"
       ],
       "outFiles": ["${workspaceFolder}/packages/lsp-client/out/**/*.js"],
+      // "preLaunchTask": "${defaultBuildTask}",
       "cwd": "${workspaceFolder}/packages/lsp"
     },
     {
