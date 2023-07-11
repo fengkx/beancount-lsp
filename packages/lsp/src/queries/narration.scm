@@ -1,0 +1,1 @@
+(transaction narration: (string) @narration)
