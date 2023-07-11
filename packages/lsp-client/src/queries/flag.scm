@@ -1,0 +1,3 @@
+(transaction
+    flag: (flag) @flag
+)

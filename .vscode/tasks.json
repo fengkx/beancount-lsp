@@ -12,7 +12,7 @@
         "reveal": "never"
       },
       "options": {
-        "cwd": "${workspaceFolder}/packages/lsp"
+        "cwd": "${workspaceFolder}/packages/lsp-client"
       },
       "group": {
         "kind": "build",
