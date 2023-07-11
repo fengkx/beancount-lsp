@@ -6,8 +6,17 @@
     {
       "type": "npm",
       "script": "watch",
-      "problemMatcher": "$tsc-watch",
       "isBackground": true,
+      "problemMatcher": {
+        "owner": "tsup",
+        "fileLocation": "relative",
+
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Watching for changes in \".\"",
+          "endsPattern": "^.+Build success in"
+        }
+      },
       "presentation": {
         "reveal": "never"
       },
