@@ -9,9 +9,10 @@
       "name": "Run Extension",
       "type": "extensionHost",
       "request": "launch",
-      "args": ["--extensionDevelopmentPath=${workspaceFolder}/packages/lsp"],
-      "outFiles": ["${workspaceFolder}/packages/lsp/out/**/*.js"],
-      "preLaunchTask": "${defaultBuildTask}",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/packages/lsp-client"
+      ],
+      "outFiles": ["${workspaceFolder}/packages/lsp-client/out/**/*.js"],
       "cwd": "${workspaceFolder}/packages/lsp"
     },
     {
@@ -20,10 +21,10 @@
       "request": "launch",
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}/packages/lsp",
-        "--extensionTestsPath=${workspaceFolder}/packages/lsp/out/test/suite/index"
+        "--extensionTestsPath=${workspaceFolder}/packages/lsp-client/out/test/suite/index"
       ],
-      "outFiles": ["${workspaceFolder}/packages/lsp/out/test/**/*.js"],
-      "preLaunchTask": "${defaultBuildTask}",
+      "outFiles": ["${workspaceFolder}/packages/lsp-client/out/test/**/*.js"],
+      "preLaunchTask": "npm: test-compile",
       "cwd": "${workspaceFolder}/packages/lsp"
     }
   ]
