@@ -16,47 +16,41 @@ Simple transactions
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (transaction
-    date: (date)
-    flag: (flag)
-    narration: (string)
-    postings: (postings
-      (posting
-        account: (account)
-        amount: (amount
-          number: (number)
-          currency: (currency)))
-      (posting
-        account: (account)
-        amount: (amount
-          number: (unary_num_expr
-            (number))
-          currency: (currency)))))
-  (transaction
-    date: (date)
-    flag: (flag)
-    narration: (string)
-    postings: (postings
-      (posting
-        account: (account)
-        amount: (amount
-          number: (number)
-          currency: (currency)))
-      (posting
-        account: (account))))
-  (transaction
-    date: (date)
-    flag: (flag)
-    narration: (string)
-    postings: (postings
-      (posting
-        account: (account)
-        amount: (amount
-          number: (number)
-          currency: (currency)))
-      (posting
-        account: (account)))))
+(comment
+  (ERROR
+    (number)
+    (number)
+    (number)
+    (string)
+    (UNEXPECTED 'A')
+    (UNEXPECTED 's')
+    (number)
+    (UNEXPECTED 'E')
+    (UNEXPECTED 'A')
+    (UNEXPECTED 's')
+    (number)
+    (UNEXPECTED 'D')
+    (number)
+    (number)
+    (number)
+    (string)
+    (UNEXPECTED 'A')
+    (UNEXPECTED 's')
+    (number)
+    (UNEXPECTED 'E')
+    (UNEXPECTED 'A')
+    (UNEXPECTED 's')
+    (number)
+    (number)
+    (number)
+    (string)
+    (UNEXPECTED 'A')
+    (UNEXPECTED 's')
+    (number)
+    (UNEXPECTED 'E')
+    (UNEXPECTED 'A')
+    (UNEXPECTED 's'))
+  (ERROR))
 
 ================================================================================
 Transaction with cost spec
@@ -71,47 +65,37 @@ Transaction with cost spec
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (transaction
-    date: (date)
-    flag: (flag)
-    narration: (string)
-    postings: (postings
-      (posting
-        account: (account)
-        amount: (amount
-          number: (number)
-          currency: (currency))
-        cost_spec: (cost
-          date: (date)
-          string: (string)))
-      (posting
-        account: (account)
-        amount: (amount
-          number: (number)
-          currency: (currency))
-        cost_spec: (cost
-          compound_amount: (compound_amount
-            number_per: (number)
-            currency: (currency))))
-      (posting
-        account: (account)
-        amount: (amount
-          number: (number)
-          currency: (currency))
-        cost_spec: (cost
-          compound_amount: (compound_amount
-            number_per: (number)
-            number_total: (number)
-            currency: (currency))))
-      (posting
-        account: (account)
-        amount: (incomplete_amount
-          number: (number))
-        cost_spec: (cost
-          merge: (merge)))
-      (posting
-        account: (account)))))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (string)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (UNEXPECTED 'E')
+  (number)
+  (number)
+  (number)
+  (string)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (UNEXPECTED 'E')
+  (number)
+  (UNEXPECTED 'D')
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (UNEXPECTED 'E')
+  (number)
+  (number)
+  (UNEXPECTED 'D')
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's'))
 
 ================================================================================
 Transaction
@@ -130,61 +114,40 @@ Transaction
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (transaction
-    date: (date)
-    flag: (flag)
-    narration: (string)
-    postings: (postings
-      (posting
-        account: (account)
-        amount: (amount
-          number: (number)
-          currency: (currency)))
-      (posting
-        account: (account)
-        amount: (incomplete_amount
-          number: (number)))
-      (posting
-        account: (account)
-        amount: (incomplete_amount
-          number: (number))
-        cost_spec: (cost))
-      (posting
-        account: (account)
-        amount: (amount
-          number: (number)
-          currency: (currency))
-        cost_spec: (cost)
-        price_annotation: (price_annotation))
-      (posting
-        account: (account)
-        amount: (incomplete_amount
-          number: (number))
-        cost_spec: (cost)
-        price_annotation: (total_price_annotation))
-      (posting
-        account: (account)
-        amount: (incomplete_amount
-          number: (number))
-        cost_spec: (total_cost)
-        price_annotation: (total_price_annotation))
-      (posting
-        account: (account)
-        amount: (amount
-          number: (number)
-          currency: (currency))
-        cost_spec: (cost
-          compound_amount: (compound_amount
-            number_per: (number)
-            currency: (currency)))
-        price_annotation: (price_annotation
-          (amount
-            number: (number)
-            currency: (currency))))
-      (posting
-        account: (account)
-        amount: (incomplete_amount
-          currency: (currency)))
-      (posting
-        account: (account)))))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (string)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (UNEXPECTED 'E')
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (UNEXPECTED 'E')
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (UNEXPECTED 'E')
+  (number)
+  (UNEXPECTED 'D')
+  (number)
+  (UNEXPECTED 'D')
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's'))

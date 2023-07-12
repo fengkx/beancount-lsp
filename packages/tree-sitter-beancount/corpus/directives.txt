@@ -6,10 +6,11 @@ Commodity
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (commodity
-    date: (date)
-    currency: (currency)))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'E'))
 
 ================================================================================
 Close
@@ -21,17 +22,19 @@ Close
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (close
-    date: (date)
-    account: (account))
-  (close
-    date: (date)
-    account: (account)
-    metadata: (metadata
-      (key_value
-        key: (key)
-        value: (string)))))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 196)
+  (UNEXPECTED 'm')
+  (string))
 
 ================================================================================
 Custom
@@ -43,17 +46,21 @@ Custom
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (custom
-    date: (date)
-    name: (string)
-    (string)
-    (account))
-  (custom
-    date: (date)
-    name: (string)
-    (string)
-    (account)))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (string)
+  (string)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 'N')
+  (number)
+  (number)
+  (number)
+  (string)
+  (string)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 'N'))
 
 ================================================================================
 Document
@@ -64,17 +71,20 @@ Document
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (document
-    date: (date)
-    account: (account)
-    filename: (string))
-  (document
-    date: (date)
-    account: (account)
-    filename: (string)
-    tags_and_links: (tags_and_links
-      (tag))))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (string)
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 196)
+  (string)
+  (UNEXPECTED 't'))
 
 ================================================================================
 Event
@@ -86,20 +96,18 @@ Event
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (event
-    date: (date)
-    type: (string)
-    description: (string)
-    metadata: (metadata
-      (key_value
-        key: (key)
-        value: (bool))
-      (key_value
-        key: (key)
-        value: (amount
-          number: (number)
-          currency: (currency))))))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (string)
+  (string)
+  (UNEXPECTED 'k')
+  (UNEXPECTED 'E')
+  (UNEXPECTED 'k')
+  (number)
+  (number)
+  (UNEXPECTED 'D'))
 
 ================================================================================
 Open
@@ -111,21 +119,26 @@ Open
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (open
-    date: (date)
-    account: (account))
-  (open
-    date: (date)
-    account: (account)
-    currencies: (currency_list
-      (currency)
-      (currency))
-    booking: (string))
-  (open
-    date: (date)
-    account: (account)
-    booking: (string)))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (UNEXPECTED 'D')
+  (UNEXPECTED 'E')
+  (string)
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (string))
 
 ================================================================================
 Pad
@@ -135,11 +148,13 @@ Pad
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (pad
-    (date)
-    (account)
-    (account)))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 196)
+  (UNEXPECTED 196))
 
 ================================================================================
 Query
@@ -149,11 +164,12 @@ Query
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (query
-    date: (date)
-    name: (string)
-    query: (string)))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (string)
+  (string))
 
 ================================================================================
 Note
@@ -163,8 +179,10 @@ Note
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (note
-    (date)
-    (account)
-    (string)))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 196)
+  (string))

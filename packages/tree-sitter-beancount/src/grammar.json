@@ -1,6 +1,10 @@
 {
   "name": "beancount",
   "rules": {
+    "comment": {
+      "type": "PATTERN",
+      "value": ";.*"
+    },
     "beancount_file": {
       "type": "REPEAT",
       "content": {
@@ -66,8 +70,8 @@
           "type": "SEQ",
           "members": [
             {
-              "type": "PATTERN",
-              "value": ";.*"
+              "type": "SYMBOL",
+              "name": "comment"
             },
             {
               "type": "PATTERN",
@@ -1600,8 +1604,8 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "PATTERN",
-              "value": ";.*"
+              "type": "SYMBOL",
+              "name": "comment"
             },
             {
               "type": "BLANK"
@@ -1643,8 +1647,8 @@
                 "value": "\\n[ \\r\\t]+"
               },
               {
-                "type": "PATTERN",
-                "value": ";.*"
+                "type": "SYMBOL",
+                "name": "comment"
               }
             ]
           }

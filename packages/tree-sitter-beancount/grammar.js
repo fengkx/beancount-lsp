@@ -17,13 +17,19 @@ module.exports = grammar({
   conflicts: ($) => [[$.posting], [$.metadata], [$.tags_and_links]],
 
   rules: {
+    comment: () => COMMENT,
     // Each Beancount files consists of a list of (un)dated entries, some lines might be skipped.
     beancount_file: ($) =>
       repeat(
         choice($._skipped_lines, $._dated_directives, $._undated_directives),
       ),
-    _skipped_lines: () =>
-      choice(seq(FLAG, /.*/, EOL), seq(":", /.*/, EOL), EOL, seq(COMMENT, EOL)),
+    _skipped_lines: ($) =>
+      choice(
+        seq(FLAG, /.*/, EOL),
+        seq(":", /.*/, EOL),
+        EOL,
+        seq($.comment, EOL),
+      ),
 
     // =======================================================================
     // Undated directives
@@ -243,10 +249,10 @@ module.exports = grammar({
           "price_annotation",
           optional(choice($.price_annotation, $.total_price_annotation)),
         ),
-        optional(COMMENT),
+        optional($.comment),
         field("metadata", optional($.metadata)),
       ),
-    postings: ($) => repeat1(choice($.posting, seq(INDENT, COMMENT))),
+    postings: ($) => repeat1(choice($.posting, seq(INDENT, $.comment))),
 
     // =======================================================================
     // Various building blocks
