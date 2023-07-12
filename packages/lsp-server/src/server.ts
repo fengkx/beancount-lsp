@@ -75,6 +75,13 @@ connection.onInitialize((params: InitializeParams) => {
         };
     }
 
+    if (hasSemanticTokensCapability) {
+        result.capabilities.semanticTokensProvider = {
+            legend: { tokenTypes: TOKEN_TYPES, tokenModifiers: TOKEN_MODIFIERS },
+            full: true
+        }
+    }
+
 
     return result;
 });
@@ -94,6 +101,32 @@ connection.onInitialized(async (params) => {
         connection.workspace.onDidChangeWorkspaceFolders(_event => {
             connection.console.log('Workspace folder change event received.');
         });
+    }
+
+    if (hasSemanticTokensCapability) {
+        const semanticTokenProvider = new SemanticTokenProvider(
+            connection,
+            documents
+
+        )
+
+
+        connection.languages.semanticTokens.onDelta(() => {
+            return {
+                data: [],
+            }
+        })
+        connection.languages.semanticTokens.onRange(() => {
+            return {
+                data: [],
+            }
+        })
+
+
+        connection.languages.semanticTokens.on(semanticTokenProvider.onSemanticToken)
+
+    } else {
+        connection.console.info('semanticTokens is disabled')
     }
 });
 

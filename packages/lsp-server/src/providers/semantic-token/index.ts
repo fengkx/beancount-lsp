@@ -57,6 +57,12 @@ export class SemanticTokenProvider {
         const linkMatches = await TreeQuery.getQueryByTokenName('link').matches(tree.rootNode)
         tokenBuilder.buildSingleCaptureTokens(linkMatches, 'link')
 
+        const kvKeyMatches = await TreeQuery.getQueryByTokenName('kv_key').matches(tree.rootNode)
+        tokenBuilder.buildSingleCaptureTokens(kvKeyMatches, 'kv_key')
+
+
+        const boolMatches = await TreeQuery.getQueryByTokenName('bool').matches(tree.rootNode)
+        tokenBuilder.buildSingleCaptureTokens(boolMatches, 'bool')
 
         const data = tokenBuilder.build();
         this.connection.console.log(code);
