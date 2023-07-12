@@ -1,4 +1,5 @@
 export const enum DepToken {
     connection = 'connection',
-    documents = 'documents'
+    documents = 'documents',
+
 }
