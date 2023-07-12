@@ -58,7 +58,7 @@ export class SemanticTokenProvider {
         tokenBuilder.buildSingleCaptureTokens(boolMatches, 'bool')
 
         const data = tokenBuilder.build();
-        this.connection?.console.info(JSON.stringify(data));
+        // this.connection?.console.info(JSON.stringify(data));
 
 
         return data

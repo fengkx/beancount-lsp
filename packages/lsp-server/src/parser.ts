@@ -11,7 +11,7 @@ const CacheToken = Symbol("Cache");
 
 @registry([{
     token: CacheToken,
-    useValue: () => new LRUCache<string, WebTreeSitter.Tree>({ max: 50 })
+    useValue: new LRUCache<string, WebTreeSitter.Tree>({ max: 50 })
 }])
 @injectable()
 export class TreeParser {
@@ -20,7 +20,6 @@ export class TreeParser {
         @inject(CacheToken) private lruCache?: LRUCache<string, WebTreeSitter.Tree>,
         @inject(DepToken.connection) private connection?: Connection
     ) {
-        this.connection?.console.info(this.lruCache)
         try {
             getParser()
         } catch (err) {
