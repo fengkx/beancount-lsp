@@ -12,6 +12,8 @@ import keyword from './keyword.scm'
 import string from './string.scm'
 import tag from './tag.scm';
 import link from './link.scm';
+import kv_key from './kv_key.scm'
+import bool from './bool.scm'
 
 const queryMap = {
     account,
@@ -24,7 +26,9 @@ const queryMap = {
     keyword,
     string,
     link,
-    tag
+    tag,
+    kv_key,
+    bool,
 } as const
 
 type BeanTokenName = keyof typeof queryMap

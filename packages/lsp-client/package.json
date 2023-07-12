@@ -31,7 +31,9 @@
           "currency": "#f5a23d",
           "keyword": "#f86a78",
           "link": "#aa87ee",
-          "tag": "#aa87ee"
+          "tag": "#aa87ee",
+          "kv_key": "#6eafff",
+          "bool": "#6eafff"
         }
       }
     },

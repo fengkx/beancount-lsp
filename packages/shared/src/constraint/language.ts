@@ -13,7 +13,9 @@ export const TOKEN_TYPES = Tuple([
     "date",
     "currency",
     "tag",
-    "link"
+    "link",
+    "kv_key",
+    "bool"
 ] as const);
 
 export const tokenTypeToIndex = (tokenType: TokenTypes): number => {
