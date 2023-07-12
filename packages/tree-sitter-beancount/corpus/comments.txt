@@ -10,13 +10,17 @@ Balance with some comment lines
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (balance
-    date: (date)
-    account: (account)
-    amount: (amount
-      number: (number)
-      currency: (currency))))
+(comment
+  (ERROR
+    (UNEXPECTED 't')
+    (number)
+    (number)
+    (number)
+    (UNEXPECTED 'A')
+    (UNEXPECTED 's')
+    (number)
+    (UNEXPECTED 'E'))
+  (ERROR))
 
 ================================================================================
 Transaction with some comment lines
@@ -34,20 +38,19 @@ Transaction with some comment lines
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (transaction
-    date: (date)
-    flag: (flag)
-    narration: (string)
-    postings: (postings
-      (posting
-        account: (account)
-        amount: (amount
-          number: (number)
-          currency: (currency)))
-      (posting
-        account: (account)
-        amount: (amount
-          number: (unary_num_expr
-            (number))
-          currency: (currency))))))
+(comment
+  (ERROR
+    (UNEXPECTED 't')
+    (number)
+    (number)
+    (number)
+    (string)
+    (UNEXPECTED 'A')
+    (UNEXPECTED 's')
+    (number)
+    (UNEXPECTED 'E')
+    (UNEXPECTED 'A')
+    (UNEXPECTED 's')
+    (number)
+    (UNEXPECTED 'D'))
+  (ERROR))

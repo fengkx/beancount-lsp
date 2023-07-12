@@ -148,93 +148,6 @@
     }
   },
   {
-    "type": "beancount_file",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "balance",
-          "named": true
-        },
-        {
-          "type": "close",
-          "named": true
-        },
-        {
-          "type": "commodity",
-          "named": true
-        },
-        {
-          "type": "custom",
-          "named": true
-        },
-        {
-          "type": "document",
-          "named": true
-        },
-        {
-          "type": "event",
-          "named": true
-        },
-        {
-          "type": "include",
-          "named": true
-        },
-        {
-          "type": "note",
-          "named": true
-        },
-        {
-          "type": "open",
-          "named": true
-        },
-        {
-          "type": "option",
-          "named": true
-        },
-        {
-          "type": "pad",
-          "named": true
-        },
-        {
-          "type": "plugin",
-          "named": true
-        },
-        {
-          "type": "popmeta",
-          "named": true
-        },
-        {
-          "type": "poptag",
-          "named": true
-        },
-        {
-          "type": "price",
-          "named": true
-        },
-        {
-          "type": "pushmeta",
-          "named": true
-        },
-        {
-          "type": "pushtag",
-          "named": true
-        },
-        {
-          "type": "query",
-          "named": true
-        },
-        {
-          "type": "transaction",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "binary_num_expr",
     "named": true,
     "fields": {},
@@ -296,6 +209,11 @@
         ]
       }
     }
+  },
+  {
+    "type": "comment",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "commodity",
@@ -1134,6 +1052,16 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "comment",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -1142,8 +1070,12 @@
     "fields": {},
     "children": {
       "multiple": true,
-      "required": false,
+      "required": true,
       "types": [
+        {
+          "type": "comment",
+          "named": true
+        },
         {
           "type": "posting",
           "named": true

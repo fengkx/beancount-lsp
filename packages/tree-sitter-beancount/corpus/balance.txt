@@ -6,13 +6,14 @@ Simple Balance
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (balance
-    date: (date)
-    account: (account)
-    amount: (amount
-      number: (number)
-      currency: (currency))))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (UNEXPECTED 'E'))
 
 ================================================================================
 Balance with computation
@@ -22,18 +23,16 @@ Balance with computation
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (balance
-    date: (date)
-    account: (account)
-    amount: (amount
-      number: (binary_num_expr
-        (paren_num_expr
-          (binary_num_expr
-            (number)
-            (number)))
-        (number))
-      currency: (currency))))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'E'))
 
 ================================================================================
 Balance with tolerance
@@ -43,14 +42,15 @@ Balance with tolerance
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (balance
-    date: (date)
-    account: (account)
-    amount: (amount_with_tolerance
-      number: (number)
-      tolerance: (number)
-      currency: (currency))))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 's')
+  (number)
+  (number)
+  (UNEXPECTED 'E'))
 
 ================================================================================
 Balances with Unicode accounts
@@ -61,16 +61,18 @@ Balances with Unicode accounts
 
 --------------------------------------------------------------------------------
 
-(beancount_file
-  (balance
-    date: (date)
-    account: (account)
-    amount: (amount
-      number: (number)
-      currency: (currency)))
-  (balance
-    date: (date)
-    account: (account)
-    amount: (amount
-      number: (number)
-      currency: (currency))))
+(ERROR
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 'A')
+  (UNEXPECTED 228)
+  (number)
+  (UNEXPECTED 'E')
+  (number)
+  (number)
+  (number)
+  (UNEXPECTED 196)
+  (UNEXPECTED 214)
+  (number)
+  (UNEXPECTED 'E'))
