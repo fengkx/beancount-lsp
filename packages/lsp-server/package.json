@@ -11,8 +11,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@abraham/reflection": "^0.12.0",
     "@bean-lsp/shared": "workspace:*",
     "lru-cache": "^10.0.0",
+    "tsyringe": "^4.8.0",
     "vscode-languageserver": "^8.1.0",
     "vscode-languageserver-textdocument": "^1.0.8",
     "web-tree-sitter": "^0.20.8"

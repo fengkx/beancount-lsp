@@ -7,28 +7,33 @@ import {
 import { TokenBuilder } from "./token-builder";
 import { TreeQuery } from "src/providers/semantic-token/queries";
 import { LRUCache } from 'lru-cache'
+import { autoInjectable, inject, injectable } from "tsyringe";
+import { DepToken } from "src/ioc/tokens";
 
-
+@autoInjectable()
+@injectable()
 export class SemanticTokenProvider {
     private treeCache: LRUCache<string, Parser.Tree> = new LRUCache({
         max: 100
     })
-    constructor(private connection: Connection, private documents: TextDocuments<TextDocument>) { }
+    constructor(@inject(DepToken.connection) private connection?: Connection, @inject(DepToken.documents) private documents?: TextDocuments<TextDocument>) { }
     onSemanticToken = async (params: SemanticTokensParams) => {
         const { uri } = params.textDocument;
-        const doc = this.documents.get(uri);
+        const doc = this.documents!.get(uri);
         if (!doc) return { data: [] };
         const code = doc.getText();
         let tree = this.treeCache.get(uri)
-        tree = (await getParser()).parse(code, tree) as Parser.Tree;
+        const parser = await getParser();
+        tree = parser.parse(code, tree) as Parser.Tree;
 
-        const tokenBuilder = new TokenBuilder(this.connection)
+        const tokenBuilder = new TokenBuilder()
 
         const stringMatches = await TreeQuery.getQueryByTokenName('string').matches(tree.rootNode)
         tokenBuilder.buildSingleCaptureTokens(stringMatches, "string")
 
         const dateMatches = await TreeQuery.getQueryByTokenName('date').matches(tree.rootNode);
         tokenBuilder.buildSingleCaptureTokens(dateMatches, 'date');
+
 
         const flagMatches = await TreeQuery.getQueryByTokenName('flag').matches(tree.rootNode);
         tokenBuilder.buildSingleCaptureTokens(flagMatches, 'operator');
@@ -65,8 +70,8 @@ export class SemanticTokenProvider {
         tokenBuilder.buildSingleCaptureTokens(boolMatches, 'bool')
 
         const data = tokenBuilder.build();
-        this.connection.console.log(code);
-        this.connection.console.info(JSON.stringify(data));
+        this.connection?.console.log(code);
+        this.connection?.console.info(JSON.stringify(data));
 
 
         return data

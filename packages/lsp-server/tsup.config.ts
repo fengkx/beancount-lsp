@@ -5,7 +5,7 @@ const config = defineConfig({
     outDir: 'dist',
     sourcemap: true,
     clean: true,
-    target: 'es2022',
+    target: 'node18',
     loader: {
         '.wasm': 'binary',
         '.scm': 'text'

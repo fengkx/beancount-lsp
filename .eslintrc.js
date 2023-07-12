@@ -35,5 +35,11 @@ module.exports = {
         ],
       },
     },
+    {
+      files: ["./packages/lsp-server/**/*.ts"],
+      rules: {
+        "@typescript-eslint/no-non-null-assertion": "off",
+      },
+    },
   ],
 };
