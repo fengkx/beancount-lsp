@@ -2,14 +2,17 @@
 {
   "files.exclude": {
     "**/*.tsbuildinfo": true,
-    "packages/lsp/out": true
+    "packages/lsp-client/out": true
   },
+  "search.useIgnoreFile": true,
   "search.exclude": {
     "**/*.tsbuildinfo": true,
-    "packages/lsp/out": true
+    "packages/lsp-client/out": true
   },
   // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
   "typescript.tsc.autoDetect": "off",
-  "cmake.configureOnOpen": false,
-  "cSpell.words": ["Beancount"]
+  "cmake.configureOnOpen": true,
+  "cSpell.words": ["Beancount"],
+  "search.useIgnoreFiles": true,
+  "search.useParentIgnoreFiles": true
 }
