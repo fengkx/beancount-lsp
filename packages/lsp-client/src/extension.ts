@@ -26,6 +26,9 @@ export function activate(context: vscode.ExtensionContext) {
 		debug: {
 			module: serverModule,
 			transport: TransportKind.ipc,
+			options: {
+				execArgv: ['--inspect=6009']
+			}
 		}
 	};
 
