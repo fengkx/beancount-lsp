@@ -60,9 +60,8 @@ export class TokenBuilder {
         this.connection?.console.info(JSON.stringify({ 'name': 'absTokens', absToken: this.absTokens }))
         this.absTokens.filter(t => !t.dropped).forEach(token => {
             const { row, column, length, tokenType, tokenModifiers } = token;
-            const relativeRow = row - this.lastToken.row;
-            const relativeColumn = column - this.lastToken.column;
-            this.connection?.console.info(JSON.stringify({ 'name': 'lastToken', lastToken: this.lastToken, row, column, relativeRow, relativeColumn }))
+            // const relativeRow = row - this.lastToken.row;
+            // const relativeColumn = column - this.lastToken.column;
             this.builder.push(row, column, length, tokenTypeToIndex(tokenType), tokenModifiers);
             this.lastToken = { row, column }
         })

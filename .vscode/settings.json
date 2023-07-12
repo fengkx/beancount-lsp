@@ -12,7 +12,7 @@
   // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
   "typescript.tsc.autoDetect": "off",
   "cmake.configureOnOpen": true,
-  "cSpell.words": ["Beancount"],
+  "cSpell.words": ["Asyncify", "Beancount"],
   "search.useIgnoreFiles": true,
   "search.useParentIgnoreFiles": true
 }
