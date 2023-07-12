@@ -1,7 +1,7 @@
 import type * as Parser from "web-tree-sitter";
 import { readFileSync } from "fs";
 import path from "path";
-import { getParser } from "../parser";
+import { getParser } from "@bean-lsp/shared";
 
 import account from "./account.scm";
 import currency from "./currency.scm";

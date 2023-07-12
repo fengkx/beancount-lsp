@@ -1,7 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { LANGUAGE_ID, TOKEN_TYPES } from './constraint/language';
+import { LANGUAGE_ID, TOKEN_MODIFIERS, TOKEN_TYPES } from '@bean-lsp/shared';
 import { SemanticTokenProvider } from './providers/semantic-tokens-provider';
 
 import {
@@ -10,7 +10,6 @@ import {
 	ServerOptions,
 	TransportKind
 } from 'vscode-languageclient/node';
-import path from 'path';
 
 let client: LanguageClient;
 
@@ -51,22 +50,22 @@ export function activate(context: vscode.ExtensionContext) {
 	// Start the client. This will also launch the server
 	client.start();
 
-	const modifiers = ["definition", "deprecated", "documentation", "declartion"];
-	const selector: vscode.DocumentSelector = {
-		language: LANGUAGE_ID,
-		scheme: "file",
-	};
+	// const modifiers = TOKEN_MODIFIERS;
+	// const selector: vscode.DocumentSelector = {
+	// 	language: LANGUAGE_ID,
+	// 	scheme: "file",
+	// };
 
-	const legend = new vscode.SemanticTokensLegend(TOKEN_TYPES, modifiers);
-	const provider = new SemanticTokenProvider(legend);
+	// const legend = new vscode.SemanticTokensLegend(TOKEN_TYPES, modifiers);
+	// const provider = new SemanticTokenProvider(legend);
 
-	context.subscriptions.push(
-		vscode.languages.registerDocumentSemanticTokensProvider(
-			selector,
-			provider,
-			legend
-		)
-	);
+	// context.subscriptions.push(
+	// 	vscode.languages.registerDocumentSemanticTokensProvider(
+	// 		selector,
+	// 		provider,
+	// 		legend
+	// 	)
+	// );
 }
 
 // This method is called when your extension is deactivated
