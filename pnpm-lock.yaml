@@ -78,18 +78,15 @@ importers:
       '@bean-lsp/shared':
         specifier: workspace:*
         version: link:../shared
-      tree-sitter-beancount:
-        specifier: workspace:^
-        version: link:../tree-sitter-beancount
+      lru-cache:
+        specifier: ^10.0.0
+        version: 10.0.0
       vscode-languageserver:
         specifier: ^8.1.0
         version: 8.1.0
       vscode-languageserver-textdocument:
         specifier: ^1.0.8
         version: 1.0.8
-      web-tree-sitter:
-        specifier: ^0.20.8
-        version: 0.20.8
 
   packages/shared:
     dependencies:
@@ -1894,7 +1891,6 @@ packages:
   /lru-cache@10.0.0:
     resolution: {integrity: sha512-svTf/fzsKHffP42sujkO/Rjs37BCIsQVRCeNYIm9WN8rgT7ffoUnRtZCqU+6BqcSBdv8gwJeTz8knJpgACeQMw==}
     engines: {node: 14 || >=16.14}
-    dev: true
 
   /lru-cache@6.0.0:
     resolution: {integrity: sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==}

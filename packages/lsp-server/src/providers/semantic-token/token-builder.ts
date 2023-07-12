@@ -11,16 +11,17 @@ export class TokenBuilder {
         length: number;
         tokenType: TokenTypes;
         tokenModifiers: number
+        dropped?: boolean;
     }> = [];
     constructor(private connection: Connection) {
         this.builder = new SemanticTokensBuilder();
     }
 
-    private push(row: number, column: number, length: number, tokenType: TokenTypes, tokenModifiers = 0) {
+    push(row: number, column: number, length: number, tokenType: TokenTypes, tokenModifiers = 0) {
         this.absTokens.push({ row, column, length, tokenType, tokenModifiers })
     }
 
-    buildTokens(matches: Parser.QueryMatch[], tokenType: TokenTypes) {
+    buildSingleCaptureTokens(matches: Parser.QueryMatch[], tokenType: TokenTypes) {
         for (const m of matches) {
             const line = m.captures[0].node.startPosition.row;
             const startChar = m.captures[0].node.startPosition.column;
@@ -42,11 +43,19 @@ export class TokenBuilder {
             if (a.column !== b.column) {
                 return a.column - b.column;
             }
+            if (a.length === b.length) {
+                if (a.tokenType === 'string') {
+                    a.dropped = true;
+                }
+                if (b.tokenType === 'string') {
+                    a.dropped = true
+                }
+            }
             return a.length - b.length
         })
 
         this.connection.console.info(JSON.stringify({ 'name': 'absTokens', absToken: this.absTokens }))
-        this.absTokens.forEach(token => {
+        this.absTokens.filter(t => !t.dropped).forEach(token => {
             const { row, column, length, tokenType, tokenModifiers } = token;
             const relativeRow = row - this.lastToken.row;
             const relativeColumn = column - this.lastToken.column;

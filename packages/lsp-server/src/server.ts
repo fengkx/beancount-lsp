@@ -19,7 +19,7 @@ import {
 } from 'vscode-languageserver-textdocument';
 import { TOKEN_TYPES, TOKEN_MODIFIERS, TokenTypes, tokenTypeToIndex } from '@bean-lsp/shared';
 import { getParser } from "@bean-lsp/shared";
-import { TreeQuery } from './queries';
+import { TreeQuery } from './providers/semantic-token/queries';
 import { SemanticTokenProvider } from './providers/semantic-token';
 
 
