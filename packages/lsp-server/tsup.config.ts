@@ -10,7 +10,8 @@ const config = defineConfig({
         '.wasm': 'binary',
         '.scm': 'text'
     },
-    external: ['vscode']
+    external: ['vscode'],
+    noExternal: ['lru-cache', 'vscode-languageserver', 'vscode-languageserver-textdocument', '@bean-lsp/shared']
 })
 
 export default config;

@@ -41,7 +41,6 @@ let hasSemanticTokensCapability = false;
 
 
 connection.onInitialize((params: InitializeParams) => {
-    getParser();
     const capabilities = params.capabilities;
 
     // Does the client support the `workspace/configuration` request?
@@ -75,41 +74,18 @@ connection.onInitialize((params: InitializeParams) => {
             }
         };
     }
-    if (hasSemanticTokensCapability) {
-        const semanticTokenProvider = new SemanticTokenProvider(
-            connection,
-            documents
-
-        )
-        result.capabilities.semanticTokensProvider = {
-            legend: { tokenTypes: TOKEN_TYPES, tokenModifiers: TOKEN_MODIFIERS },
-            full: true
-        }
-
-        connection.languages.semanticTokens.onDelta(() => {
-            return {
-                data: [],
-            }
-        })
-        connection.languages.semanticTokens.onRange(() => {
-            return {
-                data: [],
-            }
-        })
 
 
-        connection.languages.semanticTokens.on(semanticTokenProvider.onSemanticToken)
-
-    } else {
-        connection.console.info('semanticTokens is disabled')
-    }
-
-
-    connection.console.log(JSON.stringify({ tokenTypes: TOKEN_TYPES }))
     return result;
 });
 
-connection.onInitialized(() => {
+connection.onInitialized(async (params) => {
+
+    try {
+        await getParser();
+    } catch (err) {
+        connection.console.error(String(err))
+    }
     if (hasConfigurationCapability) {
         // Register for all configuration changes.
         connection.client.register(DidChangeConfigurationNotification.type, undefined);

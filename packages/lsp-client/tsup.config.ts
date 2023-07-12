@@ -9,5 +9,6 @@ export default defineConfig({
         '.wasm': 'binary',
         '.scm': 'text'
     },
-    external: ['vscode']
+    external: ['vscode'],
+    noExternal: ['@bean-lsp/shared']
 })
