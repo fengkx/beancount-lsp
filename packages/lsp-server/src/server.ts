@@ -1,3 +1,4 @@
+import '@abraham/reflection';
 import {
     createConnection,
     TextDocuments,
@@ -13,30 +14,34 @@ import {
     InitializeResult,
     SemanticTokensBuilder,
 } from 'vscode-languageserver/node';
-
 import {
     TextDocument
 } from 'vscode-languageserver-textdocument';
 import { TOKEN_TYPES, TOKEN_MODIFIERS, TokenTypes, tokenTypeToIndex } from '@bean-lsp/shared';
 import { getParser } from "@bean-lsp/shared";
+
+
+
 import { TreeQuery } from './providers/semantic-token/queries';
 import { SemanticTokenProvider } from './providers/semantic-token';
+import { DepToken } from './ioc/tokens';
+import { container } from 'tsyringe';
 
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 const connection = createConnection(ProposedFeatures.all);
-
-
-
+container.register(DepToken.connection, { useValue: connection });
 
 // Create a simple text document manager.
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
+container.register(DepToken.documents, { useValue: documents });
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 let hasSemanticTokensCapability = false;
+let hasCompletionCapability = false
 
 
 
@@ -57,14 +62,13 @@ connection.onInitialize((params: InitializeParams) => {
         capabilities.textDocument.publishDiagnostics.relatedInformation
     );
     hasSemanticTokensCapability = !!(capabilities.textDocument && capabilities.textDocument.semanticTokens);
+    hasCompletionCapability = !!(capabilities.textDocument && capabilities.textDocument.completion);
 
     const result: InitializeResult = {
         capabilities: {
             textDocumentSync: TextDocumentSyncKind.Incremental,
             // Tell the client that this server supports code completion.
-            completionProvider: {
-                resolveProvider: true
-            },
+            completionProvider: {},
         }
     };
     if (hasWorkspaceFolderCapability) {
@@ -103,12 +107,9 @@ connection.onInitialized(async (params) => {
         });
     }
 
-    if (hasSemanticTokensCapability) {
-        const semanticTokenProvider = new SemanticTokenProvider(
-            connection,
-            documents
 
-        )
+    if (hasSemanticTokensCapability) {
+        const semanticTokenProvider = new SemanticTokenProvider()
 
 
         connection.languages.semanticTokens.onDelta(() => {
@@ -128,6 +129,8 @@ connection.onInitialized(async (params) => {
     } else {
         connection.console.info('semanticTokens is disabled')
     }
+
+
 });
 
 // The example settings
@@ -240,7 +243,8 @@ connection.onDidChangeWatchedFiles(_change => {
 
 // This handler provides the initial list of the completion items.
 connection.onCompletion(
-    (_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
+    async (_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
+        connection.console.log(JSON.stringify(_textDocumentPosition))
         // The pass parameter contains the position of the text document in
         // which code complete got requested. For the example we ignore this
         // info and always provide the same completion items.

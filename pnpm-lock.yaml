@@ -75,12 +75,18 @@ importers:
 
   packages/lsp-server:
     dependencies:
+      '@abraham/reflection':
+        specifier: ^0.12.0
+        version: 0.12.0
       '@bean-lsp/shared':
         specifier: workspace:*
         version: link:../shared
       lru-cache:
         specifier: ^10.0.0
         version: 10.0.0
+      tsyringe:
+        specifier: ^4.8.0
+        version: 4.8.0
       vscode-languageserver:
         specifier: ^8.1.0
         version: 8.1.0
@@ -120,6 +126,10 @@ importers:
         version: 0.20.8
 
 packages:
+
+  /@abraham/reflection@0.12.0:
+    resolution: {integrity: sha512-OoLlgBE5u18mc61pJNamEh2OtFpHjtvDi1pV4ojnnH77juCvQw/Z3YlHF8TJiorU7/V6UuGApFzsi+bieug7fg==}
+    dev: false
 
   /@esbuild/android-arm64@0.18.11:
     resolution: {integrity: sha512-snieiq75Z1z5LJX9cduSAjUr7vEI1OdlzFPMw0HH5YI7qQHDd3qs+WZoMrWYDsfRJSq36lIA6mfZBkvL46KoIw==}
@@ -2643,7 +2653,6 @@ packages:
 
   /tslib@1.14.1:
     resolution: {integrity: sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==}
-    dev: true
 
   /tsup@7.1.0(typescript@4.9.5):
     resolution: {integrity: sha512-mazl/GRAk70j8S43/AbSYXGgvRP54oQeX8Un4iZxzATHt0roW0t6HYDVZIXMw0ZQIpvr1nFMniIVnN5186lW7w==}
@@ -2690,6 +2699,13 @@ packages:
       tslib: 1.14.1
       typescript: 4.9.5
     dev: true
+
+  /tsyringe@4.8.0:
+    resolution: {integrity: sha512-YB1FG+axdxADa3ncEtRnQCFq/M0lALGLxSZeVNbTU8NqhOVc51nnv2CISTcvc1kyv6EGPtXVr0v6lWeDxiijOA==}
+    engines: {node: '>= 6.0.0'}
+    dependencies:
+      tslib: 1.14.1
+    dev: false
 
   /type-check@0.4.0:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
