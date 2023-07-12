@@ -1,0 +1,3 @@
+[submodule "packages/tree-sitter-beancount"]
+	path = packages/tree-sitter-beancount
+	url = git@github.com:fengkx/tree-sitter-beancount.git
