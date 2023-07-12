@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "@bean-lsp/shared": "workspace:*",
+    "lru-cache": "^10.0.0",
     "vscode-languageserver": "^8.1.0",
     "vscode-languageserver-textdocument": "^1.0.8"
   }

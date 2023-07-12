@@ -51,7 +51,9 @@ var TOKEN_TYPES = Tuple([
   "enum",
   "account",
   "date",
-  "currency"
+  "currency",
+  "tag",
+  "link"
 ]);
 var tokenTypeToIndex = (tokenType) => {
   return TOKEN_TYPES.findIndex((item) => item === tokenType);

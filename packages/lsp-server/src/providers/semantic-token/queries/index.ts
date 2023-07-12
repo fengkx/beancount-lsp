@@ -1,7 +1,5 @@
 import type * as Parser from "web-tree-sitter";
-import { readFileSync } from "fs";
-import path from "path";
-import { getParser } from "../parser";
+import { getParser } from "@bean-lsp/shared";
 
 import account from "./account.scm";
 import currency from "./currency.scm";
@@ -10,6 +8,10 @@ import flag from "./flag.scm";
 import narration from "./narration.scm";
 import number from "./number.scm";
 import payee from "./payee.scm";
+import keyword from './keyword.scm'
+import string from './string.scm'
+import tag from './tag.scm';
+import link from './link.scm';
 
 const queryMap = {
     account,
@@ -19,9 +21,13 @@ const queryMap = {
     narration,
     number,
     payee,
+    keyword,
+    string,
+    link,
+    tag
 } as const
 
-type BeanTokenName = 'date' | 'flag' | 'payee' | 'account' | 'narration' | 'number' | 'currency'
+type BeanTokenName = keyof typeof queryMap
 
 const map = new Map<BeanTokenName, TreeQuery>();
 

@@ -28,7 +28,10 @@
         "rules": {
           "date": "#33a3ed",
           "account": "#df5ed9",
-          "currency": "#f5a23d"
+          "currency": "#f5a23d",
+          "keyword": "#f86a78",
+          "link": "#aa87ee",
+          "tag": "#aa87ee"
         }
       }
     },

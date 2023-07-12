@@ -1,8 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { LANGUAGE_ID, TOKEN_MODIFIERS, TOKEN_TYPES } from '@bean-lsp/shared';
-import { SemanticTokenProvider } from './providers/semantic-tokens-provider';
+
 
 import {
 	LanguageClient,

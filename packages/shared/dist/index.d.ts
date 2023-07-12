@@ -1,7 +1,7 @@
 import Parser from 'web-tree-sitter';
 
 declare const LANGUAGE_ID = "beancount";
-declare const TOKEN_TYPES: ["keyword", "comment", "string", "number", "operator", "enum", "account", "date", "currency"];
+declare const TOKEN_TYPES: ["keyword", "comment", "string", "number", "operator", "enum", "account", "date", "currency", "tag", "link"];
 declare const tokenTypeToIndex: (tokenType: TokenTypes) => number;
 declare const TOKEN_MODIFIERS: ["default", "definition", "deprecated", "documentation", "declaration"];
 type TokenTypes = (typeof TOKEN_TYPES)[number];

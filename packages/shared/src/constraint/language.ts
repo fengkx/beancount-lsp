@@ -11,7 +11,9 @@ export const TOKEN_TYPES = Tuple([
     "enum",
     "account",
     "date",
-    "currency"
+    "currency",
+    "tag",
+    "link"
 ] as const);
 
 export const tokenTypeToIndex = (tokenType: TokenTypes): number => {
