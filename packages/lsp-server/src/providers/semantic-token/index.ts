@@ -1,31 +1,19 @@
 import { SemanticTokensParams, TextDocuments, Connection } from "vscode-languageserver";
-import { getParser } from "@bean-lsp/shared";
-import type * as Parser from "web-tree-sitter";
 import {
     TextDocument
 } from 'vscode-languageserver-textdocument';
 import { TokenBuilder } from "./token-builder";
 import { TreeQuery } from "src/providers/semantic-token/queries";
-import { LRUCache } from 'lru-cache'
 import { autoInjectable, inject, injectable } from "tsyringe";
 import { DepToken } from "src/ioc/tokens";
+import { TreeParser } from "src/parser";
 
 @autoInjectable()
-@injectable()
 export class SemanticTokenProvider {
-    private treeCache: LRUCache<string, Parser.Tree> = new LRUCache({
-        max: 100
-    })
-    constructor(@inject(DepToken.connection) private connection?: Connection, @inject(DepToken.documents) private documents?: TextDocuments<TextDocument>) { }
+    constructor(@inject(DepToken.connection) private connection?: Connection, @inject(TreeParser) private parser?: TreeParser) { }
     onSemanticToken = async (params: SemanticTokensParams) => {
         const { uri } = params.textDocument;
-        const doc = this.documents!.get(uri);
-        if (!doc) return { data: [] };
-        const code = doc.getText();
-        let tree = this.treeCache.get(uri)
-        const parser = await getParser();
-        tree = parser.parse(code, tree) as Parser.Tree;
-
+        const tree = await this.parser!.getTreeByUri(uri);
         const tokenBuilder = new TokenBuilder()
 
         const stringMatches = await TreeQuery.getQueryByTokenName('string').matches(tree.rootNode)
@@ -70,7 +58,6 @@ export class SemanticTokenProvider {
         tokenBuilder.buildSingleCaptureTokens(boolMatches, 'bool')
 
         const data = tokenBuilder.build();
-        this.connection?.console.log(code);
         this.connection?.console.info(JSON.stringify(data));
 
 

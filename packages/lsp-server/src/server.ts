@@ -26,6 +26,7 @@ import { TreeQuery } from './providers/semantic-token/queries';
 import { SemanticTokenProvider } from './providers/semantic-token';
 import { DepToken } from './ioc/tokens';
 import { container } from 'tsyringe';
+import { CompletionProvider } from './providers/completion/completion';
 
 
 // Create a connection for the server, using Node's IPC as a transport.
@@ -241,26 +242,10 @@ connection.onDidChangeWatchedFiles(_change => {
     connection.console.log('We received an file change event');
 });
 
+const completionProvider = new CompletionProvider();
 // This handler provides the initial list of the completion items.
 connection.onCompletion(
-    async (_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-        connection.console.log(JSON.stringify(_textDocumentPosition))
-        // The pass parameter contains the position of the text document in
-        // which code complete got requested. For the example we ignore this
-        // info and always provide the same completion items.
-        return [
-            {
-                label: 'TypeScript',
-                kind: CompletionItemKind.Text,
-                data: 1
-            },
-            {
-                label: 'JavaScript',
-                kind: CompletionItemKind.Text,
-                data: 2
-            }
-        ];
-    }
+    completionProvider.onCompletion
 );
 
 // This handler resolves additional information for the item selected in
