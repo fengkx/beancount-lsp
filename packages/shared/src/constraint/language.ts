@@ -14,4 +14,11 @@ export const TOKEN_TYPES = Tuple([
     "currency"
 ] as const);
 
+export const tokenTypeToIndex = (tokenType: TokenTypes): number => {
+    return TOKEN_TYPES.findIndex(item => item === tokenType);
+}
+
+
+export const TOKEN_MODIFIERS = Tuple(["default", "definition", "deprecated", "documentation", "declaration"] as const)
+
 export type TokenTypes = (typeof TOKEN_TYPES)[number]

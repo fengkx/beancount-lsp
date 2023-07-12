@@ -1,8 +1,7 @@
 import * as vscode from "vscode";
 import { TreeQuery } from "../queries";
 import type * as WebTreeSitter from "web-tree-sitter";
-import { getParser } from "../parser";
-import { TokenTypes } from "../constraint/language";
+import { TokenTypes, getParser } from '@bean-lsp/shared'
 // import Beancount = require("tree-sitter-beancount");
 
 

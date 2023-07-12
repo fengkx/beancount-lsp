@@ -10,6 +10,7 @@
     "baseUrl": ".",
     "strict": true,
     "esModuleInterop": true,
-    "composite": true
+    "composite": true,
+    "skipLibCheck": true
   }
 }

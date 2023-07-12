@@ -10,16 +10,24 @@ import {
     CompletionItemKind,
     TextDocumentPositionParams,
     TextDocumentSyncKind,
-    InitializeResult
+    InitializeResult,
+    SemanticTokensBuilder,
 } from 'vscode-languageserver/node';
 
 import {
     TextDocument
 } from 'vscode-languageserver-textdocument';
+import { TOKEN_TYPES, TOKEN_MODIFIERS, TokenTypes, tokenTypeToIndex } from '@bean-lsp/shared';
+import { getParser } from "@bean-lsp/shared";
+import { TreeQuery } from './queries';
+import { SemanticTokenProvider } from './providers/semantic-token';
+
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 const connection = createConnection(ProposedFeatures.all);
+
+
 
 
 // Create a simple text document manager.
@@ -28,8 +36,12 @@ const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
+let hasSemanticTokensCapability = false;
+
+
 
 connection.onInitialize((params: InitializeParams) => {
+    getParser();
     const capabilities = params.capabilities;
 
     // Does the client support the `workspace/configuration` request?
@@ -45,6 +57,7 @@ connection.onInitialize((params: InitializeParams) => {
         capabilities.textDocument.publishDiagnostics &&
         capabilities.textDocument.publishDiagnostics.relatedInformation
     );
+    hasSemanticTokensCapability = !!(capabilities.textDocument && capabilities.textDocument.semanticTokens);
 
     const result: InitializeResult = {
         capabilities: {
@@ -52,7 +65,7 @@ connection.onInitialize((params: InitializeParams) => {
             // Tell the client that this server supports code completion.
             completionProvider: {
                 resolveProvider: true
-            }
+            },
         }
     };
     if (hasWorkspaceFolderCapability) {
@@ -62,6 +75,37 @@ connection.onInitialize((params: InitializeParams) => {
             }
         };
     }
+    if (hasSemanticTokensCapability) {
+        const semanticTokenProvider = new SemanticTokenProvider(
+            connection,
+            documents
+
+        )
+        result.capabilities.semanticTokensProvider = {
+            legend: { tokenTypes: TOKEN_TYPES, tokenModifiers: TOKEN_MODIFIERS },
+            full: true
+        }
+
+        connection.languages.semanticTokens.onDelta(() => {
+            return {
+                data: [],
+            }
+        })
+        connection.languages.semanticTokens.onRange(() => {
+            return {
+                data: [],
+            }
+        })
+
+
+        connection.languages.semanticTokens.on(semanticTokenProvider.onSemanticToken)
+
+    } else {
+        connection.console.info('semanticTokens is disabled')
+    }
+
+
+    connection.console.log(JSON.stringify({ tokenTypes: TOKEN_TYPES }))
     return result;
 });
 
@@ -130,6 +174,7 @@ documents.onDidClose(e => {
 documents.onDidChangeContent(change => {
     validateTextDocument(change.document);
 });
+
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
     // In this simple example we get the settings for every validate run.
@@ -219,9 +264,13 @@ connection.onCompletionResolve(
     }
 );
 
+
+
 // Make the text document manager listen on the connection
 // for open, change and close text document events
 documents.listen(connection);
 
 // Listen on the connection
 connection.listen();
+
+
