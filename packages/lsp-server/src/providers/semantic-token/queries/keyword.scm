@@ -1,61 +1,60 @@
-
 [
 (option
-"OPTION"  @keyword
+"option"  @keyword
 key: (string)
 value: (string)
 )
 (plugin
-"PLUGIN" @keyword
+"plugin" @keyword
 )
 (include
-"INCLUDE" @keyword
+"include" @keyword
 )
 (popmeta
-"POPMETA" @keyword
+"popmeta" @keyword
 )
 (pushmeta
-"PUSHMETA" @keyword
+"pushmeta" @keyword
 )
 (poptag
-"POPTAG" @keyword
+"poptag" @keyword
 )
 (pushtag
-"PUSHTAG" @keyword
+"pushtag" @keyword
 )
 
 (balance
-"BALANCE" @keyowrd
+"balance" @keyowrd
 )
 (query
-"QUERY" @keyowrd
+"query" @keyowrd
 )
 (note
-"NOTE" @keyword
+"note" @keyword
 )
 (document
-"DOCUMENT" @keyword
+"document" @keyword
 )
 (close
-"CLOSE" @keyword
+"close" @keyword
 )
 (commodity
-"COMMODITY" @keyword
+"commodity" @keyword
 )
 (custom
-"CUSTOM" @keyword
+"custom" @keyword
 )
 (event
-"EVENT" @keyword
+"event" @keyword
 )
 (open
-"OPEN" @keyword
+"open" @keyword
 )
 (pad
-"PAD" @keyword
+"pad" @keyword
 )
 (price
-"PRICE" @keyword
+"price" @keyword
 )
 
 ]

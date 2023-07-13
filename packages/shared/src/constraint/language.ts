@@ -17,7 +17,7 @@ export const TOKEN_TYPES = Tuple([
     "kv_key",
     "bool"
 ] as const);
-
+// aaa
 export const tokenTypeToIndex = (tokenType: TokenTypes): number => {
     return TOKEN_TYPES.findIndex(item => item === tokenType);
 }
