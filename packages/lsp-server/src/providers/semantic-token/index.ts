@@ -1,10 +1,7 @@
-import { SemanticTokensParams, TextDocuments, Connection } from "vscode-languageserver";
-import {
-    TextDocument
-} from 'vscode-languageserver-textdocument';
+import { SemanticTokensParams, Connection } from "vscode-languageserver";
 import { TokenBuilder } from "./token-builder";
 import { TreeQuery } from "src/providers/semantic-token/queries";
-import { autoInjectable, inject, injectable } from "tsyringe";
+import { autoInjectable, inject } from "tsyringe";
 import { DepToken } from "src/ioc/tokens";
 import { TreeParser } from "src/parser";
 
@@ -23,8 +20,8 @@ export class SemanticTokenProvider {
         tokenBuilder.buildSingleCaptureTokens(dateMatches, 'date');
 
 
-        const flagMatches = await TreeQuery.getQueryByTokenName('flag').matches(tree.rootNode);
-        tokenBuilder.buildSingleCaptureTokens(flagMatches, 'operator');
+        const txnMatches = await TreeQuery.getQueryByTokenName('txn').matches(tree.rootNode);
+        tokenBuilder.buildSingleCaptureTokens(txnMatches, 'operator');
 
         const narrationMatches = await TreeQuery.getQueryByTokenName('narration').matches(tree.rootNode);
         tokenBuilder.buildSingleCaptureTokens(narrationMatches, 'string')
@@ -56,6 +53,9 @@ export class SemanticTokenProvider {
 
         const boolMatches = await TreeQuery.getQueryByTokenName('bool').matches(tree.rootNode)
         tokenBuilder.buildSingleCaptureTokens(boolMatches, 'bool')
+
+        const commentMatches = await TreeQuery.getQueryByTokenName('comment').matches(tree.rootNode)
+        tokenBuilder.buildSingleCaptureTokens(commentMatches, 'comment')
 
         const data = tokenBuilder.build();
         // this.connection?.console.info(JSON.stringify(data));

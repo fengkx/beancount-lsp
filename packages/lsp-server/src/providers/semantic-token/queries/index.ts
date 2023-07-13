@@ -4,7 +4,7 @@ import { getParser } from "@bean-lsp/shared";
 import account from "./account.scm";
 import currency from "./currency.scm";
 import date from "./date.scm";
-import flag from "./flag.scm";
+import txn from "./txn.scm";
 import narration from "./narration.scm";
 import number from "./number.scm";
 import payee from "./payee.scm";
@@ -14,12 +14,13 @@ import tag from './tag.scm';
 import link from './link.scm';
 import kv_key from './kv_key.scm'
 import bool from './bool.scm'
+import comment from './comment.scm'
 
 const queryMap = {
     account,
     currency,
     date,
-    flag,
+    txn,
     narration,
     number,
     payee,
@@ -29,6 +30,7 @@ const queryMap = {
     tag,
     kv_key,
     bool,
+    comment
 } as const
 
 type BeanTokenName = keyof typeof queryMap
@@ -55,6 +57,11 @@ export class TreeQuery {
     async matches(rootNode: Parser.SyntaxNode, startPosition?: Parser.Point, endPosition?: Parser.Point) {
         const parser = await getParser()
         return parser.getLanguage().query(this.query!).matches(rootNode, startPosition, endPosition)
+    }
+
+    static async matches(query: string, rootNode: Parser.SyntaxNode, startPosition?: Parser.Point, endPosition?: Parser.Point) {
+        const parser = await getParser();
+        return parser.getLanguage().query(query).matches(rootNode, startPosition, endPosition)
     }
 
 }

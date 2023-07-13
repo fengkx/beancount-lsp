@@ -16,6 +16,7 @@ let client: LanguageClient;
 // This method is called when your extension is activated
 export function activate(context: vscode.ExtensionContext) {
 
+	console.log(vscode.workspace.getWorkspaceFolder(vscode.window.activeTextEditor?.document.uri))
 	// The server is implemented in node
 	const serverModule = require.resolve('beancount-lsp-server');
 
@@ -43,31 +44,14 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Create the language client and start the client.
 	client = new LanguageClient(
-		'languageServerExample',
-		'Language Server Example',
+		'beanLsp',
+		'BeanCount Language Server',
 		serverOptions,
 		clientOptions
 	);
 
 	// Start the client. This will also launch the server
 	client.start();
-
-	// const modifiers = TOKEN_MODIFIERS;
-	// const selector: vscode.DocumentSelector = {
-	// 	language: LANGUAGE_ID,
-	// 	scheme: "file",
-	// };
-
-	// const legend = new vscode.SemanticTokensLegend(TOKEN_TYPES, modifiers);
-	// const provider = new SemanticTokenProvider(legend);
-
-	// context.subscriptions.push(
-	// 	vscode.languages.registerDocumentSemanticTokensProvider(
-	// 		selector,
-	// 		provider,
-	// 		legend
-	// 	)
-	// );
 }
 
 // This method is called when your extension is deactivated

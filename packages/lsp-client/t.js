@@ -21,21 +21,23 @@ async function main() {
   );
   parser.setLanguage(Beancount);
   const r = parser.parse(
-    fs.readFileSync(
-      require.resolve("../tree-sitter-beancount/examples/example.beancount"),
-      { encoding: "utf-8" }
-    )
+    `2023-07-12 * "扑扑超市" "牛奶物资"
+  Expenses:Shopping:Home                    24.90 CNY
+  Expenses:Food:Snack                       10.00 CNY
+  Liabilities:CreditCard:CMB
+
+2023-07-12 * "aaa" "`
   );
 
-  console.log(r.rootNode.toString());
-  const query = parser.getLanguage().query(`
-  (option 
-    key: (string) @key
-    value: (string) @value
-    ) @option`);
+  // console.log(r.rootNode.toString());
+  // const query = parser.getLanguage().query(`
+  // (option
+  //   key: (string) @key
+  //   value: (string) @value
+  //   ) @option`);
 
-  const matches = query.matches(r.rootNode);
-  console.log(matches);
+  // const matches = query.matches(r.rootNode);
+  // console.log(matches);
 }
 
 main();

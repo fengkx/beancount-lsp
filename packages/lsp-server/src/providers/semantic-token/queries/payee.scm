@@ -1,1 +1,1 @@
-(transaction payee: (string) @payee)
+(transaction (payee) @payee)
