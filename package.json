@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run watch"
+    "dev": "turbo run watch",
+    "check": "turbo run check"
   },
   "keywords": [
     "beancount",

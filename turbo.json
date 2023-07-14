@@ -11,6 +11,10 @@
       "cache": false,
       "persistent": true
     },
+    "check": {
+      "outputs": [],
+      "dependsOn": ["typecheck", "lint"]
+    },
     "typecheck": {},
     "lint": {},
     "tree-sitter-beancount#build": {
