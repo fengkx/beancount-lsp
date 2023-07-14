@@ -71,7 +71,7 @@
     "copy:asset": "cp src/queries/*.scm out/queries",
     "watch": "tsup --watch",
     "pretest": "npm run compile && npm run lint",
-    "lint": "eslint .",
+    "lint": "eslint --cache .",
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
