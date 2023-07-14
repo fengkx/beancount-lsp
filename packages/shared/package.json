@@ -7,6 +7,8 @@
   "typings": "out/index.d.ts",
   "scripts": {
     "build": "tsc -b",
+    "typecheck": "tsc --noEmit true",
+    "lint": "eslint .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {

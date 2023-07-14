@@ -5,7 +5,8 @@ module.exports = {
     es2021: true,
     node: true,
   },
-  extends: ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+  // root: true,
+  extends: ["custom"],
   parser: "@typescript-eslint/parser",
   parserOptions: {
     ecmaVersion: "latest",
@@ -33,12 +34,9 @@ module.exports = {
             argsIgnorePattern: "$",
           },
         ],
-      },
-    },
-    {
-      files: ["./packages/lsp-server/**/*.ts"],
-      rules: {
-        "@typescript-eslint/no-non-null-assertion": "off",
+        "no-useless-escape": "off",
+        "no-control-regex": "off",
+        "no-dupe-keys": "warn",
       },
     },
   ],
