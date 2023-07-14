@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit true",
-    "lint": "eslint .",
+    "lint": "eslint --cache .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
