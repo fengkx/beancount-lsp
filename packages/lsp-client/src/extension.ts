@@ -16,7 +16,6 @@ let client: LanguageClient;
 // This method is called when your extension is activated
 export function activate(context: vscode.ExtensionContext) {
 
-	console.log(vscode.workspace.getWorkspaceFolder(vscode.window.activeTextEditor?.document.uri))
 	// The server is implemented in node
 	const serverModule = require.resolve('beancount-lsp-server');
 
