@@ -4,7 +4,8 @@
   "description": "BeanCount language server",
   "private": true,
   "scripts": {
-    "build": "pnpm -r --filter=./packages/** run build"
+    "build": "turbo run build",
+    "dev": "turbo run watch"
   },
   "keywords": [
     "beancount",
