@@ -1,0 +1,19 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "pipeline": {
+    "build": {
+      "outputs": ["out/**", "dist/**"],
+      "dependsOn": ["^build"]
+    },
+    "tree-sitter-beancount#build": {
+      "outputs": [
+        "bindings/**",
+        "src/**",
+        "tree-sitter-beancount.wasm",
+        "Cargo*",
+        "binding.gyp"
+      ]
+    }
+  },
+  "globalDependencies": [".env"]
+}
