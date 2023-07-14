@@ -17,8 +17,7 @@ import {
 import {
     TextDocument
 } from 'vscode-languageserver-textdocument';
-import { TOKEN_TYPES, TOKEN_MODIFIERS, TokenTypes, tokenTypeToIndex } from '@bean-lsp/shared';
-import { getParser } from "@bean-lsp/shared";
+import { TOKEN_TYPES, TOKEN_MODIFIERS, TokenTypes, tokenTypeToIndex , getParser } from '@bean-lsp/shared';
 
 
 
