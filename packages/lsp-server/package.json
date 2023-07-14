@@ -5,6 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "build": "tsup",
+    "watch": "tsup --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

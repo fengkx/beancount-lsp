@@ -5,6 +5,12 @@
       "outputs": ["out/**", "dist/**"],
       "dependsOn": ["^build"]
     },
+    "watch": {
+      "outputs": ["out/**", "dist/**"],
+      "dependsOn": ["tree-sitter-beancount#build"],
+      "cache": false,
+      "persistent": true
+    },
     "tree-sitter-beancount#build": {
       "outputs": [
         "bindings/**",
