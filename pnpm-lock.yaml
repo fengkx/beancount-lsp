@@ -114,6 +114,9 @@ importers:
       vscode-languageserver-textdocument:
         specifier: ^1.0.8
         version: 1.0.8
+      vscode-uri:
+        specifier: ^3.0.8
+        version: 3.0.8
       web-tree-sitter:
         specifier: ^0.20.8
         version: 0.20.8
@@ -2598,6 +2601,10 @@ packages:
     hasBin: true
     dependencies:
       vscode-languageserver-protocol: 3.17.3
+    dev: false
+
+  /vscode-uri@3.0.8:
+    resolution: {integrity: sha512-AyFQ0EVmsOZOlAnxoFOGOq1SQDWAB7C6aqMGS23svWAllfOaxbuFvcT8D1i8z3Gyn8fraVeZNNmN6e9bxxXkKw==}
     dev: false
 
   /web-tree-sitter@0.20.8:
