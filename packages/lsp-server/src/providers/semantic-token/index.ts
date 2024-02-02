@@ -1,6 +1,6 @@
 import { SemanticTokensParams, Connection } from "vscode-languageserver";
 import { TokenBuilder } from "./token-builder";
-import { TreeQuery } from "src/providers/semantic-token/queries";
+import { TreeQuery } from "../../common/language/query";
 import { autoInjectable, inject } from "tsyringe";
 import { DepToken } from "src/ioc/tokens";
 import { TreeParser } from "src/parser";

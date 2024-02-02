@@ -6,7 +6,7 @@ import { autoInjectable, inject, singleton } from "tsyringe";
 import { fileURLToPath, pathToFileURL, } from "url";
 import { Queue } from "mnemonist";
 import { Connection } from "vscode-languageserver";
-import { TreeQuery } from "src/providers/semantic-token/queries";
+import { TreeQuery } from "../common/language/query";
 import { glob } from "fast-glob";
 import { LiteralUnion } from "type-fest";
 import type * as WebTreeSitter from "web-tree-sitter";
