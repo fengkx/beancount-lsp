@@ -1,5 +1,5 @@
 import { add, formatDate, sub } from "date-fns";
-import { CompletionItem, CompletionParams, CompletionRequest, CompletionRegistrationOptions, Connection, CompletionItemKind } from "vscode-languageserver";
+import { CompletionItem, CompletionParams, CompletionRequest, CompletionRegistrationOptions, Connection, CompletionItemKind, TextEdit, Position } from "vscode-languageserver";
 import { DocumentStore } from "../document-store";
 import { Trees } from "../trees";
 import { Feature } from "./types";
@@ -57,16 +57,14 @@ export class CompletionFeature implements Feature {
             previousSiblingType: current.previousSibling?.type,
             previousPreviousSiblingType: current.previousSibling?.previousSibling?.type,
             descendantForPositionType: tree.rootNode.descendantForPosition(asTsPoint(params.position))?.type,
-
-
-        })
+        }, params.position)
 
 
 
         return completionItems;
     }
 
-    calcCompletionItems(info: TriggerInfo): CompletionItem[] {
+    calcCompletionItems(info: TriggerInfo, position: Position): CompletionItem[] {
         let cnt = 0;
         const set = new Set();
         const completionItems: CompletionItem[] = [];
@@ -99,7 +97,8 @@ export class CompletionFeature implements Feature {
                 addItem({ label: txt })
             })
             .with({ triggerCharacter: '"', previousSiblingType: 'txn' }, () => {
-                addItem({ label: '你猜' })
+                const text = '你猜';
+                addItem({ label: text, textEdit: TextEdit.insert(position, `${text}"`) })
             })
         return completionItems;
     }
