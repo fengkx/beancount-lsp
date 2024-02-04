@@ -16,11 +16,11 @@
   "author": "fengkx",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^18.19.14",
+    "@types/node": "^20.11.16",
     "eslint": "^8.56.0",
     "eslint-config-custom": "workspace:*",
-    "tsup": "^7.2.0",
+    "tsup": "^8.0.1",
     "turbo": "^1.12.2",
-    "typescript": "^4.9.5"
+    "typescript": "^5.3.3"
   }
 }
