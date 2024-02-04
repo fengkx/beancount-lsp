@@ -2,14 +2,16 @@ import { LRUMapWithDelete as LRUMap } from "mnemonist";
 import Parser from "web-tree-sitter";
 import { Disposable, Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { DocumentStore } from "./document-store";
+import { DocumentStore, TextDocumentChange2 } from "./document-store";
 import { getParser } from "@bean-lsp/shared";
 
 
 class Entry {
     constructor(
         public version: number,
-        public tree: Parser.Tree
+        public tree: Parser.Tree,
+
+        public edits: Parser.Edit[][]
     ) { }
 }
 
@@ -24,12 +26,12 @@ export class Trees {
     constructor(private readonly _documents: DocumentStore) {
 
         // build edits when document changes
-        // this._listener.push(_documents.onDidChangeContent2(e => {
-        // 	const info = this._cache.get(e.document.uri);
-        // 	if (info) {
-        // 		info.edits.push(Trees._asEdits(e));
-        // 	}
-        // }));
+        this._listener.push(_documents.onDidChangeContent2(e => {
+            const info = this._cache.get(e.document.uri);
+            if (info) {
+                info.edits.push(Trees._asEdits(e));
+            }
+        }));
     }
     private static async getParserInstance() {
         const parser = await getParser();
@@ -40,26 +42,29 @@ export class Trees {
         if (typeof documentOrUri === 'string') {
             documentOrUri = await this._documents.retrieve(documentOrUri);
         }
-        const parser = await Trees.getParserInstance();
         try {
             const version = documentOrUri.version;
             const text = documentOrUri.getText();
 
             let info = this._cache.get(documentOrUri.uri);
+            if (info?.version === documentOrUri.version) {
+                return info.tree;
+            }
 
+            const parser = await Trees.getParserInstance();
             if (!info) {
                 // never seen before, parse fresh
                 const tree = parser.parse(text);
-                info = new Entry(version, tree);
+                info = new Entry(version, tree, []);
                 this._cache.set(documentOrUri.uri, info);
 
             } else {
                 // existing entry, apply deltas and parse incremental
                 const oldTree = info.tree;
 
-                // const deltas = info.edits.flat();
-                // deltas.forEach(delta => oldTree.edit(delta));
-                // info.edits.length = 0;
+                const deltas = info.edits.flat();
+                deltas.forEach(delta => oldTree.edit(delta));
+                info.edits.length = 0;
 
                 info.tree = parser.parse(text, oldTree);
                 info.version = version;
@@ -73,4 +78,21 @@ export class Trees {
             return undefined;
         }
     }
+
+    private static _asEdits(event: TextDocumentChange2): Parser.Edit[] {
+        return event.changes.map(change => ({
+            startPosition: this._asTsPoint(change.range.start),
+            oldEndPosition: this._asTsPoint(change.range.end),
+            newEndPosition: this._asTsPoint(event.document.positionAt(change.rangeOffset + change.text.length)),
+            startIndex: change.rangeOffset,
+            oldEndIndex: change.rangeOffset + change.rangeLength,
+            newEndIndex: change.rangeOffset + change.text.length
+        }));
+    }
+
+    private static _asTsPoint(position: Position): Parser.Point {
+        const { line: row, character: column } = position;
+        return { row, column };
+    }
+
 }

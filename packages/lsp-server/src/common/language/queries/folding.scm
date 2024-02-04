@@ -1,0 +1,12 @@
+(transaction ) @folding
+(balance ) @folding
+(open ) @folding
+(close ) @folding
+(pad ) @folding
+(document ) @folding
+(note ) @folding
+(event ) @folding
+(price ) @folding
+(commodity ) @folding
+(query ) @folding
+(custom ) @folding

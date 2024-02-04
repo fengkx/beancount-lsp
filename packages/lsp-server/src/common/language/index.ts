@@ -16,6 +16,8 @@ import kv_key from './queries/kv_key.scm'
 import bool from './queries/bool.scm'
 import comment from './queries/comment.scm'
 
+import folding from "./queries/folding.scm";
+
 const queryMap = {
     account,
     currency,
@@ -30,7 +32,8 @@ const queryMap = {
     tag,
     kv_key,
     bool,
-    comment
+    comment,
+    folding
 } as const
 
 type BeanTokenName = keyof typeof queryMap
@@ -58,6 +61,13 @@ export class TreeQuery {
         const parser = await getParser()
         return parser.getLanguage().query(this.query!).matches(rootNode, startPosition, endPosition)
     }
+
+
+    async captures(rootNode: Parser.SyntaxNode, startPosition?: Parser.Point, endPosition?: Parser.Point) {
+        const parser = await getParser()
+        return parser.getLanguage().query(this.query!).captures(rootNode, startPosition, endPosition)
+    }
+
 
     static async matches(query: string, rootNode: Parser.SyntaxNode, startPosition?: Parser.Point, endPosition?: Parser.Point) {
         const parser = await getParser();

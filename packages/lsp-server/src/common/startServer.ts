@@ -4,6 +4,7 @@ import { Feature } from "./features/types";
 import { DocumentStore } from "./document-store";
 import { Trees } from "./trees";
 import { SemanticTokenFeature } from "./features/semantic-token";
+import { FoldingRangeFeature } from "./features/folding-ranges";
 
 export function startServer(connection: Connection) {
     console.log = connection.console.log.bind(connection.console);
@@ -25,6 +26,7 @@ export function startServer(connection: Connection) {
         const documents = new DocumentStore(connection);
         const trees = new Trees(documents);
         features.push(new SemanticTokenFeature(documents, trees));
+        // features.push(new FoldingRangeFeature(documents, trees))
 
 
         return {
