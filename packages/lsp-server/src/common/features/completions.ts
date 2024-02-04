@@ -9,7 +9,7 @@ import { P, match } from "ts-pattern";
 
 const Tuple = <T extends unknown[]>(xs: readonly [...T]): T => xs as T;
 
-const triggerCharacters = Tuple(['2', '*', '"', 'yt', 'td', 'tm'] as const)
+const triggerCharacters = Tuple(['2', '*', '"', 'y', 't'] as const)
 type TriggerCharacter = (typeof triggerCharacters)[number];
 //    ^?
 
@@ -18,6 +18,7 @@ type TriggerInfo = {
     currentType: string;
     parentType: string | undefined;
     previousSiblingType: string | undefined;
+    previousPreviousSiblingType: string | undefined;
     descendantForPositionType: string | undefined;
 }
 
@@ -54,20 +55,18 @@ export class CompletionFeature implements Feature {
             parentType: current.parent?.type,
             triggerCharacter: params.context?.triggerCharacter as TriggerCharacter,
             previousSiblingType: current.previousSibling?.type,
+            previousPreviousSiblingType: current.previousSibling?.previousSibling?.type,
+            descendantForPositionType: tree.rootNode.descendantForPosition(asTsPoint(params.position))?.type,
 
 
         })
 
 
 
-        return completionItems.map((item, index) => {
-
-            item.sortText = String.fromCharCode(97 + index);
-            return item;
-        })
+        return completionItems;
     }
 
-    async calcCompletionItems(info: TriggerInfo) {
+    calcCompletionItems(info: TriggerInfo): CompletionItem[] {
         let cnt = 0;
         const set = new Set();
         const completionItems: CompletionItem[] = [];
@@ -78,28 +77,12 @@ export class CompletionFeature implements Feature {
             }
             item.sortText = String.fromCharCode(95 + cnt);
             completionItems.push(item)
+            console.info(`addItem ${JSON.stringify(item)}`)
             set.add(item.label);
+            cnt++;
         }
-        // switch (params.context?.triggerCharacter) {
-        //     case '2': {
-        //         const d = new Date();
-        //         const yesterday = sub(d, { days: 1 });
-        //         const dayBeforeYesterday = sub(d, { days: 2 });
-        //         const tomorrow = add(d, { days: 1 });
-        //         [d, yesterday, tomorrow, dayBeforeYesterday,].forEach(d => {
-        //             completionItems.push({ label: formatDate(d, 'yyyy-MM-dd') });
-        //         })
-        //         break;
-        //     }
 
-        // }
-        // switch (current?.type) {
-        //     case '\n':
-        //         if (current.parent?.type === 'file') {
-        //             completionItems.push(CompletionItem.create(formatDate(Date.now(), 'yyyy-MM-dd')))
-        //         }
-        //         break;
-        // }
+        console.info(JSON.stringify(info));
         match(info)
             .with({ triggerCharacter: '2' }, () => {
                 const d = new Date();
@@ -107,12 +90,18 @@ export class CompletionFeature implements Feature {
                 const dayBeforeYesterday = sub(d, { days: 2 });
                 const tomorrow = add(d, { days: 1 });
                 [d, yesterday, tomorrow, dayBeforeYesterday,].forEach(d => {
-                    const label = formatDate(d, 'yyyy-MM-dd');
-                    set.add(label);
-                    if ()
-                        completionItems.push({ label: formatDate(d, 'yyyy-MM-dd') });
-                })
+                    addItem({ label: formatDate(d, 'yyyy-MM-dd') })
+                });
             })
+            .with({ triggerCharacter: 'y' }, () => {
+                const yesterday = sub(new Date(), { days: 1 });
+                const txt = formatDate(yesterday, 'yyyy-MM-dd')
+                addItem({ label: txt })
+            })
+            .with({ triggerCharacter: '"', previousSiblingType: 'txn' }, () => {
+                addItem({ label: '你猜' })
+            })
+        return completionItems;
     }
 
 }
