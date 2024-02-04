@@ -6,11 +6,11 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Connection, SelectionRangeRequest, SelectionRangeRegistrationOptions, SelectionRangeParams, SelectionRange } from "vscode-languageserver";
-import { DocumentStore } from "./document-store";
-import { Feature } from "./features/types";
-import { Trees } from "./trees";
+import { DocumentStore } from "../document-store";
+import { Feature } from "./types";
+import { Trees } from "../trees";
 import type Parser from "web-tree-sitter";
-import { asLspRange } from "./common";
+import { asLspRange } from "../common";
 
 export class SelectionRangesFeature implements Feature {
 

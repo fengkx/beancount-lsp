@@ -6,7 +6,7 @@ import { Trees } from "./trees";
 import { SemanticTokenFeature } from "./features/semantic-token";
 import { FoldingRangeFeature } from "./features/folding-ranges";
 import { CompletionFeature } from "./features/completions";
-import { SelectionRangesFeature } from "./selection-ranges";
+import { SelectionRangesFeature } from "./features/selection-ranges";
 
 export function startServer(connection: Connection) {
     console.log = connection.console.log.bind(connection.console);
