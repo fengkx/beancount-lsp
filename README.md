@@ -3,7 +3,7 @@
 ## TODO List
 
 - [x] semantic syntax highlight
-- [ ] [semantic selection](https://github.com/microsoft/language-server-protocol/issues/613#issuecomment-445832563)
+- [x] [semantic selection](https://github.com/microsoft/language-server-protocol/issues/613#issuecomment-445832563)
 - [ ] auto completion
 - [ ] formating
 - [ ] diagnose

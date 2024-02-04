@@ -6,6 +6,7 @@ import { Trees } from "./trees";
 import { SemanticTokenFeature } from "./features/semantic-token";
 import { FoldingRangeFeature } from "./features/folding-ranges";
 import { CompletionFeature } from "./features/completions";
+import { SelectionRangesFeature } from "./selection-ranges";
 
 export function startServer(connection: Connection) {
     console.log = connection.console.log.bind(connection.console);
@@ -29,6 +30,7 @@ export function startServer(connection: Connection) {
         features.push(new SemanticTokenFeature(documents, trees));
         features.push(new FoldingRangeFeature(documents, trees));
         features.push(new CompletionFeature(documents, trees));
+        features.push(new SelectionRangesFeature(documents, trees))
 
 
         return {
