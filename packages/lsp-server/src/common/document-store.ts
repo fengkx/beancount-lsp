@@ -78,7 +78,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 
     public async getMainBeanFileUri(): Promise<string | null> {
         const config = await this.getConfiguration();
-        const workspace = await this._connection!.workspace.getWorkspaceFolders();
+        const workspace = await this._connection.workspace.getWorkspaceFolders();
 
         if (!workspace) {
             // just open a file
