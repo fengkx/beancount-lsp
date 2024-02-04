@@ -29,7 +29,7 @@ export class Trees {
         this._listener.push(_documents.onDidChangeContent2(e => {
             const info = this._cache.get(e.document.uri);
             if (info) {
-                info.edits.push(Trees._asEdits(e));
+                info.edits.push(Trees.asEdits(e));
             }
         }));
     }
@@ -79,18 +79,18 @@ export class Trees {
         }
     }
 
-    private static _asEdits(event: TextDocumentChange2): Parser.Edit[] {
+    private static asEdits(event: TextDocumentChange2): Parser.Edit[] {
         return event.changes.map(change => ({
-            startPosition: this._asTsPoint(change.range.start),
-            oldEndPosition: this._asTsPoint(change.range.end),
-            newEndPosition: this._asTsPoint(event.document.positionAt(change.rangeOffset + change.text.length)),
+            startPosition: this.asTsPoint(change.range.start),
+            oldEndPosition: this.asTsPoint(change.range.end),
+            newEndPosition: this.asTsPoint(event.document.positionAt(change.rangeOffset + change.text.length)),
             startIndex: change.rangeOffset,
             oldEndIndex: change.rangeOffset + change.rangeLength,
             newEndIndex: change.rangeOffset + change.text.length
         }));
     }
 
-    private static _asTsPoint(position: Position): Parser.Point {
+    private static asTsPoint(position: Position): Parser.Point {
         const { line: row, character: column } = position;
         return { row, column };
     }
