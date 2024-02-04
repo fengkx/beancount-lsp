@@ -2,7 +2,7 @@
   "name": "beancount-lsp-server",
   "version": "1.0.0",
   "description": "",
-  "main": "dist/server.js",
+  "main": "dist/node/server.js",
   "scripts": {
     "build": "tsup",
     "watch": "tsup --watch",

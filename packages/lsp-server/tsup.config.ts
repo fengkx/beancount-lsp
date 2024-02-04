@@ -1,8 +1,8 @@
 import { defineConfig } from 'tsup'
 
 const config = defineConfig({
-    entry: ['src/server.ts'],
-    outDir: 'dist',
+    entry: ['src/node/server.ts'],
+    outDir: 'dist/node',
     sourcemap: true,
     clean: true,
     target: 'node18',
@@ -14,4 +14,4 @@ const config = defineConfig({
     noExternal: ['lru-cache', 'vscode-languageserver', 'vscode-languageserver-textdocument', '@bean-lsp/shared']
 })
 
-export default config;
+export default [config];

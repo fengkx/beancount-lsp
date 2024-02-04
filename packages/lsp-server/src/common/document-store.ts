@@ -1,3 +1,4 @@
+import { LANGUAGE_ID } from "@bean-lsp/shared";
 import { LRUMapWithDelete as LRUMap } from "mnemonist";
 import { Connection, TextDocuments } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";

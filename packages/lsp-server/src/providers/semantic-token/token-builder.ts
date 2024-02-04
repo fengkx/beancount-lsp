@@ -57,7 +57,6 @@ export class TokenBuilder {
             return a.length - b.length
         })
 
-        this.connection?.console.info(JSON.stringify({ 'name': 'absTokens', absToken: this.absTokens }))
         this.absTokens.filter(t => !t.dropped).forEach(token => {
             const { row, column, length, tokenType, tokenModifiers } = token;
             // const relativeRow = row - this.lastToken.row;
