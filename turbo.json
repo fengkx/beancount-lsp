@@ -13,10 +13,16 @@
     },
     "check": {
       "outputs": [],
-      "dependsOn": ["typecheck", "lint"]
+      "dependsOn": ["typecheck", "lint", "format:check"]
+    },
+    "format": {
+      "outputs": [],
+      "dependsOn": ["format:fix"]
     },
     "typecheck": {},
     "lint": {},
+    "format:check": {},
+    "format:fix": {},
     "tree-sitter-beancount#build": {
       "outputs": [
         "bindings/**",

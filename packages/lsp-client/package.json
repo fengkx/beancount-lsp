@@ -72,7 +72,9 @@
     "watch": "tsup --watch",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint --cache .",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "format:check": "dprint check",
+    "format:fix": "dprint fmt"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
