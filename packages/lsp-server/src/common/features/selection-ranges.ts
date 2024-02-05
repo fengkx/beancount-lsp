@@ -19,7 +19,7 @@ import { Trees } from '../trees';
 import { Feature } from './types';
 
 export class SelectionRangesFeature implements Feature {
-	constructor(private _documents: DocumentStore, private _trees: Trees) { }
+	constructor(private _documents: DocumentStore, private _trees: Trees) {}
 
 	register(connection: Connection) {
 		const registerOptions: SelectionRangeRegistrationOptions = {
