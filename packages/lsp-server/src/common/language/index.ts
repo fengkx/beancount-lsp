@@ -18,6 +18,9 @@ import comment from './queries/comment.scm'
 
 import folding from "./queries/folding.scm";
 
+import account_definition from "./queries/account_definition.scm";
+import account_usage from "./queries/account_usage.scm";
+
 const queryMap = {
     account,
     currency,
@@ -33,7 +36,9 @@ const queryMap = {
     kv_key,
     bool,
     comment,
-    folding
+    folding,
+    account_definition,
+    account_usage,
 } as const
 
 type BeanTokenName = keyof typeof queryMap
@@ -72,6 +77,10 @@ export class TreeQuery {
     static async matches(query: string, rootNode: Parser.SyntaxNode, startPosition?: Parser.Point, endPosition?: Parser.Point) {
         const parser = await getParser();
         return parser.getLanguage().query(query).matches(rootNode, startPosition, endPosition)
+    }
+    static async captures(query: string, rootNode: Parser.SyntaxNode, startPosition?: Parser.Point, endPosition?: Parser.Point) {
+        const parser = await getParser();
+        return parser.getLanguage().query(query).captures(rootNode, startPosition, endPosition)
     }
 
 }

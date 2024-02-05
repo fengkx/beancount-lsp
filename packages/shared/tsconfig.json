@@ -12,6 +12,7 @@
     "baseUrl": ".",
     "rootDir": "./src",
     "sourceMap": true,
+    "isolatedModules": true,
     // "rootDir": "src",
     "allowSyntheticDefaultImports": true,
     "strict": true /* enable all strict type-checking options */,

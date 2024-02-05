@@ -1,6 +1,6 @@
-import { LANGUAGE_ID } from "@bean-lsp/shared";
+import { CustomMessages, LANGUAGE_ID } from "@bean-lsp/shared";
 import { LRUMapWithDelete as LRUMap } from "mnemonist";
-import { Connection, TextDocuments, Range, Emitter, TextDocumentContentChangeEvent } from "vscode-languageserver";
+import { Connection, TextDocuments, Range, Emitter, TextDocumentContentChangeEvent, WorkspaceSymbolRequest, ConfigurationRequest } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { Utils as UriUtils, URI } from 'vscode-uri'
 
@@ -16,8 +16,12 @@ export interface TextDocumentChange2 {
 
 export class DocumentStore extends TextDocuments<TextDocument> {
 
+    private readonly _decoder = new TextDecoder();
+
     private readonly _onDidChangeContent2 = new Emitter<TextDocumentChange2>();
     readonly onDidChangeContent2 = this._onDidChangeContent2.event;
+
+    private _beanFiles: string[] = [];
 
     constructor(private readonly _connection: Connection) {
         super({
@@ -54,16 +58,35 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 
 
 
+    async refetchBeanFiles() {
+        const files = await this._connection.sendRequest<string[]>(CustomMessages.ListBeanFile);
+        this._beanFiles = files
+        console.info(`files: ${files}`)
+    }
+
+    get beanFiles(): string[] {
+        return this._beanFiles;
+    }
 
     async retrieve(uri: string): Promise<TextDocument> {
         const result = this.get(uri);
-        return result!;
+        if (result) {
+            return result;
+        }
 
-        // let cached = this._documentsCache.get(uri);
-        // if (!cached) {
-        //     cached = this._requestDocument(uri)
-        //     result = undefined
-        // }
+        let cached = this._documentsCache.get(uri);
+
+        if (!cached) {
+            cached = await this._requestDocument(uri)
+            this._documentsCache.set(uri, cached);
+        }
+        return cached;
+    }
+
+    private async _requestDocument(uri: string): Promise<TextDocument> {
+        const reply = await this._connection.sendRequest<number[]>(CustomMessages.FileRead, uri);
+        const bytes = new Uint8Array(reply);
+        return TextDocument.create(uri, LANGUAGE_ID, 1, this._decoder.decode(bytes));
     }
 
     removeFile(uri: string) {
@@ -93,7 +116,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
         const mainAbsPath = UriUtils.joinPath(URI.parse(rootUri), config.mainBeanFile ?? 'main.bean');
 
 
-        return mainAbsPath.toString();
+        return mainAbsPath.toString() as string;
 
     }
 
