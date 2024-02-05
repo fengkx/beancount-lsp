@@ -10,9 +10,9 @@ import { SelectionRangesFeature } from "./features/selection-ranges";
 
 import Db from "@seald-io/nedb";
 import { SymbolIndex } from "./features/symbol-index";
-import { resolve } from "path";
+import { SymbolInfo } from "./features/references";
 
-export type SymbolInfoStorage = Db;
+export type SymbolInfoStorage = Db<SymbolInfo>;
 
 
 
@@ -130,10 +130,10 @@ export function startServer(connection: Connection, factory: IStorageFactory) {
         await documents.refetchBeanFiles();
 
         if (mainBeanFile) {
-            symbolIndex.addFile(mainBeanFile);
+            await symbolIndex.initFiles([mainBeanFile])
         }
 
-        await symbolIndex.startIndex();
+        await symbolIndex.unleashFiles([]);
         for (const feature of features) {
             feature.register(connection);
         }

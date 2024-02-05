@@ -105,9 +105,6 @@ importers:
       fast-glob:
         specifier: ^3.3.2
         version: 3.3.2
-      lodash.escaperegexp:
-        specifier: ^4.1.2
-        version: 4.1.2
       micromatch:
         specifier: ^4.0.5
         version: 4.0.5
@@ -139,9 +136,6 @@ importers:
       '@swc/core':
         specifier: ^1.3.107
         version: 1.3.107
-      '@types/lodash.escaperegexp':
-        specifier: ^4.1.9
-        version: 4.1.9
       '@types/micromatch':
         specifier: ^4.0.6
         version: 4.0.6
@@ -827,16 +821,6 @@ packages:
 
   /@types/json-schema@7.0.15:
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
-    dev: true
-
-  /@types/lodash.escaperegexp@4.1.9:
-    resolution: {integrity: sha512-CMQc8v16YzhnPZnMhYQuJUksI8BmL1jy/lHJkiXi4/t24Lx7Qvy7qxew1abrDJGa1T2i0NzLLaR27NK1/qp5Ow==}
-    dependencies:
-      '@types/lodash': 4.14.202
-    dev: true
-
-  /@types/lodash@4.14.202:
-    resolution: {integrity: sha512-OvlIYQK9tNneDlS0VN54LLd5uiPCBOp7gS5Z0f1mjoJYBrtStzgmJBxONW3U6OZqdtNzZPmn9BS/7WI7BFFcFQ==}
     dev: true
 
   /@types/micromatch@4.0.6:
@@ -2219,10 +2203,6 @@ packages:
     engines: {node: '>=10'}
     dependencies:
       p-locate: 5.0.0
-
-  /lodash.escaperegexp@4.1.2:
-    resolution: {integrity: sha512-TM9YBvyC84ZxE3rgfefxUWiQKLilstD6k7PTGt6wfbtXF8ixIJLOL3VYyV/z+ZiPLsVxAsKAFVwWlWeb2Y8Yyw==}
-    dev: false
 
   /lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}

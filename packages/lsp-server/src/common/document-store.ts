@@ -61,7 +61,6 @@ export class DocumentStore extends TextDocuments<TextDocument> {
     async refetchBeanFiles() {
         const files = await this._connection.sendRequest<string[]>(CustomMessages.ListBeanFile);
         this._beanFiles = files
-        console.info(`files: ${files}`)
     }
 
     get beanFiles(): string[] {

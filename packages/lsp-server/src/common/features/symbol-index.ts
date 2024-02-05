@@ -1,15 +1,13 @@
-import { DocumentUri } from "vscode-languageserver";
-import { TrieMap } from "mnemonist";
+import { CancellationTokenSource, DocumentUri } from "vscode-languageserver";
 import { Nominal } from "nominal-types";
-import { isInteresting } from "../common";
+import { StopWatch, isInteresting, parallel } from "../common";
 import mm from "micromatch";
-import escapeRegExp from 'lodash.escaperegexp';
+import { difference, intersection } from "mnemonist/set";
 import { SymbolInfo, getAccountsDefinition, getAccountsUsage } from "./references";
 import { Trees } from "../trees";
 import { DocumentStore } from "../document-store";
 import { SymbolInfoStorage } from "../startServer";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { Feature } from "./types";
 
 import { TreeQuery } from "../language";
 import { URI, Utils as UriUtils } from "vscode-uri";
@@ -26,7 +24,6 @@ class Queue {
     enqueue(uri: string): void {
         if (isInteresting(uri) && !this._queue.has(uri)) {
             this._queue.add(uri);
-            console.info(`addFile: ${uri} size:${this._queue.size}`)
         }
     }
 
@@ -39,7 +36,6 @@ class Queue {
             n = this._queue.size;
         }
         const result: string[] = [];
-        console.info(`queue: size=${this._queue.size}`)
         for (const uri of this._queue) {
             if (!filter(uri)) {
                 continue;
@@ -83,9 +79,13 @@ export class SymbolIndex {
             return true
         })
 
-        console.info(`uris: ${JSON.stringify(uris)}`)
-
         await Promise.all(uris.map((uri) => this._createIndexTask(uri)()))
+    }
+    public async update(): Promise<void> {
+        await this._currentUpdate;
+        const uris = this._syncQueue.consume(undefined, uri => true);
+        this._currentUpdate = this._doUpdate(uris, false);
+        return this._currentUpdate;
     }
 
     async startIndex() {
@@ -97,9 +97,73 @@ export class SymbolIndex {
     private _currentUpdate: Promise<void> | undefined;
 
 
+    public async initFiles(_uris: string[]) {
+        const uris = new Set(_uris);
+        const sw = new StopWatch();
+        console.log(`[index] initializing index for ${uris.size} files.`);
+
+        const all = await this._symbolInfoStorage.findAsync({});
+        const urisInStore = new Set(all.map(info => info._uri));
+
+        const urisNotSeen = difference(urisInStore, uris);
+        const newUris = difference(uris, urisInStore);
+        const urisNeedAsyncUpdate = intersection(uris, urisInStore);
+
+        urisNeedAsyncUpdate.forEach((uri) => {
+            this._asyncQueue.enqueue(uri);
+        });
+
+
+        for (const uri of newUris) {
+            this.addFile(uri);
+        }
+
+        this._symbolInfoStorage.remove({ _uri: { $in: Array.from(urisNotSeen) } }, { multi: true })
+        console.log(`[index] added FROM CACHE ${all.length} files ${sw.elapsed()}ms, all need revalidation, ${uris.size} files are NEW, ${urisNotSeen.size} where OBSOLETE`);
+
+    }
+
+    public async unleashFiles(suffixes: string[]) {
+
+        // this._suffixFilter.update(suffixes);
+
+        await this.update();
+
+        // async update all files that were taken from cache
+        const asyncUpdate = async () => {
+            const uris = this._asyncQueue.consume(70, uri => true);
+            if (uris.length === 0) {
+                return;
+            }
+            const t1 = performance.now();
+            await this._doUpdate(uris, true);
+            setTimeout(() => asyncUpdate(), (performance.now() - t1) * 4);
+        };
+        asyncUpdate();
+    }
+
+    private async _doUpdate(uris: string[], async: boolean): Promise<void> {
+        if (uris.length !== 0) {
+
+            // schedule a new task to update the cache for changed uris
+            const sw = new StopWatch();
+            const tasks = uris.map(this._createIndexTask, this);
+            const stats = await parallel(tasks, 50, new CancellationTokenSource().token);
+
+            let totalRetrieve = 0;
+            let totalIndex = 0;
+            for (const stat of stats) {
+                totalRetrieve += stat.durationRetrieve;
+                totalIndex += stat.durationIndex;
+            }
+
+            console.log(`[index] (${async ? 'async' : 'sync'}) added ${uris.length} files ${sw.elapsed()}ms (retrieval: ${Math.round(totalRetrieve)}ms, indexing: ${Math.round(totalIndex)}ms) (files: ${uris.map(String)})`);
+        }
+    }
+
     private _createIndexTask(uri: string): () => Promise<{ durationRetrieve: number, durationIndex: number }> {
         return async () => {
-            console.log(`Running ${uri}`)
+            console.log(`Building Index ${uri}`)
             // fetch document
             const _t1Retrieve = performance.now();
             const document = await this._documents.retrieve(uri);
@@ -142,20 +206,30 @@ export class SymbolIndex {
                 const u = UriUtils.joinPath(UriUtils.dirname(URI.parse(document.uri)), stripedQuotationMark);
                 return u.path
             });
+            let hasNew = false;
             const beanFiles = this._documents.beanFiles;
             includePatterns.forEach((pattern) => {
                 // pattern = escapeRegExp(pattern)
                 const list = beanFiles.map(s => URI.parse(s).path);
                 const matched = mm.match(list, pattern);
                 matched.map(p => URI.file(p).toString()).forEach(uri => {
+                    hasNew = true;
                     this.addFile(uri);
                 })
             })
 
+            if (hasNew) {
+                setTimeout(() => {
+                    this.unleashFiles([])
+                }, 10)
+            }
         }
 
 
     }
 
-
+    public async getAccountDefinitions() {
+        const accountDefinitions = this._symbolInfoStorage.findAsync({ _symType: 'account_definition' });
+        return accountDefinitions;
+    }
 }
