@@ -19,7 +19,7 @@ import { Trees } from '../trees';
 import { Feature } from './types';
 
 export class SelectionRangesFeature implements Feature {
-	constructor(private _documents: DocumentStore, private _trees: Trees) {}
+	constructor(private _documents: DocumentStore, private _trees: Trees) { }
 
 	register(connection: Connection) {
 		const registerOptions: SelectionRangeRegistrationOptions = {
@@ -47,7 +47,7 @@ export class SelectionRangesFeature implements Feature {
 
 			// eslint-disable-next-line no-constant-condition
 			while (true) {
-				const child = node.namedChildren.find(candidate => {
+				const child = node.children.find(candidate => {
 					return candidate.startIndex <= offset && candidate.endIndex > offset;
 				});
 
