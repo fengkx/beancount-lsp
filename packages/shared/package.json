@@ -1,24 +1,24 @@
 {
-  "name": "@bean-lsp/shared",
-  "version": "1.0.0",
-  "description": "",
-  "private": true,
-  "main": "out/index.js",
-  "typings": "out/index.d.ts",
-  "scripts": {
-    "build": "tsc -b",
-    "watch": "tsc -b --watch",
-    "typecheck": "tsc --noEmit true",
-    "lint": "eslint --cache .",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "format:check": "dprint check",
-    "format:fix": "dprint fmt"
-  },
-  "dependencies": {
-    "web-tree-sitter": "^0.20.8",
-    "tree-sitter-beancount": "workspace:^"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+	"name": "@bean-lsp/shared",
+	"version": "1.0.0",
+	"description": "",
+	"private": true,
+	"main": "out/index.js",
+	"typings": "out/index.d.ts",
+	"scripts": {
+		"build": "tsc -b",
+		"watch": "tsc -b --watch",
+		"typecheck": "tsc --noEmit true",
+		"lint": "eslint --cache .",
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"format:check": "dprint check",
+		"format:fix": "dprint fmt"
+	},
+	"dependencies": {
+		"web-tree-sitter": "^0.20.8",
+		"tree-sitter-beancount": "workspace:^"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC"
 }

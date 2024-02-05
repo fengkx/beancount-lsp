@@ -5,68 +5,70 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { Connection, SelectionRangeRequest, SelectionRangeRegistrationOptions, SelectionRangeParams, SelectionRange } from "vscode-languageserver";
-import { DocumentStore } from "../document-store";
-import { Feature } from "./types";
-import { Trees } from "../trees";
-import type Parser from "web-tree-sitter";
-import { asLspRange } from "../common";
+import {
+	Connection,
+	SelectionRange,
+	SelectionRangeParams,
+	SelectionRangeRegistrationOptions,
+	SelectionRangeRequest,
+} from 'vscode-languageserver';
+import type Parser from 'web-tree-sitter';
+import { asLspRange } from '../common';
+import { DocumentStore } from '../document-store';
+import { Trees } from '../trees';
+import { Feature } from './types';
 
 export class SelectionRangesFeature implements Feature {
+	constructor(private _documents: DocumentStore, private _trees: Trees) {}
 
-    constructor(private _documents: DocumentStore, private _trees: Trees) { }
+	register(connection: Connection) {
+		const registerOptions: SelectionRangeRegistrationOptions = {
+			documentSelector: [{ language: 'beancount' }],
+		};
+		connection.client.register(SelectionRangeRequest.type, registerOptions);
+		connection.onSelectionRanges(this.provideSelectionRanges);
+	}
 
-    register(connection: Connection) {
-        const registerOptions: SelectionRangeRegistrationOptions = {
-            documentSelector: [{ language: 'beancount' }]
-        }
-        connection.client.register(SelectionRangeRequest.type, registerOptions);
-        connection.onSelectionRanges(this.provideSelectionRanges)
+	provideSelectionRanges = async (params: SelectionRangeParams): Promise<SelectionRange[]> => {
+		const document = await this._documents.retrieve(params.textDocument.uri);
+		const tree = await this._trees.getParseTree(document);
+		if (!tree) {
+			return [];
+		}
 
-    }
+		const result: SelectionRange[] = [];
 
-    provideSelectionRanges = async (params: SelectionRangeParams): Promise<SelectionRange[]> => {
+		for (const position of params.positions) {
+			const stack: Parser.SyntaxNode[] = [];
+			const offset = document.offsetAt(position);
 
-        const document = await this._documents.retrieve(params.textDocument.uri);
-        const tree = await this._trees.getParseTree(document);
-        if (!tree) {
-            return [];
-        }
+			let node = tree.rootNode;
+			stack.push(node);
 
-        const result: SelectionRange[] = [];
+			// eslint-disable-next-line no-constant-condition
+			while (true) {
+				const child = node.namedChildren.find(candidate => {
+					return candidate.startIndex <= offset && candidate.endIndex > offset;
+				});
 
-        for (const position of params.positions) {
-            const stack: Parser.SyntaxNode[] = [];
-            const offset = document.offsetAt(position);
+				if (child) {
+					stack.push(child);
+					node = child;
+					continue;
+				}
+				break;
+			}
 
-            let node = tree.rootNode;
-            stack.push(node);
+			let parent: SelectionRange | undefined;
+			for (const node of stack) {
+				const range = SelectionRange.create(asLspRange(node), parent);
+				parent = range;
+			}
+			if (parent) {
+				result.push(parent);
+			}
+		}
 
-            // eslint-disable-next-line no-constant-condition
-            while (true) {
-                const child = node.namedChildren.find(candidate => {
-                    return candidate.startIndex <= offset && candidate.endIndex > offset;
-                });
-
-                if (child) {
-                    stack.push(child);
-                    node = child;
-                    continue;
-                }
-                break;
-            }
-
-            let parent: SelectionRange | undefined;
-            for (const node of stack) {
-                const range = SelectionRange.create(asLspRange(node), parent);
-                parent = range;
-            }
-            if (parent) {
-                result.push(parent);
-            }
-        }
-
-        return result;
-    }
-
+		return result;
+	};
 }

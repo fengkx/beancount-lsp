@@ -1,19 +1,19 @@
 {
-  "$schema": "https://json.schemastore.org/tsconfig",
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "noEmit": true,
-    "module": "commonjs",
-    "target": "ES2022",
-    "outDir": "out",
-    "lib": ["ES2020"],
-    "baseUrl": ".",
-    "sourceMap": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true /* enable all strict type-checking options */,
-    /* Additional Checks */
-    // "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
-    "noFallthroughCasesInSwitch": true /* Report errors for fallthrough cases in switch statement. */
-    // "noUnusedParameters": true,  /* Report errors on unused parameters. */
-  }
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"module": "commonjs",
+		"target": "ES2022",
+		"outDir": "out",
+		"lib": ["ES2020"],
+		"baseUrl": ".",
+		"sourceMap": true,
+		"allowSyntheticDefaultImports": true,
+		"strict": true, /* enable all strict type-checking options */
+		/* Additional Checks */
+		// "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
+		"noFallthroughCasesInSwitch": true /* Report errors for fallthrough cases in switch statement. */
+		// "noUnusedParameters": true,  /* Report errors on unused parameters. */
+	}
 }

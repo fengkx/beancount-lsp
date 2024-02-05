@@ -1,23 +1,14 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-import { CustomMessages, FileGlobParams } from '@bean-lsp/shared';
+import { CustomMessages } from '@bean-lsp/shared';
 import * as vscode from 'vscode';
 
-
-import {
-	LanguageClient,
-	LanguageClientOptions,
-	RegistrationRequest,
-	ServerOptions,
-	TransportKind
-} from 'vscode-languageclient/node';
+import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from 'vscode-languageclient/node';
 
 let client: LanguageClient;
 
-
 // This method is called when your extension is activated
 export function activate(context: vscode.ExtensionContext) {
-
 	// The server is implemented in node
 	const serverModule = require.resolve('beancount-lsp-server');
 
@@ -30,8 +21,8 @@ export function activate(context: vscode.ExtensionContext) {
 		debug: {
 			module: serverModule,
 			transport: TransportKind.ipc,
-			options: debugOptions
-		}
+			options: debugOptions,
+		},
 	};
 
 	// Options to control the language client
@@ -39,8 +30,8 @@ export function activate(context: vscode.ExtensionContext) {
 		// Register the server for plain text documents
 		documentSelector: [{ scheme: 'file', language: 'beancount' }],
 		synchronize: {
-			fileEvents: vscode.workspace.createFileSystemWatcher('**/*.bean(count)?$')
-		}
+			fileEvents: vscode.workspace.createFileSystemWatcher('**/*.bean(count)?$'),
+		},
 	};
 
 	// Create the language client and start the client.
@@ -48,16 +39,16 @@ export function activate(context: vscode.ExtensionContext) {
 		'beanLsp',
 		'BeanCount Language Server',
 		serverOptions,
-		clientOptions
+		clientOptions,
 	);
 
 	client.onRequest(CustomMessages.ListBeanFile, async () => {
 		const files = await vscode.workspace.findFiles('**/*.{bean,beancount}');
 		const uriStrings = files.map(f => {
-			return f.toString()
-		})
+			return f.toString();
+		});
 		return uriStrings;
-	})
+	});
 
 	client.onRequest(CustomMessages.FileRead, async (raw: string): Promise<number[]> => {
 		const uri = vscode.Uri.parse(raw);
@@ -88,7 +79,6 @@ export function activate(context: vscode.ExtensionContext) {
 				data = Array.from(await vscode.workspace.fs.readFile(uri));
 			}
 			return data;
-
 		} catch (err) {
 			// graceful
 			console.warn(err);
@@ -96,10 +86,9 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-
 	// Start the client. This will also launch the server
 	client.start();
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {/** TODO */ }
+export function deactivate() {/** TODO */}

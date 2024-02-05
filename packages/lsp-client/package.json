@@ -1,96 +1,96 @@
 {
-  "name": "beancount-lsp-client",
-  "displayName": "beancount language service",
-  "description": "",
-  "version": "0.0.1",
-  "engines": {
-    "vscode": "^1.79.0"
-  },
-  "categories": [
-    "Programming Languages"
-  ],
-  "activationEvents": [
-    "onLanguage:beancount"
-  ],
-  "main": "./dist/extension.js",
-  "contributes": {
-    "languages": [
-      {
-        "id": "beancount",
-        "extensions": [
-          ".bean",
-          ".beancount"
-        ]
-      }
-    ],
-    "configurationDefaults": {
-      "editor.semanticTokenColorCustomizations": {
-        "rules": {
-          "date": "#33a3ed",
-          "account": "#df5ed9",
-          "currency": "#f5a23d",
-          "keyword": "#f86a78",
-          "link": "#aa87ee",
-          "tag": "#aa87ee",
-          "kv_key": "#6eafff",
-          "bool": "#6eafff",
-          "comment": "#6c737c"
-        }
-      }
-    },
-    "semanticTokenTypes": [],
-    "configuration": {
-      "type": "object",
-      "title": "LSP configuration",
-      "properties": {
-        "beanLsp.maxNumberOfProblems": {
-          "scope": "resource",
-          "type": "number",
-          "default": 100,
-          "description": "Controls the maximum number of problems produced by the server."
-        },
-        "beanLsp.trace.server": {
-          "scope": "window",
-          "type": "string",
-          "enum": [
-            "off",
-            "messages",
-            "verbose"
-          ],
-          "default": "verbose",
-          "description": "Traces the communication between VS Code and the language server."
-        }
-      }
-    }
-  },
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "build": "tsup",
-    "typecheck": "tsc --noEmit true",
-    "test-compile": "tsc -p ./ && npm run copy:asset",
-    "copy:asset": "cp src/queries/*.scm out/queries",
-    "watch": "tsup --watch",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint --cache .",
-    "test": "node ./out/test/runTest.js",
-    "format:check": "dprint check",
-    "format:fix": "dprint fmt"
-  },
-  "devDependencies": {
-    "@types/glob": "^8.1.0",
-    "@types/mocha": "^10.0.6",
-    "@types/node": "20.2.5",
-    "@types/vscode": "^1.86.0",
-    "@typescript-eslint/eslint-plugin": "^5.62.0",
-    "@typescript-eslint/parser": "^5.62.0",
-    "@vscode/test-electron": "^2.3.9",
-    "eslint": "^8.56.0",
-    "glob": "^8.1.0",
-    "mocha": "^10.2.0"
-  },
-  "dependencies": {
-    "@bean-lsp/shared": "workspace:*",
-    "beancount-lsp-server": "workspace:*",
-    "vscode-languageclient": "^8.1.0"
-  }
+	"name": "beancount-lsp-client",
+	"displayName": "beancount language service",
+	"description": "",
+	"version": "0.0.1",
+	"engines": {
+		"vscode": "^1.79.0"
+	},
+	"categories": [
+		"Programming Languages"
+	],
+	"activationEvents": [
+		"onLanguage:beancount"
+	],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"languages": [
+			{
+				"id": "beancount",
+				"extensions": [
+					".bean",
+					".beancount"
+				]
+			}
+		],
+		"configurationDefaults": {
+			"editor.semanticTokenColorCustomizations": {
+				"rules": {
+					"date": "#33a3ed",
+					"account": "#df5ed9",
+					"currency": "#f5a23d",
+					"keyword": "#f86a78",
+					"link": "#aa87ee",
+					"tag": "#aa87ee",
+					"kv_key": "#6eafff",
+					"bool": "#6eafff",
+					"comment": "#6c737c"
+				}
+			}
+		},
+		"semanticTokenTypes": [],
+		"configuration": {
+			"type": "object",
+			"title": "LSP configuration",
+			"properties": {
+				"beanLsp.maxNumberOfProblems": {
+					"scope": "resource",
+					"type": "number",
+					"default": 100,
+					"description": "Controls the maximum number of problems produced by the server."
+				},
+				"beanLsp.trace.server": {
+					"scope": "window",
+					"type": "string",
+					"enum": [
+						"off",
+						"messages",
+						"verbose"
+					],
+					"default": "verbose",
+					"description": "Traces the communication between VS Code and the language server."
+				}
+			}
+		}
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"build": "tsup",
+		"typecheck": "tsc --noEmit true",
+		"test-compile": "tsc -p ./ && npm run copy:asset",
+		"copy:asset": "cp src/queries/*.scm out/queries",
+		"watch": "tsup --watch",
+		"pretest": "npm run compile && npm run lint",
+		"lint": "eslint --cache .",
+		"test": "node ./out/test/runTest.js",
+		"format:check": "dprint check",
+		"format:fix": "dprint fmt"
+	},
+	"devDependencies": {
+		"@types/glob": "^8.1.0",
+		"@types/mocha": "^10.0.6",
+		"@types/node": "20.2.5",
+		"@types/vscode": "^1.86.0",
+		"@typescript-eslint/eslint-plugin": "^5.62.0",
+		"@typescript-eslint/parser": "^5.62.0",
+		"@vscode/test-electron": "^2.3.9",
+		"eslint": "^8.56.0",
+		"glob": "^8.1.0",
+		"mocha": "^10.2.0"
+	},
+	"dependencies": {
+		"@bean-lsp/shared": "workspace:*",
+		"beancount-lsp-server": "workspace:*",
+		"vscode-languageclient": "^8.1.0"
+	}
 }
