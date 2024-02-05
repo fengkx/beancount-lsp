@@ -13,6 +13,7 @@ import {
 import { asTsPoint, nodeAtPosition } from '../common';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
+import { SymbolIndex } from './symbol-index';
 import { Feature } from './types';
 
 const Tuple = <T extends unknown[]>(xs: readonly [...T]): T => xs as T;
@@ -34,6 +35,7 @@ export class CompletionFeature implements Feature {
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
+		private readonly symbolIndex: SymbolIndex,
 	) {}
 	register(connection: Connection) {
 		const registerOptions: CompletionRegistrationOptions = {

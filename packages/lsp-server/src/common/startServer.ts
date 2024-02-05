@@ -71,10 +71,10 @@ export function startServer(connection: Connection, factory: IStorageFactory) {
 
 		symbolIndex = new SymbolIndex(documents, trees, symbolStorage);
 
-		// features.push(new SemanticTokenFeature(documents, trees));
-		// features.push(new FoldingRangeFeature(documents, trees));
-		// features.push(new CompletionFeature(documents, trees));
-		// features.push(new SelectionRangesFeature(documents, trees))
+		features.push(new SemanticTokenFeature(documents, trees));
+		features.push(new FoldingRangeFeature(documents, trees));
+		features.push(new CompletionFeature(documents, trees, symbolIndex));
+		features.push(new SelectionRangesFeature(documents, trees));
 
 		documents.all().forEach(doc => {
 			symbolIndex.addFile(doc.uri);
@@ -102,12 +102,6 @@ export function startServer(connection: Connection, factory: IStorageFactory) {
 				}
 			}
 		});
-		// const mainBeanUri = await documents.getMainBeanFileUri();
-		// if (mainBeanUri) {
-		//     console.info(`mainBeanFIle: ${mainBeanUri}`);
-		//     symbolIndex.addFile(mainBeanUri)
-		// }
-		await symbolIndex.startIndex();
 
 		return result;
 	});

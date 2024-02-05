@@ -82,12 +82,6 @@ export class SymbolIndex {
 		return this._currentUpdate;
 	}
 
-	async startIndex() {
-		await this.consume();
-		console.log(JSON.stringify({ _q1: this._syncQueue, q2: this._asyncQueue }));
-		console.log(`symbols: ${JSON.stringify(await this._symbolInfoStorage.findAsync({}))}`);
-	}
-
 	private _currentUpdate: Promise<void> | undefined;
 
 	public async initFiles(_uris: string[]) {
