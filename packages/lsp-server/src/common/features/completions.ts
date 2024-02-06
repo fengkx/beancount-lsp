@@ -18,7 +18,7 @@ import { Feature } from './types';
 
 const Tuple = <T extends unknown[]>(xs: readonly [...T]): T => xs as T;
 
-const triggerCharacters = Tuple(['2', '*', '"', 'y', 't'] as const);
+const triggerCharacters = Tuple(['2', '#', '"', '^'] as const);
 type TriggerCharacter = (typeof triggerCharacters)[number];
 //    ^?
 
@@ -106,17 +106,11 @@ export class CompletionFeature implements Feature {
 					addItem({ label: formatDate(d, 'yyyy-MM-dd') });
 				});
 			})
-			.with({ triggerCharacter: 'y' }, async () => {
-				const yesterday = sub(new Date(), { days: 1 });
-				const txt = formatDate(yesterday, 'yyyy-MM-dd');
-				addItem({ label: txt });
-			})
 			.with({ triggerCharacter: '"', previousSiblingType: 'txn' }, async () => {
 				const text = '你猜';
 				addItem({ label: text, textEdit: TextEdit.insert(position, `${text}"`) });
 			})
 			.with({
-				triggerCharacter: P.nullish,
 				previousPreviousSiblingType: '\n',
 				previousSiblingType: 'transaction',
 				parentType: 'file',
