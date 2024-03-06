@@ -152,7 +152,7 @@ importers:
   packages/shared:
     dependencies:
       tree-sitter-beancount:
-        specifier: workspace:^
+        specifier: npm:@fengkx/tree-sitter-beancount
         version: link:../tree-sitter-beancount
       web-tree-sitter:
         specifier: ^0.20.8

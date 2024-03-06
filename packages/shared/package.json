@@ -16,7 +16,7 @@
 	},
 	"dependencies": {
 		"web-tree-sitter": "^0.20.8",
-		"tree-sitter-beancount": "workspace:^"
+		"tree-sitter-beancount": "npm:@fengkx/tree-sitter-beancount"
 	},
 	"keywords": [],
 	"author": "",
