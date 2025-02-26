@@ -55,3 +55,91 @@ export async function getAccountsDefinition(doc: TextDocument, trees: Trees) {
 	}
 	return result;
 }
+
+export async function getPayees(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
+	const tree = await trees.getParseTree(doc);
+	if (!tree) {
+		return [];
+	}
+	const query = TreeQuery.getQueryByTokenName('payee');
+	const captures = await query.captures(tree.rootNode);
+	const result: SymbolInfo[] = [];
+	for (const capture of captures) {
+		const name = capture.node.text.replace(/^"|"$/g, ''); // Remove quotes
+		const range = asLspRange(capture.node);
+		result.push({
+			_symType: 'payee',
+			_uri: doc.uri,
+			name,
+			range,
+			kind: lsp.SymbolKind.String,
+		});
+	}
+	return result;
+}
+
+export async function getNarrations(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
+	const tree = await trees.getParseTree(doc);
+	if (!tree) {
+		return [];
+	}
+	const query = TreeQuery.getQueryByTokenName('narration');
+	const captures = await query.captures(tree.rootNode);
+	const result: SymbolInfo[] = [];
+	for (const capture of captures) {
+		const name = capture.node.text.replace(/^"|"$/g, ''); // Remove quotes
+		const range = asLspRange(capture.node);
+		result.push({
+			_symType: 'narration',
+			_uri: doc.uri,
+			name,
+			range,
+			kind: lsp.SymbolKind.String,
+		});
+	}
+	return result;
+}
+
+export async function getCommodities(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
+	const tree = await trees.getParseTree(doc);
+	if (!tree) {
+		return [];
+	}
+	const query = TreeQuery.getQueryByTokenName('currency');
+	const captures = await query.captures(tree.rootNode);
+	const result: SymbolInfo[] = [];
+	for (const capture of captures) {
+		const name = capture.node.text;
+		const range = asLspRange(capture.node);
+		result.push({
+			_symType: 'commodity',
+			_uri: doc.uri,
+			name,
+			range,
+			kind: lsp.SymbolKind.Constant,
+		});
+	}
+	return result;
+}
+
+export async function getTags(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
+	const tree = await trees.getParseTree(doc);
+	if (!tree) {
+		return [];
+	}
+	const query = TreeQuery.getQueryByTokenName('tag');
+	const captures = await query.captures(tree.rootNode);
+	const result: SymbolInfo[] = [];
+	for (const capture of captures) {
+		const name = capture.node.text.substring(1); // Remove the leading #
+		const range = asLspRange(capture.node);
+		result.push({
+			_symType: 'tag',
+			_uri: doc.uri,
+			name,
+			range,
+			kind: lsp.SymbolKind.Key,
+		});
+	}
+	return result;
+}
