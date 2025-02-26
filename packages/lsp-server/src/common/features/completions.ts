@@ -1,5 +1,6 @@
 import { add, formatDate, sub } from 'date-fns';
 import { match, P } from 'ts-pattern';
+import { pinyin } from 'pinyin-pro';
 import {
     CompletionItem,
     CompletionItemKind,
@@ -31,6 +32,88 @@ type TriggerInfo = {
     descendantForPositionType: string | undefined;
     lastChildType: string | undefined;
 };
+
+function getPinyinFirstLetters(text: string): string {
+    // Get pinyin with tone marks removed and convert to first letters
+    return pinyin(text, { toneType: 'none', type: 'array' })
+        .map(p => p[0].toLowerCase())
+        .join('');
+}
+
+function createFilterString(text: string): string {
+    // Create a filter string that includes both the original text and pinyin first letters
+    const pinyinLetters = getPinyinFirstLetters(text);
+    return `${text.toLowerCase()} ${pinyinLetters}`;
+}
+
+function addCompletionItem(
+    item: { label: string; kind?: CompletionItemKind; detail?: string },
+    position: Position,
+    textEdit: string,
+    set: Set<string>,
+    items: CompletionItem[],
+    cnt: number
+) {
+    if (set.has(item.label)) {
+        return cnt;
+    }
+
+    const filterText = createFilterString(item.label);
+    items.push({
+        ...item,
+        kind: item.kind || CompletionItemKind.Text,
+        filterText,
+        textEdit: TextEdit.insert(position, textEdit),
+        sortText: String.fromCharCode(95 + cnt)
+    });
+    set.add(item.label);
+    return cnt + 1;
+}
+
+async function addPayeesAndNarrations(
+    symbolIndex: SymbolIndex,
+    position: Position,
+    addPayees: boolean,
+    quoteStyle: 'none' | 'end' | 'both',
+    set: Set<string>,
+    items: CompletionItem[],
+    cnt: number
+): Promise<number> {
+    const [payees, narrations] = await Promise.all([
+        addPayees ? symbolIndex.getPayees() : Promise.resolve([]),
+        symbolIndex.getNarrations()
+    ]);
+
+    if (addPayees) {
+        payees.forEach((payee: string) => {
+            const quote = quoteStyle === 'both' ? '"' : quoteStyle === 'end' ? '"' : '';
+            const startQuote = quoteStyle === 'both' ? '"' : '';
+            cnt = addCompletionItem(
+                { label: payee, kind: CompletionItemKind.Text, detail: '(payee)' },
+                position,
+                `${startQuote}${payee}${quote}`,
+                set,
+                items,
+                cnt
+            );
+        });
+    }
+
+    narrations.forEach((narration: string) => {
+        const quote = quoteStyle === 'both' ? '"' : quoteStyle === 'end' ? '"' : '';
+        const startQuote = quoteStyle === 'both' ? '"' : '';
+        cnt = addCompletionItem(
+            { label: narration, kind: CompletionItemKind.Text, detail: '(narration)' },
+            position,
+            `${startQuote}${narration}${quote}`,
+            set,
+            items,
+            cnt
+        );
+    });
+
+    return cnt;
+}
 
 export class CompletionFeature implements Feature {
     constructor(
@@ -115,17 +198,19 @@ export class CompletionFeature implements Feature {
 
     async calcCompletionItems(info: TriggerInfo, position: Position): Promise<CompletionItem[]> {
         let cnt = 0;
-        const set = new Set();
+        const set = new Set<string>();
         const completionItems: CompletionItem[] = [];
 
         function addItem(item: CompletionItem) {
-            if (set.has(item.label)) {
+            if (set.has(item.label as string)) {
                 return;
             }
             item.sortText = String.fromCharCode(95 + cnt);
+            if (typeof item.label === 'string') {
+                item.filterText = createFilterString(item.label);
+            }
             completionItems.push(item);
-            // console.info(`addItem ${JSON.stringify(item)}`);
-            set.add(item.label);
+            set.add(item.label as string);
             cnt++;
         }
 
@@ -141,8 +226,16 @@ export class CompletionFeature implements Feature {
                 });
             })
             .with({ triggerCharacter: '"', previousSiblingType: 'txn' }, async () => {
-                const text = '你猜';
-                addItem({ label: text, textEdit: TextEdit.insert(position, `${text}"`) });
+                cnt = await addPayeesAndNarrations(this.symbolIndex, position, true, 'end', set, completionItems, cnt);
+            })
+            .with({ triggerCharacter: '"', previousSiblingType: 'payee' }, async () => {
+                cnt = await addPayeesAndNarrations(this.symbolIndex, position, false, 'end', set, completionItems, cnt);
+            })
+            .with({ triggerCharacter: '"', currentType: 'narration' }, async () => {
+                cnt = await addPayeesAndNarrations(this.symbolIndex, position, true, 'end', set, completionItems, cnt);
+            })
+            .with({ currentType: 'narration' }, async () => {
+                cnt = await addPayeesAndNarrations(this.symbolIndex, position, true, 'both', set, completionItems, cnt);
             })
             .with({
                 previousPreviousSiblingType: '\n',
@@ -150,14 +243,14 @@ export class CompletionFeature implements Feature {
                 parentType: 'file',
             }, async () => {
                 const accounts = await this.symbolIndex.getAccountDefinitions();
-                accounts.forEach(account => {
+                accounts.forEach((account: { name: string }) => {
                     addItem({ label: account.name });
                     console.info(`${account.name} added`);
                 });
             })
             .with({ lastChildType: 'narration' }, async () => {
                 const accounts = await this.symbolIndex.getAccountDefinitions();
-                accounts.forEach(account => {
+                accounts.forEach((account: { name: string }) => {
                     addItem({ label: account.name });
                     console.info(`${account.name} added`);
                 });

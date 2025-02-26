@@ -7,7 +7,7 @@ import { isInteresting, parallel, StopWatch } from '../common';
 import { DocumentStore } from '../document-store';
 import { SymbolInfoStorage } from '../startServer';
 import { Trees } from '../trees';
-import { getAccountsDefinition, getAccountsUsage, SymbolInfo } from './references';
+import { getAccountsDefinition, getAccountsUsage, getCommodities, getPayees, getNarrations, getTags, SymbolInfo } from './references';
 
 import { URI, Utils as UriUtils } from 'vscode-uri';
 import { TreeQuery } from '../language';
@@ -51,7 +51,7 @@ export class SymbolIndex {
 		private readonly _documents: DocumentStore,
 		private readonly _trees: Trees,
 		private readonly _symbolInfoStorage: SymbolInfoStorage,
-	) {}
+	) { }
 
 	private readonly _syncQueue = new Queue();
 	private readonly _asyncQueue = new Queue();
@@ -90,13 +90,13 @@ export class SymbolIndex {
 		console.log(`[index] initializing index for ${uris.size} files.`);
 
 		const all = await this._symbolInfoStorage.findAsync({});
-		const urisInStore = new Set(all.map(info => info._uri));
+		const urisInStore = new Set(all.map((info: { _uri: string }) => info._uri));
 
 		const urisNotSeen = difference(urisInStore, uris);
 		const newUris = difference(uris, urisInStore);
 		const urisNeedAsyncUpdate = intersection(uris, urisInStore);
 
-		urisNeedAsyncUpdate.forEach((uri) => {
+		urisNeedAsyncUpdate.forEach((uri: string) => {
 			this._asyncQueue.enqueue(uri);
 		});
 
@@ -143,8 +143,7 @@ export class SymbolIndex {
 			}
 
 			console.log(
-				`[index] (${async ? 'async' : 'sync'}) added ${uris.length} files ${sw.elapsed()}ms (retrieval: ${
-					Math.round(totalRetrieve)
+				`[index] (${async ? 'async' : 'sync'}) added ${uris.length} files ${sw.elapsed()}ms (retrieval: ${Math.round(totalRetrieve)
 				}ms, indexing: ${Math.round(totalIndex)}ms) (files: ${uris.map(String)})`,
 			);
 		}
@@ -175,10 +174,14 @@ export class SymbolIndex {
 	}
 
 	private async _doIndex(document: TextDocument) {
-		const [accountUsages, accountDefinitions] = await Promise.all(
+		const [accountUsages, accountDefinitions, payees, narrations, commodities, tags] = await Promise.all(
 			[
 				getAccountsUsage(document, this._trees),
 				getAccountsDefinition(document, this._trees),
+				getPayees(document, this._trees),
+				getNarrations(document, this._trees),
+				getCommodities(document, this._trees),
+				getTags(document, this._trees),
 			],
 		);
 
@@ -186,12 +189,16 @@ export class SymbolIndex {
 		await Promise.all([
 			this._symbolInfoStorage.insertAsync(accountUsages),
 			this._symbolInfoStorage.insertAsync(accountDefinitions),
+			this._symbolInfoStorage.insertAsync(payees),
+			this._symbolInfoStorage.insertAsync(narrations),
+			this._symbolInfoStorage.insertAsync(commodities),
+			this._symbolInfoStorage.insertAsync(tags),
 		]);
 
 		const tree = await this._trees.getParseTree(document);
 		if (tree) {
 			const captures = await TreeQuery.captures('(include (string) @path)', tree.rootNode);
-			const includePatterns = captures.map(c => {
+			const includePatterns = captures.map((c: { node: { text: string } }) => {
 				const text = c.node.text;
 				const stripedQuotationMark = text.replace(/^"/, '').replace(/"$/, '');
 				const u = UriUtils.joinPath(UriUtils.dirname(URI.parse(document.uri)), stripedQuotationMark);
@@ -199,11 +206,10 @@ export class SymbolIndex {
 			});
 			let hasNew = false;
 			const beanFiles = this._documents.beanFiles;
-			includePatterns.forEach((pattern) => {
-				// pattern = escapeRegExp(pattern)
+			includePatterns.forEach((pattern: string) => {
 				const list = beanFiles.map(s => URI.parse(s).path);
 				const matched = mm.match(list, pattern);
-				matched.map(p => URI.file(p).toString()).forEach(uri => {
+				matched.map((p: string) => URI.file(p).toString()).forEach((uri: string) => {
 					hasNew = true;
 					this.addFile(uri);
 				});
@@ -220,5 +226,25 @@ export class SymbolIndex {
 	public async getAccountDefinitions() {
 		const accountDefinitions = this._symbolInfoStorage.findAsync({ _symType: 'account_definition' });
 		return accountDefinitions;
+	}
+
+	public async getPayees(): Promise<string[]> {
+		const payees = await this._symbolInfoStorage.findAsync({ _symType: 'payee' }) as SymbolInfo[];
+		return [...new Set(payees.map(p => p.name))];
+	}
+
+	public async getCommodities(): Promise<string[]> {
+		const commodities = await this._symbolInfoStorage.findAsync({ _symType: 'commodity' }) as SymbolInfo[];
+		return [...new Set(commodities.map(c => c.name))];
+	}
+
+	public async getTags(): Promise<string[]> {
+		const tags = await this._symbolInfoStorage.findAsync({ _symType: 'tag' }) as SymbolInfo[];
+		return [...new Set(tags.map(t => t.name))];
+	}
+
+	public async getNarrations(): Promise<string[]> {
+		const narrations = await this._symbolInfoStorage.findAsync({ _symType: 'narration' }) as SymbolInfo[];
+		return [...new Set(narrations.map(n => n.name))];
 	}
 }
