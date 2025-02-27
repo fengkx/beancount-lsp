@@ -21,13 +21,13 @@ export class TokenBuilder {
 		this.absTokens.push({ row, column, length, tokenType, tokenModifiers });
 	}
 
-	buildSingleCaptureTokens(matches: Parser.QueryMatch[], tokenType: TokenTypes) {
+	buildSingleCaptureTokens(matches: Parser.QueryMatch[], tokenType: TokenTypes, tokenModifiers = 0) {
 		for (const m of matches) {
 			const line = m.captures[0].node.startPosition.row;
 			const startChar = m.captures[0].node.startPosition.column;
 			const length = m.captures[0].node.text.length;
 
-			this.push(line, startChar, length, tokenType);
+			this.push(line, startChar, length, tokenType, tokenModifiers);
 		}
 	}
 
@@ -52,8 +52,6 @@ export class TokenBuilder {
 
 		this.absTokens.filter(t => !t.dropped).forEach(token => {
 			const { row, column, length, tokenType, tokenModifiers } = token;
-			// const relativeRow = row - this.lastToken.row;
-			// const relativeColumn = column - this.lastToken.column;
 			this.builder.push(row, column, length, tokenTypeToIndex(tokenType), tokenModifiers);
 			this.lastToken = { row, column };
 		});
