@@ -91,7 +91,7 @@ async function addPayeesAndNarrations(
             cnt = addCompletionItem(
                 { label: payee, kind: CompletionItemKind.Text, detail: '(payee)' },
                 position,
-                `${startQuote}${payee}${quote}`,
+                `${startQuote}${payee}${quote} `, // Add space after having quick editing between payee and narration
                 set,
                 items,
                 cnt
