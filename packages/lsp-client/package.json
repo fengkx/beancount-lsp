@@ -24,21 +24,51 @@
 			}
 		],
 		"configurationDefaults": {
+			"editor.semanticHighlighting.enabled": true,
 			"editor.semanticTokenColorCustomizations": {
+				"enabled": true,
 				"rules": {
-					"date": "#33a3ed",
-					"account": "#df5ed9",
-					"currency": "#f5a23d",
-					"keyword": "#f86a78",
-					"link": "#aa87ee",
-					"tag": "#aa87ee",
-					"kv_key": "#6eafff",
-					"bool": "#6eafff",
-					"comment": "#6c737c"
+					"date": {
+						"foreground": "#569CD6",
+						"bold": true
+					},
+					"account": {
+						"foreground": "#4EC9B0"
+					},
+					"currency": {
+						"foreground": "#D7BA7D"
+					},
+					"keyword": {
+						"foreground": "#C586C0",
+						"bold": true
+					},
+					"link": {
+						"foreground": "#DCDCAA"
+					},
+					"tag": {
+						"foreground": "#9CDCFE"
+					},
+					"kv_key": {
+						"foreground": "#B5CEA8"
+					},
+					"bool": {
+						"foreground": "#569CD6"
+					},
+					"comment": {
+						"foreground": "#6A9955"
+					},
+					"string": {
+						"foreground": "#CE9178"
+					},
+					"number": {
+						"foreground": "#B5CEA8"
+					},
+					"*.definition": {
+						"bold": true
+					}
 				}
 			}
 		},
-		"semanticTokenTypes": [],
 		"configuration": {
 			"type": "object",
 			"title": "LSP configuration",
