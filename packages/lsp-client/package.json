@@ -24,7 +24,16 @@
 				"extensions": [
 					".bean",
 					".beancount"
-				]
+				],
+				"aliases": ["Beancount", "beancount"],
+				"configuration": "./language-configuration.json"
+			}
+		],
+		"grammars": [
+			{
+				"language": "beancount",
+				"scopeName": "source.beancount",
+				"path": "./syntaxes/beancount.tmLanguage.json"
 			}
 		],
 		"configurationDefaults": {
@@ -71,6 +80,78 @@
 						"bold": true
 					}
 				}
+			},
+			"editor.tokenColorCustomizations": {
+				"textMateRules": [
+					{
+						"scope": "date",
+						"settings": {
+							"foreground": "#569CD6",
+							"fontStyle": "bold"
+						}
+					},
+					{
+						"scope": "account",
+						"settings": {
+							"foreground": "#4EC9B0"
+						}
+					},
+					{
+						"scope": "currency",
+						"settings": {
+							"foreground": "#D7BA7D"
+						}
+					},
+					{
+						"scope": "keyword",
+						"settings": {
+							"foreground": "#C586C0",
+							"fontStyle": "bold"
+						}
+					},
+					{
+						"scope": "link",
+						"settings": {
+							"foreground": "#DCDCAA"
+						}
+					},
+					{
+						"scope": "tag",
+						"settings": {
+							"foreground": "#9CDCFE"
+						}
+					},
+					{
+						"scope": "kv_key",
+						"settings": {
+							"foreground": "#B5CEA8"
+						}
+					},
+					{
+						"scope": "bool",
+						"settings": {
+							"foreground": "#569CD6"
+						}
+					},
+					{
+						"scope": "comment",
+						"settings": {
+							"foreground": "#6A9955"
+						}
+					},
+					{
+						"scope": "string",
+						"settings": {
+							"foreground": "#CE9178"
+						}
+					},
+					{
+						"scope": "number",
+						"settings": {
+							"foreground": "#B5CEA8"
+						}
+					}
+				]
 			}
 		},
 		"configuration": {
