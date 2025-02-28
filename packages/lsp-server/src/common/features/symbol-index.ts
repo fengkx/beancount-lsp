@@ -174,6 +174,7 @@ export class SymbolIndex {
 	}
 
 	private async _doIndex(document: TextDocument) {
+		console.log(`[index] Indexing document: ${document.uri}`);
 		const [accountUsages, accountDefinitions, payees, narrations, commodities, tags] = await Promise.all(
 			[
 				getAccountsUsage(document, this._trees),
@@ -184,6 +185,15 @@ export class SymbolIndex {
 				getTags(document, this._trees),
 			],
 		);
+
+		console.log(`[index] Found symbols in ${document.uri}:
+			- Account usages: ${accountUsages.length}
+			- Account definitions: ${accountDefinitions.length}
+			- Payees: ${payees.length}
+			- Narrations: ${narrations.length}
+			- Commodities: ${commodities.length}
+			- Tags: ${tags.length}
+		`);
 
 		await this._symbolInfoStorage.removeAsync({ _uri: document.uri }, { multi: true });
 		await Promise.all([
@@ -206,6 +216,7 @@ export class SymbolIndex {
 			});
 			let hasNew = false;
 			const beanFiles = this._documents.beanFiles;
+			console.log(`[index] Found ${beanFiles.length} bean files`);
 			includePatterns.forEach((pattern: string) => {
 				const list = beanFiles.map(s => URI.parse(s).path);
 				const matched = mm.match(list, pattern);
@@ -224,27 +235,41 @@ export class SymbolIndex {
 	}
 
 	public async getAccountDefinitions() {
+		console.log('[index] Getting account definitions');
 		const accountDefinitions = this._symbolInfoStorage.findAsync({ _symType: 'account_definition' });
+		accountDefinitions.then(defs => console.log(`[index] Found ${defs.length} account definitions`));
 		return accountDefinitions;
 	}
 
 	public async getPayees(): Promise<string[]> {
+		console.log('[index] Getting payees');
 		const payees = await this._symbolInfoStorage.findAsync({ _symType: 'payee' }) as SymbolInfo[];
-		return [...new Set(payees.map(p => p.name))];
+		const uniquePayees = [...new Set(payees.map(p => p.name))];
+		console.log(`[index] Found ${payees.length} payees (${uniquePayees.length} unique)`);
+		return uniquePayees;
 	}
 
 	public async getCommodities(): Promise<string[]> {
+		console.log('[index] Getting commodities');
 		const commodities = await this._symbolInfoStorage.findAsync({ _symType: 'commodity' }) as SymbolInfo[];
-		return [...new Set(commodities.map(c => c.name))];
+		const uniqueCommodities = [...new Set(commodities.map(c => c.name))];
+		console.log(`[index] Found ${commodities.length} commodities (${uniqueCommodities.length} unique)`);
+		return uniqueCommodities;
 	}
 
 	public async getTags(): Promise<string[]> {
+		console.log('[index] Getting tags');
 		const tags = await this._symbolInfoStorage.findAsync({ _symType: 'tag' }) as SymbolInfo[];
-		return [...new Set(tags.map(t => t.name))];
+		const uniqueTags = [...new Set(tags.map(t => t.name))];
+		console.log(`[index] Found ${tags.length} tags (${uniqueTags.length} unique)`);
+		return uniqueTags;
 	}
 
 	public async getNarrations(): Promise<string[]> {
+		console.log('[index] Getting narrations');
 		const narrations = await this._symbolInfoStorage.findAsync({ _symType: 'narration' }) as SymbolInfo[];
-		return [...new Set(narrations.map(n => n.name))];
+		const uniqueNarrations = [...new Set(narrations.map(n => n.name))];
+		console.log(`[index] Found ${narrations.length} narrations (${uniqueNarrations.length} unique)`);
+		return uniqueNarrations;
 	}
 }

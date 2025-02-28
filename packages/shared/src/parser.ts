@@ -28,11 +28,12 @@ export const getParser = async (webTreeSitterWasmPath?: string) => {
 	if (parser) return parser;
 
 	// Create a new parser instance
-	parser = new Parser();
+	const _parser = new Parser();
 
 	// Load the beancount language (this uses tree-sitter-beancount.wasm which is separate)
 	const Beancount = await Parser.Language.load(BeancountLang);
-	parser.setLanguage(Beancount);
+	_parser.setLanguage(Beancount);
 
+	parser = _parser;
 	return parser;
 };
