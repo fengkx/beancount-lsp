@@ -1,14 +1,18 @@
 import '@abraham/reflection';
 import { createConnection, ProposedFeatures } from 'vscode-languageserver/node';
 
-import { startServer } from '../common/startServer';
+import { ServerOptions, startServer } from '../common/startServer';
 import { factory } from './storage';
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 const connection = createConnection(ProposedFeatures.all);
 
-startServer(connection, factory);
+// Server options - will be populated by the initialization options in startServer
+const serverOptions: ServerOptions = {};
+
+// Start the server with the options
+startServer(connection, factory, serverOptions);
 
 // Listen on the connection
 connection.listen();

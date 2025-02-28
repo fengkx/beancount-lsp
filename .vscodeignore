@@ -1,0 +1,17 @@
+.git
+.vscode/**
+.vscode-test/**
+out/**
+node_modules/**
+src/**
+.gitignore
+.yarnrc
+.cursor
+!dist/*.js
+**/tsconfig*.json
+**/.eslintrc.json
+**/*.map
+**/*.ts 
+packages/**/*
+*.md
+

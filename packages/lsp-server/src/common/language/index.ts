@@ -44,6 +44,18 @@ const queryMap = {
 type BeanTokenName = keyof typeof queryMap;
 
 const map = new Map<BeanTokenName, TreeQuery>();
+// Store web-tree-sitter WASM path in a module variable that can be updated
+let _webTreeSitterWasmPath: string | undefined;
+
+// Update the web-tree-sitter WASM path
+export function setWasmFilePath(path: string | undefined) {
+	_webTreeSitterWasmPath = path;
+}
+
+// Get the current web-tree-sitter WASM path Don't export this function
+function getWasmFilePath(): string | undefined {
+	return _webTreeSitterWasmPath;
+}
 
 export class TreeQuery {
 	query: string | undefined;
@@ -63,12 +75,14 @@ export class TreeQuery {
 	}
 
 	async matches(rootNode: Parser.SyntaxNode, startPosition?: Parser.Point, endPosition?: Parser.Point) {
-		const parser = await getParser();
+		// Use the module-level WASM path
+		const parser = await getParser(_webTreeSitterWasmPath);
 		return parser.getLanguage().query(this.query!).matches(rootNode, startPosition, endPosition);
 	}
 
 	async captures(rootNode: Parser.SyntaxNode, startPosition?: Parser.Point, endPosition?: Parser.Point) {
-		const parser = await getParser();
+		// Use the module-level WASM path
+		const parser = await getParser(_webTreeSitterWasmPath);
 		return parser.getLanguage().query(this.query!).captures(rootNode, startPosition, endPosition);
 	}
 
@@ -78,7 +92,8 @@ export class TreeQuery {
 		startPosition?: Parser.Point,
 		endPosition?: Parser.Point,
 	) {
-		const parser = await getParser();
+		// Use the module-level WASM path
+		const parser = await getParser(_webTreeSitterWasmPath);
 		return parser.getLanguage().query(query).matches(rootNode, startPosition, endPosition);
 	}
 	static async captures(
@@ -87,7 +102,8 @@ export class TreeQuery {
 		startPosition?: Parser.Point,
 		endPosition?: Parser.Point,
 	) {
-		const parser = await getParser();
+		// Use the module-level WASM path
+		const parser = await getParser(_webTreeSitterWasmPath);
 		return parser.getLanguage().query(query).captures(rootNode, startPosition, endPosition);
 	}
 }

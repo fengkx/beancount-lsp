@@ -9,7 +9,7 @@ export default defineConfig({
 		'.scm': 'text',
 		'.wasm': 'binary',
 	},
-	noExternal: ['tree-sitter-beancount'],
+	noExternal: ['tree-sitter-beancount', 'web-tree-sitter'],
 	dts: {
 		compilerOptions: {
 			rootDir: __dirname,

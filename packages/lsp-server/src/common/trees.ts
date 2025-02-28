@@ -10,7 +10,7 @@ class Entry {
 		public version: number,
 		public tree: Parser.Tree,
 		public edits: Parser.Edit[][],
-	) {}
+	) { }
 }
 
 export class Trees {
@@ -19,8 +19,9 @@ export class Trees {
 	private readonly _listener: Disposable[] = [];
 
 	private _parser: Parser | undefined;
+	private readonly _webTreeSitterWasmPath?: string;
 
-	constructor(private readonly _documents: DocumentStore) {
+	constructor(private readonly _documents: DocumentStore, webTreeSitterWasmPath?: string) {
 		// build edits when document changes
 		this._listener.push(_documents.onDidChangeContent2(e => {
 			const info = this._cache.get(e.document.uri);
@@ -28,9 +29,10 @@ export class Trees {
 				info.edits.push(Trees.asEdits(e));
 			}
 		}));
+		this._webTreeSitterWasmPath = webTreeSitterWasmPath;
 	}
-	private static async getParserInstance() {
-		const parser = await getParser();
+	private static async getParserInstance(webTreeSitterWasmPath?: string) {
+		const parser = await getParser(webTreeSitterWasmPath);
 		return parser;
 	}
 
@@ -47,7 +49,7 @@ export class Trees {
 				return info.tree;
 			}
 
-			const parser = await Trees.getParserInstance();
+			const parser = await Trees.getParserInstance(this._webTreeSitterWasmPath);
 			if (!info) {
 				// never seen before, parse fresh
 				const tree = parser.parse(text);

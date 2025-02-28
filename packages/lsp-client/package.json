@@ -3,8 +3,12 @@
 	"displayName": "beancount language service",
 	"description": "",
 	"version": "0.0.1",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/fengkx/beancount-lsp"
+	},
 	"engines": {
-		"vscode": "^1.79.0"
+		"vscode": "^1.86.0"
 	},
 	"categories": [
 		"Programming Languages"
@@ -87,14 +91,20 @@
 						"messages",
 						"verbose"
 					],
-					"default": "verbose",
+					"default": "messages",
 					"description": "Traces the communication between VS Code and the language server."
+				},
+				"beancount.mainBeanFile": {
+					"scope": "resource",
+					"type": "string",
+					"default": "main.bean",
+					"description": "Specifies the main Beancount file to use for analysis. This should be relative to the workspace root."
 				}
 			}
 		}
 	},
 	"scripts": {
-		"vscode:prepublish": "npm run compile",
+		"vscode:prepublish": "npm run build",
 		"build": "tsup",
 		"typecheck": "tsc --noEmit true",
 		"test-compile": "tsc -p ./ && npm run copy:asset",
@@ -104,7 +114,8 @@
 		"lint": "eslint --cache .",
 		"test": "node ./out/test/runTest.js",
 		"format:check": "dprint check",
-		"format:fix": "dprint fmt"
+		"format:fix": "dprint fmt",
+		"vsix": "vsce package --no-dependencies"
 	},
 	"devDependencies": {
 		"@types/glob": "^8.1.0",
@@ -114,6 +125,7 @@
 		"@typescript-eslint/eslint-plugin": "^5.62.0",
 		"@typescript-eslint/parser": "^5.62.0",
 		"@vscode/test-electron": "^2.3.9",
+		"@vscode/vsce": "^3.2.2",
 		"eslint": "^8.56.0",
 		"glob": "^8.1.0",
 		"mocha": "^10.2.0"

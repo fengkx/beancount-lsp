@@ -5,3 +5,5 @@ dist
 *.wasm
 .turbo
 .eslintcache
+*.vsix
+*tsconfig.tsbuildinfo
