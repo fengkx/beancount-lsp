@@ -40,16 +40,16 @@ export class Trees {
 		if (typeof documentOrUri === 'string') {
 			documentOrUri = await this._documents.retrieve(documentOrUri);
 		}
+		const parser = await Trees.getParserInstance(this._webTreeSitterWasmPath);
+		let info = this._cache.get(documentOrUri.uri);
 		try {
 			const version = documentOrUri.version;
 			const text = documentOrUri.getText();
 
-			let info = this._cache.get(documentOrUri.uri);
 			if (info?.version === documentOrUri.version) {
 				return info.tree;
 			}
 
-			const parser = await Trees.getParserInstance(this._webTreeSitterWasmPath);
 			if (!info) {
 				// never seen before, parse fresh
 				const tree = parser.parse(text);
@@ -70,6 +70,8 @@ export class Trees {
 
 			return info.tree;
 		} catch (e) {
+			console.error(`[trees] Error parsing document: ${documentOrUri.uri} ${e} ${e?.stack}`);
+			console.error(`[trees] Error parsing text: ${documentOrUri.getText()}`);
 			this._cache.delete(documentOrUri.uri);
 			return undefined;
 		}

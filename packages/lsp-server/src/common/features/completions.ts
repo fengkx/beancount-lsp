@@ -41,9 +41,48 @@ function getPinyinFirstLetters(text: string): string {
 }
 
 function createFilterString(text: string): string {
-    // Create a filter string that includes both the original text and pinyin first letters
-    const pinyinLetters = getPinyinFirstLetters(text);
-    return `${text.toLowerCase()} ${pinyinLetters}`;
+    // Original text in lowercase
+    const originalText = text.toLowerCase();
+    
+    // Get full pinyin representation
+    const fullPinyin = pinyin(text, { toneType: 'none', type: 'array' })
+        .map(p => p.toLowerCase())
+        .join(' ');
+    
+    // Get first letters of pinyin (existing functionality)
+    const pinyinFirstLetters = getPinyinFirstLetters(text);
+    
+    // Create additional fuzzy variations:
+    
+    // 1. Get words/characters as separate units for filtering
+    const pinyinWords = pinyin(text, { toneType: 'none', type: 'array' });
+    
+    // 2. Generate first letters of each word (for filtering like "dc" for "Dan Che")
+    const wordFirstLetters = pinyinWords.map(p => p[0].toLowerCase()).join('');
+    
+    // 3. Generate all possible subsequences of first letters
+    // This allows matching "hlc" for "Ha Lou Dan Che" by skipping "d"
+    const subsequences = [];
+    const letters = pinyinWords.map(p => p[0].toLowerCase());
+    
+    // Generate all possible subsequences (maintaining order)
+    for (let i = 0; i < letters.length; i++) {
+        for (let j = i + 1; j <= letters.length; j++) {
+            const subsequence = letters.slice(i, j).join('');
+            if (subsequence.length > 1) {
+                subsequences.push(subsequence);
+            }
+        }
+    }
+    
+    // Combine all filter variations
+    return [
+        originalText,
+        pinyinFirstLetters,
+        fullPinyin,
+        wordFirstLetters,
+        ...subsequences
+    ].join(' ');
 }
 
 function addCompletionItem(
@@ -137,16 +176,16 @@ export class CompletionFeature implements Feature {
             return [];
         }
         const current = nodeAtPosition(tree.rootNode, params.position, true);
-        console.info(`current ${current.type}: ${current}`);
-        console.info(`parent ${current.parent?.type}: ${current.parent?.toString()}`);
-        console.info(
-            `previousNamedSibling: ${current.previousNamedSibling?.type} previousSibling: ${current.previousSibling?.type}`,
-        );
-        console.info(
-            `namedDescendantForPosition: ${tree.rootNode.namedDescendantForPosition(asTsPoint(params.position)).type}`,
-        );
+        // console.info(`current ${current.type}: ${current}`);
+        // console.info(`parent ${current.parent?.type}: ${current.parent?.toString()}`);
+        // console.info(
+        //     `previousNamedSibling: ${current.previousNamedSibling?.type} previousSibling: ${current.previousSibling?.type}`,
+        // );
+        // console.info(
+        //     `namedDescendantForPosition: ${tree.rootNode.namedDescendantForPosition(asTsPoint(params.position)).type}`,
+        // );
 
-        console.info(`descendantForPosition: ${tree.rootNode.descendantForPosition(asTsPoint(params.position)).type}`);
+        // console.info(`descendantForPosition: ${tree.rootNode.descendantForPosition(asTsPoint(params.position)).type}`);
 
         const descendantForCurPos = tree.rootNode.descendantForPosition(asTsPoint(params.position));
         let lastChildNode = descendantForCurPos.child(descendantForCurPos.childCount - 1);
@@ -214,9 +253,10 @@ export class CompletionFeature implements Feature {
             cnt++;
         }
 
-        console.info(JSON.stringify(info));
+        console.info(`Starting completion with info: ${JSON.stringify(info)}`);
         const p: Promise<void> = match(info)
             .with({ triggerCharacter: '2' }, async () => {
+                console.info('Branch: triggerCharacter 2');
                 const d = new Date();
                 const yesterday = sub(d, { days: 1 });
                 const dayBeforeYesterday = sub(d, { days: 2 });
@@ -224,48 +264,99 @@ export class CompletionFeature implements Feature {
                 [d, yesterday, tomorrow, dayBeforeYesterday].forEach(d => {
                     addItem({ label: formatDate(d, 'yyyy-MM-dd') });
                 });
+                console.info(`Date completions added, items: ${completionItems.length}`);
             })
             .with({ triggerCharacter: '"', previousSiblingType: 'txn' }, async () => {
+                console.info('Branch: triggerCharacter " with txn sibling');
+                const initialCount = completionItems.length;
                 cnt = await addPayeesAndNarrations(this.symbolIndex, position, true, 'end', set, completionItems, cnt);
+                console.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
             })
             .with({
                 triggerCharacter: '"',
                 previousSiblingType: 'txn',
                 previousPreviousSiblingType: 'date'
             }, async () => {
+                console.info('Branch: triggerCharacter " with txn sibling and date previous');
+                const initialCount = completionItems.length;
                 cnt = await addPayeesAndNarrations(this.symbolIndex, position, true, 'end', set, completionItems, cnt);
+                console.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
             })
             .with({ triggerCharacter: '"', previousSiblingType: 'payee' }, async () => {
+                console.info('Branch: triggerCharacter " with payee sibling');
+                const initialCount = completionItems.length;
                 cnt = await addPayeesAndNarrations(this.symbolIndex, position, false, 'end', set, completionItems, cnt);
+                console.info(`Narrations added, items: ${completionItems.length - initialCount}`);
             })
             .with({ triggerCharacter: '"', currentType: 'narration' }, async () => {
+                console.info('Branch: triggerCharacter " with narration current');
+                const initialCount = completionItems.length;
                 cnt = await addPayeesAndNarrations(this.symbolIndex, position, true, 'end', set, completionItems, cnt);
+                console.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
+            })
+            .with({ triggerCharacter: '"', previousSiblingType: 'string' }, async () => {
+                console.info('Branch: triggerCharacter " with string sibling');
+                const initialCount = completionItems.length;
+                cnt = await addPayeesAndNarrations(this.symbolIndex, position, false, 'end', set, completionItems, cnt);
+                console.info(`Narrations added, items: ${completionItems.length - initialCount}`);
+            })
+            .with({ 
+                triggerCharacter: '"', 
+                currentType: 'ERROR',
+                previousSiblingType: 'string',
+                previousPreviousSiblingType: 'txn'
+            }, async () => {
+                console.info('Branch: triggerCharacter " with ERROR current, string sibling, txn previous');
+                const initialCount = completionItems.length;
+                cnt = await addPayeesAndNarrations(this.symbolIndex, position, false, 'end', set, completionItems, cnt);
+                console.info(`Narrations added, items: ${completionItems.length - initialCount}`);
+            })
+            .with({ 
+                triggerCharacter: '"', 
+                currentType: 'ERROR',
+                previousSiblingType: 'txn',
+                previousPreviousSiblingType: 'date'
+            }, async () => {
+                console.info('Branch: triggerCharacter " with ERROR current, txn sibling, date previous');
+                const initialCount = completionItems.length;
+                cnt = await addPayeesAndNarrations(this.symbolIndex, position, true, 'end', set, completionItems, cnt);
+                console.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
             })
             .with({ currentType: 'narration' }, async () => {
+                console.info('Branch: narration current');
+                const initialCount = completionItems.length;
                 cnt = await addPayeesAndNarrations(this.symbolIndex, position, true, 'both', set, completionItems, cnt);
+                console.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
             })
             .with({
                 previousPreviousSiblingType: '\n',
                 previousSiblingType: 'transaction',
                 parentType: 'file',
             }, async () => {
+                console.info('Branch: transaction sibling with newline previous');
+                const initialCount = completionItems.length;
                 const accounts = await this.symbolIndex.getAccountDefinitions();
                 accounts.forEach((account: { name: string }) => {
                     addItem({ label: account.name });
-                    console.info(`${account.name} added`);
                 });
+                console.info(`Accounts added, items: ${completionItems.length - initialCount}`);
             })
             .with({ lastChildType: 'narration' }, async () => {
+                console.info('Branch: narration last child');
+                const initialCount = completionItems.length;
                 const accounts = await this.symbolIndex.getAccountDefinitions();
                 accounts.forEach((account: { name: string }) => {
                     addItem({ label: account.name });
-                    console.info(`${account.name} added`);
                 });
+                console.info(`Accounts added, items: ${completionItems.length - initialCount}`);
             })
-            .otherwise(() => Promise.resolve());
+            .otherwise(() => {
+                console.info('No matching branch found');
+                return Promise.resolve();
+            });
         await p;
 
-        console.log(JSON.stringify(completionItems));
+        console.log(`Final completion items: ${completionItems.length}`);
         return completionItems;
     }
 }

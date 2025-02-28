@@ -11,11 +11,11 @@ export interface SymbolInfo {
 	range: lsp.Range;
 	kind: lsp.SymbolKind;
 }
-export async function getAccountsUsage(textDocument: TextDocument, trees: Trees) {
+export async function getAccountsUsage(textDocument: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
 	const query = TreeQuery.getQueryByTokenName('account_usage');
 	const tree = await trees.getParseTree(textDocument);
 	if (!tree) {
-		return [];
+		throw new Error(`Failed to get parse tree for document: ${textDocument.uri}`);
 	}
 	const captures = await query.captures(tree.rootNode);
 	const result: SymbolInfo[] = [];
@@ -33,10 +33,10 @@ export async function getAccountsUsage(textDocument: TextDocument, trees: Trees)
 	return result;
 }
 
-export async function getAccountsDefinition(doc: TextDocument, trees: Trees) {
+export async function getAccountsDefinition(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
 	const tree = await trees.getParseTree(doc);
 	if (!tree) {
-		return [];
+		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
 	}
 	const query = TreeQuery.getQueryByTokenName('account_definition');
 	const captures = await query.captures(tree.rootNode);
@@ -55,14 +55,15 @@ export async function getAccountsDefinition(doc: TextDocument, trees: Trees) {
 	}
 	return result;
 }
-
 export async function getPayees(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
 	const tree = await trees.getParseTree(doc);
 	if (!tree) {
-		return [];
+		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
 	}
 	const query = TreeQuery.getQueryByTokenName('payee');
 	const captures = await query.captures(tree.rootNode);
+	console.log(`[references] Payees parse tree: ${tree.rootNode.toString()}`);
+	console.log(`[references] Payees captures: ${captures.length} matches`);
 	const result: SymbolInfo[] = [];
 	for (const capture of captures) {
 		const name = capture.node.text.replace(/^"|"$/g, ''); // Remove quotes
@@ -81,7 +82,7 @@ export async function getPayees(doc: TextDocument, trees: Trees): Promise<Symbol
 export async function getNarrations(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
 	const tree = await trees.getParseTree(doc);
 	if (!tree) {
-		return [];
+		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
 	}
 	const query = TreeQuery.getQueryByTokenName('narration');
 	const captures = await query.captures(tree.rootNode);
@@ -103,7 +104,7 @@ export async function getNarrations(doc: TextDocument, trees: Trees): Promise<Sy
 export async function getCommodities(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
 	const tree = await trees.getParseTree(doc);
 	if (!tree) {
-		return [];
+		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
 	}
 	const query = TreeQuery.getQueryByTokenName('currency');
 	const captures = await query.captures(tree.rootNode);
@@ -125,7 +126,7 @@ export async function getCommodities(doc: TextDocument, trees: Trees): Promise<S
 export async function getTags(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
 	const tree = await trees.getParseTree(doc);
 	if (!tree) {
-		return [];
+		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
 	}
 	const query = TreeQuery.getQueryByTokenName('tag');
 	const captures = await query.captures(tree.rootNode);
