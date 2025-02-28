@@ -16,6 +16,7 @@ import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
 import { SymbolIndex } from './symbol-index';
 import { Feature } from './types';
+import { logger } from '../logger';
 
 const Tuple = <T extends unknown[]>(xs: readonly [...T]): T => xs as T;
 
@@ -137,16 +138,16 @@ export class CompletionFeature implements Feature {
             return [];
         }
         const current = nodeAtPosition(tree.rootNode, params.position, true);
-        console.info(`current ${current.type}: ${current}`);
-        console.info(`parent ${current.parent?.type}: ${current.parent?.toString()}`);
-        console.info(
+        logger.info(`current ${current.type}: ${current}`);
+        logger.info(`parent ${current.parent?.type}: ${current.parent?.toString()}`);
+        logger.info(
             `previousNamedSibling: ${current.previousNamedSibling?.type} previousSibling: ${current.previousSibling?.type}`,
         );
-        console.info(
+        logger.info(
             `namedDescendantForPosition: ${tree.rootNode.namedDescendantForPosition(asTsPoint(params.position)).type}`,
         );
 
-        console.info(`descendantForPosition: ${tree.rootNode.descendantForPosition(asTsPoint(params.position)).type}`);
+        logger.info(`descendantForPosition: ${tree.rootNode.descendantForPosition(asTsPoint(params.position)).type}`);
 
         const descendantForCurPos = tree.rootNode.descendantForPosition(asTsPoint(params.position));
         let lastChildNode = descendantForCurPos.child(descendantForCurPos.childCount - 1);
@@ -154,15 +155,15 @@ export class CompletionFeature implements Feature {
         if (!lastChildNode || lastChildNode.type === 'ERROR') {
             // find up
             let parent = lastChildNode?.parent;
-            console.info(`pp ${parent?.type} AAAA`)
+            logger.info(`pp ${parent?.type} AAAA`)
             while (
                 typeof parent == 'object' && parent !== null
                 && parent.type === 'ERROR') {
-                console.info(`pp ${parent?.type}`)
+                logger.info(`pp ${parent?.type}`)
                 parent = parent?.parent
             }
             lastChildNode = parent ?? null;
-            console.info(`pp ${parent?.type}`)
+            logger.info(`pp ${parent?.type}`)
 
             // find sibling
             if ((parent?.childCount ?? 0) > 0) {
@@ -214,7 +215,7 @@ export class CompletionFeature implements Feature {
             cnt++;
         }
 
-        console.info(JSON.stringify(info));
+        logger.info(JSON.stringify(info));
         const p: Promise<void> = match(info)
             .with({ triggerCharacter: '2' }, async () => {
                 const d = new Date();
@@ -252,20 +253,20 @@ export class CompletionFeature implements Feature {
                 const accounts = await this.symbolIndex.getAccountDefinitions();
                 accounts.forEach((account: { name: string }) => {
                     addItem({ label: account.name });
-                    console.info(`${account.name} added`);
+                    logger.info(`${account.name} added`);
                 });
             })
             .with({ lastChildType: 'narration' }, async () => {
                 const accounts = await this.symbolIndex.getAccountDefinitions();
                 accounts.forEach((account: { name: string }) => {
                     addItem({ label: account.name });
-                    console.info(`${account.name} added`);
+                    logger.info(`${account.name} added`);
                 });
             })
             .otherwise(() => Promise.resolve());
         await p;
 
-        console.log(JSON.stringify(completionItems));
+        logger.info(JSON.stringify(completionItems));
         return completionItems;
     }
 }

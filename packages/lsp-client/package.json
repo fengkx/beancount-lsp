@@ -94,6 +94,20 @@
 					"default": "messages",
 					"description": "Traces the communication between VS Code and the language server."
 				},
+				"beanLsp.logLevel": {
+					"scope": "window",
+					"type": "string",
+					"enum": [
+						"off",
+						"error",
+						"warn",
+						"info",
+						"debug",
+						"trace"
+					],
+					"default": "info",
+					"description": "Controls the verbosity of logs produced by the extension."
+				},
 				"beancount.mainBeanFile": {
 					"scope": "resource",
 					"type": "string",

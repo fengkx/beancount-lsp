@@ -39,6 +39,10 @@ export function activate(context: vscode.ExtensionContext) {
 	// Resolve the web-tree-sitter.wasm path
 	const webTreeSitterWasmPath = resolveWebTreeSitterWasmPath(context);
 
+	// Get the log level from configuration
+	const config = vscode.workspace.getConfiguration('beanLsp');
+	const logLevel = config.get('logLevel', 'info');
+
 	// Options to control the language client
 	const clientOptions: LanguageClientOptions = {
 		// Register the server for plain text documents
@@ -47,7 +51,8 @@ export function activate(context: vscode.ExtensionContext) {
 			fileEvents: vscode.workspace.createFileSystemWatcher('**/*.bean(count)?$'),
 		},
 		initializationOptions: {
-			webTreeSitterWasmPath: webTreeSitterWasmPath
+			webTreeSitterWasmPath: webTreeSitterWasmPath,
+			logLevel: logLevel
 		}
 	};
 
@@ -105,6 +110,16 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Start the client. This will also launch the server
 	client.start();
+
+	// Register configuration change listener
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeConfiguration(e => {
+			if (e.affectsConfiguration('beanLsp.logLevel')) {
+				const newLogLevel = vscode.workspace.getConfiguration('beanLsp').get('logLevel', 'info');
+				client.sendNotification('custom/setLogLevel', { logLevel: newLogLevel });
+			}
+		})
+	);
 }
 
 // This method is called when your extension is deactivated

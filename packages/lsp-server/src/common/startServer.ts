@@ -14,6 +14,7 @@ import { SelectionRangesFeature } from './features/selection-ranges';
 import { SemanticTokenFeature } from './features/semantic-token';
 import { Feature } from './features/types';
 import { Trees } from './trees';
+import { LogLevel, logger } from './logger';
 
 import Db from '@seald-io/nedb';
 import { SymbolInfo } from './features/references';
@@ -29,12 +30,18 @@ export interface IStorageFactory {
 
 export interface ServerOptions {
 	webTreeSitterWasmPath?: string;
+	logLevel?: LogLevel;
 }
 
 export function startServer(connection: Connection, factory: IStorageFactory, options: ServerOptions = {}) {
 	console.log = connection.console.log.bind(connection.console);
 	console.warn = connection.console.warn.bind(connection.console);
 	console.error = connection.console.error.bind(connection.console);
+
+	// Set initial log level if provided
+	if (options.logLevel) {
+		logger.setLevel(options.logLevel);
+	}
 
 	let hasConfigurationCapability: boolean = false;
 	let hasWorkspaceFolderCapability: boolean = false;
@@ -67,6 +74,13 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 			options.webTreeSitterWasmPath = params.initializationOptions.webTreeSitterWasmPath;
 			// Update wasmFilePath in the language module
 			setWasmFilePath(options.webTreeSitterWasmPath);
+		}
+
+		// Set log level from initialization options if provided
+		if (params.initializationOptions?.logLevel) {
+			options.logLevel = params.initializationOptions.logLevel as LogLevel;
+			logger.setLevel(options.logLevel);
+			logger.info(`Log level set to ${options.logLevel}`);
 		}
 
 		try {
@@ -118,6 +132,12 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		return result;
 	});
 
+	// Add a custom notification handler to update the log level
+	connection.onNotification('custom/setLogLevel', (params: { logLevel: LogLevel }) => {
+		logger.info(`Updating log level to: ${params.logLevel}`);
+		logger.setLevel(params.logLevel);
+	});
+
 	connection.onInitialized(async () => {
 		if (hasConfigurationCapability) {
 			// Register for all configuration changes.
@@ -130,7 +150,7 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		}
 
 		const mainBeanFile = await documents.getMainBeanFileUri();
-		console.info(`mainBeanFile ${mainBeanFile}`);
+		logger.info(`mainBeanFile ${mainBeanFile}`);
 		await documents.refetchBeanFiles();
 
 		if (mainBeanFile) {
