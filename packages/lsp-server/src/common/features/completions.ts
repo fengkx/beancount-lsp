@@ -228,6 +228,13 @@ export class CompletionFeature implements Feature {
             .with({ triggerCharacter: '"', previousSiblingType: 'txn' }, async () => {
                 cnt = await addPayeesAndNarrations(this.symbolIndex, position, true, 'end', set, completionItems, cnt);
             })
+            .with({
+                triggerCharacter: '"',
+                previousSiblingType: 'txn',
+                previousPreviousSiblingType: 'date'
+            }, async () => {
+                cnt = await addPayeesAndNarrations(this.symbolIndex, position, true, 'end', set, completionItems, cnt);
+            })
             .with({ triggerCharacter: '"', previousSiblingType: 'payee' }, async () => {
                 cnt = await addPayeesAndNarrations(this.symbolIndex, position, false, 'end', set, completionItems, cnt);
             })
@@ -258,7 +265,7 @@ export class CompletionFeature implements Feature {
             .otherwise(() => Promise.resolve());
         await p;
 
-        console.info(JSON.stringify(completionItems));
+        console.log(JSON.stringify(completionItems));
         return completionItems;
     }
 }
