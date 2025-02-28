@@ -10,5 +10,5 @@ export default defineConfig({
 		'.scm': 'text',
 	},
 	external: ['vscode'],
-	noExternal: ['@bean-lsp/shared'],
+	noExternal: ['@bean-lsp/shared', 'vscode-languageclient'],
 });

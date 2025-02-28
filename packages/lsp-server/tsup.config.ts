@@ -11,7 +11,24 @@ const config = defineConfig({
 		'.scm': 'text',
 	},
 	external: ['vscode'],
-	noExternal: ['lru-cache', 'vscode-languageserver', 'vscode-languageserver-textdocument', '@bean-lsp/shared'],
+	noExternal: [
+		'@abraham/reflection',
+		'@bean-lsp/shared',
+		'@seald-io/nedb',
+		'date-fns',
+		'fast-glob',
+		'micromatch',
+		'mnemonist',
+		'nominal-types',
+		'pinyin-pro',
+		'ts-pattern',
+		'tsyringe',
+		'vscode-languageserver',
+		'vscode-languageserver-textdocument',
+		'vscode-uri',
+		'web-tree-sitter',
+		'lru-cache'
+	],
 });
 
 export default [config];

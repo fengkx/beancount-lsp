@@ -1,16 +1,27 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import { CustomMessages } from '@bean-lsp/shared';
+import path from 'path';
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 
 import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from 'vscode-languageclient/node';
 
 let client: LanguageClient;
 
+/**
+ * Resolves the path to web-tree-sitter.wasm file
+ * @param context Extension context
+ * @returns The resolved path to the WASM file
+ */
+function resolveWebTreeSitterWasmPath(context: vscode.ExtensionContext): string | undefined {
+	return path.join(context.extensionUri.fsPath, 'server', 'common', 'web-tree-sitter.wasm');
+}
+
 // This method is called when your extension is activated
 export function activate(context: vscode.ExtensionContext) {
 	// The server is implemented in node
-	const serverModule = require.resolve('beancount-lsp-server');
+	const serverModule = path.join(context.extensionPath, 'server', 'node.js');
 
 	// If the extension is launched in debug mode then the debug server options are used
 	// Otherwise the run options are used
@@ -25,6 +36,9 @@ export function activate(context: vscode.ExtensionContext) {
 		},
 	};
 
+	// Resolve the web-tree-sitter.wasm path
+	const webTreeSitterWasmPath = resolveWebTreeSitterWasmPath(context);
+
 	// Options to control the language client
 	const clientOptions: LanguageClientOptions = {
 		// Register the server for plain text documents
@@ -32,6 +46,9 @@ export function activate(context: vscode.ExtensionContext) {
 		synchronize: {
 			fileEvents: vscode.workspace.createFileSystemWatcher('**/*.bean(count)?$'),
 		},
+		initializationOptions: {
+			webTreeSitterWasmPath: webTreeSitterWasmPath
+		}
 	};
 
 	// Create the language client and start the client.
@@ -91,4 +108,4 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {/** TODO */}
+export function deactivate() {/** TODO */ }

@@ -18,6 +18,7 @@ import { Trees } from './trees';
 import Db from '@seald-io/nedb';
 import { SymbolInfo } from './features/references';
 import { SymbolIndex } from './features/symbol-index';
+import { setWasmFilePath } from './language';
 
 export type SymbolInfoStorage = Db<SymbolInfo>;
 
@@ -26,7 +27,11 @@ export interface IStorageFactory {
 	destroy(index: SymbolInfoStorage): Promise<void>;
 }
 
-export function startServer(connection: Connection, factory: IStorageFactory) {
+export interface ServerOptions {
+	webTreeSitterWasmPath?: string;
+}
+
+export function startServer(connection: Connection, factory: IStorageFactory, options: ServerOptions = {}) {
 	console.log = connection.console.log.bind(connection.console);
 	console.warn = connection.console.warn.bind(connection.console);
 	console.error = connection.console.error.bind(connection.console);
@@ -57,8 +62,15 @@ export function startServer(connection: Connection, factory: IStorageFactory) {
 			hasWorkspaceFolderCapability = true;
 		}
 
+		// Extract webTreeSitterWasmPath from initialization options if available
+		if (params.initializationOptions?.webTreeSitterWasmPath) {
+			options.webTreeSitterWasmPath = params.initializationOptions.webTreeSitterWasmPath;
+			// Update wasmFilePath in the language module
+			setWasmFilePath(options.webTreeSitterWasmPath);
+		}
+
 		try {
-			await getParser();
+			// The parser will be initialized when needed with the correct WASM path
 		} catch (err) {
 			connection.console.error(String(err));
 		}
@@ -67,7 +79,7 @@ export function startServer(connection: Connection, factory: IStorageFactory) {
 		connection.onExit(() => factory.destroy(symbolStorage));
 
 		documents = new DocumentStore(connection);
-		const trees = new Trees(documents);
+		const trees = new Trees(documents, options.webTreeSitterWasmPath);
 
 		symbolIndex = new SymbolIndex(documents, trees, symbolStorage);
 
