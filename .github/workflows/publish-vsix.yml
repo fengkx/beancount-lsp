@@ -1,0 +1,77 @@
+name: Publish Extension
+
+# Control concurrency for this workflow to prevent multiple versions being published simultaneously
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:  # Allow manual triggering
+
+permissions:
+  contents: read
+  packages: read
+  
+jobs:
+  build:
+    name: Build VSIX
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # Set a timeout to prevent hung builds
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4  # Upgraded to v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3  # Upgraded to v3
+        with:
+          version: 8
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4  # Upgraded to v4
+        with:
+          node-version: '20'  # Upgraded to Node.js 20 LTS
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        
+      - name: Build packages
+        run: pnpm build
+
+      - name: Package Extension
+        run: pnpm --filter beancount-lsp-client vsix
+        
+      - name: Upload VSIX as artifact
+        uses: actions/upload-artifact@v4  # Upgraded to v4
+        with:
+          name: beancount-lsp-extension
+          path: packages/lsp-client/beancount-lsp-client-*.vsix
+          if-no-files-found: error
+          retention-days: 7  # Only keep for 7 days to save storage
+
+  # publish:
+
+  #   name: Publish to Marketplace
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 10
+  #   environment: production  # Use environment for protection
+  #   steps:
+  #     - name: Download VSIX artifact
+  #       uses: actions/download-artifact@v4  # Upgraded to v4
+  #       with:
+  #         name: beancount-lsp-extension
+  #         path: ./
+
+  #     - name: Publish to Visual Studio Marketplace
+  #       uses: HaaLeo/publish-vscode-extension@v1
+  #       with:
+  #         pat: ${{ secrets.VSCE_PAT }}
+  #         extensionFile: ./beancount-lsp-client-*.vsix
+  #         registryUrl: https://marketplace.visualstudio.com 

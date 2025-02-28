@@ -8,3 +8,16 @@
 - [ ] formating
 - [ ] diagnose
 - [ ] intergate with [beancount-smart-query](https://github.com/fengkx/beancount-smart-query)
+
+## Development
+
+### Building and Packaging
+
+To build the extension locally:
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build all packages
+pnpm build
