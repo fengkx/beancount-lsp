@@ -1,28 +1,37 @@
 {
-  "name": "beancount-lsp",
-  "version": "0.0.0",
-  "description": "BeanCount language server",
-  "private": true,
-  "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run watch",
-    "check": "turbo run check",
-    "format": "turbo run format"
-  },
-  "keywords": [
-    "beancount",
-    "lsp",
-    "language"
-  ],
-  "author": "fengkx",
-  "license": "MIT",
-  "devDependencies": {
-    "@types/node": "^20.11.16",
-    "dprint": "^0.45.0",
-    "eslint": "^8.56.0",
-    "eslint-config-custom": "workspace:*",
-    "tsup": "^8.0.1",
-    "turbo": "^1.12.2",
-    "typescript": "^5.3.3"
-  }
+	"name": "beancount-lsp",
+	"version": "0.0.0",
+	"description": "BeanCount language server",
+	"private": true,
+	"scripts": {
+		"build": "turbo run build",
+		"dev": "turbo run watch",
+		"check": "turbo run check",
+		"format": "turbo run format",
+		"prepare": "simple-git-hooks"
+	},
+	"simple-git-hooks": {
+		"pre-commit": "pnpm nano-staged"
+	},
+	"nano-staged": {
+		"*.{ts,tsx,js,jsx,cjs,mjs,json,md}": "pnpm dprint fmt"
+	},
+	"keywords": [
+		"beancount",
+		"lsp",
+		"language"
+	],
+	"author": "fengkx",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^20.11.16",
+		"dprint": "^0.45.0",
+		"eslint": "^8.56.0",
+		"eslint-config-custom": "workspace:*",
+		"nano-staged": "^0.8.0",
+		"simple-git-hooks": "^2.11.1",
+		"tsup": "^8.0.1",
+		"turbo": "^1.12.2",
+		"typescript": "^5.3.3"
+	}
 }
