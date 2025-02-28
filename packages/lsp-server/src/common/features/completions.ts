@@ -19,7 +19,7 @@ import { Feature } from './types';
 
 const Tuple = <T extends unknown[]>(xs: readonly [...T]): T => xs as T;
 
-const triggerCharacters = Tuple(['2', '#', '"', '^'] as const);
+const triggerCharacters = Tuple(['2', '#', '"', '^', ' '] as const);
 type TriggerCharacter = (typeof triggerCharacters)[number];
 //    ^?
 
@@ -31,6 +31,7 @@ type TriggerInfo = {
     previousPreviousSiblingType: string | undefined;
     descendantForPositionType: string | undefined;
     lastChildType: string | undefined;
+    lastCurrentChildTypeInError?: string;
 };
 
 function getPinyinFirstLetters(text: string): string {
@@ -154,6 +155,53 @@ async function addPayeesAndNarrations(
     return cnt;
 }
 
+async function addTagCompletions(
+    symbolIndex: SymbolIndex,
+    position: Position,
+    set: Set<string>,
+    items: CompletionItem[],
+    cnt: number
+): Promise<number> {
+    const tags = await symbolIndex.getTags();
+    const uniqueTags = Array.from(new Set(tags)); // Deduplicate tags
+
+    uniqueTags.forEach((tag: string) => {
+        cnt = addCompletionItem(
+            { label: tag, kind: CompletionItemKind.Property, detail: '(tag)' },
+            position,
+            tag,
+            set,
+            items,
+            cnt
+        );
+    });
+
+    return cnt;
+}
+
+async function addCurrencyCompletions(
+    symbolIndex: SymbolIndex,
+    position: Position,
+    set: Set<string>,
+    items: CompletionItem[],
+    cnt: number
+): Promise<number> {
+    const currencies = await symbolIndex.getCommodities();
+    
+    currencies.forEach((currency: string) => {
+        cnt = addCompletionItem(
+            { label: currency, kind: CompletionItemKind.Unit, detail: '(currency)' },
+            position,
+            currency,
+            set,
+            items,
+            cnt
+        );
+    });
+
+    return cnt;
+}
+
 export class CompletionFeature implements Feature {
     constructor(
         private readonly documents: DocumentStore,
@@ -176,6 +224,10 @@ export class CompletionFeature implements Feature {
             return [];
         }
         const current = nodeAtPosition(tree.rootNode, params.position, true);
+        let lastCurrentChildTypeInError = undefined;
+        if (current.type === 'ERROR' && current.childCount > 0) {
+            lastCurrentChildTypeInError = current.children[current.childCount - 1]?.type;
+        }
         // console.info(`current ${current.type}: ${current}`);
         // console.info(`parent ${current.parent?.type}: ${current.parent?.toString()}`);
         // console.info(
@@ -230,6 +282,7 @@ export class CompletionFeature implements Feature {
             previousPreviousSiblingType: current.previousSibling?.previousSibling?.type,
             descendantForPositionType: descendantForCurPos?.type,
             lastChildType: lastChildNode?.type,
+            lastCurrentChildTypeInError
         }, params.position);
 
         return completionItems;
@@ -265,6 +318,27 @@ export class CompletionFeature implements Feature {
                     addItem({ label: formatDate(d, 'yyyy-MM-dd') });
                 });
                 console.info(`Date completions added, items: ${completionItems.length}`);
+            })
+            .with({ triggerCharacter: '#' }, async () => {
+                console.info('Branch: triggerCharacter #');
+                const initialCount = completionItems.length;
+                cnt = await addTagCompletions(this.symbolIndex, position, set, completionItems, cnt);
+                console.info(`Tags added, items: ${completionItems.length - initialCount}`);
+            })
+            .with({ currentType: '#' }, async () => {
+                console.info('Branch: triggerCharacter #');
+                const initialCount = completionItems.length;
+                cnt = await addTagCompletions(this.symbolIndex, position, set, completionItems, cnt);
+                console.info(`Tags added, items: ${completionItems.length - initialCount}`);
+            })
+            .with({ 
+                triggerCharacter: ' ',
+                lastCurrentChildTypeInError: 'number'
+            }, async () => {
+                console.info('Branch: number in posting - currency context');
+                const initialCount = completionItems.length;
+                cnt = await addCurrencyCompletions(this.symbolIndex, position, set, completionItems, cnt);
+                console.info(`Currencies added, items: ${completionItems.length - initialCount}`);
             })
             .with({ triggerCharacter: '"', previousSiblingType: 'txn' }, async () => {
                 console.info('Branch: triggerCharacter " with txn sibling');

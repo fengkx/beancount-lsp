@@ -5,9 +5,10 @@ import path from 'path';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 
-import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from 'vscode-languageclient/node';
+import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind, State } from 'vscode-languageclient/node';
 
 let client: LanguageClient;
+let statusBarItem: vscode.StatusBarItem;
 
 /**
  * Resolves the path to web-tree-sitter.wasm file
@@ -20,6 +21,12 @@ function resolveWebTreeSitterWasmPath(context: vscode.ExtensionContext): string 
 
 // This method is called when your extension is activated
 export function activate(context: vscode.ExtensionContext) {
+	// Create status bar item
+	statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+	statusBarItem.text = "$(sync~spin) Beancount: Initializing...";
+	statusBarItem.show();
+	context.subscriptions.push(statusBarItem);
+
 	// The server is implemented in node
 	const serverModule = path.join(context.extensionPath, 'server', 'node.js');
 
@@ -58,6 +65,22 @@ export function activate(context: vscode.ExtensionContext) {
 		serverOptions,
 		clientOptions,
 	);
+
+	// Update status bar when client state changes
+	client.onDidChangeState(event => {
+		if (event.newState === State.Running) {
+			statusBarItem.text = "$(check) Beancount: Ready";
+			setTimeout(() => {
+				statusBarItem.hide();
+			}, 3000);
+		} else if (event.newState === State.Starting) {
+			statusBarItem.text = "$(sync~spin) Beancount: Initializing...";
+			statusBarItem.show();
+		} else {
+			statusBarItem.text = "$(error) Beancount: Stopped";
+			statusBarItem.show();
+		}
+	});
 
 	client.onRequest(CustomMessages.ListBeanFile, async () => {
 		const files = await vscode.workspace.findFiles('**/*.{bean,beancount}');
@@ -105,7 +128,15 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Start the client. This will also launch the server
 	client.start();
+	
+	// Log when the extension is activated
+	console.log('Beancount LSP extension is now active');
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {/** TODO */ }
+export function deactivate() {
+	if (!client) {
+		return undefined;
+	}
+	return client.stop();
+}
