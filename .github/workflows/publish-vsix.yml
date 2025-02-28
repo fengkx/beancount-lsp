@@ -23,24 +23,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4  # Upgraded to v4
         with:
+          submodules: true
           fetch-depth: 0
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v3  # Upgraded to v3
         with:
-          version: 8
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4  # Upgraded to v4
-        with:
-          node-version: '20'  # Upgraded to Node.js 20 LTS
-          cache: 'pnpm'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-        
+          version: 9
+          run_install: true
+  
       - name: Build packages
         run: pnpm build
 
