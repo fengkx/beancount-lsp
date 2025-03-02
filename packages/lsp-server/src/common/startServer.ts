@@ -48,23 +48,39 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		serverLogger.setLevel(options.logLevel);
 	}
 
-	// Override console methods
+	// Store original console methods
 	const originalConsoleLog = console.log;
 	const originalConsoleInfo = console.info;
 	const originalConsoleWarn = console.warn;
 	const originalConsoleError = console.error;
 
-	// Redirect console to our logger, which will respect log levels
-	console.log = (...args: any[]) => serverLogger.debug(...args);
-	console.info = (...args: any[]) => serverLogger.info(...args);
-	console.warn = (...args: any[]) => serverLogger.warn(...args);
-	console.error = (...args: any[]) => serverLogger.error(...args);
+	// Replace with custom implementations that don't use logger
+	console.log = function(...args: any[]) {
+		originalConsoleLog('[Server]', ...args);
+	};
+	console.info = function(...args: any[]) {
+		originalConsoleInfo('[Server]', ...args);
+	};
+	console.warn = function(...args: any[]) {
+		originalConsoleWarn('[Server]', ...args);
+	};
+	console.error = function(...args: any[]) {
+		originalConsoleError('[Server]', ...args);
+	};
 
-	// Also bind connection console for LSP-based logging
-	connection.console.log = (...args: any[]) => serverLogger.debug(...args);
-	connection.console.info = (...args: any[]) => serverLogger.info(...args);
-	connection.console.warn = (...args: any[]) => serverLogger.warn(...args);
-	connection.console.error = (...args: any[]) => serverLogger.error(...args);
+	// Also bind connection console for LSP-based logging directly to original console methods
+	connection.console.log = function(...args: any[]) {
+		originalConsoleLog('[Server]', ...args);
+	};
+	connection.console.info = function(...args: any[]) {
+		originalConsoleInfo('[Server]', ...args);
+	};
+	connection.console.warn = function(...args: any[]) {
+		originalConsoleWarn('[Server]', ...args);
+	};
+	connection.console.error = function(...args: any[]) {
+		originalConsoleError('[Server]', ...args);
+	};
 
 	let hasConfigurationCapability: boolean = false;
 	let hasWorkspaceFolderCapability: boolean = false;
@@ -83,6 +99,7 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 				completionProvider: {
 					resolveProvider: true,
 				},
+				selectionRangeProvider: true,
 			},
 		};
 		if (params.capabilities.workspace?.configuration) {
