@@ -1,7 +1,8 @@
 {
 	"name": "beancount-lsp-client",
-	"displayName": "beancount language service",
-	"description": "",
+	"displayName": "Beancount language service",
+	"description": "An Beancount language service supporting features like syntax highlighting, code completion, and more.",
+	"icon": "assets/icon.png",
 	"version": "0.0.1",
 	"repository": {
 		"type": "git",

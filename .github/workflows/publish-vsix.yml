@@ -15,19 +15,20 @@ permissions:
   packages: read
   
 jobs:
-  build:
-    name: Build VSIX
+  build-and-publish:
+    name: Build and Publish Extension
     runs-on: ubuntu-latest
-    timeout-minutes: 15  # Set a timeout to prevent hung builds
+    timeout-minutes: 20
+    environment: production  # Use environment for protection
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4  # Upgraded to v4
+        uses: actions/checkout@v4
         with:
           submodules: true
           fetch-depth: 0
 
       - name: Setup PNPM
-        uses: pnpm/action-setup@v3  # Upgraded to v3
+        uses: pnpm/action-setup@v3
         with:
           version: 9
           run_install: true
@@ -37,32 +38,25 @@ jobs:
 
       - name: Package Extension
         run: pnpm --filter beancount-lsp-client vsix
+      
+      - name: Find VSIX file
+        id: find-vsix
+        run: |
+          VSIX_FILE=$(find packages/lsp-client -name "beancount-lsp-client-*.vsix" | head -n 1)
+          echo "Found VSIX file: $VSIX_FILE"
+          echo "vsix_file=$VSIX_FILE" >> $GITHUB_OUTPUT
         
-      - name: Upload VSIX as artifact
-        uses: actions/upload-artifact@v4  # Upgraded to v4
+      - name: Upload VSIX as artifact (for reference)
+        uses: actions/upload-artifact@v4
         with:
           name: beancount-lsp-extension
           path: packages/lsp-client/beancount-lsp-client-*.vsix
           if-no-files-found: error
-          retention-days: 7  # Only keep for 7 days to save storage
+          retention-days: 7
 
-  # publish:
-
-  #   name: Publish to Marketplace
-  #   needs: build
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 10
-  #   environment: production  # Use environment for protection
-  #   steps:
-  #     - name: Download VSIX artifact
-  #       uses: actions/download-artifact@v4  # Upgraded to v4
-  #       with:
-  #         name: beancount-lsp-extension
-  #         path: ./
-
-  #     - name: Publish to Visual Studio Marketplace
-  #       uses: HaaLeo/publish-vscode-extension@v1
-  #       with:
-  #         pat: ${{ secrets.VSCE_PAT }}
-  #         extensionFile: ./beancount-lsp-client-*.vsix
-  #         registryUrl: https://marketplace.visualstudio.com 
+      - name: Publish to Visual Studio Marketplace
+        uses: HaaLeo/publish-vscode-extension@v1
+        with:
+          pat: ${{ secrets.VSCE_PAT }}
+          extensionFile: ${{ steps.find-vsix.outputs.vsix_file }}
+          registryUrl: https://marketplace.visualstudio.com 
