@@ -4,6 +4,7 @@
 	"description": "An Beancount language service supporting features like syntax highlighting, code completion, and more.",
 	"icon": "assets/icon.png",
 	"version": "0.0.1",
+	"publisher": "fengkx",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/fengkx/beancount-lsp"
