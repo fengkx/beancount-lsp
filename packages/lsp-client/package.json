@@ -13,9 +13,6 @@
 	"categories": [
 		"Programming Languages"
 	],
-	"activationEvents": [
-		"onLanguage:beancount"
-	],
 	"main": "./dist/extension.js",
 	"contributes": {
 		"languages": [

@@ -11,6 +11,7 @@
  * with special handling for Chinese text using pinyin first letters.
  */
 
+import { Logger } from '@bean-lsp/shared';
 import { add, formatDate, sub } from 'date-fns';
 import { pinyin } from 'pinyin-pro';
 import { match, P } from 'ts-pattern';
@@ -1321,6 +1322,9 @@ async function addAccountCompletions(
 	return cnt;
 }
 
+// Create a logger for the completions module
+const logger = new Logger('completions');
+
 /**
  * Completion feature implementation for Beancount language server
  *
@@ -1393,16 +1397,16 @@ export class CompletionFeature implements Feature {
 		if (!lastChildNode || lastChildNode.type === 'ERROR') {
 			// find up
 			let parent = lastChildNode?.parent;
-			console.info(`pp ${parent?.type} AAAA`);
+			logger.info(`pp ${parent?.type} AAAA`);
 			while (
 				typeof parent == 'object' && parent !== null
 				&& parent.type === 'ERROR'
 			) {
-				console.info(`pp ${parent?.type}`);
+				logger.info(`pp ${parent?.type}`);
 				parent = parent?.parent;
 			}
 			lastChildNode = parent ?? null;
-			console.info(`pp ${parent?.type}`);
+			logger.info(`pp ${parent?.type}`);
 
 			// find sibling
 			if ((parent?.childCount ?? 0) > 0) {
@@ -1487,11 +1491,11 @@ export class CompletionFeature implements Feature {
 			cnt++;
 		}
 
-		console.info(`Starting completion with info: ${JSON.stringify(info)}`);
+		logger.info(`Starting completion with info: ${JSON.stringify(info)}`);
 		const p: Promise<void> = match(info)
 			.with({ triggerCharacter: '2' }, async () => {
 				// Date completions: Provide the current date, yesterday, day before yesterday, and tomorrow
-				console.info('Branch: triggerCharacter 2');
+				logger.info('Branch: triggerCharacter 2');
 				const d = new Date();
 				const yesterday = sub(d, { days: 1 });
 				const dayBeforeYesterday = sub(d, { days: 2 });
@@ -1499,35 +1503,35 @@ export class CompletionFeature implements Feature {
 				[d, yesterday, tomorrow, dayBeforeYesterday].forEach(d => {
 					addItem({ label: formatDate(d, 'yyyy-MM-dd') });
 				});
-				console.info(`Date completions added, items: ${completionItems.length}`);
+				logger.info(`Date completions added, items: ${completionItems.length}`);
 			})
 			.with({ triggerCharacter: '#' }, async () => {
 				// Tag completions when triggered by # character
-				console.info('Branch: triggerCharacter #');
+				logger.info('Branch: triggerCharacter #');
 				const initialCount = completionItems.length;
 				cnt = await addTagCompletions(this.symbolIndex, position, set, completionItems, cnt, userInput);
-				console.info(`Tags added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Tags added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({ currentType: '#' }, async () => {
 				// Tag completions when positioned at a # token
-				console.info('Branch: triggerCharacter #');
+				logger.info('Branch: triggerCharacter #');
 				const initialCount = completionItems.length;
 				cnt = await addTagCompletions(this.symbolIndex, position, set, completionItems, cnt, userInput);
-				console.info(`Tags added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Tags added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({
 				triggerCharacter: ' ',
 				lastCurrentChildTypeInError: 'number',
 			}, async () => {
 				// Currency completions after a number and space
-				console.info('Branch: number in posting - currency context');
+				logger.info('Branch: number in posting - currency context');
 				const initialCount = completionItems.length;
 				cnt = await addCurrencyCompletions(this.symbolIndex, position, set, completionItems, cnt, userInput);
-				console.info(`Currencies added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({ triggerCharacter: 'A' }, async () => {
 				// Assets account completions
-				console.info('Branch: triggerCharacter A - Account completion');
+				logger.info('Branch: triggerCharacter A - Account completion');
 				const initialCount = completionItems.length;
 				cnt = await addAccountCompletions(
 					this.symbolIndex,
@@ -1538,11 +1542,11 @@ export class CompletionFeature implements Feature {
 					cnt,
 					userInput,
 				);
-				console.info(`Assets accounts added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Assets accounts added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({ triggerCharacter: 'L' }, async () => {
 				// Liabilities account completions
-				console.info('Branch: triggerCharacter L - Account completion');
+				logger.info('Branch: triggerCharacter L - Account completion');
 				const initialCount = completionItems.length;
 				cnt = await addAccountCompletions(
 					this.symbolIndex,
@@ -1553,11 +1557,11 @@ export class CompletionFeature implements Feature {
 					cnt,
 					userInput,
 				);
-				console.info(`Liabilities accounts added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Liabilities accounts added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({ triggerCharacter: 'E' }, async () => {
 				// Equity and Expenses account completions
-				console.info('Branch: triggerCharacter E - Account completion');
+				logger.info('Branch: triggerCharacter E - Account completion');
 				const initialCount = completionItems.length;
 				cnt = await addAccountCompletions(
 					this.symbolIndex,
@@ -1568,11 +1572,11 @@ export class CompletionFeature implements Feature {
 					cnt,
 					userInput,
 				);
-				console.info(`Equity and Expenses accounts added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Equity and Expenses accounts added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({ triggerCharacter: 'I' }, async () => {
 				// Income account completions
-				console.info('Branch: triggerCharacter I - Account completion');
+				logger.info('Branch: triggerCharacter I - Account completion');
 				const initialCount = completionItems.length;
 				cnt = await addAccountCompletions(
 					this.symbolIndex,
@@ -1583,11 +1587,11 @@ export class CompletionFeature implements Feature {
 					cnt,
 					userInput,
 				);
-				console.info(`Income accounts added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Income accounts added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({ triggerCharacter: '"', previousSiblingType: 'txn' }, async () => {
 				// Payee and narration completions after a transaction keyword
-				console.info('Branch: triggerCharacter " with txn sibling');
+				logger.info('Branch: triggerCharacter " with txn sibling');
 				const initialCount = completionItems.length;
 				cnt = await addPayeesAndNarrations(
 					this.symbolIndex,
@@ -1599,7 +1603,7 @@ export class CompletionFeature implements Feature {
 					cnt,
 					userInput,
 				);
-				console.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({
 				triggerCharacter: '"',
@@ -1607,7 +1611,7 @@ export class CompletionFeature implements Feature {
 				previousPreviousSiblingType: 'date',
 			}, async () => {
 				// Payee and narration completions after date and transaction keyword
-				console.info('Branch: triggerCharacter " with txn sibling and date previous');
+				logger.info('Branch: triggerCharacter " with txn sibling and date previous');
 				const initialCount = completionItems.length;
 				cnt = await addPayeesAndNarrations(
 					this.symbolIndex,
@@ -1619,11 +1623,11 @@ export class CompletionFeature implements Feature {
 					cnt,
 					userInput,
 				);
-				console.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({ triggerCharacter: '"', previousSiblingType: 'payee' }, async () => {
 				// Narration completions only after a payee
-				console.info('Branch: triggerCharacter " with payee sibling');
+				logger.info('Branch: triggerCharacter " with payee sibling');
 				const initialCount = completionItems.length;
 				cnt = await addPayeesAndNarrations(
 					this.symbolIndex,
@@ -1635,11 +1639,11 @@ export class CompletionFeature implements Feature {
 					cnt,
 					userInput,
 				);
-				console.info(`Narrations added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({ triggerCharacter: '"', currentType: 'narration' }, async () => {
 				// Payee and narration completions when positioned at a narration
-				console.info('Branch: triggerCharacter " with narration current');
+				logger.info('Branch: triggerCharacter " with narration current');
 				const initialCount = completionItems.length;
 				cnt = await addPayeesAndNarrations(
 					this.symbolIndex,
@@ -1651,11 +1655,11 @@ export class CompletionFeature implements Feature {
 					cnt,
 					userInput,
 				);
-				console.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({ triggerCharacter: '"', previousSiblingType: 'string' }, async () => {
 				// Narration completions after a string (likely a payee)
-				console.info('Branch: triggerCharacter " with string sibling');
+				logger.info('Branch: triggerCharacter " with string sibling');
 				const initialCount = completionItems.length;
 				cnt = await addPayeesAndNarrations(
 					this.symbolIndex,
@@ -1667,7 +1671,7 @@ export class CompletionFeature implements Feature {
 					cnt,
 					userInput,
 				);
-				console.info(`Narrations added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({
 				triggerCharacter: '"',
@@ -1676,7 +1680,7 @@ export class CompletionFeature implements Feature {
 				previousPreviousSiblingType: 'txn',
 			}, async () => {
 				// Narration completions in error recovery mode after string and txn
-				console.info('Branch: triggerCharacter " with ERROR current, string sibling, txn previous');
+				logger.info('Branch: triggerCharacter " with ERROR current, string sibling, txn previous');
 				const initialCount = completionItems.length;
 				cnt = await addPayeesAndNarrations(
 					this.symbolIndex,
@@ -1688,7 +1692,7 @@ export class CompletionFeature implements Feature {
 					cnt,
 					userInput,
 				);
-				console.info(`Narrations added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({
 				triggerCharacter: '"',
@@ -1697,7 +1701,7 @@ export class CompletionFeature implements Feature {
 				previousPreviousSiblingType: 'date',
 			}, async () => {
 				// Payee and narration completions in error recovery mode after txn and date
-				console.info('Branch: triggerCharacter " with ERROR current, txn sibling, date previous');
+				logger.info('Branch: triggerCharacter " with ERROR current, txn sibling, date previous');
 				const initialCount = completionItems.length;
 				cnt = await addPayeesAndNarrations(
 					this.symbolIndex,
@@ -1709,11 +1713,11 @@ export class CompletionFeature implements Feature {
 					cnt,
 					userInput,
 				);
-				console.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({ currentType: 'narration' }, async () => {
 				// Payee and narration completions when positioned at a narration outside quotes
-				console.info('Branch: narration current');
+				logger.info('Branch: narration current');
 				const initialCount = completionItems.length;
 				cnt = await addPayeesAndNarrations(
 					this.symbolIndex,
@@ -1725,7 +1729,7 @@ export class CompletionFeature implements Feature {
 					cnt,
 					userInput,
 				);
-				console.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({
 				previousPreviousSiblingType: '\n',
@@ -1733,32 +1737,32 @@ export class CompletionFeature implements Feature {
 				parentType: 'file',
 			}, async () => {
 				// Account completions after a transaction line
-				console.info('Branch: transaction sibling with newline previous');
+				logger.info('Branch: transaction sibling with newline previous');
 				const initialCount = completionItems.length;
 				const accounts = await this.symbolIndex.getAccountDefinitions();
 				accounts.forEach((account: { name: string }) => {
 					addItem({ label: account.name });
 				});
-				console.info(`Accounts added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({ lastChildType: 'narration' }, async () => {
 				// Account completions after a narration
-				console.info('Branch: narration last child');
+				logger.info('Branch: narration last child');
 				const initialCount = completionItems.length;
 				const accounts = await this.symbolIndex.getAccountDefinitions();
 				accounts.forEach((account: { name: string }) => {
 					addItem({ label: account.name });
 				});
-				console.info(`Accounts added, items: ${completionItems.length - initialCount}`);
+				logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
 			})
 			.otherwise(() => {
 				// No matching context found, provide no completions
-				console.info('No matching branch found');
+				logger.info('No matching branch found');
 				return Promise.resolve();
 			});
 		await p;
 
-		console.log(`Final completion items: ${completionItems.length}`);
+		logger.info(`Final completion items: ${completionItems.length}`);
 		return completionItems;
 	}
 }
@@ -1789,7 +1793,7 @@ function runTests(): void {
 		{ input: 'xnyqc', expectedTop: '汇添富中证新能源汽车A', description: 'New energy vehicle abbreviation' },
 	];
 
-	console.log('\n===== TESTING COMPLETION SCORING ALGORITHM =====\n');
+	logger.info('\n===== TESTING COMPLETION SCORING ALGORITHM =====\n');
 
 	// Run each test case
 	testCases.forEach((testCase, index) => {
@@ -1818,21 +1822,21 @@ function runTests(): void {
 		const passed = topResult === testCase.expectedTop;
 
 		// Print test results
-		console.log(`Test #${index + 1}: "${testCase.input}" (${testCase.description})`);
-		console.log(`  Expected: ${testCase.expectedTop}`);
-		console.log(`  Result:   ${topResult}`);
-		console.log(`  Status:   ${passed ? 'PASSED ✓' : 'FAILED ✗'}`);
+		logger.info(`Test #${index + 1}: "${testCase.input}" (${testCase.description})`);
+		logger.info(`  Expected: ${testCase.expectedTop}`);
+		logger.info(`  Result:   ${topResult}`);
+		logger.info(`  Status:   ${passed ? 'PASSED ✓' : 'FAILED ✗'}`);
 
 		// Show top 3 matches with scores
-		console.log('  Top matches:');
+		logger.info('  Top matches:');
 		results.slice(0, 3).forEach(({ entry, score }, i) => {
-			console.log(`    ${i + 1}. ${score.toFixed(2).padStart(7)} - ${entry}`);
+			logger.info(`    ${i + 1}. ${score.toFixed(2).padStart(7)} - ${entry}`);
 		});
 
-		console.log(''); // Empty line between tests
+		logger.info(''); // Empty line between tests
 	});
 
-	console.log('===== TESTING COMPLETE =====');
+	logger.info('===== TESTING COMPLETE =====');
 }
 
 // Uncomment to run tests
@@ -1853,11 +1857,11 @@ export function testFromCommandLine(): void {
 	const input = args[0];
 
 	if (!input) {
-		console.log('Please provide a search term as an argument.');
-		console.log(
+		logger.info('Please provide a search term as an argument.');
+		logger.info(
 			'Usage: node -e "require(\'./dist/common/features/completions\').testFromCommandLine()" -- "search term"',
 		);
-		console.log(
+		logger.info(
 			'       node -e "require(\'./dist/common/features/completions\').testFromCommandLine()" -- "runTests"',
 		);
 		return;
@@ -1882,7 +1886,7 @@ export function testFromCommandLine(): void {
 		'汇添富中证新能源汽车A', // China New Energy Vehicle ETF
 	];
 
-	console.log(`\n===== TESTING COMPLETION SCORING FOR: "${input}" =====\n`);
+	logger.info(`\n===== TESTING COMPLETION SCORING FOR: "${input}" =====\n`);
 
 	// Score each entry
 	const results = testEntries.map(entry => {
@@ -1896,22 +1900,22 @@ export function testFromCommandLine(): void {
 	}).sort((a, b) => b.score - a.score);
 
 	// Display results
-	console.log('Results (sorted by score):');
+	logger.info('Results (sorted by score):');
 	results.forEach(({ entry, score, details }, i) => {
-		console.log(`\n${i + 1}. ${entry} - Score: ${score.toFixed(2)}`);
-		console.log(`   Filter variations: ${details.filterVariations}`);
-		console.log(`   Scoring details:`);
-		console.log(`     - Exact match: ${details.exactMatch}`);
-		console.log(`     - Prefix match: ${details.prefixMatch}`);
-		console.log(`     - Substring match: ${details.substringMatch}`);
-		console.log(`     - Pinyin first letters: ${details.pinyinFirstLetters}`);
-		console.log(`     - Segment acronym match: ${details.segmentAcronymMatch}`);
-		console.log(`     - Character sequence match: ${details.sequenceMatch}`);
-		console.log(`     - Consecutive bonus: ${details.consecutiveBonus}`);
-		console.log(`     - Position bonus: ${details.positionBonus}`);
+		logger.info(`\n${i + 1}. ${entry} - Score: ${score.toFixed(2)}`);
+		logger.info(`   Filter variations: ${details.filterVariations}`);
+		logger.info(`   Scoring details:`);
+		logger.info(`     - Exact match: ${details.exactMatch}`);
+		logger.info(`     - Prefix match: ${details.prefixMatch}`);
+		logger.info(`     - Substring match: ${details.substringMatch}`);
+		logger.info(`     - Pinyin first letters: ${details.pinyinFirstLetters}`);
+		logger.info(`     - Segment acronym match: ${details.segmentAcronymMatch}`);
+		logger.info(`     - Character sequence match: ${details.sequenceMatch}`);
+		logger.info(`     - Consecutive bonus: ${details.consecutiveBonus}`);
+		logger.info(`     - Position bonus: ${details.positionBonus}`);
 	});
 
-	console.log('\n===== TESTING COMPLETE =====');
+	logger.info('\n===== TESTING COMPLETE =====');
 }
 
 /**
@@ -2197,7 +2201,7 @@ function testSpecificCase(): void {
 	// Input to test
 	const testInput = 'hxhsa';
 
-	console.log(`\n===== TESTING "${testInput}" CASE =====\n`);
+	logger.info(`\n===== TESTING "${testInput}" CASE =====\n`);
 
 	// Score each item and show detailed diagnostics
 	const results = testItems.map(item => {
@@ -2223,19 +2227,19 @@ function testSpecificCase(): void {
 	}).sort((a, b) => b.score - a.score);
 
 	// Print sorted results with diagnostics
-	console.log(`Input: "${testInput}"\n`);
-	console.log('Rank | Score  | Item | Pinyin | Segment First Letters');
-	console.log('-'.repeat(80));
+	logger.info(`Input: "${testInput}"\n`);
+	logger.info('Rank | Score  | Item | Pinyin | Segment First Letters');
+	logger.info('-'.repeat(80));
 
 	results.forEach(({ item, score, pinyin, segmentFirstLetters }, i) => {
-		console.log(
+		logger.info(
 			`${i + 1}.   | ${score.toFixed(2).padStart(6)} | ${item.padEnd(20)} | ${
 				pinyin.padEnd(15)
 			} | ${segmentFirstLetters}`,
 		);
 	});
 
-	console.log(`\n===== EXPECTED TOP RESULT: "华夏恒生ETF联接A" =====\n`);
+	logger.info(`\n===== EXPECTED TOP RESULT: "华夏恒生ETF联接A" =====\n`);
 }
 
 // Uncomment to test the specific case
@@ -2259,7 +2263,7 @@ function verifySortingMechanism(): void {
 	// Input to test
 	const testInput = 'hxhsa';
 
-	console.log(`\n===== VERIFYING SORT MECHANISM FOR "${testInput}" =====\n`);
+	logger.info(`\n===== VERIFYING SORT MECHANISM FOR "${testInput}" =====\n`);
 
 	// First, calculate scores for each item
 	const scoredItems = testItems.map(label => {
@@ -2269,9 +2273,9 @@ function verifySortingMechanism(): void {
 	});
 
 	// Log the raw scores for diagnostic purposes
-	console.log('Raw scores:');
+	logger.info('Raw scores:');
 	scoredItems.forEach(({ label, score }) => {
-		console.log(`${label}: ${score}`);
+		logger.info(`${label}: ${score}`);
 	});
 
 	// Now, generate sortText for each item as it would be in completions
@@ -2284,38 +2288,72 @@ function verifySortingMechanism(): void {
 	const sortedItems = [...itemsWithSortText].sort((a, b) => a.sortText.localeCompare(b.sortText));
 
 	// Print detailed diagnostic information
-	console.log('\nItems by Score (higher is better):');
-	console.log('-'.repeat(80));
-	console.log('Rank | Score  | Label');
-	console.log('-'.repeat(80));
+	logger.info('\nItems by Score (higher is better):');
+	logger.info('-'.repeat(80));
+	logger.info('Rank | Score  | Label');
+	logger.info('-'.repeat(80));
 
 	// Print items sorted by score (what we want)
 	scoredItems
 		.sort((a, b) => b.score - a.score)
 		.forEach(({ label, score }, i) => {
-			console.log(`${i + 1}.   | ${score.toFixed(2).padStart(6)} | ${label}`);
+			logger.info(`${i + 1}.   | ${score.toFixed(2).padStart(6)} | ${label}`);
 		});
 
-	console.log('\nItems by SortText (how they will appear in completions):');
-	console.log('-'.repeat(80));
-	console.log('Rank | SortText       | Score  | Label');
-	console.log('-'.repeat(80));
+	logger.info('\nItems by SortText (how they will appear in completions):');
+	logger.info('-'.repeat(80));
+	logger.info('Rank | SortText       | Score  | Label');
+	logger.info('-'.repeat(80));
 
 	// Print items sorted by sortText (what will actually happen)
 	sortedItems.forEach(({ label, score, sortText }, i) => {
-		console.log(`${i + 1}.   | ${sortText} | ${score.toFixed(2).padStart(6)} | ${label}`);
+		logger.info(`${i + 1}.   | ${sortText} | ${score.toFixed(2).padStart(6)} | ${label}`);
 	});
 
 	// Make sure the first item is what we expect
 	const topItem = sortedItems[0].label;
 	const expectedTopItem = '华夏恒生ETF联接A';
 
-	console.log(`\nTop Item: ${topItem}`);
-	console.log(`Expected: ${expectedTopItem}`);
-	console.log(`Result:   ${topItem === expectedTopItem ? 'SUCCESS ✓' : 'FAILURE ✗'}`);
+	logger.info(`\nTop Item: ${topItem}`);
+	logger.info(`Expected: ${expectedTopItem}`);
+	logger.info(`Result:   ${topItem === expectedTopItem ? 'SUCCESS ✓' : 'FAILURE ✗'}`);
 
-	console.log(`\n===== SORTING VERIFICATION COMPLETE =====\n`);
+	logger.info(`\n===== SORTING VERIFICATION COMPLETE =====\n`);
 }
 
 // Execute the test to verify our fix
 // verifySortingMechanism();
+
+/**
+ * Function to test the scoring algorithm with a specific input
+ * @param userInput The input to test
+ * @param entries Array of strings to score against the input
+ */
+function testScoringAlgorithm(userInput: string, entries: string[]): void {
+	logger.debug(`Testing scoring algorithm with input: "${userInput}"`);
+	logger.debug('-'.repeat(60));
+
+	// Score entries by relevance
+	const results = entries
+		.map(entry => ({
+			entry,
+			score: scoreCompletionItem(userInput, entry),
+		}))
+		.sort((a, b) => b.score - a.score);
+
+	// Display results
+	results.forEach(({ entry, score }) => {
+		logger.debug(`${score.toFixed(2).padStart(8)}: ${entry}`);
+	});
+
+	logger.debug('-'.repeat(60));
+}
+
+/**
+ * Score a completion item based on user input
+ * This is a wrapper around scoreMatch to simplify testing
+ */
+function scoreCompletionItem(userInput: string, entry: string): number {
+	const filterText = createFilterString(entry);
+	return scoreMatch(entry, filterText, userInput);
+}

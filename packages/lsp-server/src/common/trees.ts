@@ -10,7 +10,7 @@ class Entry {
 		public version: number,
 		public tree: Parser.Tree,
 		public edits: Parser.Edit[][],
-	) { }
+	) {}
 }
 
 export class Trees {

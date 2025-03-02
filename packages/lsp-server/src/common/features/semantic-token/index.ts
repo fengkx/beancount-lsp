@@ -16,7 +16,7 @@ const DEFINITION_MODIFIER = 1 << TOKEN_MODIFIERS.indexOf('definition');
 const DECLARATION_MODIFIER = 1 << TOKEN_MODIFIERS.indexOf('declaration');
 
 export class SemanticTokenFeature implements Feature {
-	constructor(private readonly documents: DocumentStore, private readonly trees: Trees) { }
+	constructor(private readonly documents: DocumentStore, private readonly trees: Trees) {}
 	register(connection: Connection) {
 		const semanticTokensRegistrationOptions: SemanticTokensRegistrationOptions = {
 			documentSelector: [{ language: 'beancount' }],

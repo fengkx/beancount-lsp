@@ -7,8 +7,17 @@ import { isInteresting, parallel, StopWatch } from '../common';
 import { DocumentStore } from '../document-store';
 import { SymbolInfoStorage } from '../startServer';
 import { Trees } from '../trees';
-import { getAccountsDefinition, getAccountsUsage, getCommodities, getPayees, getNarrations, getTags, SymbolInfo } from './references';
+import {
+	getAccountsDefinition,
+	getAccountsUsage,
+	getCommodities,
+	getNarrations,
+	getPayees,
+	getTags,
+	SymbolInfo,
+} from './references';
 
+import { Logger, LogLevel } from '@bean-lsp/shared';
 import { URI, Utils as UriUtils } from 'vscode-uri';
 import { TreeQuery } from '../language';
 
@@ -47,11 +56,13 @@ class Queue {
 }
 
 export class SymbolIndex {
+	private logger = new Logger('index');
+
 	constructor(
 		private readonly _documents: DocumentStore,
 		private readonly _trees: Trees,
 		private readonly _symbolInfoStorage: SymbolInfoStorage,
-	) { }
+	) {}
 
 	private readonly _syncQueue = new Queue();
 	private readonly _asyncQueue = new Queue();
@@ -87,7 +98,7 @@ export class SymbolIndex {
 	public async initFiles(_uris: string[]) {
 		const uris = new Set(_uris);
 		const sw = new StopWatch();
-		console.log(`[index] initializing index for ${uris.size} files.`);
+		this.logger.debug(`[index] initializing index for ${uris.size} files.`);
 
 		const all = await this._symbolInfoStorage.findAsync({});
 		const urisInStore = new Set(all.map((info: { _uri: string }) => info._uri));
@@ -105,7 +116,7 @@ export class SymbolIndex {
 		}
 
 		this._symbolInfoStorage.remove({ _uri: { $in: Array.from(urisNotSeen) } }, { multi: true });
-		console.log(
+		this.logger.debug(
 			`[index] added FROM CACHE ${all.length} files ${sw.elapsed()}ms, all need revalidation, ${uris.size} files are NEW, ${urisNotSeen.size} where OBSOLETE`,
 		);
 	}
@@ -142,8 +153,9 @@ export class SymbolIndex {
 				totalIndex += stat.durationIndex;
 			}
 
-			console.log(
-				`[index] (${async ? 'async' : 'sync'}) added ${uris.length} files ${sw.elapsed()}ms (retrieval: ${Math.round(totalRetrieve)
+			this.logger.debug(
+				`[index] (${async ? 'async' : 'sync'}) added ${uris.length} files ${sw.elapsed()}ms (retrieval: ${
+					Math.round(totalRetrieve)
 				}ms, indexing: ${Math.round(totalIndex)}ms) (files: ${uris.map(String)})`,
 			);
 		}
@@ -151,7 +163,7 @@ export class SymbolIndex {
 
 	private _createIndexTask(uri: string): () => Promise<{ durationRetrieve: number; durationIndex: number }> {
 		return async () => {
-			console.log(`Building Index ${uri}`);
+			this.logger.debug(`Building Index ${uri}`);
 			// fetch document
 			const _t1Retrieve = performance.now();
 			const document = await this._documents.retrieve(uri);
@@ -165,7 +177,7 @@ export class SymbolIndex {
 			try {
 				await this._doIndex(document);
 			} catch (e: unknown) {
-				console.log(`FAILED to index ${uri}, ${e}`);
+				this.logger.error(`FAILED to index ${uri}, ${e}`);
 			}
 			const durationIndex = performance.now() - _t1Index;
 
@@ -174,7 +186,7 @@ export class SymbolIndex {
 	}
 
 	private async _doIndex(document: TextDocument) {
-		console.log(`[index] Indexing document: ${document.uri}`);
+		this.logger.debug(`[index] Indexing document: ${document.uri}`);
 		const [accountUsages, accountDefinitions, payees, narrations, commodities, tags] = await Promise.all(
 			[
 				getAccountsUsage(document, this._trees),
@@ -186,7 +198,7 @@ export class SymbolIndex {
 			],
 		);
 
-		console.log(`[index] Found symbols in ${document.uri}:
+		this.logger.debug(`[index] Found symbols in ${document.uri}:
 			- Account usages: ${accountUsages.length}
 			- Account definitions: ${accountDefinitions.length}
 			- Payees: ${payees.length}
@@ -216,7 +228,7 @@ export class SymbolIndex {
 			});
 			let hasNew = false;
 			const beanFiles = this._documents.beanFiles;
-			console.log(`[index] Found ${beanFiles.length} bean files`);
+			this.logger.debug(`[index] Found ${beanFiles.length} bean files`);
 			includePatterns.forEach((pattern: string) => {
 				const list = beanFiles.map(s => URI.parse(s).path);
 				const matched = mm.match(list, pattern);
@@ -235,41 +247,41 @@ export class SymbolIndex {
 	}
 
 	public async getAccountDefinitions() {
-		console.log('[index] Getting account definitions');
+		this.logger.debug('[index] Getting account definitions');
 		const accountDefinitions = this._symbolInfoStorage.findAsync({ _symType: 'account_definition' });
-		accountDefinitions.then(defs => console.log(`[index] Found ${defs.length} account definitions`));
+		accountDefinitions.then(defs => this.logger.debug(`[index] Found ${defs.length} account definitions`));
 		return accountDefinitions;
 	}
 
 	public async getPayees(): Promise<string[]> {
-		console.log('[index] Getting payees');
+		this.logger.debug('[index] Getting payees');
 		const payees = await this._symbolInfoStorage.findAsync({ _symType: 'payee' }) as SymbolInfo[];
 		const uniquePayees = [...new Set(payees.map(p => p.name))];
-		console.log(`[index] Found ${payees.length} payees (${uniquePayees.length} unique)`);
+		this.logger.debug(`[index] Found ${payees.length} payees (${uniquePayees.length} unique)`);
 		return uniquePayees;
 	}
 
 	public async getCommodities(): Promise<string[]> {
-		console.log('[index] Getting commodities');
+		this.logger.debug('[index] Getting commodities');
 		const commodities = await this._symbolInfoStorage.findAsync({ _symType: 'commodity' }) as SymbolInfo[];
 		const uniqueCommodities = [...new Set(commodities.map(c => c.name))];
-		console.log(`[index] Found ${commodities.length} commodities (${uniqueCommodities.length} unique)`);
+		this.logger.debug(`[index] Found ${commodities.length} commodities (${uniqueCommodities.length} unique)`);
 		return uniqueCommodities;
 	}
 
 	public async getTags(): Promise<string[]> {
-		console.log('[index] Getting tags');
+		this.logger.debug('[index] Getting tags');
 		const tags = await this._symbolInfoStorage.findAsync({ _symType: 'tag' }) as SymbolInfo[];
 		const uniqueTags = [...new Set(tags.map(t => t.name))];
-		console.log(`[index] Found ${tags.length} tags (${uniqueTags.length} unique)`);
+		this.logger.debug(`[index] Found ${tags.length} tags (${uniqueTags.length} unique)`);
 		return uniqueTags;
 	}
 
 	public async getNarrations(): Promise<string[]> {
-		console.log('[index] Getting narrations');
+		this.logger.debug('[index] Getting narrations');
 		const narrations = await this._symbolInfoStorage.findAsync({ _symType: 'narration' }) as SymbolInfo[];
 		const uniqueNarrations = [...new Set(narrations.map(n => n.name))];
-		console.log(`[index] Found ${narrations.length} narrations (${uniqueNarrations.length} unique)`);
+		this.logger.debug(`[index] Found ${narrations.length} narrations (${uniqueNarrations.length} unique)`);
 		return uniqueNarrations;
 	}
 }

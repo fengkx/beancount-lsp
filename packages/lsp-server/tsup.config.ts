@@ -27,7 +27,7 @@ const config = defineConfig({
 		'vscode-languageserver-textdocument',
 		'vscode-uri',
 		'web-tree-sitter',
-		'lru-cache'
+		'lru-cache',
 	],
 });
 

@@ -1,4 +1,4 @@
-import { CustomMessages, LANGUAGE_ID } from '@bean-lsp/shared';
+import { CustomMessages, LANGUAGE_ID, Logger } from '@bean-lsp/shared';
 import { LRUMapWithDelete as LRUMap } from 'mnemonist';
 import {
 	ConfigurationRequest,
@@ -29,6 +29,8 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 	readonly onDidChangeContent2 = this._onDidChangeContent2.event;
 
 	private _beanFiles: string[] = [];
+
+	private logger = new Logger('DocumentStore');
 
 	constructor(private readonly _connection: Connection) {
 		super({
@@ -97,7 +99,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 
 	private async getConfiguration() {
 		const config = await this._connection.workspace.getConfiguration({ section: LANGUAGE_ID });
-		console.info(config);
+		this.logger.info(config);
 		return config;
 	}
 

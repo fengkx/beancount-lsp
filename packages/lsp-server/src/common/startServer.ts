@@ -1,4 +1,11 @@
-import { getParser } from '@bean-lsp/shared';
+import {
+	getParser,
+	Logger,
+	LogLevel,
+	logLevelToString,
+	mapTraceServerToLogLevel,
+	parseLogLevel,
+} from '@bean-lsp/shared';
 import {
 	Connection,
 	DidChangeConfigurationNotification,
@@ -29,12 +36,35 @@ export interface IStorageFactory {
 
 export interface ServerOptions {
 	webTreeSitterWasmPath?: string;
+	logLevel?: LogLevel;
 }
 
+// Create a server logger
+const serverLogger = new Logger('Server');
+
 export function startServer(connection: Connection, factory: IStorageFactory, options: ServerOptions = {}) {
-	console.log = connection.console.log.bind(connection.console);
-	console.warn = connection.console.warn.bind(connection.console);
-	console.error = connection.console.error.bind(connection.console);
+	// Set initial log level from options
+	if (options.logLevel !== undefined) {
+		serverLogger.setLevel(options.logLevel);
+	}
+
+	// Override console methods
+	const originalConsoleLog = console.log;
+	const originalConsoleInfo = console.info;
+	const originalConsoleWarn = console.warn;
+	const originalConsoleError = console.error;
+
+	// Redirect console to our logger, which will respect log levels
+	console.log = (...args: any[]) => serverLogger.debug(...args);
+	console.info = (...args: any[]) => serverLogger.info(...args);
+	console.warn = (...args: any[]) => serverLogger.warn(...args);
+	console.error = (...args: any[]) => serverLogger.error(...args);
+
+	// Also bind connection console for LSP-based logging
+	connection.console.log = (...args: any[]) => serverLogger.debug(...args);
+	connection.console.info = (...args: any[]) => serverLogger.info(...args);
+	connection.console.warn = (...args: any[]) => serverLogger.warn(...args);
+	connection.console.error = (...args: any[]) => serverLogger.error(...args);
 
 	let hasConfigurationCapability: boolean = false;
 	let hasWorkspaceFolderCapability: boolean = false;
@@ -122,15 +152,41 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		if (hasConfigurationCapability) {
 			// Register for all configuration changes.
 			connection.client.register(DidChangeConfigurationNotification.type, undefined);
+
+			// Get initial configuration for trace server setting
+			const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });
+			if (config.trace && config.trace.server) {
+				const logLevel = mapTraceServerToLogLevel(config.trace.server);
+				serverLogger.setLevel(logLevel);
+				serverLogger.info(
+					`Log level set to ${logLevelToString(logLevel)} (from trace.server: ${config.trace.server})`,
+				);
+			}
+
+			// Listen for configuration changes
+			connection.onDidChangeConfiguration(async change => {
+				if (hasConfigurationCapability) {
+					const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });
+					if (config.trace && config.trace.server) {
+						const logLevel = mapTraceServerToLogLevel(config.trace.server);
+						serverLogger.setLevel(logLevel);
+						serverLogger.info(
+							`Log level changed to ${
+								logLevelToString(logLevel)
+							} (from trace.server: ${config.trace.server})`,
+						);
+					}
+				}
+			});
 		}
 		if (hasWorkspaceFolderCapability) {
 			connection.workspace.onDidChangeWorkspaceFolders(_event => {
-				connection.console.log('Workspace folder change event received.');
+				serverLogger.info('Workspace folder change event received.');
 			});
 		}
 
 		const mainBeanFile = await documents.getMainBeanFileUri();
-		console.info(`mainBeanFile ${mainBeanFile}`);
+		serverLogger.info(`mainBeanFile ${mainBeanFile}`);
 		await documents.refetchBeanFiles();
 
 		if (mainBeanFile) {

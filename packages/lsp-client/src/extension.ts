@@ -1,14 +1,17 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-import { CustomMessages } from '@bean-lsp/shared';
+import { CustomMessages, Logger, LogLevel, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
+import * as fs from 'fs';
 import path from 'path';
 import * as vscode from 'vscode';
-import * as fs from 'fs';
 
-import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind, State } from 'vscode-languageclient/node';
+import { LanguageClient, LanguageClientOptions, ServerOptions, State, TransportKind } from 'vscode-languageclient/node';
 
 let client: LanguageClient;
 let statusBarItem: vscode.StatusBarItem;
+
+// Create a client logger
+const clientLogger = new Logger('Client');
 
 /**
  * Resolves the path to web-tree-sitter.wasm file
@@ -21,9 +24,31 @@ function resolveWebTreeSitterWasmPath(context: vscode.ExtensionContext): string 
 
 // This method is called when your extension is activated
 export function activate(context: vscode.ExtensionContext) {
+	// Initialize logger with configuration
+	const config = vscode.workspace.getConfiguration('beanLsp');
+	const traceServerConfig = config.get<string>('trace.server', 'messages');
+	const logLevel = mapTraceServerToLogLevel(traceServerConfig);
+	clientLogger.setLevel(logLevel);
+	clientLogger.info(`Log level set to ${logLevelToString(logLevel)} (from trace.server: ${traceServerConfig})`);
+
+	// Watch for configuration changes
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeConfiguration(e => {
+			if (e.affectsConfiguration('beanLsp.trace.server')) {
+				const newConfig = vscode.workspace.getConfiguration('beanLsp');
+				const newTraceServer = newConfig.get<string>('trace.server', 'messages');
+				const newLogLevel = mapTraceServerToLogLevel(newTraceServer);
+				clientLogger.setLevel(newLogLevel);
+				clientLogger.info(
+					`Log level changed to ${logLevelToString(newLogLevel)} (from trace.server: ${newTraceServer})`,
+				);
+			}
+		}),
+	);
+
 	// Create status bar item
 	statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-	statusBarItem.text = "$(sync~spin) Beancount: Initializing...";
+	statusBarItem.text = '$(sync~spin) Beancount: Initializing...';
 	statusBarItem.show();
 	context.subscriptions.push(statusBarItem);
 
@@ -54,8 +79,8 @@ export function activate(context: vscode.ExtensionContext) {
 			fileEvents: vscode.workspace.createFileSystemWatcher('**/*.bean(count)?$'),
 		},
 		initializationOptions: {
-			webTreeSitterWasmPath: webTreeSitterWasmPath
-		}
+			webTreeSitterWasmPath: webTreeSitterWasmPath,
+		},
 	};
 
 	// Create the language client and start the client.
@@ -69,15 +94,15 @@ export function activate(context: vscode.ExtensionContext) {
 	// Update status bar when client state changes
 	client.onDidChangeState(event => {
 		if (event.newState === State.Running) {
-			statusBarItem.text = "$(check) Beancount: Ready";
+			statusBarItem.text = '$(check) Beancount: Ready';
 			setTimeout(() => {
 				statusBarItem.hide();
 			}, 3000);
 		} else if (event.newState === State.Starting) {
-			statusBarItem.text = "$(sync~spin) Beancount: Initializing...";
+			statusBarItem.text = '$(sync~spin) Beancount: Initializing...';
 			statusBarItem.show();
 		} else {
-			statusBarItem.text = "$(error) Beancount: Stopped";
+			statusBarItem.text = '$(error) Beancount: Stopped';
 			statusBarItem.show();
 		}
 	});
@@ -128,9 +153,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Start the client. This will also launch the server
 	client.start();
-	
+
 	// Log when the extension is activated
-	console.log('Beancount LSP extension is now active');
+	clientLogger.info('Beancount LSP extension is now active');
 }
 
 // This method is called when your extension is deactivated

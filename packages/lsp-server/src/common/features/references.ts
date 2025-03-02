@@ -1,8 +1,13 @@
+import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { asLspRange } from '../common';
 import { TreeQuery } from '../language';
 import { Trees } from '../trees';
+
+// Create a logger for the references module
+const logger = new Logger('references');
+
 export interface SymbolInfo {
 	_symType: string;
 
@@ -62,8 +67,8 @@ export async function getPayees(doc: TextDocument, trees: Trees): Promise<Symbol
 	}
 	const query = TreeQuery.getQueryByTokenName('payee');
 	const captures = await query.captures(tree.rootNode);
-	console.log(`[references] Payees parse tree: ${tree.rootNode.toString()}`);
-	console.log(`[references] Payees captures: ${captures.length} matches`);
+	logger.debug(`[references] Payees parse tree: ${tree.rootNode.toString()}`);
+	logger.debug(`[references] Payees captures: ${captures.length} matches`);
 	const result: SymbolInfo[] = [];
 	for (const capture of captures) {
 		const name = capture.node.text.replace(/^"|"$/g, ''); // Remove quotes
