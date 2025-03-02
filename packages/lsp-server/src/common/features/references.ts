@@ -128,6 +128,28 @@ export async function getCommodities(doc: TextDocument, trees: Trees): Promise<S
 	return result;
 }
 
+export async function getCurrencyDefinitions(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
+	const tree = await trees.getParseTree(doc);
+	if (!tree) {
+		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
+	}
+	const query = TreeQuery.getQueryByTokenName('currency_definition');
+	const captures = await query.captures(tree.rootNode);
+	const result: SymbolInfo[] = [];
+	for (const capture of captures) {
+		const name = capture.node.text;
+		const range = asLspRange(capture.node);
+		result.push({
+			_symType: 'currency_definition',
+			_uri: doc.uri,
+			name,
+			range,
+			kind: lsp.SymbolKind.Constant,
+		});
+	}
+	return result;
+}
+
 export async function getTags(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
 	const tree = await trees.getParseTree(doc);
 	if (!tree) {

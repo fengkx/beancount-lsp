@@ -20,6 +20,7 @@ import folding from './queries/folding.scm';
 
 import account_definition from './queries/account_definition.scm';
 import account_usage from './queries/account_usage.scm';
+import currency_definition from './queries/currency_definition.scm';
 
 const queryMap = {
 	account,
@@ -39,6 +40,7 @@ const queryMap = {
 	folding,
 	account_definition,
 	account_usage,
+	currency_definition,
 } as const;
 
 type BeanTokenName = keyof typeof queryMap;

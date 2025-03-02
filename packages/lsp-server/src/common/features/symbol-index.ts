@@ -11,6 +11,7 @@ import {
 	getAccountsDefinition,
 	getAccountsUsage,
 	getCommodities,
+	getCurrencyDefinitions,
 	getNarrations,
 	getPayees,
 	getTags,
@@ -244,6 +245,14 @@ export class SymbolIndex {
 				}, 10);
 			}
 		}
+
+		// Add currency definitions
+		const currencyDefinitions = await getCurrencyDefinitions(document, this._trees);
+		await Promise.all(
+			currencyDefinitions.map(async (d) => {
+				await this._symbolInfoStorage.insertAsync(d);
+			}),
+		);
 	}
 
 	public async getAccountDefinitions() {
@@ -251,6 +260,13 @@ export class SymbolIndex {
 		const accountDefinitions = this._symbolInfoStorage.findAsync({ _symType: 'account_definition' });
 		accountDefinitions.then(defs => this.logger.debug(`[index] Found ${defs.length} account definitions`));
 		return accountDefinitions;
+	}
+
+	public async getCommodityDefinitions() {
+		this.logger.debug('[index] Getting commodity definitions');
+		const commodityDefinitions = this._symbolInfoStorage.findAsync({ _symType: 'currency_definition' });
+		commodityDefinitions.then(defs => this.logger.debug(`[index] Found ${defs.length} commodity definitions`));
+		return commodityDefinitions;
 	}
 
 	public async getPayees(): Promise<string[]> {

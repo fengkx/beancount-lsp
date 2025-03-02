@@ -30,31 +30,40 @@ export class DefinitionFeature {
 			return null;
 		}
 
-		// Find the account at the current position
+		// Try to find an account at the position
 		const accountAtPosition = await this.getAccountAtPosition(document, params.position);
-		if (!accountAtPosition) {
-			logger.debug('No account found at the current position');
-			return null;
+		if (accountAtPosition) {
+			logger.debug(`Found account at position: ${accountAtPosition}`);
+			// Get the definition for this account
+			const definitions = await this.symbolIndex.getAccountDefinitions();
+			// Filter definitions to find the one for this account
+			const matchingDefinitions = definitions.filter(def => def.name === accountAtPosition);
+			if (matchingDefinitions.length > 0) {
+				return matchingDefinitions.map(def => ({
+					uri: def._uri,
+					range: def.range,
+				}));
+			}
 		}
 
-		logger.debug(`Found account at position: ${accountAtPosition}`);
-
-		// Get the definition for this account
-		const definitions = await this.symbolIndex.getAccountDefinitions();
-
-		// Filter definitions to find the one for this account
-		const matchingDefinitions = definitions.filter(def => def.name === accountAtPosition);
-
-		if (matchingDefinitions.length === 0) {
-			logger.debug(`No definition found for account: ${accountAtPosition}`);
-			return null;
+		// Try to find a commodity at the position
+		const commodityAtPosition = await this.getCommodityAtPosition(document, params.position);
+		if (commodityAtPosition) {
+			logger.debug(`Found commodity at position: ${commodityAtPosition}`);
+			// Get the definition for this commodity
+			const definitions = await this.symbolIndex.getCommodityDefinitions();
+			// Filter definitions to find the one for this commodity
+			const matchingDefinitions = definitions.filter(def => def.name === commodityAtPosition);
+			if (matchingDefinitions.length > 0) {
+				return matchingDefinitions.map(def => ({
+					uri: def._uri,
+					range: def.range,
+				}));
+			}
 		}
 
-		// Return all matching definitions (usually just one)
-		return matchingDefinitions.map(def => ({
-			uri: def._uri,
-			range: def.range,
-		}));
+		logger.debug('No definition found at the current position');
+		return null;
 	}
 
 	private async getAccountAtPosition(
@@ -83,6 +92,42 @@ export class DefinitionFeature {
 		// For parent nodes that might contain an account
 		if (node.parent && node.parent.type === 'account') {
 			return node.parent.text;
+		}
+
+		return null;
+	}
+
+	private async getCommodityAtPosition(
+		document: TextDocument,
+		position: lsp.Position,
+	): Promise<string | null> {
+		const tree = await this.trees.getParseTree(document);
+		if (!tree) {
+			logger.warn(`Failed to get parse tree for document: ${document.uri}`);
+			return null;
+		}
+
+		// Get the node at the current position
+		const offset = document.offsetAt(position);
+		const node = tree.rootNode.descendantForIndex(offset);
+
+		if (!node) {
+			return null;
+		}
+
+		// Check if we're in a currency node
+		if (node.type === 'currency') {
+			return node.text;
+		}
+
+		// For parent nodes that might contain a currency
+		if (node.parent && node.parent.type === 'currency') {
+			return node.parent.text;
+		}
+
+		// Check for text that looks like a currency (typically uppercase 2-5 letter codes)
+		if (node.text.match(/^[A-Z]{2,5}$/)) {
+			return node.text;
 		}
 
 		return null;
