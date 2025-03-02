@@ -1311,7 +1311,7 @@ async function addAccountCompletions(
 				detail: detail,
 			},
 			position,
-			account.name,
+			account.name.replace(new RegExp(`^${triggerChar}`), '') + ' ',
 			set,
 			items,
 			cnt,
@@ -1492,7 +1492,7 @@ export class CompletionFeature implements Feature {
 		}
 
 		logger.info(`Starting completion with info: ${JSON.stringify(info)}`);
-		const p: Promise<void> = match(info)
+		const p: Promise<void> = match({ ...info, userInput })
 			.with({ triggerCharacter: '2' }, async () => {
 				// Date completions: Provide the current date, yesterday, day before yesterday, and tomorrow
 				logger.info('Branch: triggerCharacter 2');
@@ -1529,7 +1529,7 @@ export class CompletionFeature implements Feature {
 				cnt = await addCurrencyCompletions(this.symbolIndex, position, set, completionItems, cnt, userInput);
 				logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
 			})
-			.with({ triggerCharacter: 'A' }, async () => {
+			.with({ triggerCharacter: 'A' }, { triggerCharacter: P.nullish, userInput: 'A' }, async () => {
 				// Assets account completions
 				logger.info('Branch: triggerCharacter A - Account completion');
 				const initialCount = completionItems.length;
@@ -1544,7 +1544,7 @@ export class CompletionFeature implements Feature {
 				);
 				logger.info(`Assets accounts added, items: ${completionItems.length - initialCount}`);
 			})
-			.with({ triggerCharacter: 'L' }, async () => {
+			.with({ triggerCharacter: 'L' }, { triggerCharacter: P.nullish, userInput: 'L' }, async () => {
 				// Liabilities account completions
 				logger.info('Branch: triggerCharacter L - Account completion');
 				const initialCount = completionItems.length;
@@ -1559,7 +1559,7 @@ export class CompletionFeature implements Feature {
 				);
 				logger.info(`Liabilities accounts added, items: ${completionItems.length - initialCount}`);
 			})
-			.with({ triggerCharacter: 'E' }, async () => {
+			.with({ triggerCharacter: 'E' }, { triggerCharacter: P.nullish, userInput: 'E' }, async () => {
 				// Equity and Expenses account completions
 				logger.info('Branch: triggerCharacter E - Account completion');
 				const initialCount = completionItems.length;
@@ -1574,7 +1574,7 @@ export class CompletionFeature implements Feature {
 				);
 				logger.info(`Equity and Expenses accounts added, items: ${completionItems.length - initialCount}`);
 			})
-			.with({ triggerCharacter: 'I' }, async () => {
+			.with({ triggerCharacter: 'I' }, { triggerCharacter: P.nullish, userInput: 'I' }, async () => {
 				// Income account completions
 				logger.info('Branch: triggerCharacter I - Account completion');
 				const initialCount = completionItems.length;

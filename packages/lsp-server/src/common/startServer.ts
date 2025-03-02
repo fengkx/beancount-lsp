@@ -16,6 +16,7 @@ import {
 } from 'vscode-languageserver';
 import { DocumentStore } from './document-store';
 import { CompletionFeature } from './features/completions';
+import { DefinitionFeature } from './features/definitions';
 import { FoldingRangeFeature } from './features/folding-ranges';
 import { SelectionRangesFeature } from './features/selection-ranges';
 import { SemanticTokenFeature } from './features/semantic-token';
@@ -100,6 +101,8 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 					resolveProvider: true,
 				},
 				selectionRangeProvider: true,
+				// Add definition provider capability
+				definitionProvider: true,
 			},
 		};
 		if (params.capabilities.workspace?.configuration) {
@@ -134,6 +137,8 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		features.push(new FoldingRangeFeature(documents, trees));
 		features.push(new CompletionFeature(documents, trees, symbolIndex));
 		features.push(new SelectionRangesFeature(documents, trees));
+		// Add the new DefinitionFeature
+		features.push(new DefinitionFeature(documents, trees, symbolIndex));
 
 		documents.all().forEach(doc => {
 			symbolIndex.addFile(doc.uri);
