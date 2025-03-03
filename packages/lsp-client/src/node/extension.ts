@@ -55,7 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	// Create the extension context object
-	const extensionContext: ExtensionContext = {
+	const extensionContext: ExtensionContext<'node'> = {
 		context,
 		client,
 		statusBarItem,

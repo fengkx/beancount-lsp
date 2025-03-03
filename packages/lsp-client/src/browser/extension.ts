@@ -1,21 +1,133 @@
 import * as vscode from 'vscode';
-import { clientLogger, setupLogger } from '../common/client';
+import {
+	BrowserMessageReader,
+	BrowserMessageWriter,
+	CloseAction,
+	ErrorAction,
+	LanguageClient,
+	MessageTransports,
+} from 'vscode-languageclient/browser';
+import {
+	clientLogger,
+	createClientOptions,
+	setupConfigurationWatchers,
+	setupCustomMessageHandlers,
+	setupLogger,
+	setupStatusBar,
+} from '../common/client';
+import { ExtensionContext } from '../common/types';
+import { resolveWebTreeSitterWasmPath } from '../common/utils';
 
-// This is a placeholder for a browser-specific implementation
-// It would need proper implementation for web extension
+// Explicitly declare types for the browser environment
+declare const Worker: any;
 
+let client: LanguageClient;
+let statusBarItem: vscode.StatusBarItem;
+
+// This is the browser-specific implementation
 export function activate(context: vscode.ExtensionContext) {
 	// Initialize logger
 	setupLogger();
 
-	// Implementation for browser extension would go here
-	clientLogger.info('Browser extension activated - not fully implemented yet');
+	// Create status bar item
+	statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+	statusBarItem.text = '$(sync~spin) Beancount: Initializing...';
+	statusBarItem.show();
+	context.subscriptions.push(statusBarItem);
 
-	// Show an informational message to the user
-	vscode.window.showInformationMessage('Beancount LSP browser extension is not fully implemented yet.');
+	// Show notification that this is experimental
+	vscode.window.showInformationMessage(
+		'Beancount LSP browser extension is experimental and might have limited functionality compared to the desktop version.',
+	);
+
+	try {
+		// Resolve the web-tree-sitter.wasm path
+		const webTreeSitterWasmPath = resolveWebTreeSitterWasmPath(context);
+
+		// Options to control the language client
+		const clientOptions = createClientOptions({ webTreeSitterWasmPath });
+
+		// Following Microsoft example pattern for creating the client
+		client = createWorkerLanguageClient(context, clientOptions);
+
+		// Create the extension context object
+		const extensionContext: ExtensionContext<'browser'> = {
+			context,
+			client,
+			statusBarItem,
+		};
+
+		// Set up status bar updates
+		setupStatusBar(extensionContext);
+
+		// Set up custom message handlers
+		setupCustomMessageHandlers(extensionContext);
+
+		// Set up configuration watchers
+		setupConfigurationWatchers(extensionContext);
+
+		// Start the client. This will also launch the server
+		client.start();
+
+		// Log when the extension is activated
+		clientLogger.info('Beancount LSP browser extension is now active');
+	} catch (err) {
+		// Log any errors during activation
+		clientLogger.error(`Error activating browser extension: ${err instanceof Error ? err.message : String(err)}`);
+
+		// Show an error message
+		vscode.window.showErrorMessage(
+			`Failed to activate Beancount LSP browser extension: ${err instanceof Error ? err.message : String(err)}`,
+		);
+
+		// Update status bar to show error
+		statusBarItem.text = '$(error) Beancount: Error';
+		statusBarItem.show();
+	}
+}
+
+/**
+ * Creates a language client that uses a web worker for the language server
+ */
+function createWorkerLanguageClient(context: vscode.ExtensionContext, clientOptions: any) {
+	// Get path to the server's worker script
+	const workerPath = vscode.Uri.joinPath(context.extensionUri, 'server', 'browser', 'server.js');
+	clientLogger.info(`Worker path: ${workerPath.toString()}`);
+
+	// Create a web worker
+	const worker = new Worker(workerPath.toString());
+
+	// // Create message reader and writer for communication
+	// const reader = new BrowserMessageReader(worker);
+	// const writer = new BrowserMessageWriter(worker);
+
+	// // Create message transports
+	// const transports: MessageTransports = {
+	//     reader,
+	//     writer
+	// };
+
+	// // Add error handling to client options
+	// const enhancedClientOptions = {
+	//     ...clientOptions,
+	//     errorHandler: {
+	//         error: () => ({ action: ErrorAction.Continue }),
+	//         closed: () => ({ action: CloseAction.Restart })
+	//     }
+	// };
+
+	// Create the language client
+	return new LanguageClient(
+		'beanLsp',
+		'BeanCount Language Server (Browser)',
+		clientOptions,
+		worker,
+	);
 }
 
 export function deactivate() {
-	// Browser-specific deactivation logic
-	return undefined;
+	if (!client) {
+		return undefined;
+	}
+	return client.stop();
 }
