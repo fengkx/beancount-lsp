@@ -1,3 +1,13 @@
+// Polyfill for process.nextTick in browser environment
+if (typeof self !== 'undefined' && !('process' in self)) {
+	(self as unknown as { process: { nextTick: (callback: (...args: unknown[]) => void, ...args: unknown[]) => void } })
+		.process = {
+			nextTick: (callback: (...args: unknown[]) => void, ...args: unknown[]) => {
+				setTimeout(() => callback(...args), 0);
+			},
+		};
+}
+
 import '@abraham/reflection';
 import {
 	BrowserMessageReader,

@@ -6,5 +6,6 @@ import * as vscode from 'vscode';
  * @returns The resolved path to the WASM file
  */
 export function resolveWebTreeSitterWasmPath(context: vscode.ExtensionContext): string | undefined {
-	return vscode.Uri.joinPath(context.extensionUri, 'server', 'common', 'web-tree-sitter.wasm').fsPath;
+	const treeSitterWasmUri = vscode.Uri.joinPath(context.extensionUri, 'server', 'common', 'web-tree-sitter.wasm');
+	return 'importScripts' in globalThis ? treeSitterWasmUri.toString() : treeSitterWasmUri.fsPath;
 }

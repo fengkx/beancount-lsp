@@ -22,10 +22,14 @@ export function setupLogger(): void {
  * Creates and configures the language client options
  */
 export function createClientOptions(options: ClientOptions): LanguageClientOptions {
+	const watcher = vscode.workspace.createFileSystemWatcher('**/*.{bean,beancount}');
+	watcher.onDidChange(e => {
+		clientLogger.info(`File ${e.fsPath} changed`);
+	});
 	return {
-		documentSelector: [{ scheme: 'file', language: 'beancount' }],
+		documentSelector: ['beancount'],
 		synchronize: {
-			fileEvents: vscode.workspace.createFileSystemWatcher('**/*.bean(count)?$'),
+			fileEvents: watcher,
 		},
 		initializationOptions: {
 			webTreeSitterWasmPath: options.webTreeSitterWasmPath,

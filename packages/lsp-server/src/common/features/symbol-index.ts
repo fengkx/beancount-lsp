@@ -231,9 +231,9 @@ export class SymbolIndex {
 			const beanFiles = this._documents.beanFiles;
 			this.logger.debug(`[index] Found ${beanFiles.length} bean files`);
 			includePatterns.forEach((pattern: string) => {
-				const list = beanFiles.map(s => URI.parse(s).path);
-				const matched = mm.match(list, pattern);
-				matched.map((p: string) => URI.file(p).toString()).forEach((uri: string) => {
+				const list = beanFiles; // .map(s => URI.parse(s).path);
+				const matched = mm.match(list, pattern, { contains: true });
+				matched.map((p: string) => p).forEach((uri: string) => {
 					hasNew = true;
 					this.addFile(uri);
 				});
