@@ -1,3 +1,11 @@
 packages:
-  # all packages in direct subdirs of packages/
-  - "packages/*"
+  - packages/*
+onlyBuiltDependencies:
+  - '@fengkx/tree-sitter-beancount'
+  - '@swc/core'
+  - '@vscode/vsce-sign'
+  - dprint
+  - esbuild
+  - simple-git-hooks
+  - tree-sitter-cli
+  - keytar
