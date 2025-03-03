@@ -1,6 +1,6 @@
-import { defineConfig } from 'tsup';
+import { defineConfig, Options } from 'tsup';
 
-export default defineConfig({
+const config: Options = defineConfig({
 	entry: ['src/index.ts'],
 	sourcemap: true,
 	clean: true,
@@ -17,3 +17,5 @@ export default defineConfig({
 	},
 	external: ['vscode'],
 });
+
+export default config;

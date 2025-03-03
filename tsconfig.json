@@ -1,17 +1,17 @@
 {
-  "$schema": "https://json.schemastore.org/tsconfig",
-  "compilerOptions": {
-    "target": "es2022",
-    "module": "esnext",
-    "moduleResolution": "node",
-    "sourceMap": true,
-    "outDir": "out",
-    "rootDir": ".",
-    "baseUrl": ".",
-    "strict": true,
-    "esModuleInterop": true,
-    "composite": true,
-    "skipLibCheck": true,
-    "isolatedModules": true
-  }
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"extends": "@fengkx/tsconfig",
+	"compilerOptions": {
+		"target": "es2022",
+		"module": "esnext",
+		"sourceMap": true,
+		"outDir": "out",
+		"rootDir": ".",
+		"baseUrl": ".",
+		"strict": true,
+		"esModuleInterop": true,
+		"composite": true,
+		"skipLibCheck": true,
+		"isolatedModules": true
+	}
 }

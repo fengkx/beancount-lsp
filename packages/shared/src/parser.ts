@@ -20,7 +20,7 @@ export async function initializeParser(webTreeSitterWasmPath?: string) {
 	isInitialized = true;
 }
 
-export const getParser = async (webTreeSitterWasmPath?: string) => {
+export const getParser = async (webTreeSitterWasmPath?: string): Promise<Parser> => {
 	// Initialize the parser with the provided web-tree-sitter WASM path
 	await initializeParser(webTreeSitterWasmPath);
 
