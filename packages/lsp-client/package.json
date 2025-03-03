@@ -15,8 +15,8 @@
 	"categories": [
 		"Programming Languages"
 	],
-	"main": "./dist/node/extension.js",
 	"browser": "./dist/browser/extension.js",
+	"main": "./dist/node/extension.js",
 	"contributes": {
 		"languages": [
 			{

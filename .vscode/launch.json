@@ -3,31 +3,43 @@
 // Hover to view descriptions of existing attributes.
 // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
 {
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Run Extension",
-      "type": "extensionHost",
-      "request": "launch",
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}/packages/lsp-client"
-      ],
-      "autoAttachChildProcesses": true,
-      "outFiles": ["${workspaceFolder}/packages/lsp-client/out/**/*.js"],
-      // "preLaunchTask": "${defaultBuildTask}",
-      "cwd": "${workspaceFolder}/packages/lsp"
-    },
-    {
-      "name": "Extension Tests",
-      "type": "extensionHost",
-      "request": "launch",
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}/packages/lsp",
-        "--extensionTestsPath=${workspaceFolder}/packages/lsp-client/out/test/suite/index"
-      ],
-      "outFiles": ["${workspaceFolder}/packages/lsp-client/out/test/**/*.js"],
-      "preLaunchTask": "npm: test-compile",
-      "cwd": "${workspaceFolder}/packages/lsp"
-    }
-  ]
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Run Extension",
+			"type": "extensionHost",
+			"request": "launch",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}/packages/lsp-client"
+			],
+			"autoAttachChildProcesses": true,
+			"outFiles": ["${workspaceFolder}/packages/lsp-client/out/**/*.js"],
+			// "preLaunchTask": "${defaultBuildTask}",
+			"cwd": "${workspaceFolder}/packages/lsp"
+		},
+		{
+			"name": "Run Web Extension in VS Code",
+			"type": "extensionHost",
+			"debugWebWorkerHost": true,
+			"request": "launch",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}/packages/lsp-client",
+				"--extensionDevelopmentKind=web"
+			],
+			"outFiles": ["${workspaceFolder}/packages/lsp-client/dist/browser/**/*.js"],
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"name": "Extension Tests",
+			"type": "extensionHost",
+			"request": "launch",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}/packages/lsp",
+				"--extensionTestsPath=${workspaceFolder}/packages/lsp-client/out/test/suite/index"
+			],
+			"outFiles": ["${workspaceFolder}/packages/lsp-client/out/test/**/*.js"],
+			"preLaunchTask": "npm: test-compile",
+			"cwd": "${workspaceFolder}/packages/lsp"
+		}
+	]
 }

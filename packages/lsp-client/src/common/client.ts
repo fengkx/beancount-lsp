@@ -1,6 +1,7 @@
 import { CustomMessages, Logger, LogLevel, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
 import * as vscode from 'vscode';
-import { LanguageClient, LanguageClientOptions, State } from 'vscode-languageclient/node';
+// Import from base package for shared types between node and browser
+import { LanguageClientOptions, State } from 'vscode-languageclient';
 import { ClientOptions, ExtensionContext } from './types';
 
 // Create a client logger
@@ -35,9 +36,9 @@ export function createClientOptions(options: ClientOptions): LanguageClientOptio
 /**
  * Sets up status bar for the client
  */
-export function setupStatusBar(ctx: ExtensionContext): void {
+export function setupStatusBar(ctx: ExtensionContext<'browser' | 'node'>): void {
 	// Update status bar when client state changes
-	ctx.client.onDidChangeState(event => {
+	ctx.client.onDidChangeState((event) => {
 		if (event.newState === State.Running) {
 			ctx.statusBarItem.text = '$(check) Beancount: Ready';
 			setTimeout(() => {
@@ -56,7 +57,7 @@ export function setupStatusBar(ctx: ExtensionContext): void {
 /**
  * Sets up custom message handlers for the client
  */
-export function setupCustomMessageHandlers(ctx: ExtensionContext): void {
+export function setupCustomMessageHandlers(ctx: ExtensionContext<'browser' | 'node'>): void {
 	ctx.client.onRequest(CustomMessages.ListBeanFile, async () => {
 		const files = await vscode.workspace.findFiles('**/*.{bean,beancount}');
 		const uriStrings = files.map(f => {
@@ -105,7 +106,7 @@ export function setupCustomMessageHandlers(ctx: ExtensionContext): void {
 /**
  * Sets up configuration change watchers
  */
-export function setupConfigurationWatchers(ctx: ExtensionContext): void {
+export function setupConfigurationWatchers(ctx: ExtensionContext<'browser' | 'node'>): void {
 	ctx.context.subscriptions.push(
 		vscode.workspace.onDidChangeConfiguration(e => {
 			if (e.affectsConfiguration('beanLsp.trace.server')) {

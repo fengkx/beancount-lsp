@@ -3,7 +3,8 @@
 /**
  * This script prepares the assets needed for the LSP client by:
  * 1. Copying the WebAssembly file from web-tree-sitter to lsp-client
- * 2. Copying the compiled server.js to the lsp-client server directory
+ * 2. Copying the compiled server.js (node version) to the lsp-client server directory
+ * 3. Copying the compiled server.js (browser version) to the lsp-client server directory
  */
 
 const fs = require('fs');
@@ -33,25 +34,53 @@ function prepareWasmAsset() {
 }
 
 /**
- * Copies the compiled server.js to the client's server directory
+ * Copies the compiled node server.js to the client's server directory
  * @returns {boolean} True if the operation is successful
  */
-function prepareServerAsset() {
+function prepareNodeServerAsset() {
 	try {
 		const serverJsPath = path.join(__dirname, '../dist/node/server.js');
 		const clientServerPath = path.join(__dirname, '../../lsp-client/server/node.js');
 
 		// Check if the server.js file exists
 		if (!fs.existsSync(serverJsPath)) {
-			throw new Error(`server.js not found at ${serverJsPath}`);
+			throw new Error(`node server.js not found at ${serverJsPath}`);
 		}
 
 		// Copy the server.js file to the lsp-client/server/node.js
 		fs.copyFileSync(serverJsPath, clientServerPath);
-		console.log(`✅ Server asset prepared: ${clientServerPath}`);
+		console.log(`✅ Node server asset prepared: ${clientServerPath}`);
 		return true;
 	} catch (error) {
-		console.error(`❌ Failed to prepare server asset: ${error.message}`);
+		console.error(`❌ Failed to prepare node server asset: ${error.message}`);
+		return false;
+	}
+}
+
+/**
+ * Copies the compiled browser server.js to the client's server directory
+ * @returns {boolean} True if the operation is successful
+ */
+function prepareBrowserServerAsset() {
+	try {
+		const serverJsPath = path.join(__dirname, '../dist/browser/server.js');
+		const browserDirPath = path.join(__dirname, '../../lsp-client/server/browser');
+		const clientServerPath = path.join(browserDirPath, 'server.js');
+
+		// Check if the server.js file exists
+		if (!fs.existsSync(serverJsPath)) {
+			throw new Error(`browser server.js not found at ${serverJsPath}`);
+		}
+
+		// Create the browser directory if it doesn't exist
+		fs.mkdirSync(browserDirPath, { recursive: true });
+
+		// Copy the server.js file to the lsp-client/server/browser/server.js
+		fs.copyFileSync(serverJsPath, clientServerPath);
+		console.log(`✅ Browser server asset prepared: ${clientServerPath}`);
+		return true;
+	} catch (error) {
+		console.error(`❌ Failed to prepare browser server asset: ${error.message}`);
 		return false;
 	}
 }
@@ -63,9 +92,10 @@ function prepareClientAssets() {
 	console.log('🚀 Preparing client assets...');
 
 	const wasmSuccess = prepareWasmAsset();
-	const serverSuccess = prepareServerAsset();
+	const nodeServerSuccess = prepareNodeServerAsset();
+	const browserServerSuccess = prepareBrowserServerAsset();
 
-	if (wasmSuccess && serverSuccess) {
+	if (wasmSuccess && nodeServerSuccess && browserServerSuccess) {
 		console.log('✨ All client assets prepared successfully!');
 		process.exit(0);
 	} else {

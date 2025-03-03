@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
-import { LanguageClient } from 'vscode-languageclient/node';
-
+import type { LanguageClient as BrowserLanguageClient } from 'vscode-languageclient/browser';
+import type { LanguageClient as NodeLanguageClient } from 'vscode-languageclient/node';
 export interface ClientOptions {
 	webTreeSitterWasmPath?: string;
 }
 
-export interface ExtensionContext {
+export interface ExtensionContext<T extends 'browser' | 'node'> {
 	context: vscode.ExtensionContext;
-	client: LanguageClient;
+	client: T extends 'browser' ? BrowserLanguageClient : NodeLanguageClient;
 	statusBarItem: vscode.StatusBarItem;
 }
