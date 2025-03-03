@@ -9,6 +9,12 @@ on:
   release:
     types: [created]
   workflow_dispatch:  # Allow manual triggering
+    inputs:
+      publish_to_marketplace:
+        description: 'Publish to VS Code Marketplace'
+        required: true
+        default: 'false'
+        type: boolean
 
 permissions:
   contents: read
@@ -55,6 +61,7 @@ jobs:
           retention-days: 7
 
       - name: Publish to Visual Studio Marketplace
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_to_marketplace == 'true')
         uses: HaaLeo/publish-vscode-extension@v1
         with:
           pat: ${{ secrets.VSCE_PAT }}
