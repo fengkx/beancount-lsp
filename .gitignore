@@ -7,3 +7,5 @@ dist
 .eslintcache
 *.vsix
 *tsconfig.tsbuildinfo
+.DS_Store
+.vscode-test-web
