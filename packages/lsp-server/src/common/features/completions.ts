@@ -26,6 +26,7 @@ import {
 	TextDocument,
 	TextEdit,
 } from 'vscode-languageserver';
+import { deflate } from 'zlib';
 import { asTsPoint, nodeAtPosition } from '../common';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
@@ -1073,7 +1074,7 @@ function addCompletionItem(
 		if (usageCount !== undefined) {
 			// Add a bonus based on usage count, capped at a reasonable value
 			// Using 20 points per usage with a max bonus of 200 (for 10+ usages)
-			const usageBonus = Math.min(usageCount * 20, 200);
+			const usageBonus = Math.min(usageCount * 50, 3500);
 			score += usageBonus;
 		}
 	}
@@ -1083,12 +1084,7 @@ function addCompletionItem(
 		kind: item.kind || CompletionItemKind.Text,
 		filterText,
 		textEdit: TextEdit.insert(position, textEdit),
-		sortText: userInput
-			// Format to ensure higher scores come first
-			// Using a very high number (1000000) to handle even large scores
-			// The negative sign ensures higher scores sort first
-			? `A${String(1000000 - Math.min(score, 999999)).padStart(6, '0')}`
-			: String.fromCharCode(95 + cnt),
+		sortText: String(1000000 - Math.round(score)).padStart(7, '0'),
 		// Add data for debugging if needed
 		data: userInput ? { score, usageCount } : undefined,
 	});
@@ -1295,17 +1291,6 @@ async function addAccountCompletions(
 		return account.name.startsWith(triggerChar);
 	});
 
-	// Map account types to their full names for better detail information
-	const accountTypeMap: Record<string, string> = {
-		'A': 'Assets',
-		'L': 'Liabilities',
-		'E': 'Equity/Expenses',
-		'I': 'Income',
-	};
-
-	// Get the account type label
-	const accountTypeLabel = accountTypeMap[triggerChar] || triggerChar;
-
 	// Sort accounts by usage count (most used first)
 	filteredAccounts.sort((a, b) => {
 		const countA = accountUsageCounts.get(a.name) || 0;
@@ -1315,25 +1300,19 @@ async function addAccountCompletions(
 
 	// Add each filtered account as a completion item
 	filteredAccounts.forEach((account: { name: string }) => {
-		// For E accounts, add a more specific detail based on the actual account type
-		let detail = `(${accountTypeLabel} account)`;
-		if (triggerChar === 'E') {
-			detail = account.name.startsWith('Equity:')
-				? '(Equity account)'
-				: '(Expenses account)';
-		}
+		let detail = '';
 
 		// Add usage count to the detail if available
 		const usageCount = accountUsageCounts.get(account.name) || 0;
 		if (usageCount > 0) {
-			detail += ` - Used ${usageCount} time${usageCount === 1 ? '' : 's'}`;
+			detail += `Used ${usageCount} time${usageCount === 1 ? '' : 's'}`;
 		}
 
 		cnt = addCompletionItem(
 			{
 				label: account.name,
 				kind: CompletionItemKind.Field,
-				detail: detail,
+				detail,
 			},
 			position,
 			account.name.replace(new RegExp(`^${triggerChar}`), '') + ' ',
@@ -1372,18 +1351,37 @@ export class CompletionFeature implements Feature {
 	) {}
 
 	/**
-	 * Registers the completion feature with the language server
+	 * Registers the completion provider with the language server
 	 *
 	 * @param connection The language server connection
 	 */
-	register(connection: Connection) {
+	register(connection: Connection): void {
 		const registerOptions: CompletionRegistrationOptions = {
 			documentSelector: [{ language: 'beancount' }],
 			triggerCharacters,
 		};
+
 		connection.client.register(CompletionRequest.type, registerOptions);
 		connection.onCompletion(this.provideCompletionItems);
+
+		// Register the completion item resolve handler
+		connection.onCompletionResolve(this.resolveCompletionItem);
 	}
+
+	/**
+	 * Resolves additional information for a completion item that has been selected
+	 *
+	 * This method is called when a user selects a completion item from the list.
+	 * It can provide additional information like documentation, more details, etc.
+	 *
+	 * @param item The selected completion item to resolve
+	 * @returns The completion item with additional information
+	 */
+	resolveCompletionItem = (item: CompletionItem): CompletionItem => {
+		// Currently, we don't need to add any additional information
+		// But the method must be implemented to handle the protocol request
+		return item;
+	};
 
 	/**
 	 * Provides completion items based on the context

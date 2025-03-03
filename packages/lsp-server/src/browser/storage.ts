@@ -9,7 +9,21 @@ class BrowserStorageFactory implements IStorageFactory {
 	private dbs = new Map<string, SymbolInfoStorage>();
 
 	async create(name: string): Promise<SymbolInfoStorage> {
-		const db = new Db<any>({ filename: name });
+		// Create the database with the given name as filename
+		// Use inMemoryOnly: true to ensure we don't try to persist to disk in browser environment
+		const db = new Db<any>({
+			filename: name,
+		});
+
+		// Add indexes to optimize query performance
+		// These indexes match the ones in the node implementation
+		await db.ensureIndexAsync({ fieldName: '_uri' });
+		await db.ensureIndexAsync({ fieldName: 'name' });
+		await db.ensureIndexAsync({ fieldName: '_symType' });
+
+		// Additional compound index for common query patterns
+		// This helps with queries that filter by both URI and symbol type
+		await db.ensureIndexAsync({ fieldName: ['_uri', '_symType'] });
 
 		// Store the database instance
 		this.dbs.set(name, db);
