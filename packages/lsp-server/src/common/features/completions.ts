@@ -1056,6 +1056,7 @@ function addCompletionItem(
 	items: CompletionItem[],
 	cnt: number,
 	userInput?: string,
+	usageCount?: number,
 ) {
 	if (set.has(item.label)) {
 		return cnt;
@@ -1067,6 +1068,14 @@ function addCompletionItem(
 	let score = 0;
 	if (userInput) {
 		score = scoreMatch(item.label, filterText, userInput);
+
+		// Boost score based on usage count if provided
+		if (usageCount !== undefined) {
+			// Add a bonus based on usage count, capped at a reasonable value
+			// Using 20 points per usage with a max bonus of 200 (for 10+ usages)
+			const usageBonus = Math.min(usageCount * 20, 200);
+			score += usageBonus;
+		}
 	}
 
 	items.push({
@@ -1081,7 +1090,7 @@ function addCompletionItem(
 			? `A${String(1000000 - Math.min(score, 999999)).padStart(6, '0')}`
 			: String.fromCharCode(95 + cnt),
 		// Add data for debugging if needed
-		data: userInput ? { score } : undefined,
+		data: userInput ? { score, usageCount } : undefined,
 	});
 	set.add(item.label);
 	return cnt + 1;
@@ -1274,6 +1283,9 @@ async function addAccountCompletions(
 	// Fetch all account definitions from the index
 	const accounts = await symbolIndex.getAccountDefinitions();
 
+	// Get account usage counts for sorting
+	const accountUsageCounts = await symbolIndex.getAccountUsageCounts();
+
 	// Filter accounts based on the trigger character
 	const filteredAccounts = accounts.filter((account: { name: string }) => {
 		if (triggerChar === 'E') {
@@ -1294,6 +1306,13 @@ async function addAccountCompletions(
 	// Get the account type label
 	const accountTypeLabel = accountTypeMap[triggerChar] || triggerChar;
 
+	// Sort accounts by usage count (most used first)
+	filteredAccounts.sort((a, b) => {
+		const countA = accountUsageCounts.get(a.name) || 0;
+		const countB = accountUsageCounts.get(b.name) || 0;
+		return countB - countA; // Descending order
+	});
+
 	// Add each filtered account as a completion item
 	filteredAccounts.forEach((account: { name: string }) => {
 		// For E accounts, add a more specific detail based on the actual account type
@@ -1302,6 +1321,12 @@ async function addAccountCompletions(
 			detail = account.name.startsWith('Equity:')
 				? '(Equity account)'
 				: '(Expenses account)';
+		}
+
+		// Add usage count to the detail if available
+		const usageCount = accountUsageCounts.get(account.name) || 0;
+		if (usageCount > 0) {
+			detail += ` - Used ${usageCount} time${usageCount === 1 ? '' : 's'}`;
 		}
 
 		cnt = addCompletionItem(
@@ -1316,6 +1341,7 @@ async function addAccountCompletions(
 			items,
 			cnt,
 			userInput,
+			usageCount,
 		);
 	});
 

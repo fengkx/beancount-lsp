@@ -9,8 +9,7 @@ class BrowserStorageFactory implements IStorageFactory {
 	private dbs = new Map<string, SymbolInfoStorage>();
 
 	async create(name: string): Promise<SymbolInfoStorage> {
-		// For browser, we create an in-memory database
-		const db = new Db<any>({ inMemoryOnly: true });
+		const db = new Db<any>({ filename: name });
 
 		// Store the database instance
 		this.dbs.set(name, db);
@@ -37,4 +36,4 @@ class BrowserStorageFactory implements IStorageFactory {
 	}
 }
 
-export const factory = new BrowserStorageFactory();
+export const factory: IStorageFactory = new BrowserStorageFactory();

@@ -300,4 +300,24 @@ export class SymbolIndex {
 		this.logger.debug(`[index] Found ${narrations.length} narrations (${uniqueNarrations.length} unique)`);
 		return uniqueNarrations;
 	}
+
+	/**
+	 * Gets the usage count for each account across all documents
+	 *
+	 * @returns A Map of account names to their usage counts
+	 */
+	public async getAccountUsageCounts(): Promise<Map<string, number>> {
+		this.logger.debug('[index] Getting account usage counts');
+		const accountUsages = await this._symbolInfoStorage.findAsync({ _symType: 'account_usage' }) as SymbolInfo[];
+
+		// Count occurrences of each account
+		const usageCounts = new Map<string, number>();
+		for (const usage of accountUsages) {
+			const count = usageCounts.get(usage.name) || 0;
+			usageCounts.set(usage.name, count + 1);
+		}
+
+		this.logger.debug(`[index] Found usage counts for ${usageCounts.size} unique accounts`);
+		return usageCounts;
+	}
 }

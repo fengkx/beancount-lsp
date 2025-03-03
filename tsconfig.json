@@ -12,6 +12,7 @@
 		"esModuleInterop": true,
 		"composite": true,
 		"skipLibCheck": true,
-		"isolatedModules": true
+		"isolatedModules": true,
+		"verbatimModuleSyntax": false
 	}
 }
