@@ -1,7 +1,10 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-	entry: ['src/extension.ts'],
+	entry: {
+		'node/extension': 'src/node/extension.ts',
+		'browser/extension': 'src/browser/extension.ts',
+	},
 	sourcemap: true,
 	clean: true,
 	target: 'es2022',
