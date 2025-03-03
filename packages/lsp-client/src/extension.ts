@@ -1,8 +1,6 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import { CustomMessages, Logger, LogLevel, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
-import * as fs from 'fs';
-import path from 'path';
 import * as vscode from 'vscode';
 
 import { LanguageClient, LanguageClientOptions, ServerOptions, State, TransportKind } from 'vscode-languageclient/node';
@@ -19,7 +17,7 @@ const clientLogger = new Logger('Client');
  * @returns The resolved path to the WASM file
  */
 function resolveWebTreeSitterWasmPath(context: vscode.ExtensionContext): string | undefined {
-	return path.join(context.extensionUri.fsPath, 'server', 'common', 'web-tree-sitter.wasm');
+	return vscode.Uri.joinPath(context.extensionUri, 'server', 'common', 'web-tree-sitter.wasm').fsPath;
 }
 
 // This method is called when your extension is activated
@@ -53,7 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(statusBarItem);
 
 	// The server is implemented in node
-	const serverModule = path.join(context.extensionPath, 'server', 'node.js');
+	const serverModule = vscode.Uri.joinPath(vscode.Uri.file(context.extensionPath), 'server', 'node.js').fsPath;
 
 	// If the extension is launched in debug mode then the debug server options are used
 	// Otherwise the run options are used
