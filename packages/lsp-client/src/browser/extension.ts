@@ -97,25 +97,6 @@ function createWorkerLanguageClient(context: vscode.ExtensionContext, clientOpti
 	// Create a web worker
 	const worker = new Worker(workerPath.toString());
 
-	// // Create message reader and writer for communication
-	// const reader = new BrowserMessageReader(worker);
-	// const writer = new BrowserMessageWriter(worker);
-
-	// // Create message transports
-	// const transports: MessageTransports = {
-	//     reader,
-	//     writer
-	// };
-
-	// // Add error handling to client options
-	// const enhancedClientOptions = {
-	//     ...clientOptions,
-	//     errorHandler: {
-	//         error: () => ({ action: ErrorAction.Continue }),
-	//         closed: () => ({ action: CloseAction.Restart })
-	//     }
-	// };
-
 	// Create the language client
 	return new LanguageClient(
 		'beanLsp',
