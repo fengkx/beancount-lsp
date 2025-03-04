@@ -119,13 +119,8 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 			setWasmFilePath(options.webTreeSitterWasmPath);
 		}
 
-		try {
-			// The parser will be initialized when needed with the correct WASM path
-		} catch (err) {
-			connection.console.error(String(err));
-		}
-
 		const symbolStorage = await factory.create('_beancount_lsp_db');
+		await symbolStorage.autoloadPromise;
 		connection.onExit(() => factory.destroy(symbolStorage));
 
 		documents = new DocumentStore(connection);
@@ -171,6 +166,9 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 	});
 
 	connection.onInitialized(async () => {
+		for (const feature of features) {
+			feature.register(connection);
+		}
 		if (hasConfigurationCapability) {
 			// Register for all configuration changes.
 			connection.client.register(DidChangeConfigurationNotification.type, undefined);
@@ -216,9 +214,6 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		}
 
 		await symbolIndex.unleashFiles([]);
-		for (const feature of features) {
-			feature.register(connection);
-		}
 	});
 }
 
