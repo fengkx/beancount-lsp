@@ -42,39 +42,12 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		serverLogger.setLevel(options.logLevel);
 	}
 
-	// Store original console methods
-	const originalConsoleLog = console.log;
-	const originalConsoleInfo = console.info;
-	const originalConsoleWarn = console.warn;
-	const originalConsoleError = console.error;
-
-	// Replace with custom implementations that don't use logger
-	console.log = function(...args: any[]) {
-		originalConsoleLog('[Server]', ...args);
-	};
-	console.info = function(...args: any[]) {
-		originalConsoleInfo('[Server]', ...args);
-	};
-	console.warn = function(...args: any[]) {
-		originalConsoleWarn('[Server]', ...args);
-	};
-	console.error = function(...args: any[]) {
-		originalConsoleError('[Server]', ...args);
-	};
-
-	// Also bind connection console for LSP-based logging directly to original console methods
-	connection.console.log = function(...args: any[]) {
-		originalConsoleLog('[Server]', ...args);
-	};
-	connection.console.info = function(...args: any[]) {
-		originalConsoleInfo('[Server]', ...args);
-	};
-	connection.console.warn = function(...args: any[]) {
-		originalConsoleWarn('[Server]', ...args);
-	};
-	connection.console.error = function(...args: any[]) {
-		originalConsoleError('[Server]', ...args);
-	};
+	// patch console.log/warn/error calls
+	console.log = connection.console.log.bind(connection.console);
+	console.info = connection.console.info.bind(connection.console);
+	console.debug = connection.console.debug.bind(connection.console);
+	console.warn = connection.console.warn.bind(connection.console);
+	console.error = connection.console.error.bind(connection.console);
 
 	let hasConfigurationCapability: boolean = false;
 	let hasWorkspaceFolderCapability: boolean = false;

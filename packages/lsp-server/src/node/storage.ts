@@ -7,15 +7,8 @@ export const factory: IStorageFactory = {
 			filename: name,
 			autoload: true,
 		});
-		// Add indexes to optimize query performance
-		// These indexes match the ones in the node implementation
-		await db.ensureIndexAsync({ fieldName: '_uri' });
-		await db.ensureIndexAsync({ fieldName: 'name' });
-		await db.ensureIndexAsync({ fieldName: '_symType' });
-
-		// Additional compound index for common query patterns
-		// This helps with queries that filter by both URI and symbol type
-		await db.ensureIndexAsync({ fieldName: ['_uri', '_symType'] });
+		// // Add indexes to optimize query performance
+		db.ensureIndexAsync({ fieldName: '_symType' });
 
 		return db;
 	},
