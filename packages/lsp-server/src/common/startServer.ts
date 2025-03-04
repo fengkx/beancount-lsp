@@ -162,6 +162,17 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		for (const feature of features) {
 			feature.register(connection);
 		}
+
+		const mainBeanFile = await documents.getMainBeanFileUri();
+		serverLogger.info(`mainBeanFile ${mainBeanFile}`);
+		await documents.refetchBeanFiles();
+
+		if (mainBeanFile) {
+			await symbolIndex.initFiles([mainBeanFile]);
+		}
+
+		await symbolIndex.unleashFiles([]);
+
 		if (hasConfigurationCapability) {
 			// Register for all configuration changes.
 			connection.client.register(DidChangeConfigurationNotification.type, undefined);
@@ -197,15 +208,5 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 				serverLogger.info('Workspace folder change event received.');
 			});
 		}
-
-		const mainBeanFile = await documents.getMainBeanFileUri();
-		serverLogger.info(`mainBeanFile ${mainBeanFile}`);
-		await documents.refetchBeanFiles();
-
-		if (mainBeanFile) {
-			await symbolIndex.initFiles([mainBeanFile]);
-		}
-
-		await symbolIndex.unleashFiles([]);
 	});
 }

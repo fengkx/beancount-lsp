@@ -80,7 +80,7 @@ export class SymbolIndex {
 		// this.index.delete(uri);
 	}
 
-	async consume() {
+	async consume(): Promise<void> {
 		const uris = this._syncQueue.consume(50, () => {
 			return true;
 		});
@@ -96,7 +96,7 @@ export class SymbolIndex {
 
 	private _currentUpdate: Promise<void> | undefined;
 
-	public async initFiles(_uris: string[]) {
+	public async initFiles(_uris: string[]): Promise<void> {
 		const uris = new Set(_uris);
 		const sw = new StopWatch();
 		this.logger.debug(`[index] initializing index for ${uris.size} files.`);
@@ -122,7 +122,7 @@ export class SymbolIndex {
 		);
 	}
 
-	public async unleashFiles(suffixes: string[]) {
+	public async unleashFiles(suffixes: string[]): Promise<void> {
 		// this._suffixFilter.update(suffixes);
 
 		await this.update();
