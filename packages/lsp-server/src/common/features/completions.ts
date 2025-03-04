@@ -1074,7 +1074,7 @@ function addCompletionItem(
 		if (usageCount !== undefined) {
 			// Add a bonus based on usage count, capped at a reasonable value
 			// Using 20 points per usage with a max bonus of 200 (for 10+ usages)
-			const usageBonus = Math.min(usageCount * 50, 3500);
+			const usageBonus = Math.min(usageCount * 1, 3500);
 			score += usageBonus;
 		}
 	}
