@@ -177,7 +177,7 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 			}
 
 			// Listen for configuration changes
-			connection.onDidChangeConfiguration(async change => {
+			connection.onDidChangeConfiguration(async _ => {
 				if (hasConfigurationCapability) {
 					const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });
 					if (config.trace && config.trace.server) {
@@ -209,8 +209,3 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		await symbolIndex.unleashFiles([]);
 	});
 }
-
-const timeout = (ms: number) =>
-	new Promise(resolve => {
-		setTimeout(resolve, ms);
-	});

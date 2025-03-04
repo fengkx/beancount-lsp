@@ -42,4 +42,4 @@ const browserConfig = defineConfig({
 	)],
 });
 
-export default [nodeConfig, browserConfig];
+export default [nodeConfig, browserConfig] as const;

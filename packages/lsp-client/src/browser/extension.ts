@@ -1,12 +1,5 @@
 import * as vscode from 'vscode';
-import {
-	BrowserMessageReader,
-	BrowserMessageWriter,
-	CloseAction,
-	ErrorAction,
-	LanguageClient,
-	MessageTransports,
-} from 'vscode-languageclient/browser';
+import { LanguageClient } from 'vscode-languageclient/browser';
 import {
 	clientLogger,
 	createClientOptions,
@@ -25,7 +18,7 @@ let client: LanguageClient;
 let statusBarItem: vscode.StatusBarItem;
 
 // This is the browser-specific implementation
-export function activate(context: vscode.ExtensionContext) {
+export function activate(context: vscode.ExtensionContext): void {
 	// Initialize logger
 	setupLogger();
 
@@ -43,9 +36,10 @@ export function activate(context: vscode.ExtensionContext) {
 	try {
 		// Resolve the web-tree-sitter.wasm path
 		const webTreeSitterWasmPath = resolveWebTreeSitterWasmPath(context);
-
 		// Options to control the language client
-		const clientOptions = createClientOptions({ webTreeSitterWasmPath });
+		const clientOptions = createClientOptions({
+			...webTreeSitterWasmPath ? { webTreeSitterWasmPath } : {},
+		});
 
 		// Following Microsoft example pattern for creating the client
 		client = createWorkerLanguageClient(context, clientOptions);
@@ -106,9 +100,9 @@ function createWorkerLanguageClient(context: vscode.ExtensionContext, clientOpti
 	);
 }
 
-export function deactivate() {
+export function deactivate(): Promise<void> {
 	if (!client) {
-		return undefined;
+		return Promise.resolve();
 	}
 	return client.stop();
 }

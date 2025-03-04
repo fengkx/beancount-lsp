@@ -31,7 +31,13 @@ import { DocumentStore } from '../../document-store';
 import { Trees } from '../../trees';
 import { SymbolIndex } from '../symbol-index';
 import { Feature } from '../types';
-import { buildChineseAcronyms, getPinyinFirstLetters, isChineseChar, processChineseSegment } from './chinese-pinyin';
+import {
+	buildChineseAcronyms,
+	getPinyinFirstLetters,
+	isChineseChar,
+	processChineseSegment,
+	segmentText,
+} from './chinese-pinyin';
 
 const Tuple = <T extends unknown[]>(xs: readonly [...T]): T => xs as T;
 

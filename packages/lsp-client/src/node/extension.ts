@@ -14,7 +14,7 @@ import { resolveWebTreeSitterWasmPath } from '../common/utils';
 let client: LanguageClient;
 let statusBarItem: vscode.StatusBarItem;
 
-export function activate(context: vscode.ExtensionContext) {
+export function activate(context: vscode.ExtensionContext): void {
 	// Initialize logger
 	setupLogger();
 
@@ -77,9 +77,9 @@ export function activate(context: vscode.ExtensionContext) {
 	clientLogger.info('Beancount LSP extension is now active');
 }
 
-export function deactivate() {
+export function deactivate(): Promise<void> {
 	if (!client) {
-		return undefined;
+		return Promise.resolve();
 	}
 	return client.stop();
 }

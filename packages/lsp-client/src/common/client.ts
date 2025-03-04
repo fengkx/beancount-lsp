@@ -1,11 +1,11 @@
-import { CustomMessages, Logger, LogLevel, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
+import { CustomMessages, Logger, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
 import * as vscode from 'vscode';
 // Import from base package for shared types between node and browser
 import { LanguageClientOptions, State } from 'vscode-languageclient';
 import { ClientOptions, ExtensionContext } from './types';
 
 // Create a client logger
-export const clientLogger = new Logger('Client');
+export const clientLogger: Logger = new Logger('Client');
 
 /**
  * Sets up and configures the client logger based on configuration

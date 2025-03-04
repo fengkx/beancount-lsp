@@ -7,7 +7,7 @@ import * as vscode from 'vscode';
 // This is a dummy file as the actual implementation is determined by package.json
 // which points to either dist/node/extension.js or dist/browser/extension.js based on environment
 
-export function activate(context: vscode.ExtensionContext) {
+export function activate(_: vscode.ExtensionContext): void {
 	// This function will never be called directly as package.json points
 	// to the correct implementation based on environment
 	throw new Error(
@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 }
 
-export function deactivate() {
+export function deactivate(): Promise<void> {
 	// This function will never be called directly
 	throw new Error(
 		'This file should not be imported directly. The actual implementation is determined by package.json.',

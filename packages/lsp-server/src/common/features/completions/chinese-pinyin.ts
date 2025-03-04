@@ -1,3 +1,5 @@
+import { pinyin } from 'pinyin-pro';
+
 /**
  * Checks if a character is a Chinese character
  * This covers the main CJK unified ideograph blocks
@@ -49,7 +51,7 @@ type TextSegment = {
  * @param text The text to segment
  * @returns Array of text segments with their script types
  */
-function segmentText(text: string): TextSegment[] {
+export function segmentText(text: string): TextSegment[] {
 	if (!text) return [];
 
 	const segments: TextSegment[] = [];
@@ -109,7 +111,7 @@ export function getPinyinFirstLetters(text: string): string {
 			const pinyinSegment = pinyin(segment.text, { toneType: 'none', type: 'array' });
 			for (const p of pinyinSegment) {
 				if (p && p.length > 0) {
-					result += p[0].toLowerCase();
+					result += p[0]?.toLowerCase() || '';
 				}
 			}
 		} else if (segment.type === 'latin') {
