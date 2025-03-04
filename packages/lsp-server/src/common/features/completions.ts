@@ -1234,8 +1234,7 @@ async function addCurrencyCompletions(
 		cnt = addCompletionItem(
 			{ label: currency, kind: CompletionItemKind.Unit, detail: '(currency)' },
 			position,
-			// Add space before to make it look like '100 USD'
-			` ${currency}`,
+			currency,
 			set,
 			items,
 			cnt,
