@@ -1,4 +1,3 @@
-import '@abraham/reflection';
 import { createConnection, ProposedFeatures } from 'vscode-languageserver/node';
 
 import { ServerOptions, startServer } from '../common/startServer';

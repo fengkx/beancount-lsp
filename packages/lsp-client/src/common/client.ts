@@ -125,3 +125,9 @@ export function setupConfigurationWatchers(ctx: ExtensionContext<'browser' | 'no
 		}),
 	);
 }
+
+export async function setupQueueInit(ctx: ExtensionContext<'browser' | 'node'>): Promise<void> {
+	const files = await vscode.workspace.findFiles(`**/*.{bean,beancount}`);
+
+	ctx.client.sendRequest(CustomMessages.QueueInit, files.map(f => f.toString()));
+}

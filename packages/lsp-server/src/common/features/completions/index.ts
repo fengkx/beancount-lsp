@@ -1213,7 +1213,7 @@ export class CompletionFeature implements Feature {
 				previousPreviousSiblingType: current.previousSibling?.previousSibling?.type,
 				descendantForPositionType: descendantForCurPos?.type,
 				lastChildType: lastChildNode?.type,
-				lastCurrentChildTypeInError,
+				lastCurrentChildTypeInError: lastCurrentChildTypeInError ?? '',
 			},
 			params.position,
 			userInput,
@@ -1247,19 +1247,6 @@ export class CompletionFeature implements Feature {
 			// Generate filter text for the item
 			if (typeof item.label === 'string') {
 				item.filterText = createFilterString(item.label);
-
-				// Calculate score for sorting if userInput is provided
-				if (userInput) {
-					const score = scoreMatch(item.label, item.filterText, userInput);
-					// Format to ensure higher scores come first
-					// Using a very high number (1000000) to handle even large scores
-					// The negative sign ensures higher scores sort first
-					item.sortText = `A${String(1000000 - Math.min(score, 999999)).padStart(6, '0')}`;
-					// Add data for debugging if needed
-					item.data = { score };
-				} else {
-					item.sortText = String.fromCharCode(95 + cnt);
-				}
 			}
 
 			completionItems.push(item);
@@ -1276,8 +1263,8 @@ export class CompletionFeature implements Feature {
 				const yesterday = sub(d, { days: 1 });
 				const dayBeforeYesterday = sub(d, { days: 2 });
 				const tomorrow = add(d, { days: 1 });
-				[d, yesterday, tomorrow, dayBeforeYesterday].forEach(d => {
-					addItem({ label: formatDate(d, 'yyyy-MM-dd') });
+				[d, yesterday, tomorrow, dayBeforeYesterday].forEach((d, idx) => {
+					addItem({ label: formatDate(d, 'yyyy-MM-dd'), sortText: String.fromCharCode(65 + idx) });
 				});
 				logger.info(`Date completions added, items: ${completionItems.length}`);
 			})

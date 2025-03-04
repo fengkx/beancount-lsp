@@ -1,4 +1,4 @@
-import { Logger, LogLevel, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
+import { CustomMessages, Logger, LogLevel, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
 import {
 	Connection,
 	DidChangeConfigurationNotification,
@@ -36,7 +36,7 @@ export interface ServerOptions {
 // Create a server logger
 const serverLogger = new Logger('Server');
 
-export function startServer(connection: Connection, factory: IStorageFactory, options: ServerOptions = {}) {
+export function startServer(connection: Connection, factory: IStorageFactory, options: ServerOptions = {}): void {
 	// Set initial log level from options
 	if (options.logLevel !== undefined) {
 		serverLogger.setLevel(options.logLevel);
@@ -162,6 +162,12 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		for (const feature of features) {
 			feature.register(connection);
 		}
+
+		connection.onRequest(CustomMessages.QueueInit, async (uris: string[]) => {
+			serverLogger.info(`QueueInit ${uris}`);
+			await symbolIndex.initFiles(uris);
+			await symbolIndex.unleashFiles([]);
+		});
 
 		const mainBeanFile = await documents.getMainBeanFileUri();
 		serverLogger.info(`mainBeanFile ${mainBeanFile}`);

@@ -4,6 +4,7 @@ import {
 	ConfigurationRequest,
 	Connection,
 	Emitter,
+	Event,
 	Range,
 	TextDocumentContentChangeEvent,
 	TextDocuments,
@@ -26,7 +27,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 	private readonly _decoder = new TextDecoder();
 
 	private readonly _onDidChangeContent2 = new Emitter<TextDocumentChange2>();
-	readonly onDidChangeContent2 = this._onDidChangeContent2.event;
+	readonly onDidChangeContent2: Event<TextDocumentChange2> = this._onDidChangeContent2.event;
 
 	private _beanFiles: string[] = [];
 
@@ -63,7 +64,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 	}
 	private readonly _documentsCache = new LRUMap<string, TextDocument>(200);
 
-	async refetchBeanFiles() {
+	async refetchBeanFiles(): Promise<void> {
 		const files = await this._connection.sendRequest<string[]>(CustomMessages.ListBeanFile);
 		this._beanFiles = files;
 	}
@@ -93,7 +94,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 		return TextDocument.create(uri, LANGUAGE_ID, 1, this._decoder.decode(bytes));
 	}
 
-	removeFile(uri: string) {
+	removeFile(uri: string): boolean {
 		return this._documentsCache.delete(uri);
 	}
 

@@ -6,6 +6,7 @@ import {
 	setupConfigurationWatchers,
 	setupCustomMessageHandlers,
 	setupLogger,
+	setupQueueInit,
 	setupStatusBar,
 } from '../common/client';
 import { ExtensionContext } from '../common/types';
@@ -62,6 +63,9 @@ export function activate(context: vscode.ExtensionContext): void {
 
 		// Start the client. This will also launch the server
 		client.start();
+
+		// Setup queue init
+		setupQueueInit(extensionContext);
 
 		// Log when the extension is activated
 		clientLogger.info('Beancount LSP browser extension is now active');

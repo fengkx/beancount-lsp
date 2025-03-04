@@ -13,7 +13,6 @@ const nodeConfig = defineConfig({
 	},
 	external: ['vscode'],
 	noExternal: [
-		'@abraham/reflection',
 		'@bean-lsp/shared',
 		'@seald-io/nedb',
 		'date-fns',
@@ -44,7 +43,6 @@ const browserConfig = defineConfig({
 	},
 	external: ['vscode'],
 	noExternal: [
-		'@abraham/reflection',
 		'@bean-lsp/shared',
 		'@seald-io/nedb',
 		'date-fns',

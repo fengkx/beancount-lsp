@@ -1,3 +1,4 @@
+import { CustomMessages } from '@bean-lsp/shared';
 import * as vscode from 'vscode';
 import { LanguageClient, ServerOptions, TransportKind } from 'vscode-languageclient/node';
 import {
@@ -6,6 +7,7 @@ import {
 	setupConfigurationWatchers,
 	setupCustomMessageHandlers,
 	setupLogger,
+	setupQueueInit,
 	setupStatusBar,
 } from '../common/client';
 import { ExtensionContext } from '../common/types';
@@ -14,7 +16,7 @@ import { resolveWebTreeSitterWasmPath } from '../common/utils';
 let client: LanguageClient;
 let statusBarItem: vscode.StatusBarItem;
 
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
 	// Initialize logger
 	setupLogger();
 
@@ -71,7 +73,10 @@ export function activate(context: vscode.ExtensionContext): void {
 	setupConfigurationWatchers(extensionContext);
 
 	// Start the client. This will also launch the server
-	client.start();
+	await client.start();
+
+	// Setup queue init
+	setupQueueInit(extensionContext);
 
 	// Log when the extension is activated
 	clientLogger.info('Beancount LSP extension is now active');

@@ -8,7 +8,6 @@ if (typeof self !== 'undefined' && !('process' in self)) {
 		};
 }
 
-import '@abraham/reflection';
 import {
 	BrowserMessageReader,
 	BrowserMessageWriter,
