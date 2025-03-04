@@ -13,12 +13,12 @@ import { Feature } from './types';
 export class FoldingRangeFeature implements Feature {
 	constructor(private readonly _documents: DocumentStore, private readonly _trees: Trees) {
 	}
-	register(connection: Connection) {
+	register(connection: Connection): void {
 		const registerOptions: FoldingRangeRegistrationOptions = {
 			documentSelector: [{ language: 'beancount' }],
 		};
 		connection.client.register(FoldingRangeRequest.type, registerOptions);
-		connection.onFoldingRanges(this.provideFoldingRanges);
+		connection.onFoldingRanges(this.provideFoldingRanges.bind(this));
 	}
 
 	provideFoldingRanges = async (params: FoldingRangeParams): Promise<FoldingRange[]> => {
