@@ -3,7 +3,10 @@ import { IStorageFactory } from '../common/startServer';
 
 export const factory: IStorageFactory = {
 	async create(name) {
-		const db = new NeDb({});
+		const db = new NeDb({
+			filename: name,
+			autoload: true,
+		});
 		// Add indexes to optimize query performance
 		// These indexes match the ones in the node implementation
 		await db.ensureIndexAsync({ fieldName: '_uri' });

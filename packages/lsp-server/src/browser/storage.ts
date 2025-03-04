@@ -13,6 +13,7 @@ class BrowserStorageFactory implements IStorageFactory {
 		// Use inMemoryOnly: true to ensure we don't try to persist to disk in browser environment
 		const db = new Db<any>({
 			filename: name,
+			autoload: true,
 		});
 
 		// Add indexes to optimize query performance
