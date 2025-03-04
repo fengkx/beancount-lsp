@@ -1,11 +1,4 @@
-import {
-	getParser,
-	Logger,
-	LogLevel,
-	logLevelToString,
-	mapTraceServerToLogLevel,
-	parseLogLevel,
-} from '@bean-lsp/shared';
+import { Logger, LogLevel, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
 import {
 	Connection,
 	DidChangeConfigurationNotification,
