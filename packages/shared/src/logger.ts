@@ -44,32 +44,36 @@ export class Logger implements ILogger {
 
 	error(...args: unknown[]): void {
 		if (this.level >= LogLevel.ERROR) {
-			console.error(this.prefix, ...args);
+			console.error(this.formatMessage(...args));
 		}
 	}
 
 	warn(...args: unknown[]): void {
 		if (this.level >= LogLevel.WARN) {
-			console.warn(this.prefix, ...args);
+			console.warn(this.formatMessage(...args));
 		}
 	}
 
 	info(...args: unknown[]): void {
 		if (this.level >= LogLevel.INFO) {
-			console.info(this.prefix, ...args);
+			console.info(this.formatMessage(...args));
 		}
 	}
 
 	debug(...args: unknown[]): void {
 		if (this.level >= LogLevel.DEBUG) {
-			console.log(this.prefix, ...args);
+			console.log(this.formatMessage(...args));
 		}
 	}
 
 	trace(...args: unknown[]): void {
 		if (this.level >= LogLevel.TRACE) {
-			console.log(this.prefix, ...args);
+			console.log(this.formatMessage(...args));
 		}
+	}
+
+	private formatMessage(...args: unknown[]): string {
+		return [this.prefix, ...args].map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ');
 	}
 }
 

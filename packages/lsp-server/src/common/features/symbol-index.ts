@@ -1,7 +1,6 @@
 import mm from 'micromatch';
 import { difference, intersection } from 'mnemonist/set';
-import { Nominal } from 'nominal-types';
-import { CancellationTokenSource, DocumentUri } from 'vscode-languageserver';
+import { CancellationTokenSource } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { isInteresting, parallel, StopWatch } from '../common';
 import { DocumentStore } from '../document-store';
@@ -18,12 +17,9 @@ import {
 	SymbolInfo,
 } from './references';
 
-import { Logger, LogLevel } from '@bean-lsp/shared';
+import { Logger } from '@bean-lsp/shared';
 import { URI, Utils as UriUtils } from 'vscode-uri';
 import { TreeQuery } from '../language';
-
-type SNText = Nominal<'SyntaxNodeText', string>;
-// type DocUri = Nominal<'DocUri', DocumentUri>
 
 class Queue {
 	private readonly _queue = new Set<string>();
@@ -255,14 +251,14 @@ export class SymbolIndex {
 		);
 	}
 
-	public async getAccountDefinitions() {
+	public async getAccountDefinitions(): Promise<import('@seald-io/nedb').Document<SymbolInfo[]>> {
 		this.logger.debug('[index] Getting account definitions');
 		const accountDefinitions = this._symbolInfoStorage.findAsync({ _symType: 'account_definition' });
 		accountDefinitions.then(defs => this.logger.debug(`[index] Found ${defs.length} account definitions`));
 		return accountDefinitions;
 	}
 
-	public async getCommodityDefinitions() {
+	public async getCommodityDefinitions(): Promise<import('@seald-io/nedb').Document<SymbolInfo[]>> {
 		this.logger.debug('[index] Getting commodity definitions');
 		const commodityDefinitions = this._symbolInfoStorage.findAsync({ _symType: 'currency_definition' });
 		commodityDefinitions.then(defs => this.logger.debug(`[index] Found ${defs.length} commodity definitions`));

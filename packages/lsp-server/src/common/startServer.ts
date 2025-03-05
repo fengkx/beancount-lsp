@@ -24,7 +24,7 @@ import { setWasmFilePath } from './language';
 export type SymbolInfoStorage = Db<SymbolInfo>;
 
 export interface IStorageFactory {
-	create(name: string): Promise<SymbolInfoStorage>;
+	create(name: string, prefix?: string): Promise<SymbolInfoStorage>;
 	destroy(index: SymbolInfoStorage): Promise<void>;
 }
 
@@ -85,7 +85,7 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 			setWasmFilePath(options.webTreeSitterWasmPath);
 		}
 
-		const symbolStorage = await factory.create('_beancount_lsp_db');
+		const symbolStorage = await factory.create('_beancount_lsp_db', params.initializationOptions?.globalStorageUri);
 		await symbolStorage.autoloadPromise;
 		connection.onExit(() => factory.destroy(symbolStorage));
 
@@ -101,9 +101,7 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		// Add the new DefinitionFeature
 		features.push(new DefinitionFeature(documents, trees, symbolIndex));
 
-		documents.all().forEach(doc => {
-			symbolIndex.addFile(doc.uri);
-		});
+		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
 		documents.onDidOpen(event => symbolIndex.addFile(event.document.uri));
 		documents.onDidChangeContent(event => symbolIndex.addFile(event.document.uri));
 
@@ -150,7 +148,7 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 			await symbolIndex.initFiles([mainBeanFile]);
 		}
 
-		await symbolIndex.unleashFiles([]);
+		// await symbolIndex.unleashFiles([]);
 
 		if (hasConfigurationCapability) {
 			// Register for all configuration changes.

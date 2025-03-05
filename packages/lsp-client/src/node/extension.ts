@@ -46,7 +46,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	const webTreeSitterWasmPath = resolveWebTreeSitterWasmPath(context);
 
 	// Options to control the language client
-	const clientOptions = createClientOptions({ webTreeSitterWasmPath });
+	const clientOptions = createClientOptions({
+		webTreeSitterWasmPath,
+		globalStorageUri: context.globalStorageUri,
+	});
 
 	// Create the language client and start the client.
 	client = new LanguageClient(

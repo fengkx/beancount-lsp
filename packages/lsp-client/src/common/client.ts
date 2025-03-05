@@ -26,6 +26,7 @@ export function createClientOptions(options: ClientOptions): LanguageClientOptio
 	watcher.onDidChange(e => {
 		clientLogger.info(`File ${e.fsPath} changed`);
 	});
+
 	return {
 		documentSelector: ['beancount'],
 		synchronize: {
@@ -33,6 +34,7 @@ export function createClientOptions(options: ClientOptions): LanguageClientOptio
 		},
 		initializationOptions: {
 			webTreeSitterWasmPath: options.webTreeSitterWasmPath,
+			globalStorageUri: options.globalStorageUri?.toString(),
 		},
 	};
 }

@@ -1028,46 +1028,49 @@ async function addAccountCompletions(
 	cnt: number,
 	userInput?: string,
 ): Promise<number> {
+	let accountsNames: string[] = [];
 	// Fetch all account definitions from the index
 	const accounts = await symbolIndex.getAccountDefinitions();
-
 	// Get account usage counts for sorting
 	const accountUsageCounts = await symbolIndex.getAccountUsageCounts();
+	if (accounts.length <= 0) {
+		accountsNames = [...accountUsageCounts.keys()];
+	}
 
 	// Filter accounts based on the trigger character
-	const filteredAccounts = accounts.filter((account: { name: string }) => {
+	const filteredAccounts = accountsNames.filter((account) => {
 		if (triggerChar === 'E') {
 			// Special case for E: match both Equity and Expenses accounts
-			return account.name.startsWith('Equity:') || account.name.startsWith('Expenses:');
+			return account.startsWith('Equity:') || account.startsWith('Expenses:');
 		}
-		return account.name.startsWith(triggerChar);
+		return account.startsWith(triggerChar);
 	});
 
 	// Sort accounts by usage count (most used first)
 	filteredAccounts.sort((a, b) => {
-		const countA = accountUsageCounts.get(a.name) || 0;
-		const countB = accountUsageCounts.get(b.name) || 0;
+		const countA = accountUsageCounts.get(a) || 0;
+		const countB = accountUsageCounts.get(b) || 0;
 		return countB - countA; // Descending order
 	});
 
 	// Add each filtered account as a completion item
-	filteredAccounts.forEach((account: { name: string }) => {
+	filteredAccounts.forEach((account) => {
 		let detail = '';
 
 		// Add usage count to the detail if available
-		const usageCount = accountUsageCounts.get(account.name) || 0;
+		const usageCount = accountUsageCounts.get(account) || 0;
 		if (usageCount > 0) {
 			detail += `Used ${usageCount} time${usageCount === 1 ? '' : 's'}`;
 		}
 
 		cnt = addCompletionItem(
 			{
-				label: account.name,
+				label: account,
 				kind: CompletionItemKind.Field,
 				detail,
 			},
 			position,
-			account.name.replace(new RegExp(`^${triggerChar}`), '') + ' ',
+			account.replace(new RegExp(`^${triggerChar}`), '') + ' ',
 			set,
 			items,
 			cnt,

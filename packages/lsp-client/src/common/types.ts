@@ -3,6 +3,7 @@ import type { LanguageClient as BrowserLanguageClient } from 'vscode-languagecli
 import type { LanguageClient as NodeLanguageClient } from 'vscode-languageclient/node';
 export interface ClientOptions {
 	webTreeSitterWasmPath?: string | undefined;
+	globalStorageUri?: vscode.Uri | undefined;
 }
 
 export interface ExtensionContext<T extends 'browser' | 'node'> {
