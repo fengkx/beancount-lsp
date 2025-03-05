@@ -1,7 +1,7 @@
 import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { asLspRange } from '../common';
+import { asLspRange, compactToRange, rangeToCompact } from '../common';
 import { TreeQuery } from '../language';
 import { Trees } from '../trees';
 
@@ -13,9 +13,19 @@ export interface SymbolInfo {
 
 	_uri: string;
 	name: string;
-	range: lsp.Range;
+	// Use a compact array representation instead of full lsp.Range object
+	// Format: [startLine, startChar, endLine, endChar]
+	range: [number, number, number, number];
 	kind: lsp.SymbolKind;
 }
+
+/**
+ * Gets the full lsp.Range representation from a SymbolInfo
+ */
+export function getRange(symbol: SymbolInfo): lsp.Range {
+	return compactToRange(symbol.range);
+}
+
 export async function getAccountsUsage(textDocument: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
 	const query = TreeQuery.getQueryByTokenName('account_usage');
 	const tree = await trees.getParseTree(textDocument);
@@ -31,7 +41,7 @@ export async function getAccountsUsage(textDocument: TextDocument, trees: Trees)
 			_symType: 'account_usage',
 			_uri: textDocument.uri,
 			name,
-			range,
+			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Struct,
 		});
 	}
@@ -54,7 +64,7 @@ export async function getAccountsDefinition(doc: TextDocument, trees: Trees): Pr
 			_symType: 'account_definition',
 			_uri: doc.uri,
 			name,
-			range,
+			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Struct,
 		});
 	}
@@ -77,7 +87,7 @@ export async function getPayees(doc: TextDocument, trees: Trees): Promise<Symbol
 			_symType: 'payee',
 			_uri: doc.uri,
 			name,
-			range,
+			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.String,
 		});
 	}
@@ -99,7 +109,7 @@ export async function getNarrations(doc: TextDocument, trees: Trees): Promise<Sy
 			_symType: 'narration',
 			_uri: doc.uri,
 			name,
-			range,
+			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.String,
 		});
 	}
@@ -121,7 +131,7 @@ export async function getCommodities(doc: TextDocument, trees: Trees): Promise<S
 			_symType: 'commodity',
 			_uri: doc.uri,
 			name,
-			range,
+			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Constant,
 		});
 	}
@@ -143,7 +153,7 @@ export async function getCurrencyDefinitions(doc: TextDocument, trees: Trees): P
 			_symType: 'currency_definition',
 			_uri: doc.uri,
 			name,
-			range,
+			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Constant,
 		});
 	}
@@ -165,7 +175,7 @@ export async function getTags(doc: TextDocument, trees: Trees): Promise<SymbolIn
 			_symType: 'tag',
 			_uri: doc.uri,
 			name,
-			range,
+			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Key,
 		});
 	}

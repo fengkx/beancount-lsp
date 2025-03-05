@@ -3,6 +3,7 @@ import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
+import { getRange, SymbolInfo } from './references';
 import { SymbolIndex } from './symbol-index';
 
 // Create a logger for the definitions module
@@ -41,7 +42,7 @@ export class DefinitionFeature {
 			if (matchingDefinitions.length > 0) {
 				return matchingDefinitions.map(def => ({
 					uri: def._uri,
-					range: def.range,
+					range: getRange(def),
 				}));
 			}
 		}
@@ -57,7 +58,7 @@ export class DefinitionFeature {
 			if (matchingDefinitions.length > 0) {
 				return matchingDefinitions.map(def => ({
 					uri: def._uri,
-					range: def.range,
+					range: getRange(def),
 				}));
 			}
 		}

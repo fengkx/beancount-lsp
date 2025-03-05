@@ -64,6 +64,21 @@ export function asLspRange(node: Parser.SyntaxNode): lsp.Range {
 	);
 }
 
+/**
+ * Converts an LSP Range to a compact array representation [startLine, startChar, endLine, endChar]
+ * This saves memory when storing many ranges in a database
+ */
+export function rangeToCompact(range: lsp.Range): [number, number, number, number] {
+	return [range.start.line, range.start.character, range.end.line, range.end.character];
+}
+
+/**
+ * Converts a compact range representation back to an LSP Range object
+ */
+export function compactToRange(compact: [number, number, number, number]): lsp.Range {
+	return lsp.Range.create(compact[0], compact[1], compact[2], compact[3]);
+}
+
 export function asTsPoint(position: lsp.Position): Parser.Point {
 	const { line: row, character: column } = position;
 	return { row, column };
@@ -156,17 +171,17 @@ export function containsRange(range: lsp.Range, other: lsp.Range): boolean {
 	return containsPosition(range, other.start) && containsPosition(range, other.end);
 }
 
-export function containsLocation(loc: lsp.Location, uri: string, position: lsp.Position) {
+export function containsLocation(loc: lsp.Location, uri: string, position: lsp.Position): boolean {
 	return loc.uri === uri && containsPosition(loc.range, position);
 }
 
 export class StopWatch {
 	private t1: number = performance.now();
 
-	reset() {
+	reset(): void {
 		this.t1 = performance.now();
 	}
-	elapsed() {
+	elapsed(): string {
 		return (performance.now() - this.t1).toFixed(2);
 	}
 }
