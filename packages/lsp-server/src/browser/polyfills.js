@@ -8,6 +8,9 @@ if (typeof globalThis.process === 'undefined') {
 			NODE_ENV: 'production',
 		},
 		cwd: () => '/',
+		nextTick: (callback, ...args) => {
+			setTimeout(() => callback(...args), 0);
+		},
 	};
 }
 
