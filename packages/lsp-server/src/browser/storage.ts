@@ -14,6 +14,7 @@ class BrowserStorageFactory implements IStorageFactory {
 		const db = new Db({
 			filename: name,
 			autoload: true,
+			inMemoryOnly: true,
 		});
 
 		// Add indexes to optimize query performance

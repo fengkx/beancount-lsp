@@ -876,8 +876,8 @@ async function addPayeesAndNarrations(
 ): Promise<number> {
 	// Fetch payees and narrations in parallel
 	const [payees, narrations] = await Promise.all([
-		addPayees ? symbolIndex.getPayees() : Promise.resolve([]),
-		symbolIndex.getNarrations(),
+		addPayees ? symbolIndex.getPayees(true, { waitTime: 100 }) : Promise.resolve([]),
+		symbolIndex.getNarrations(true, { waitTime: 100 }),
 	]);
 
 	// Add payees if requested

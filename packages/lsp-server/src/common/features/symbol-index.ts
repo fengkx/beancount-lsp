@@ -20,6 +20,7 @@ import {
 import { Logger } from '@bean-lsp/shared';
 import { URI, Utils as UriUtils } from 'vscode-uri';
 import { TreeQuery } from '../language';
+import { SwrCache, SwrOptions } from '../utils/swr';
 
 class Queue {
 	private readonly _queue = new Set<string>();
@@ -59,11 +60,19 @@ export class SymbolIndex {
 		private readonly _documents: DocumentStore,
 		private readonly _trees: Trees,
 		private readonly _symbolInfoStorage: SymbolInfoStorage,
-	) {}
+	) {
+		// Initialize SWR caches
+		this._payeesCache = new SwrCache(() => this._fetchPayees(), 'index.payees');
+		this._narrationsCache = new SwrCache(() => this._fetchNarrations(), 'index.narrations');
+	}
 
 	private readonly _syncQueue = new Queue();
 	private readonly _asyncQueue = new Queue();
 	// private readonly _suffixFilter = new SuffixFilter();
+
+	// SWR cache instances
+	private readonly _payeesCache: SwrCache<string[]>;
+	private readonly _narrationsCache: SwrCache<string[]>;
 
 	addFile(uri: string): void {
 		this._syncQueue.enqueue(uri);
@@ -265,8 +274,34 @@ export class SymbolIndex {
 		return commodityDefinitions;
 	}
 
-	public async getPayees(): Promise<string[]> {
+	/**
+	 * Gets all payees with optional SWR caching
+	 *
+	 * @param swr Whether to use SWR caching
+	 * @param options SWR caching options including:
+	 *   - maxAge: Maximum age of cached data in milliseconds (default: 10000ms)
+	 *   - waitTime: Maximum time to wait for fresh data before returning cached data (default: 100ms)
+	 *   - debug: Whether to log detailed caching information (default: false)
+	 * @returns List of unique payee names
+	 *
+	 * @example
+	 * // Get payees with default SWR behavior (wait up to 100ms for fresh data)
+	 * const payees = await symbolIndex.getPayees(true);
+	 *
+	 * @example
+	 * // Get payees with custom wait time of 200ms
+	 * const payees = await symbolIndex.getPayees(true, { waitTime: 200 });
+	 *
+	 * @example
+	 * // Get payees with immediate cache return (no waiting)
+	 * const payees = await symbolIndex.getPayees(true, { waitTime: 0 });
+	 */
+	public async getPayees(swr = false, options?: SwrOptions): Promise<string[]> {
 		this.logger.debug('[index] Getting payees');
+		return this._payeesCache.get(swr, options);
+	}
+
+	private async _fetchPayees(): Promise<string[]> {
 		const payees = await this._symbolInfoStorage.findAsync({ _symType: 'payee' }) as SymbolInfo[];
 		const uniquePayees = [...new Set(payees.map(p => p.name))];
 		this.logger.debug(`[index] Found ${payees.length} payees (${uniquePayees.length} unique)`);
@@ -289,8 +324,34 @@ export class SymbolIndex {
 		return uniqueTags;
 	}
 
-	public async getNarrations(): Promise<string[]> {
+	/**
+	 * Gets all narrations with optional SWR caching
+	 *
+	 * @param swr Whether to use SWR caching
+	 * @param options SWR caching options including:
+	 *   - maxAge: Maximum age of cached data in milliseconds (default: 10000ms)
+	 *   - waitTime: Maximum time to wait for fresh data before returning cached data (default: 100ms)
+	 *   - debug: Whether to log detailed caching information (default: false)
+	 * @returns List of unique narration strings
+	 *
+	 * @example
+	 * // Get narrations with default SWR behavior (wait up to 100ms for fresh data)
+	 * const narrations = await symbolIndex.getNarrations(true);
+	 *
+	 * @example
+	 * // Get narrations with custom wait time of 200ms
+	 * const narrations = await symbolIndex.getNarrations(true, { waitTime: 200 });
+	 *
+	 * @example
+	 * // Get narrations with immediate cache return (no waiting)
+	 * const narrations = await symbolIndex.getNarrations(true, { waitTime: 0 });
+	 */
+	public async getNarrations(swr = false, options?: SwrOptions): Promise<string[]> {
 		this.logger.debug('[index] Getting narrations');
+		return this._narrationsCache.get(swr, options);
+	}
+
+	private async _fetchNarrations(): Promise<string[]> {
 		const narrations = await this._symbolInfoStorage.findAsync({ _symType: 'narration' }) as SymbolInfo[];
 		const uniqueNarrations = [...new Set(narrations.map(n => n.name))];
 		this.logger.debug(`[index] Found ${narrations.length} narrations (${uniqueNarrations.length} unique)`);
