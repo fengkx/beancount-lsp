@@ -12,13 +12,11 @@ class BrowserStorageFactory implements IStorageFactory {
 		// Create the database with the given name as filename
 		// Use inMemoryOnly: true to ensure we don't try to persist to disk in browser environment
 		const db = new Db({
-			filename: name,
-			autoload: true,
+			// filename: name,
+			// autoload: true,
 			inMemoryOnly: true,
 		});
 
-		// Add indexes to optimize query performance
-		db.ensureIndexAsync({ fieldName: '_symType' });
 		// Store the database instance
 		this.dbs.set(name, db);
 

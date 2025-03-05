@@ -72,7 +72,7 @@ export class SwrCache<T> {
 
 		const now = Date.now();
 		const cacheAge = now - this.cacheTime;
-		const cacheValid = this.cache !== null;
+		const cacheValid = this.cache !== null && (Array.isArray(this.cache) ? this.cache.length > 0 : true);
 		const cacheExpired = opts.maxAge > 0 && cacheAge > opts.maxAge;
 
 		// If debugging is enabled, log cache state

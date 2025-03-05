@@ -61,15 +61,15 @@ export class Logger implements ILogger {
 	}
 
 	debug(...args: unknown[]): void {
-		if (this.level >= LogLevel.DEBUG) {
-			console.log(this.formatMessage(...args));
-		}
+		// if (this.level >= LogLevel.DEBUG) {
+		console.log(this.formatMessage(...args));
+		// }
 	}
 
 	trace(...args: unknown[]): void {
-		if (this.level >= LogLevel.TRACE) {
-			console.log(this.formatMessage(...args));
-		}
+		// if (this.level >= LogLevel.TRACE) {
+		console.log(this.formatMessage(...args));
+		// }
 	}
 
 	private formatMessage(...args: unknown[]): string {

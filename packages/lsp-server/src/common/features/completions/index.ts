@@ -1035,6 +1035,8 @@ async function addAccountCompletions(
 	const accountUsageCounts = await symbolIndex.getAccountUsageCounts();
 	if (accounts.length <= 0) {
 		accountsNames = [...accountUsageCounts.keys()];
+	} else {
+		accountsNames = accounts.map((account) => account.name);
 	}
 
 	// Filter accounts based on the trigger character
