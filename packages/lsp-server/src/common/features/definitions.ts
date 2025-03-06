@@ -3,7 +3,7 @@ import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
-import { getRange, SymbolInfo } from './references';
+import { getRange } from './symbol-extractors';
 import { SymbolIndex } from './symbol-index';
 
 // Create a logger for the definitions module

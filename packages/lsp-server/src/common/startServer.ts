@@ -12,13 +12,14 @@ import { CompletionFeature } from './features/completions';
 import { DefinitionFeature } from './features/definitions';
 import { DocumentSymbolsFeature } from './features/document-symbols';
 import { FoldingRangeFeature } from './features/folding-ranges';
+import { ReferencesFeature } from './features/references';
 import { SelectionRangesFeature } from './features/selection-ranges';
 import { SemanticTokenFeature } from './features/semantic-token';
 import { Feature } from './features/types';
 import { Trees } from './trees';
 
 import Db from '@seald-io/nedb';
-import { SymbolInfo } from './features/references';
+import { SymbolInfo } from './features/symbol-extractors';
 import { SymbolIndex } from './features/symbol-index';
 import { setWasmFilePath } from './language';
 
@@ -70,6 +71,8 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 				selectionRangeProvider: true,
 				// Add definition provider capability
 				definitionProvider: true,
+				// Add references provider capability
+				referencesProvider: true,
 				// Add document symbol provider capability
 				documentSymbolProvider: true,
 			},
@@ -102,6 +105,8 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		features.push(new CompletionFeature(documents, trees, symbolIndex));
 		features.push(new SelectionRangesFeature(documents, trees));
 		features.push(new DefinitionFeature(documents, trees, symbolIndex));
+		// Add references feature
+		features.push(new ReferencesFeature(documents, trees, symbolIndex));
 		// Add document symbols feature
 		features.push(new DocumentSymbolsFeature(documents, trees));
 

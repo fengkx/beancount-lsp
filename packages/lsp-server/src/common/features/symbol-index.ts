@@ -15,7 +15,7 @@ import {
 	getPayees,
 	getTags,
 	SymbolInfo,
-} from './references';
+} from './symbol-extractors';
 
 import { Logger } from '@bean-lsp/shared';
 import { URI, Utils as UriUtils } from 'vscode-uri';
