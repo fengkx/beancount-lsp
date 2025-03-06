@@ -12,6 +12,7 @@
 		"allowSyntheticDefaultImports": true,
 		"emitDecoratorMetadata": true,
 		"experimentalDecorators": true,
+		"isolatedDeclarations": false,
 		"strict": true, /* enable all strict type-checking options */
 		"skipLibCheck": true,
 		/* Additional Checks */

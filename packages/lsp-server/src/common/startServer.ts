@@ -103,7 +103,7 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		features.push(new SelectionRangesFeature(documents, trees));
 		features.push(new DefinitionFeature(documents, trees, symbolIndex));
 		// Add document symbols feature
-		features.push(new DocumentSymbolsFeature(documents, trees, symbolIndex));
+		features.push(new DocumentSymbolsFeature(documents, trees));
 
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
 		documents.onDidOpen(event => symbolIndex.addFile(event.document.uri));
