@@ -1,12 +1,8 @@
-import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { asLspRange, compactToRange, rangeToCompact } from '../common';
 import { TreeQuery } from '../language';
 import { Trees } from '../trees';
-
-// Create a logger for the symbol extractors module
-const logger = new Logger('symbol-extractors');
 
 export interface SymbolInfo {
 	_symType: string;
@@ -77,8 +73,6 @@ export async function getPayees(doc: TextDocument, trees: Trees): Promise<Symbol
 	}
 	const query = TreeQuery.getQueryByTokenName('payee');
 	const captures = await query.captures(tree.rootNode);
-	logger.debug(`[symbol-extractors] Payees parse tree: ${tree.rootNode.toString()}`);
-	logger.debug(`[symbol-extractors] Payees captures: ${captures.length} matches`);
 	const result: SymbolInfo[] = [];
 	for (const capture of captures) {
 		const name = capture.node.text.replace(/^"|"$/g, ''); // Remove quotes

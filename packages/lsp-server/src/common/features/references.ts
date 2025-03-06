@@ -3,6 +3,7 @@ import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
+import * as positionUtils from './position-utils';
 import { getRange, SymbolInfo } from './symbol-extractors';
 import { SymbolIndex } from './symbol-index';
 
@@ -25,12 +26,13 @@ export class ReferencesFeature {
 	 */
 	register(connection: lsp.Connection): void {
 		connection.onReferences((params) => this.onReferences(params));
+		console.log('ReferencesFeature registered');
 	}
 
 	/**
 	 * Handles references requests from the client
 	 */
-	private async onReferences(
+	public async onReferences(
 		params: lsp.ReferenceParams,
 	): Promise<lsp.Location[] | null> {
 		logger.debug(`References requested at position: ${JSON.stringify(params.position)}`);
@@ -41,83 +43,97 @@ export class ReferencesFeature {
 			return null;
 		}
 
+		let references: lsp.Location[] = [];
+
 		// Try to find an account at the position
-		const accountAtPosition = await this.getAccountAtPosition(document, params.position);
+		const accountAtPosition = await positionUtils.getAccountAtPosition(this.trees, document, params.position);
 		if (accountAtPosition) {
 			logger.debug(`Found account at position: ${accountAtPosition}`);
 			// Find all references to this account (both usage and definition)
-			const references = await this.findAccountReferences(accountAtPosition);
-			if (references.length > 0) {
-				return references;
-			}
+			references = await this.findAccountReferences(accountAtPosition);
 		}
 
 		// Try to find a commodity at the position
-		const commodityAtPosition = await this.getCommodityAtPosition(document, params.position);
-		if (commodityAtPosition) {
+		const commodityAtPosition = await positionUtils.getCommodityAtPosition(this.trees, document, params.position);
+		if (commodityAtPosition && references.length === 0) {
 			logger.debug(`Found commodity at position: ${commodityAtPosition}`);
 			// Find all references to this commodity
-			const references = await this.findCommodityReferences(commodityAtPosition);
-			if (references.length > 0) {
-				return references;
-			}
+			references = await this.findCommodityReferences(commodityAtPosition);
 		}
 
 		// Try to find a tag at the position
-		const tagAtPosition = await this.getTagAtPosition(document, params.position);
-		if (tagAtPosition) {
+		const tagAtPosition = await positionUtils.getTagAtPosition(this.trees, document, params.position);
+		if (tagAtPosition && references.length === 0) {
 			logger.debug(`Found tag at position: ${tagAtPosition}`);
 			// Find all references to this tag
-			const references = await this.findTagReferences(tagAtPosition);
-			if (references.length > 0) {
-				return references;
-			}
+			references = await this.findTagReferences(tagAtPosition);
 		}
 
 		// Try to find a payee at the position
-		const payeeAtPosition = await this.getPayeeAtPosition(document, params.position);
-		if (payeeAtPosition) {
+		const payeeAtPosition = await positionUtils.getPayeeAtPosition(this.trees, document, params.position);
+		if (payeeAtPosition && references.length === 0) {
 			logger.debug(`Found payee at position: ${payeeAtPosition}`);
 			// Find all references to this payee
-			const references = await this.findPayeeReferences(payeeAtPosition);
-			if (references.length > 0) {
-				return references;
+			references = await this.findPayeeReferences(payeeAtPosition);
+		}
+
+		// Try to find a narration at the position
+		const narrationAtPosition = await positionUtils.getNarrationAtPosition(this.trees, document, params.position);
+		if (narrationAtPosition && references.length === 0) {
+			logger.debug(`Found narration at position: ${narrationAtPosition}`);
+			// We don't have references function for narrations yet,
+			// but could be added in the future
+		}
+
+		logger.debug(`Found ${references.length} references at the current position`);
+		return references;
+	}
+
+	/**
+	 * 移除重复的引用位置
+	 * 通过URI和范围（起始行列和结束行列）进行去重
+	 */
+	private removeDuplicateReferences(references: lsp.Location[]): lsp.Location[] {
+		// TODO: 移除重复的引用位置
+		return references;
+		// 使用一个Set来跟踪已经添加的引用的唯一标识符
+		const uniqueRefSet = new Set<string>();
+		const uniqueReferences: lsp.Location[] = [];
+
+		for (const ref of references) {
+			// 创建引用的唯一标识符：URI + 起始位置 + 结束位置
+			const refKey =
+				`${ref.uri}|${ref.range.start.line},${ref.range.start.character}|${ref.range.end.line},${ref.range.end.character}`;
+
+			// 只有当这个标识符之前没见过时才添加
+			if (!uniqueRefSet.has(refKey)) {
+				uniqueRefSet.add(refKey);
+				uniqueReferences.push(ref);
 			}
 		}
 
-		logger.debug('No references found at the current position');
-		return [];
+		return uniqueReferences;
 	}
 
 	/**
 	 * Find all references to a specific account
 	 */
 	private async findAccountReferences(accountName: string): Promise<lsp.Location[]> {
-		const db = this.symbolIndex['_symbolInfoStorage'];
 		const references: lsp.Location[] = [];
 
 		// Find all account usages
-		const accountUsages = await db.findAsync({
+		const accountUsages = await this.symbolIndex.findAsync({
 			_symType: 'account_usage',
 			name: accountName,
 		}) as SymbolInfo[];
 
-		// Add account definitions
-		const accountDefinitions = await db.findAsync({
-			_symType: 'account_definition',
-			name: accountName,
-		}) as SymbolInfo[];
-
-		// Combine both types of references
-		const allReferences = [...accountUsages, ...accountDefinitions];
-
 		// Convert to LSP Locations
-		for (const ref of allReferences) {
+		accountUsages.forEach(ref => {
 			references.push({
 				uri: ref._uri,
 				range: getRange(ref),
 			});
-		}
+		});
 
 		logger.debug(`Found ${references.length} references to account: ${accountName}`);
 		return references;
@@ -127,31 +143,21 @@ export class ReferencesFeature {
 	 * Find all references to a specific commodity
 	 */
 	private async findCommodityReferences(commodityName: string): Promise<lsp.Location[]> {
-		const db = this.symbolIndex['_symbolInfoStorage'];
 		const references: lsp.Location[] = [];
 
 		// Find all commodity usages
-		const commodityUsages = await db.findAsync({
+		const commodityUsages = await this.symbolIndex.findAsync({
 			_symType: 'commodity',
 			name: commodityName,
 		}) as SymbolInfo[];
 
-		// Add commodity definitions
-		const commodityDefinitions = await db.findAsync({
-			_symType: 'currency_definition',
-			name: commodityName,
-		}) as SymbolInfo[];
-
-		// Combine both types of references
-		const allReferences = [...commodityUsages, ...commodityDefinitions];
-
 		// Convert to LSP Locations
-		for (const ref of allReferences) {
+		commodityUsages.forEach(ref => {
 			references.push({
 				uri: ref._uri,
 				range: getRange(ref),
 			});
-		}
+		});
 
 		logger.debug(`Found ${references.length} references to commodity: ${commodityName}`);
 		return references;
@@ -161,22 +167,21 @@ export class ReferencesFeature {
 	 * Find all references to a specific tag
 	 */
 	private async findTagReferences(tagName: string): Promise<lsp.Location[]> {
-		const db = this.symbolIndex['_symbolInfoStorage'];
 		const references: lsp.Location[] = [];
 
 		// Find all tag usages
-		const tagReferences = await db.findAsync({
+		const tagReferences = await this.symbolIndex.findAsync({
 			_symType: 'tag',
 			name: tagName,
 		}) as SymbolInfo[];
 
 		// Convert to LSP Locations
-		for (const ref of tagReferences) {
+		tagReferences.forEach(ref => {
 			references.push({
 				uri: ref._uri,
 				range: getRange(ref),
 			});
-		}
+		});
 
 		logger.debug(`Found ${references.length} references to tag: ${tagName}`);
 		return references;
@@ -186,170 +191,23 @@ export class ReferencesFeature {
 	 * Find all references to a specific payee
 	 */
 	private async findPayeeReferences(payeeName: string): Promise<lsp.Location[]> {
-		const db = this.symbolIndex['_symbolInfoStorage'];
 		const references: lsp.Location[] = [];
 
 		// Find all payee usages
-		const payeeReferences = await db.findAsync({
+		const payeeReferences = await this.symbolIndex.findAsync({
 			_symType: 'payee',
 			name: payeeName,
 		}) as SymbolInfo[];
 
 		// Convert to LSP Locations
-		for (const ref of payeeReferences) {
+		payeeReferences.forEach(ref => {
 			references.push({
 				uri: ref._uri,
 				range: getRange(ref),
 			});
-		}
+		});
 
 		logger.debug(`Found ${references.length} references to payee: ${payeeName}`);
 		return references;
-	}
-
-	/**
-	 * Extracts the account name at the given position
-	 */
-	private async getAccountAtPosition(
-		document: TextDocument,
-		position: lsp.Position,
-	): Promise<string | null> {
-		const tree = await this.trees.getParseTree(document);
-		if (!tree) {
-			logger.warn(`Failed to get parse tree for document: ${document.uri}`);
-			return null;
-		}
-
-		// Get the node at the current position
-		const offset = document.offsetAt(position);
-		const node = tree.rootNode.descendantForIndex(offset);
-
-		if (!node) {
-			return null;
-		}
-
-		// Check if we're in an account node
-		if (node.type === 'account' || node.text.match(/^[A-Z][A-Za-z0-9:]+(:[A-Z][A-Za-z0-9:]+)*$/)) {
-			return node.text;
-		}
-
-		// For parent nodes that might contain an account
-		if (node.parent && node.parent.type === 'account') {
-			return node.parent.text;
-		}
-
-		return null;
-	}
-
-	/**
-	 * Extracts the commodity name at the given position
-	 */
-	private async getCommodityAtPosition(
-		document: TextDocument,
-		position: lsp.Position,
-	): Promise<string | null> {
-		const tree = await this.trees.getParseTree(document);
-		if (!tree) {
-			logger.warn(`Failed to get parse tree for document: ${document.uri}`);
-			return null;
-		}
-
-		// Get the node at the current position
-		const offset = document.offsetAt(position);
-		const node = tree.rootNode.descendantForIndex(offset);
-
-		if (!node) {
-			return null;
-		}
-
-		// Check if we're in a currency node
-		if (node.type === 'currency') {
-			return node.text;
-		}
-
-		// For parent nodes that might contain a currency
-		if (node.parent && node.parent.type === 'currency') {
-			return node.parent.text;
-		}
-
-		// Check for text that looks like a currency (typically uppercase 2-5 letter codes)
-		if (node.text.match(/^[A-Z]{2,5}$/)) {
-			return node.text;
-		}
-
-		return null;
-	}
-
-	/**
-	 * Extracts the tag name at the given position
-	 */
-	private async getTagAtPosition(
-		document: TextDocument,
-		position: lsp.Position,
-	): Promise<string | null> {
-		const tree = await this.trees.getParseTree(document);
-		if (!tree) {
-			logger.warn(`Failed to get parse tree for document: ${document.uri}`);
-			return null;
-		}
-
-		// Get the node at the current position
-		const offset = document.offsetAt(position);
-		const node = tree.rootNode.descendantForIndex(offset);
-
-		if (!node) {
-			return null;
-		}
-
-		// Check if we're in a tag node
-		if (node.type === 'tag') {
-			return node.text.substring(1); // Remove the # prefix
-		}
-
-		// For parent nodes that might contain a tag
-		if (node.parent && node.parent.type === 'tag') {
-			return node.parent.text.substring(1); // Remove the # prefix
-		}
-
-		// Check for text that looks like a tag (starts with #)
-		if (node.text.startsWith('#')) {
-			return node.text.substring(1);
-		}
-
-		return null;
-	}
-
-	/**
-	 * Extracts the payee name at the given position
-	 */
-	private async getPayeeAtPosition(
-		document: TextDocument,
-		position: lsp.Position,
-	): Promise<string | null> {
-		const tree = await this.trees.getParseTree(document);
-		if (!tree) {
-			logger.warn(`Failed to get parse tree for document: ${document.uri}`);
-			return null;
-		}
-
-		// Get the node at the current position
-		const offset = document.offsetAt(position);
-		const node = tree.rootNode.descendantForIndex(offset);
-
-		if (!node) {
-			return null;
-		}
-
-		// Check if we're in a payee node
-		if (node.type === 'payee') {
-			return node.text.replace(/^"|"$/g, ''); // Remove quotes
-		}
-
-		// For parent nodes that might contain a payee
-		if (node.parent && node.parent.type === 'payee') {
-			return node.parent.text.replace(/^"|"$/g, ''); // Remove quotes
-		}
-
-		return null;
 	}
 }
