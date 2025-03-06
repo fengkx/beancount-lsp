@@ -89,7 +89,7 @@ export function activate(context: vscode.ExtensionContext): void {
  */
 function createWorkerLanguageClient(context: vscode.ExtensionContext, clientOptions: any) {
 	// Get path to the server's worker script
-	const workerPath = vscode.Uri.joinPath(context.extensionUri, 'server', 'browser', 'server.js');
+	const workerPath = vscode.Uri.joinPath(context.extensionUri, 'server', 'browser.js');
 	clientLogger.info(`Worker path: ${workerPath.toString()}`);
 
 	// Create a web worker

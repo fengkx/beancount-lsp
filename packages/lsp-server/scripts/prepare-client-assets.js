@@ -65,18 +65,14 @@ function prepareNodeServerAsset() {
 function prepareBrowserServerAsset() {
 	try {
 		const serverJsPath = path.join(__dirname, '../dist/browser/server.js');
-		const browserDirPath = path.join(__dirname, '../../lsp-client/server/browser');
-		const clientServerPath = path.join(browserDirPath, 'server.js');
+		const clientServerPath = path.join(__dirname, '../../lsp-client/server/browser.js');
 
 		// Check if the server.js file exists
 		if (!fs.existsSync(serverJsPath)) {
 			throw new Error(`browser server.js not found at ${serverJsPath}`);
 		}
 
-		// Create the browser directory if it doesn't exist
-		fs.mkdirSync(browserDirPath, { recursive: true });
-
-		// Copy the server.js file to the lsp-client/server/browser/server.js
+		// Copy the server.js file to the lsp-client/server/browser.js
 		fs.copyFileSync(serverJsPath, clientServerPath);
 		console.log(`✅ Browser server asset prepared: ${clientServerPath}`);
 		return true;
