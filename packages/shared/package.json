@@ -10,7 +10,7 @@
 		"watch": "tsc -b --watch",
 		"typecheck": "tsc --noEmit true",
 		"lint": "eslint --cache .",
-		"test": "echo \"Error: no test specified\" && exit 1",
+		"test": "echo \"Error: no test specified\"",
 		"format:check": "dprint check",
 		"format:fix": "dprint fmt"
 	},

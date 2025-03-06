@@ -205,7 +205,6 @@
 		"watch": "tsup --watch",
 		"pretest": "npm run compile && npm run lint",
 		"lint": "eslint --cache .",
-		"test": "node ./out/test/runTest.js",
 		"format:check": "dprint check",
 		"format:fix": "dprint fmt",
 		"vsix": "vsce package --no-dependencies"

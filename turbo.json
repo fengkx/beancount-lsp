@@ -1,37 +1,43 @@
 {
-  "$schema": "https://turbo.build/schema.json",
-  "pipeline": {
-    "build": {
-      "outputs": ["out/**", "dist/**"],
-      "dependsOn": ["^build"]
-    },
-    "watch": {
-      "outputs": ["out/**", "dist/**"],
-      "dependsOn": ["tree-sitter-beancount#build"],
-      "cache": false,
-      "persistent": true
-    },
-    "check": {
-      "outputs": [],
-      "dependsOn": ["typecheck", "lint", "format:check"]
-    },
-    "format": {
-      "outputs": [],
-      "dependsOn": ["format:fix"]
-    },
-    "typecheck": {},
-    "lint": {},
-    "format:check": {},
-    "format:fix": {},
-    "tree-sitter-beancount#build": {
-      "outputs": [
-        "bindings/**",
-        "src/**",
-        "tree-sitter-beancount.wasm",
-        "Cargo*",
-        "binding.gyp"
-      ]
-    }
-  },
-  "globalDependencies": [".env"]
+	"$schema": "https://turbo.build/schema.json",
+	"pipeline": {
+		"build": {
+			"outputs": ["out/**", "dist/**"],
+			"dependsOn": ["^build"]
+		},
+		"test": {
+			"dependsOn": ["^build"],
+			"outputs": ["coverage/**"],
+			"cache": false,
+			"persistent": true
+		},
+		"watch": {
+			"outputs": ["out/**", "dist/**"],
+			"dependsOn": ["tree-sitter-beancount#build"],
+			"cache": false,
+			"persistent": true
+		},
+		"check": {
+			"outputs": [],
+			"dependsOn": ["typecheck", "lint", "format:check"]
+		},
+		"format": {
+			"outputs": [],
+			"dependsOn": ["format:fix"]
+		},
+		"typecheck": {},
+		"lint": {},
+		"format:check": {},
+		"format:fix": {},
+		"tree-sitter-beancount#build": {
+			"outputs": [
+				"bindings/**",
+				"src/**",
+				"tree-sitter-beancount.wasm",
+				"Cargo*",
+				"binding.gyp"
+			]
+		}
+	},
+	"globalDependencies": [".env"]
 }

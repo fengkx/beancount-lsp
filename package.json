@@ -9,6 +9,7 @@
 		"dev": "turbo run watch",
 		"check": "turbo run check",
 		"format": "turbo run format",
+		"test": "turbo run test",
 		"prepare": "simple-git-hooks"
 	},
 	"simple-git-hooks": {
