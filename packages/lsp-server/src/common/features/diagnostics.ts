@@ -132,7 +132,19 @@ export class DiagnosticsFeature implements Feature {
 					let message = `Transaction doesn't balance: `;
 
 					if (balanceResult.difference && balanceResult.currency) {
-						const diffStr = balanceResult.difference.toString();
+						const diffStr = balanceResult.difference.toFixed(
+							Math.min(
+								4,
+								Math.max(
+									2,
+									balanceResult
+										.difference
+										.toString()
+										.split('.')[1]?.length || 2,
+								),
+							),
+							Big.roundHalfUp,
+						);
 
 						message += `${diffStr} ${balanceResult.currency}`;
 					}

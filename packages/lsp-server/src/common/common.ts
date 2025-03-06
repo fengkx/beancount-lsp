@@ -55,7 +55,9 @@ export const symbolMapping: SymbolMapping = new class {
 
 // --- geometry
 
-export function asLspRange(node: Parser.SyntaxNode): lsp.Range {
+export function asLspRange(
+	node: Partial<Parser.SyntaxNode> & Required<Pick<Parser.SyntaxNode, 'startPosition' | 'endPosition'>>,
+): lsp.Range {
 	return lsp.Range.create(
 		node.startPosition.row,
 		node.startPosition.column,

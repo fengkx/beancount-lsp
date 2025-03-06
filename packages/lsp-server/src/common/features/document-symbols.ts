@@ -195,12 +195,41 @@ export class DocumentSymbolsFeature {
 
 			// Check for currencies in the open directive
 			const currencies: Parser.SyntaxNode[] = [];
+			let firstCurrency: Parser.SyntaxNode | null = null;
+			let lastCurrency: Parser.SyntaxNode | null = null;
+
 			for (let i = 0; i < openDirective.namedChildCount; i++) {
 				const child = openDirective.namedChild(i);
 				if (child && child.type === 'currency') {
 					currencies.push(child);
+					if (!firstCurrency) firstCurrency = child;
+					lastCurrency = child;
 				}
 			}
+
+			// Create a currencies list symbol
+			const currenciesSymbol = {
+				name: 'Currencies',
+				kind: lsp.SymbolKind.Array,
+				range: firstCurrency && lastCurrency
+					? asLspRange({
+						startPosition: firstCurrency.startPosition,
+						endPosition: lastCurrency.endPosition,
+					})
+					: asLspRange(openDirective),
+				selectionRange: firstCurrency && lastCurrency
+					? asLspRange({
+						startPosition: firstCurrency.startPosition,
+						endPosition: lastCurrency.endPosition,
+					})
+					: asLspRange(openDirective),
+				children: currencies.map(currency => ({
+					name: currency.text,
+					kind: lsp.SymbolKind.Enum,
+					range: asLspRange(currency),
+					selectionRange: asLspRange(currency),
+				})),
+			};
 
 			const symbol: lsp.DocumentSymbol = {
 				name,
@@ -220,12 +249,7 @@ export class DocumentSymbolsFeature {
 						range: asLspRange(capture.node),
 						selectionRange: asLspRange(capture.node),
 					},
-					...currencies.map(currency => ({
-						name: currency.text,
-						kind: lsp.SymbolKind.Enum,
-						range: asLspRange(currency),
-						selectionRange: asLspRange(currency),
-					})),
+					currencies.length > 0 ? currenciesSymbol : null,
 				].filter(Boolean) as lsp.DocumentSymbol[],
 			};
 			symbols.push(symbol);
