@@ -84,7 +84,7 @@ export class SymbolIndex {
 	removeFile(uri: string): void {
 		this._syncQueue.dequeue(uri);
 		this._asyncQueue.dequeue(uri);
-		// this.index.delete(uri);
+		this._symbolInfoStorage.remove({ _uri: uri }, { multi: true });
 	}
 
 	async consume(): Promise<void> {
@@ -111,7 +111,6 @@ export class SymbolIndex {
 		const all = await this._symbolInfoStorage.findAsync({});
 		const urisInStore = new Set(all.map((info: { _uri: string }) => info._uri));
 
-		const urisNotSeen = difference(urisInStore, uris);
 		const newUris = difference(uris, urisInStore);
 		const urisNeedAsyncUpdate = intersection(uris, urisInStore);
 
@@ -123,13 +122,11 @@ export class SymbolIndex {
 			this.addFile(uri);
 		}
 
-		this._symbolInfoStorage.remove({ _uri: { $in: Array.from(urisNotSeen) } }, { multi: true });
-
 		const totalSymbolsInStorage = await this._symbolInfoStorage.countAsync({});
 		this.logger.info(`Total symbols in storage: ${totalSymbolsInStorage}`);
 
 		this.logger.debug(
-			`[index] added FROM CACHE ${all.length} files ${sw.elapsed()}ms, all need revalidation, ${uris.size} files are NEW, ${urisNotSeen.size} where OBSOLETE`,
+			`[index] added FROM CACHE ${all.length} files ${sw.elapsed()}ms, all need revalidation, ${uris.size} files are NEW`,
 		);
 	}
 
@@ -245,7 +242,7 @@ export class SymbolIndex {
 			const beanFiles = this._documents.beanFiles;
 			this.logger.debug(`[index] Found ${beanFiles.length} bean files`);
 			includePatterns.forEach((pattern: string) => {
-				const list = beanFiles; // .map(s => URI.parse(s).path);
+				const list = beanFiles;
 				const matched = mm.match(list, pattern, { contains: true });
 				matched.map((p: string) => p).forEach((uri: string) => {
 					hasNew = true;
