@@ -10,6 +10,7 @@ import {
 import { DocumentStore } from './document-store';
 import { CompletionFeature } from './features/completions';
 import { DefinitionFeature } from './features/definitions';
+import { DiagnosticsFeature } from './features/diagnostics';
 import { DocumentSymbolsFeature } from './features/document-symbols';
 import { FoldingRangeFeature } from './features/folding-ranges';
 import { ReferencesFeature } from './features/references';
@@ -113,6 +114,7 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		features.push(new FoldingRangeFeature(documents, trees));
 		features.push(new RenameFeature(documents, trees, symbolIndex));
 		features.push(new DocumentSymbolsFeature(documents, trees));
+		features.push(new DiagnosticsFeature(documents, trees));
 
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
 		documents.onDidOpen(event => symbolIndex.addFile(event.document.uri));

@@ -13,6 +13,7 @@ const nodeConfig = defineConfig({
 	},
 	external: ['vscode'],
 	noExternal: [
+		'big.js',
 		'@bean-lsp/shared',
 		'@seald-io/nedb',
 		'date-fns',
@@ -43,6 +44,7 @@ const browserConfig = defineConfig({
 	},
 	external: ['vscode'],
 	noExternal: [
+		'big.js',
 		'@bean-lsp/shared',
 		'@seald-io/nedb',
 		'date-fns',

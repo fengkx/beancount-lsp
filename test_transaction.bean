@@ -1,0 +1,63 @@
+; Test Beancount file for diagnostics
+
+2023-01-01 open Assets:Checking   USD
+2023-01-01 open Assets:Savings    USD
+2023-01-01 open Expenses:Food     USD
+2023-01-01 open Expenses:Utilities USD
+2023-01-01 open Income:Salary     USD
+
+; Balanced transaction - should have no diagnostic
+2023-01-15 * "Grocery store" "Weekly groceries"
+  Assets:Checking   -75.50 USD
+  Expenses:Food      75.50 USD
+
+; Unbalanced transaction - should have diagnostic
+2023-01-20 * "Electric Company" "Monthly bill"
+  Assets:Checking   -120.00 USD
+  Expenses:Utilities  119.95 USD
+
+; Transaction with one incomplete amount - should have no diagnostic
+2023-01-25 * "Transfer to savings"
+  Assets:Checking   -500.00 USD
+  Assets:Savings
+
+; Transaction with price annotation - should have have diagnostic
+2023-01-30 * "International purchase"
+  Assets:Checking   -100.00 USD
+  Expenses:Food      85.00 EUR @ 1.176 USD ; Actual value is 99.96 USD, so it's off by 0.04 USD
+
+; Transaction with cost - balanced
+2023-02-01 * "Buy investment"
+  Assets:Checking   -1000.00 USD
+  Assets:Savings     10 STOCK {100.00 USD}
+
+; Transaction with price annotation - unbalanced
+2023-02-05 * "International purchase with error"
+  Assets:Checking   -100.00 USD
+  Expenses:Food      85.00 EUR @ 1.15 USD  ; Actual value is 97.75 USD, so it's off by 2.25 USD
+
+; Transaction with cost - unbalanced
+2023-02-10 * "Buy investment with error"
+  Assets:Checking   -1000.00 USD
+  Assets:Savings     9 STOCK {110.00 USD}  ; Actual value is 990.00 USD, so it's off by 10.00 USD 
+
+; Transaction with @@ (total price) annotation - balanced
+2023-02-15 * "International purchase with total price"
+  Assets:Checking   -100.00 USD
+  Expenses:Food      85.00 EUR @@ 100.00 USD
+
+; Transaction with @@ - unbalanced
+2023-02-16 * "International purchase with total price - error"
+  Assets:Checking   -100.00 USD 
+  Expenses:Food      85.00 EUR @@ 98.50 USD  ; Off by 1.50 USD
+
+; Transaction with @@ and incomplete amount - should have no diagnostic
+2023-02-17 * "International purchase with total price - incomplete"
+  Assets:Checking
+  Expenses:Food      85.00 EUR @@ 100.00 USD
+
+; Transaction mixing @ and @@ - balanced
+2023-02-18 * "Mixed price annotations"
+  Assets:Checking    -200.00 USD
+  Expenses:Food       85.00 EUR @ 1.176 USD  ; = 99.96 USD
+  Expenses:Food       85.00 EUR @@ 100.04 USD ; Exactly balances to 200 USD total

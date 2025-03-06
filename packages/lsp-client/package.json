@@ -186,6 +186,12 @@
 					"type": "string",
 					"default": "main.bean",
 					"description": "Specifies the main Beancount file to use for analysis. This should be relative to the workspace root."
+				},
+				"beancount.diagnostics.tolerance": {
+					"scope": "resource",
+					"type": "number",
+					"default": 0.005,
+					"description": "Tolerance value for transaction balancing. Set to 0 for exact matching."
 				}
 			}
 		}
