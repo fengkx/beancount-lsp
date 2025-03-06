@@ -13,6 +13,7 @@ import { DefinitionFeature } from './features/definitions';
 import { DocumentSymbolsFeature } from './features/document-symbols';
 import { FoldingRangeFeature } from './features/folding-ranges';
 import { ReferencesFeature } from './features/references';
+import { RenameFeature } from './features/rename';
 import { SelectionRangesFeature } from './features/selection-ranges';
 import { SemanticTokenFeature } from './features/semantic-token';
 import { Feature } from './features/types';
@@ -73,6 +74,10 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 				definitionProvider: true,
 				// Add references provider capability
 				referencesProvider: true,
+				// Add rename provider capability
+				renameProvider: {
+					prepareProvider: true,
+				},
 				// Add document symbol provider capability
 				documentSymbolProvider: true,
 			},
@@ -101,13 +106,12 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		symbolIndex = new SymbolIndex(documents, trees, symbolStorage);
 
 		features.push(new SemanticTokenFeature(documents, trees));
-		features.push(new FoldingRangeFeature(documents, trees));
 		features.push(new CompletionFeature(documents, trees, symbolIndex));
 		features.push(new SelectionRangesFeature(documents, trees));
 		features.push(new DefinitionFeature(documents, trees, symbolIndex));
-		// Add references feature
 		features.push(new ReferencesFeature(documents, trees, symbolIndex));
-		// Add document symbols feature
+		features.push(new FoldingRangeFeature(documents, trees));
+		features.push(new RenameFeature(documents, trees, symbolIndex));
 		features.push(new DocumentSymbolsFeature(documents, trees));
 
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));

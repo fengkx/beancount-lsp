@@ -55,6 +55,7 @@ class Queue {
 
 export class SymbolIndex {
 	private logger = new Logger('index');
+	public findAsync: (query: any) => Promise<SymbolInfo[]>;
 
 	constructor(
 		private readonly _documents: DocumentStore,
@@ -64,6 +65,7 @@ export class SymbolIndex {
 		// Initialize SWR caches
 		this._payeesCache = new SwrCache(() => this._fetchPayees(), 'index.payees');
 		this._narrationsCache = new SwrCache(() => this._fetchNarrations(), 'index.narrations');
+		this.findAsync = this._symbolInfoStorage.findAsync.bind(this._symbolInfoStorage);
 	}
 
 	private readonly _syncQueue = new Queue();
@@ -122,6 +124,10 @@ export class SymbolIndex {
 		}
 
 		this._symbolInfoStorage.remove({ _uri: { $in: Array.from(urisNotSeen) } }, { multi: true });
+
+		const totalSymbolsInStorage = await this._symbolInfoStorage.countAsync({});
+		this.logger.info(`Total symbols in storage: ${totalSymbolsInStorage}`);
+
 		this.logger.debug(
 			`[index] added FROM CACHE ${all.length} files ${sw.elapsed()}ms, all need revalidation, ${uris.size} files are NEW, ${urisNotSeen.size} where OBSOLETE`,
 		);
@@ -140,7 +146,7 @@ export class SymbolIndex {
 			}
 			const t1 = performance.now();
 			await this._doUpdate(uris, true);
-			setTimeout(() => asyncUpdate(), (performance.now() - t1) * 4);
+			setTimeout(() => asyncUpdate(), Math.max(50, (performance.now() - t1) * 4));
 		};
 		asyncUpdate();
 	}
@@ -176,7 +182,7 @@ export class SymbolIndex {
 			const durationRetrieve = performance.now() - _t1Retrieve;
 
 			// remove current data
-			await this._symbolInfoStorage.removeAsync({ _uri: uri }, { multi: true });
+			this._symbolInfoStorage.remove({ _uri: uri }, { multi: true });
 
 			// update index
 			const _t1Index = performance.now();
@@ -204,7 +210,7 @@ export class SymbolIndex {
 			],
 		);
 
-		this.logger.debug(`[index] Found symbols in ${document.uri}:
+		this.logger.debug(`We Found symbols in ${document.uri}:
 			- Account usages: ${accountUsages.length}
 			- Account definitions: ${accountDefinitions.length}
 			- Payees: ${payees.length}
@@ -213,7 +219,7 @@ export class SymbolIndex {
 			- Tags: ${tags.length}
 		`);
 
-		await this._symbolInfoStorage.removeAsync({ _uri: document.uri }, { multi: true });
+		this._symbolInfoStorage.remove({ _uri: document.uri }, { multi: true });
 		await Promise.all([
 			this._symbolInfoStorage.insertAsync(accountUsages),
 			this._symbolInfoStorage.insertAsync(accountDefinitions),
@@ -222,6 +228,9 @@ export class SymbolIndex {
 			this._symbolInfoStorage.insertAsync(commodities),
 			this._symbolInfoStorage.insertAsync(tags),
 		]);
+
+		const totalSymbolsInStorage = await this._symbolInfoStorage.countAsync({});
+		this.logger.info(`Total symbols in storage: ${totalSymbolsInStorage}`);
 
 		const tree = await this._trees.getParseTree(document);
 		if (tree) {
