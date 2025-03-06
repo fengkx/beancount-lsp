@@ -10,6 +10,7 @@ import {
 import { DocumentStore } from './document-store';
 import { CompletionFeature } from './features/completions';
 import { DefinitionFeature } from './features/definitions';
+import { DocumentSymbolsFeature } from './features/document-symbols';
 import { FoldingRangeFeature } from './features/folding-ranges';
 import { SelectionRangesFeature } from './features/selection-ranges';
 import { SemanticTokenFeature } from './features/semantic-token';
@@ -69,6 +70,8 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 				selectionRangeProvider: true,
 				// Add definition provider capability
 				definitionProvider: true,
+				// Add document symbol provider capability
+				documentSymbolProvider: true,
 			},
 		};
 		if (params.capabilities.workspace?.configuration) {
@@ -98,8 +101,9 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		features.push(new FoldingRangeFeature(documents, trees));
 		features.push(new CompletionFeature(documents, trees, symbolIndex));
 		features.push(new SelectionRangesFeature(documents, trees));
-		// Add the new DefinitionFeature
 		features.push(new DefinitionFeature(documents, trees, symbolIndex));
+		// Add document symbols feature
+		features.push(new DocumentSymbolsFeature(documents, trees, symbolIndex));
 
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
 		documents.onDidOpen(event => symbolIndex.addFile(event.document.uri));

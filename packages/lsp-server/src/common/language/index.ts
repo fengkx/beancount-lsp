@@ -14,6 +14,7 @@ import number from './queries/number.scm';
 import payee from './queries/payee.scm';
 import string from './queries/string.scm';
 import tag from './queries/tag.scm';
+import transaction from './queries/transaction.scm';
 import txn from './queries/txn.scm';
 
 import folding from './queries/folding.scm';
@@ -41,6 +42,7 @@ const queryMap = {
 	account_definition,
 	account_usage,
 	currency_definition,
+	transaction,
 } as const;
 
 type BeanTokenName = keyof typeof queryMap;
