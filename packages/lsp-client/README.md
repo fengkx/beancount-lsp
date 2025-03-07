@@ -9,6 +9,7 @@ A powerful VSCode extension for Beancount plain text accounting, providing rich 
 - **Syntax Highlighting**: Powered by tree-sitter for accurate and fast syntax highlighting ([semanticTokens](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens))
 - **Code Completion**: Intelligent code completion for accounts, currencies, payees, narrations, tags, and dates ([completion](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_completion))
 - **Error Detection**: Real-time error detection for transaction balancing issues (with configurable tolerance) ([diagnostics](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_publishDiagnostics))
+- **Hover Information**: Hover on accounts, commodities, and prices to see detailed information and price history ([hover](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_hover))
 
 ### Navigation and Code Intelligence
 
@@ -40,6 +41,9 @@ The extension provides several configuration options to customize its behavior:
   - `verbose`: Shows all log messages (most verbose)
 - `beancount.mainBeanFile`: Specifies the main Beancount file to use for analysis. This should be relative to the workspace root. Default is "main.bean".
 - `beancount.diagnostics.tolerance`: Tolerance value for transaction balancing. Set to 0 for exact matching. Default is 0.005.
+- `beanLsp.inlayHints.enable`: Enable or disable inlay hints showing calculated amounts for auto-balanced transactions. Default is true.
+- `beanLsp.mainCurrency`: Main currency for price conversions. If empty, the most frequently used currency will be automatically determined.
+- `beanLsp.currencys`: List of currencies that should participate in price conversions. Commodities not included in this list (like stocks) will be excluded from conversion calculations. If empty, all commodities will be considered for conversions.
 
 ### Example Configuration
 
@@ -47,6 +51,8 @@ The extension provides several configuration options to customize its behavior:
 {
 	"beancount.mainBeanFile": "main.bean",
 	"beanLsp.trace.server": "debug",
+	"beanLsp.mainCurrency": "USD",
+	"beanLsp.currencys": ["USD", "EUR", "GBP", "JPY"],
 	"editor.semanticTokenColorCustomizations": {
 		"enabled": true,
 		"rules": {
