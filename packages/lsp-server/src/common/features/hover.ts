@@ -317,15 +317,21 @@ export class HoverFeature implements Feature {
 		if (range === 0 || range < 0.0001) {
 			// If all prices are the same, use a mid-level block
 			const mid = Math.floor(blockChars.length / 2);
-			return sampledPrices.map(() => blockChars[mid]).join('');
+			const barChart = sampledPrices.map(() => blockChars[mid]).join('');
+
+			// Get the first and last price from the original array
+			const firstPrice = prices[0]?.toFixed(2) || '?';
+			const lastPrice = prices[prices.length - 1]?.toFixed(2) || '?';
+
+			// Create price labels at bottom (with spacing to align with chart)
+			const priceLabelSpace = barChart.length - firstPrice.length - lastPrice.length;
+			const priceLabel = firstPrice + ' '.repeat(Math.max(0, priceLabelSpace)) + lastPrice;
+
+			return barChart + '\n' + priceLabel;
 		}
 
 		// Create a horizontal bar chart
 		const result: string[] = [];
-
-		// Add top and bottom values with more precise formatting
-		const topValue = max.toFixed(1);
-		const bottomValue = min.toFixed(1);
 
 		// APPROACH 1: PERCENTILE-BASED MAPPING FOR BETTER DISTRIBUTION
 		// First, prepare a data structure for percentile calculation
@@ -389,9 +395,16 @@ export class HoverFeature implements Feature {
 		// Create the bar string from the calculated levels
 		const bars = pricePoints.map(point => blockChars[point.level]).join('');
 
-		result.push(topValue);
+		// Get the first and last price from the original array
+		const firstPrice = prices[0]?.toFixed(2) || '?';
+		const lastPrice = prices[prices.length - 1]?.toFixed(2) || '?';
+
+		// Create price labels at bottom (with spacing to align with chart)
+		const priceLabelSpace = bars.length - firstPrice.length - lastPrice.length;
+		const priceLabel = firstPrice + ' '.repeat(Math.max(0, priceLabelSpace)) + lastPrice;
+
 		result.push(bars);
-		result.push(bottomValue);
+		result.push(priceLabel);
 
 		return result.join('\n');
 	}
