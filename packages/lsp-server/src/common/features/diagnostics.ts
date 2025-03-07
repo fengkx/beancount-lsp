@@ -6,20 +6,21 @@ import Parser from 'web-tree-sitter';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
 import {
+	findAllTransactions,
+	findChildByType,
+	parseAmount,
+	parseCostSpec,
+	parsePriceAnnotation,
+	queryNodes,
+	Transaction,
+} from '../utils/ast-utils';
+import {
 	checkTransactionBalance,
 	hasBothCostAndPrice,
 	hasOnlyOneIncompleteAmount,
 	Posting,
 } from '../utils/balance-checker';
 import { Feature } from './types';
-
-// Interface to represent a transaction
-interface Transaction {
-	node: Parser.SyntaxNode;
-	date: string;
-	headerRange: Range; // Added to store the header range for optimized highlighting
-	postings: Posting[];
-}
 
 // Configuration interface for diagnostics
 interface DiagnosticsConfig {
@@ -72,91 +73,67 @@ export class DiagnosticsFeature implements Feature {
 			this.validateDocument(document, connection);
 		});
 
-		// Validate when document changes
-		this.documents.onDidChangeContent(event => {
-			this.validateDocument(event.document, connection);
-		});
-
-		// Validate when document is opened
-		this.documents.onDidOpen(event => {
-			this.validateDocument(event.document, connection);
+		// Listen for document changes and validate them
+		this.documents.onDidChangeContent(change => {
+			this.validateDocument(change.document, connection);
 		});
 	}
 
 	private async validateDocument(document: TextDocument, connection: Connection): Promise<void> {
 		try {
 			const diagnostics = await this.provideDiagnostics(document);
-			connection.sendDiagnostics({ uri: document.uri, diagnostics });
-		} catch (error) {
-			this.logger.error(`Error validating document: ${error}`);
+			connection.sendDiagnostics({
+				uri: document.uri,
+				diagnostics,
+			});
+		} catch (err) {
+			this.logger.error(`Error validating document: ${err}`);
 		}
 	}
 
 	private async provideDiagnostics(document: TextDocument): Promise<Diagnostic[]> {
-		const diagnostics: Diagnostic[] = [];
-
-		// Get the parse tree for the document
 		const tree = await this.trees.getParseTree(document);
 		if (!tree) {
-			return diagnostics;
+			return [];
 		}
 
+		const diagnostics: Diagnostic[] = [];
+
 		// Find all transactions in the document
-		const transactions = this.findAllTransactions(tree, document);
+		const transactions = findAllTransactions(tree.rootNode, document);
 
 		// Check each transaction for balance - with chunking for performance
-		const CHUNK_SIZE = 100; // Process transactions in chunks to avoid blocking
-
+		const CHUNK_SIZE = 50; // Process transactions in chunks to avoid blocking UI
 		for (let i = 0; i < transactions.length; i += CHUNK_SIZE) {
 			const chunk = transactions.slice(i, i + CHUNK_SIZE);
 
 			for (const transaction of chunk) {
-				// Skip transactions with only one posting with incomplete amount (auto-balanced)
+				// Skip transactions with only one posting having no amount
+				// (Beancount will auto-compute this)
 				if (hasOnlyOneIncompleteAmount(transaction.postings)) {
 					continue;
 				}
 
-				// Skip transactions with both cost and price annotations (not supported by Beancount)
+				// Check for both cost and price on the same posting (which is not allowed)
 				if (hasBothCostAndPrice(transaction.postings)) {
+					diagnostics.push({
+						severity: DiagnosticSeverity.Error,
+						range: transaction.headerRange,
+						message: 'Transaction has a posting with both cost and price',
+						source: 'beancount-lsp',
+					});
 					continue;
 				}
 
-				// Check if transaction is balanced
-				const balanceResult = checkTransactionBalance(transaction.postings, this.config.tolerance);
-				if (!balanceResult.isBalanced) {
-					// Add diagnostic for unbalanced transaction
-					// Use the optimized header range instead of the full transaction range
-					const range = transaction.headerRange;
-
-					// Create a more informative message
-					let message = `Transaction doesn't balance: `;
-
-					if (balanceResult.difference && balanceResult.currency) {
-						const diffStr = balanceResult.difference.toFixed(
-							Math.min(
-								4,
-								Math.max(
-									2,
-									balanceResult
-										.difference
-										.toString()
-										.split('.')[1]?.length || 2,
-								),
-							),
-							Big.roundHalfUp,
-						);
-
-						message += `${diffStr} ${balanceResult.currency}`;
-					}
-
-					if (balanceResult.tolerance) {
-						message += `. Tolerance: ${balanceResult.tolerance.toString()}`;
-					}
-
+				// Check transaction balance
+				const result = checkTransactionBalance(transaction.postings, this.config.tolerance);
+				if (!result.isBalanced) {
+					const amount = result.difference?.toString() || '0';
+					const currency = result.currency || '';
 					diagnostics.push({
 						severity: DiagnosticSeverity.Error,
-						range,
-						message,
+						range: transaction.headerRange,
+						message: `Transaction does not balance: ${amount} ${currency}`,
 						source: 'beancount-lsp',
 					});
 				}
@@ -169,224 +146,5 @@ export class DiagnosticsFeature implements Feature {
 		}
 
 		return diagnostics;
-	}
-
-	/**
-	 * Finds all transactions in the parse tree and extracts their postings
-	 *
-	 * @param tree The parse tree from tree-sitter
-	 * @param document The text document
-	 * @returns Array of transaction objects with their postings
-	 */
-	private findAllTransactions(tree: Parser.Tree, document: TextDocument): Transaction[] {
-		const transactions: Transaction[] = [];
-
-		// Find all transaction nodes in the tree
-		const transactionNodes = this.queryNodes(tree.rootNode, 'transaction');
-
-		for (const node of transactionNodes) {
-			// Extract date
-			const dateNode = node.childForFieldName('date');
-			const date = dateNode ? dateNode.text : '';
-
-			// Determine the header range for optimized highlighting
-			// The header includes date, txn, payee, narration up to the first posting
-			const headerEndRow = node.startPosition.row;
-			const headerRange = Range.create(
-				Position.create(node.startPosition.row, node.startPosition.column),
-				Position.create(
-					headerEndRow,
-					document.positionAt(document.offsetAt(Position.create(headerEndRow + 1, 0)) - 1).character,
-				),
-			);
-
-			// Extract postings
-			const postings: Posting[] = [];
-
-			// Query all posting nodes under this transaction
-			const postingNodes = this.queryNodes(node, 'posting');
-
-			for (const postingNode of postingNodes) {
-				// Extract account
-				const accountNode = postingNode.childForFieldName('account');
-				const account = accountNode ? accountNode.text : '';
-
-				// Parse amount if present
-				let amount: { number: string; currency: string } | undefined;
-				const amountNode = postingNode.childForFieldName('amount');
-				if (amountNode) {
-					amount = this.parseAmount(amountNode);
-				}
-
-				// Parse cost if present
-				let cost: { number: string; currency: string } | undefined;
-				const costSpecNode = postingNode.childForFieldName('cost_spec');
-				if (costSpecNode) {
-					cost = this.parseCostSpec(costSpecNode);
-				}
-
-				// Parse price annotation if present
-				let price: { type: '@' | '@@'; number: string; currency: string } | undefined;
-				const priceNode = postingNode.childForFieldName('price_annotation');
-				if (priceNode) {
-					// Determine if @ or @@ price
-					const atNode = this.findChildByType(postingNode, 'at') || this.findChildByType(postingNode, 'atat');
-					const priceType = atNode && atNode.type === 'atat' ? '@@' : '@';
-					price = this.parsePriceAnnotation(priceNode, priceType);
-				}
-
-				postings.push({
-					node: postingNode,
-					account,
-					amount,
-					cost,
-					price,
-				});
-			}
-
-			transactions.push({
-				node,
-				date,
-				headerRange,
-				postings,
-			});
-		}
-
-		return transactions;
-	}
-
-	private findChildByType(node: Parser.SyntaxNode, type: string): Parser.SyntaxNode | null {
-		for (let i = 0; i < node.childCount; i++) {
-			const child = node.child(i);
-			if (child && child.type === type) {
-				return child;
-			}
-		}
-		return null;
-	}
-
-	private parseAmount(node: Parser.SyntaxNode): { number: string; currency: string } | undefined {
-		if (!node) return undefined;
-
-		// Find number and currency nodes
-		let numberValue = '';
-		let currencyValue = '';
-
-		// First named child should be a number expression
-		const numberNode = node.namedChild(0);
-		if (numberNode) {
-			// For expressions, we want to preserve the entire expression text
-			// This handles cases like "(243 / 3)" or complex expressions
-			numberValue = numberNode.text;
-		}
-
-		// Second child should be currency
-		const currencyNode = node.namedChild(1);
-		if (currencyNode) {
-			currencyValue = currencyNode.text;
-		}
-
-		if (!numberValue || !currencyValue) {
-			return undefined;
-		}
-
-		return {
-			number: numberValue,
-			currency: currencyValue,
-		};
-	}
-
-	private parseCostSpec(node: Parser.SyntaxNode): { number: string; currency: string } | undefined {
-		if (!node) return undefined;
-
-		// Extract cost components
-		const costCompListNode = node.childForFieldName('cost_comp_list');
-		if (!costCompListNode) return undefined;
-
-		// Find a compound_amount node
-		const costCompNodes = this.queryNodes(costCompListNode, 'cost_comp');
-
-		for (const compNode of costCompNodes) {
-			const compoundAmountNode = this.findChildByType(compNode, 'compound_amount');
-			if (compoundAmountNode) {
-				const perNode = compoundAmountNode.childForFieldName('per');
-				const currencyNode = compoundAmountNode.childForFieldName('currency');
-
-				if (perNode && currencyNode) {
-					try {
-						const number = perNode.text;
-						const currency = currencyNode.text;
-						return { number, currency };
-					} catch (e) {
-						this.logger.error(`Error parsing cost: ${e}`);
-					}
-				}
-			}
-		}
-
-		return undefined;
-	}
-
-	private parsePriceAnnotation(
-		node: Parser.SyntaxNode,
-		priceType: '@' | '@@',
-	): { type: '@' | '@@'; number: string; currency: string } | undefined {
-		if (!node) return undefined;
-
-		try {
-			// The price_annotation node contains an incomplete_amount node
-			const incompleteAmountNode = node.child(0);
-
-			if (incompleteAmountNode && incompleteAmountNode.type === 'incomplete_amount') {
-				// Get number and currency from the incomplete_amount node
-				const numberNode = incompleteAmountNode.child(0);
-				const currencyNode = incompleteAmountNode.child(1);
-
-				if (numberNode && currencyNode) {
-					const number = numberNode.text;
-					const currency = currencyNode.text;
-
-					if (number && currency) {
-						return { type: priceType, number, currency };
-					}
-				}
-			} else {
-				// Fallback: try to parse directly from the text
-				// Format is typically "NUMBER CURRENCY"
-				const text = node.text.trim();
-				const match = text.match(/^([\d.-]+)\s+([A-Z0-9]+)$/);
-
-				if (match && match[1] && match[2]) {
-					const number = match[1];
-					const currency = match[2];
-					return { type: priceType, number, currency };
-				}
-			}
-		} catch (e) {
-			this.logger.error(`Error parsing price annotation: ${e}`);
-		}
-
-		return undefined;
-	}
-
-	private queryNodes(node: Parser.SyntaxNode, type: string): Parser.SyntaxNode[] {
-		const nodes: Parser.SyntaxNode[] = [];
-
-		// Use a recursive function to find all nodes of the given type
-		const findNodes = (current: Parser.SyntaxNode) => {
-			if (current.type === type) {
-				nodes.push(current);
-			}
-
-			for (let i = 0; i < current.childCount; i++) {
-				const child = current.child(i);
-				if (child) {
-					findNodes(child);
-				}
-			}
-		};
-
-		findNodes(node);
-		return nodes;
 	}
 }

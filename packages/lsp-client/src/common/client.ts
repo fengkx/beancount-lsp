@@ -133,3 +133,41 @@ export async function setupQueueInit(ctx: ExtensionContext<'browser' | 'node'>):
 
 	ctx.client.sendRequest(CustomMessages.QueueInit, files.map(f => f.toString()));
 }
+
+/**
+ * Sets up inlay hints configuration
+ */
+export function setupInlayHints(ctx: ExtensionContext<'browser' | 'node'>): void {
+	// Initial configuration
+	updateInlayHintsConfig();
+
+	// Watch for configuration changes
+	vscode.workspace.onDidChangeConfiguration(event => {
+		if (
+			event.affectsConfiguration('beanLsp.inlayHints.enable')
+			|| event.affectsConfiguration('editor.inlayHints.enabled')
+		) {
+			updateInlayHintsConfig();
+		}
+	});
+
+	// Helper function to update inlay hints based on configuration
+	function updateInlayHintsConfig() {
+		const config = vscode.workspace.getConfiguration('beanLsp');
+		const editorConfig = vscode.workspace.getConfiguration('editor');
+
+		const isGloballyEnabled = editorConfig.get<boolean>('inlayHints.enabled', true);
+		const isBeancountEnabled = config.get<boolean>('inlayHints.enable', true);
+
+		// Log current configuration
+		clientLogger.info(
+			`Inlay hints globally enabled: ${isGloballyEnabled}, Beancount specific: ${isBeancountEnabled}`,
+		);
+
+		// If client is already running, refresh inlay hints
+		if (ctx.client.state === State.Running) {
+			// Request a refresh of inlay hints
+			ctx.client.sendNotification('workspace/inlayHint/refresh');
+		}
+	}
+}

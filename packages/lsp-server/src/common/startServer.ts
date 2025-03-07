@@ -21,6 +21,7 @@ import { DiagnosticsFeature } from './features/diagnostics';
 import { DocumentLinksFeature } from './features/document-links';
 import { DocumentSymbolsFeature } from './features/document-symbols';
 import { FoldingRangeFeature } from './features/folding-ranges';
+import { InlayHintFeature } from './features/inlay-hints';
 import { ReferencesFeature } from './features/references';
 import { RenameFeature } from './features/rename';
 import { SelectionRangesFeature } from './features/selection-ranges';
@@ -93,6 +94,10 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 				},
 				// Add document symbol provider capability
 				documentSymbolProvider: true,
+				// Add inlay hint provider capability with more detailed configuration
+				inlayHintProvider: {
+					resolveProvider: false, // We don't need to resolve hints further
+				},
 			},
 		};
 		if (params.capabilities.workspace?.configuration) {
@@ -128,6 +133,7 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		features.push(new DocumentSymbolsFeature(documents, trees));
 		features.push(new DiagnosticsFeature(documents, trees));
 		features.push(new DocumentLinksFeature(documents, trees));
+		features.push(new InlayHintFeature(documents, trees));
 
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
 		documents.onDidOpen(event => symbolIndex.addFile(event.document.uri));

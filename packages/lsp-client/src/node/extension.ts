@@ -6,6 +6,7 @@ import {
 	createClientOptions,
 	setupConfigurationWatchers,
 	setupCustomMessageHandlers,
+	setupInlayHints,
 	setupLogger,
 	setupQueueInit,
 	setupStatusBar,
@@ -80,6 +81,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 	// Setup queue init
 	setupQueueInit(extensionContext);
+
+	// Setup inlay hints
+	setupInlayHints(extensionContext);
 
 	// Log when the extension is activated
 	clientLogger.info('Beancount LSP extension is now active');

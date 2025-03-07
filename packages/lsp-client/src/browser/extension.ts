@@ -5,6 +5,7 @@ import {
 	createClientOptions,
 	setupConfigurationWatchers,
 	setupCustomMessageHandlers,
+	setupInlayHints,
 	setupLogger,
 	setupQueueInit,
 	setupStatusBar,
@@ -61,14 +62,17 @@ export function activate(context: vscode.ExtensionContext): void {
 		// Set up configuration watchers
 		setupConfigurationWatchers(extensionContext);
 
-		// Start the client. This will also launch the server
+		// Start the language client
 		client.start();
 
 		// Setup queue init
 		setupQueueInit(extensionContext);
 
+		// Setup inlay hints
+		setupInlayHints(extensionContext);
+
 		// Log when the extension is activated
-		clientLogger.info('Beancount LSP browser extension is now active');
+		clientLogger.info('Beancount LSP extension is now active (browser)');
 	} catch (err) {
 		// Log any errors during activation
 		clientLogger.error(`Error activating browser extension: ${err instanceof Error ? err.message : String(err)}`);

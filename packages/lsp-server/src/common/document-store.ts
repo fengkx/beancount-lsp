@@ -98,7 +98,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 		return this._documentsCache.delete(uri);
 	}
 
-	private async getConfiguration() {
+	public async getConfiguration() {
 		const config = await this._connection.workspace.getConfiguration({ section: LANGUAGE_ID });
 		this.logger.info(config);
 		return config;

@@ -42,8 +42,52 @@
 				"path": "./syntaxes/beancount.tmLanguage.json"
 			}
 		],
+		"configuration": {
+			"type": "object",
+			"title": "Beancount Language Server",
+			"properties": {
+				"beanLsp.maxNumberOfProblems": {
+					"scope": "resource",
+					"type": "number",
+					"default": 100,
+					"description": "Controls the maximum number of problems produced by the server."
+				},
+				"beanLsp.trace.server": {
+					"scope": "window",
+					"type": "string",
+					"enum": [
+						"off",
+						"error",
+						"warn",
+						"messages",
+						"debug",
+						"verbose"
+					],
+					"default": "messages",
+					"description": "Controls the verbosity of logging and traces the communication between VS Code and the language server. Values from least to most verbose: off (errors only), error, warn, messages (info), debug, verbose (trace)."
+				},
+				"beancount.mainBeanFile": {
+					"scope": "resource",
+					"type": "string",
+					"default": "main.bean",
+					"description": "Specifies the main Beancount file to use for analysis. This should be relative to the workspace root."
+				},
+				"beancount.diagnostics.tolerance": {
+					"scope": "resource",
+					"type": "number",
+					"default": 0.005,
+					"description": "Tolerance value for transaction balancing. Set to 0 for exact matching."
+				},
+				"beanLsp.inlayHints.enable": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable inlay hints for Beancount files."
+				}
+			}
+		},
 		"configurationDefaults": {
 			"editor.semanticHighlighting.enabled": true,
+			"editor.inlayHints.enabled": true,
 			"editor.semanticTokenColorCustomizations": {
 				"enabled": true,
 				"rules": {
@@ -158,44 +202,6 @@
 						}
 					}
 				]
-			}
-		},
-		"configuration": {
-			"type": "object",
-			"title": "Beancount Language Server",
-			"properties": {
-				"beanLsp.maxNumberOfProblems": {
-					"scope": "resource",
-					"type": "number",
-					"default": 100,
-					"description": "Controls the maximum number of problems produced by the server."
-				},
-				"beanLsp.trace.server": {
-					"scope": "window",
-					"type": "string",
-					"enum": [
-						"off",
-						"error",
-						"warn",
-						"messages",
-						"debug",
-						"verbose"
-					],
-					"default": "messages",
-					"description": "Controls the verbosity of logging and traces the communication between VS Code and the language server. Values from least to most verbose: off (errors only), error, warn, messages (info), debug, verbose (trace)."
-				},
-				"beancount.mainBeanFile": {
-					"scope": "resource",
-					"type": "string",
-					"default": "main.bean",
-					"description": "Specifies the main Beancount file to use for analysis. This should be relative to the workspace root."
-				},
-				"beancount.diagnostics.tolerance": {
-					"scope": "resource",
-					"type": "number",
-					"default": 0.005,
-					"description": "Tolerance value for transaction balancing. Set to 0 for exact matching."
-				}
 			}
 		}
 	},
