@@ -175,3 +175,25 @@ export async function getTags(doc: TextDocument, trees: Trees): Promise<SymbolIn
 	}
 	return result;
 }
+
+export async function getPricesDeclarations(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
+	const tree = await trees.getParseTree(doc);
+	if (!tree) {
+		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
+	}
+	const query = TreeQuery.getQueryByTokenName('price');
+	const captures = await query.captures(tree.rootNode);
+	const result: SymbolInfo[] = [];
+	for (const capture of captures) {
+		const name = capture.node.text;
+		const range = asLspRange(capture.node);
+		result.push({
+			_symType: 'price',
+			_uri: doc.uri,
+			name,
+			range: rangeToCompact(range),
+			kind: lsp.SymbolKind.Constant,
+		});
+	}
+	return result;
+}

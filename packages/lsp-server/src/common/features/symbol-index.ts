@@ -13,6 +13,7 @@ import {
 	getCurrencyDefinitions,
 	getNarrations,
 	getPayees,
+	getPricesDeclarations,
 	getTags,
 	SymbolInfo,
 } from './symbol-extractors';
@@ -196,16 +197,18 @@ export class SymbolIndex {
 
 	private async _doIndex(document: TextDocument) {
 		this.logger.debug(`[index] Indexing document: ${document.uri}`);
-		const [accountUsages, accountDefinitions, payees, narrations, commodities, tags] = await Promise.all(
-			[
-				getAccountsUsage(document, this._trees),
-				getAccountsDefinition(document, this._trees),
-				getPayees(document, this._trees),
-				getNarrations(document, this._trees),
-				getCommodities(document, this._trees),
-				getTags(document, this._trees),
-			],
-		);
+		const [accountUsages, accountDefinitions, payees, narrations, commodities, tags, pricesDeclarations] =
+			await Promise.all(
+				[
+					getAccountsUsage(document, this._trees),
+					getAccountsDefinition(document, this._trees),
+					getPayees(document, this._trees),
+					getNarrations(document, this._trees),
+					getCommodities(document, this._trees),
+					getTags(document, this._trees),
+					getPricesDeclarations(document, this._trees),
+				],
+			);
 
 		this.logger.debug(`We Found symbols in ${document.uri}:
 			- Account usages: ${accountUsages.length}
@@ -214,6 +217,7 @@ export class SymbolIndex {
 			- Narrations: ${narrations.length}
 			- Commodities: ${commodities.length}
 			- Tags: ${tags.length}
+			- Prices declarations: ${pricesDeclarations.length}
 		`);
 
 		this._symbolInfoStorage.remove({ _uri: document.uri }, { multi: true });
@@ -224,6 +228,7 @@ export class SymbolIndex {
 			this._symbolInfoStorage.insertAsync(narrations),
 			this._symbolInfoStorage.insertAsync(commodities),
 			this._symbolInfoStorage.insertAsync(tags),
+			this._symbolInfoStorage.insertAsync(pricesDeclarations),
 		]);
 
 		const totalSymbolsInStorage = await this._symbolInfoStorage.countAsync({});
@@ -382,5 +387,15 @@ export class SymbolIndex {
 
 		this.logger.debug(`[index] Found usage counts for ${usageCounts.size} unique accounts`);
 		return usageCounts;
+	}
+
+	public async getPricesDeclarations(query: { name?: string } = {}): Promise<SymbolInfo[]> {
+		this.logger.debug('[index] Getting prices declarations');
+		const pricesDeclarations = await this._symbolInfoStorage.findAsync({
+			_symType: 'price',
+			...query,
+		}) as SymbolInfo[];
+		this.logger.debug(`[index] Found ${pricesDeclarations.length} prices declarations`);
+		return pricesDeclarations;
 	}
 }
