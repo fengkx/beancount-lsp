@@ -230,4 +230,41 @@ describe('Balance Checker', () => {
 		const result = checkTransactionBalance(postings, 0.005);
 		expect(result.isBalanced).toBe(true);
 	});
+
+	// Test for expressions in amounts
+	it('should correctly balance transactions with expressions in amounts', () => {
+		// Transaction with expressions (243.00 / 3) which should equal 81.00
+		const postingsWithExpressions = [
+			createPosting('Expenses:Food', { number: '(243.00 / 3)', currency: 'CNY' }),
+			createPosting('Assets:Receivables:Person1', { number: '(243.00 / 3)', currency: 'CNY' }),
+			createPosting('Assets:Receivables:Person2', { number: '(243.00 / 3)', currency: 'CNY' }),
+			createPosting('Assets:Payment', { number: '-243.00', currency: 'CNY' }),
+		];
+
+		const result = checkTransactionBalance(postingsWithExpressions, 0.005);
+
+		// The transaction should be balanced
+		expect(result.isBalanced).toBe(true);
+
+		// Verify calculation of expressions
+		// 243.00 / 3 = 81.00, so 3 * 81.00 - 243.00 = 0
+		expect(result.currency).toBeUndefined(); // No imbalance detected
+		expect(result.difference).toBeUndefined(); // No difference when balanced
+	});
+
+	// Additional test to verify expression calculations specifically
+	it('should correctly calculate the expressions in posting amounts', () => {
+		// Create a posting with an expression
+		const posting = createPosting('Expenses:Food', { number: '(243.00 / 3)', currency: 'CNY' });
+
+		// Instead of trying to access the non-exported sumPostings directly,
+		// we'll use checkTransactionBalance which internally uses sumPostings
+		const result = checkTransactionBalance([posting], 0.005);
+
+		// Verify the expression was evaluated correctly: 243.00 / 3 = 81.00
+		// We know the balance is 81 CNY as there is only one posting
+		expect(result.isBalanced).toBe(false); // Not balanced with just one posting
+		expect(result.currency).toBe('CNY');
+		expect(result.difference?.toString()).toBe('81'); // The difference is exactly 81
+	});
 });

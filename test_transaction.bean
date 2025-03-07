@@ -94,3 +94,7 @@
   Assets:Checking          -110.00 USD
   Expenses:Utilities        (80.00 + 30.00) USD
   
+; Transaction with currency conversion using division
+2023-03-25 * "Foreign currency purchase with inline math"
+  Assets:Checking          -100.00 USD
+  Assets:Foreign             100.00 / 1.25 EUR  ; USD/EUR rate of 1.25

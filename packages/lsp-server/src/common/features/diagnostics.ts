@@ -272,14 +272,16 @@ export class DiagnosticsFeature implements Feature {
 		let numberValue = '';
 		let currencyValue = '';
 
-		// First child should be a number expression
-		const numberNode = node.child(0);
+		// First named child should be a number expression
+		const numberNode = node.namedChild(0);
 		if (numberNode) {
+			// For expressions, we want to preserve the entire expression text
+			// This handles cases like "(243 / 3)" or complex expressions
 			numberValue = numberNode.text;
 		}
 
 		// Second child should be currency
-		const currencyNode = node.child(1);
+		const currencyNode = node.namedChild(1);
 		if (currencyNode) {
 			currencyValue = currencyNode.text;
 		}
