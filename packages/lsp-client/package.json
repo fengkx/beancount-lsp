@@ -162,7 +162,7 @@
 		},
 		"configuration": {
 			"type": "object",
-			"title": "LSP configuration",
+			"title": "Beancount Language Server",
 			"properties": {
 				"beanLsp.maxNumberOfProblems": {
 					"scope": "resource",
@@ -175,11 +175,14 @@
 					"type": "string",
 					"enum": [
 						"off",
+						"error",
+						"warn",
 						"messages",
+						"debug",
 						"verbose"
 					],
 					"default": "messages",
-					"description": "Traces the communication between VS Code and the language server."
+					"description": "Controls the verbosity of logging and traces the communication between VS Code and the language server. Values from least to most verbose: off (errors only), error, warn, messages (info), debug, verbose (trace)."
 				},
 				"beancount.mainBeanFile": {
 					"scope": "resource",

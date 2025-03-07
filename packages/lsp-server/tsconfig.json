@@ -13,6 +13,7 @@
 		"emitDecoratorMetadata": true,
 		"experimentalDecorators": true,
 		"isolatedDeclarations": false,
+		"isolatedModules": false,
 		"strict": true, /* enable all strict type-checking options */
 		"skipLibCheck": true,
 		/* Additional Checks */

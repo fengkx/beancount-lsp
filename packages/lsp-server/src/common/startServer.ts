@@ -1,4 +1,11 @@
-import { CustomMessages, Logger, LogLevel, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
+import {
+	CustomMessages,
+	ILogger,
+	Logger,
+	LogLevel,
+	logLevelToString,
+	mapTraceServerToLogLevel,
+} from '@bean-lsp/shared';
 import {
 	Connection,
 	DidChangeConfigurationNotification,

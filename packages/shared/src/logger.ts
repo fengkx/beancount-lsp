@@ -7,8 +7,19 @@ export const enum LogLevel {
 	TRACE = 5,
 }
 
+// Non-enum constant object that can be safely imported with isolatedModules
+export const LOG_LEVELS = {
+	NONE: 0,
+	ERROR: 1,
+	WARN: 2,
+	INFO: 3,
+	DEBUG: 4,
+	TRACE: 5,
+} as const;
+
 export interface ILogger {
 	setLevel(level: LogLevel): void;
+	getLevel(): LogLevel;
 	error(...args: unknown[]): void;
 	warn(...args: unknown[]): void;
 	info(...args: unknown[]): void;
@@ -21,8 +32,14 @@ export function mapTraceServerToLogLevel(traceServer: string): LogLevel {
 	switch (traceServer.toLowerCase()) {
 		case 'off':
 			return LogLevel.ERROR; // Only show errors when off
+		case 'error':
+			return LogLevel.ERROR; // Show errors
+		case 'warn':
+			return LogLevel.WARN; // Show warnings and errors
 		case 'messages':
-			return LogLevel.INFO; // Show info and errors when set to messages
+			return LogLevel.INFO; // Show info and below when set to messages
+		case 'debug':
+			return LogLevel.DEBUG; // Show debug and below
 		case 'verbose':
 			return LogLevel.TRACE; // Show everything when verbose
 		default:
@@ -40,6 +57,10 @@ export class Logger implements ILogger {
 
 	setLevel(level: LogLevel): void {
 		this.level = level;
+	}
+
+	getLevel(): LogLevel {
+		return this.level;
 	}
 
 	error(...args: unknown[]): void {
@@ -61,15 +82,15 @@ export class Logger implements ILogger {
 	}
 
 	debug(...args: unknown[]): void {
-		// if (this.level >= LogLevel.DEBUG) {
-		console.log(this.formatMessage(...args));
-		// }
+		if (this.level >= LogLevel.DEBUG) {
+			console.log(this.formatMessage(...args));
+		}
 	}
 
 	trace(...args: unknown[]): void {
-		// if (this.level >= LogLevel.TRACE) {
-		console.log(this.formatMessage(...args));
-		// }
+		if (this.level >= LogLevel.TRACE) {
+			console.log(this.formatMessage(...args));
+		}
 	}
 
 	private formatMessage(...args: unknown[]): string {
