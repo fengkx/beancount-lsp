@@ -354,8 +354,8 @@ function scorePinyinFirstLetters(pinyinFirstLetters: string, input: string): num
 	if (input.length >= 3) {
 		// Check for beginning + end pattern
 		// This is very important for cases like "hxhsa" where:
-		// - The prefix "hxhs" matches the beginning of "hxhsetflja"
-		// - The last character "a" matches the last letter of "hxhsetflja"
+		// - The prefix "hxhs" matches the beginning of pinyin first letters AND
+		// - The last character "a" matches the last letter of pinyin first letters
 		for (let i = 2; i <= input.length - 1; i++) {
 			const prefix = input.substring(0, i);
 			const suffix = input.substring(i);
@@ -1154,6 +1154,22 @@ export class CompletionFeature implements Feature {
 		const tree = await this.trees.getParseTree(document);
 		if (!tree) {
 			return [];
+		}
+
+		// Check if this is a closing quote
+		if (params.context?.triggerCharacter === '"') {
+			// Get the text of the current line up to the cursor position
+			const line = document.getText({
+				start: { line: params.position.line, character: 0 },
+				end: params.position,
+			});
+
+			// Count quotes in the line
+			const quoteCount = line.split('"').length - 1;
+			// If there's an even number of quotes, this is a closing quote
+			if (quoteCount % 2 === 0) {
+				return []; // Don't trigger completion for closing quotes
+			}
 		}
 
 		// Extract user input for better sorting
