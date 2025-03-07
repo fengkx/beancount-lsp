@@ -1,6 +1,14 @@
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=fengkx.beancount-lsp-client" target="_blank" rel="noopener noreferrer">
+    <img width="252" src="./assets/icon.png" alt="Beancount LSP logo">
+  </a>
+</p>
+
 # Beancount language service
 
-A powerful VSCode extension for Beancount plain text accounting, providing rich language features and intelligent assistance. Built with tree-sitter for robust parsing and analysis.
+A VSCode extension (Language Server) for Beancount plain text accounting, providing rich language features and intelligent assistance. Built with tree-sitter for robust parsing and analysis.
+
+It can be run fully in a browser, which means you can use it in [VSCode for Web](https://vscode.dev/) and [github.dev](https://github.dev/) without any additional setup (even without bean and python).
 
 ## Features
 
