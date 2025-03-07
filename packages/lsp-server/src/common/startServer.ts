@@ -21,7 +21,9 @@ import { DiagnosticsFeature } from './features/diagnostics';
 import { DocumentLinksFeature } from './features/document-links';
 import { DocumentSymbolsFeature } from './features/document-symbols';
 import { FoldingRangeFeature } from './features/folding-ranges';
+import { HoverFeature } from './features/hover';
 import { InlayHintFeature } from './features/inlay-hints';
+import { PriceMap } from './features/prices-index/price-map';
 import { ReferencesFeature } from './features/references';
 import { RenameFeature } from './features/rename';
 import { SelectionRangesFeature } from './features/selection-ranges';
@@ -62,9 +64,10 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 	console.warn = connection.console.warn.bind(connection.console);
 	console.error = connection.console.error.bind(connection.console);
 
+	// connection configurations
 	let hasConfigurationCapability: boolean = false;
 	let hasWorkspaceFolderCapability: boolean = false;
-	// let hasDiagnosticRelatedInformationCapability: boolean = false;
+	const hasDiagnosticRelatedInformationCapability: boolean = false;
 
 	const features: Feature[] = [];
 
@@ -94,6 +97,8 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 				},
 				// Add document symbol provider capability
 				documentSymbolProvider: true,
+				// Add hover provider capability
+				hoverProvider: true,
 				// Add inlay hint provider capability with more detailed configuration
 				inlayHintProvider: {
 					resolveProvider: false, // We don't need to resolve hints further
@@ -123,6 +128,9 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 
 		symbolIndex = new SymbolIndex(documents, trees, symbolStorage);
 
+		// 创建PriceMap实例
+		const priceMap = new PriceMap(symbolIndex, trees, documents);
+
 		features.push(new SemanticTokenFeature(documents, trees));
 		features.push(new CompletionFeature(documents, trees, symbolIndex));
 		features.push(new SelectionRangesFeature(documents, trees));
@@ -134,6 +142,7 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		features.push(new DiagnosticsFeature(documents, trees));
 		features.push(new DocumentLinksFeature(documents, trees));
 		features.push(new InlayHintFeature(documents, trees));
+		features.push(new HoverFeature(documents, trees, priceMap));
 
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
 		documents.onDidOpen(event => symbolIndex.addFile(event.document.uri));

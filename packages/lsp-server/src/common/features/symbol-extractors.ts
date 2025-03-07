@@ -185,7 +185,7 @@ export async function getPricesDeclarations(doc: TextDocument, trees: Trees): Pr
 	const captures = await query.captures(tree.rootNode);
 	const result: SymbolInfo[] = [];
 	for (const capture of captures) {
-		const name = capture.node.text;
+		const name = capture.node.childForFieldName('currency')!.text;
 		const range = asLspRange(capture.node);
 		result.push({
 			_symType: 'price',

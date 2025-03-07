@@ -37,7 +37,7 @@ export class ReferencesFeature {
 	): Promise<lsp.Location[] | null> {
 		logger.debug(`References requested at position: ${JSON.stringify(params.position)}`);
 
-		const document = this.documents.get(params.textDocument.uri);
+		const document = await this.documents.retrieve(params.textDocument.uri);
 		if (!document) {
 			logger.warn(`Document not found: ${params.textDocument.uri}`);
 			return null;

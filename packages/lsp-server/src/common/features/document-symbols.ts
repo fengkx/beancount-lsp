@@ -26,7 +26,7 @@ export class DocumentSymbolsFeature {
 	): Promise<lsp.DocumentSymbol[] | lsp.SymbolInformation[] | null> {
 		logger.debug(`Document symbols requested for: ${params.textDocument.uri}`);
 
-		const document = this.documents.get(params.textDocument.uri);
+		const document = await this.documents.retrieve(params.textDocument.uri);
 		if (!document) {
 			logger.warn(`Document not found: ${params.textDocument.uri}`);
 			return null;

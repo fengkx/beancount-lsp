@@ -1,14 +1,12 @@
 import { CustomMessages, LANGUAGE_ID, Logger } from '@bean-lsp/shared';
 import { LRUMapWithDelete as LRUMap } from 'mnemonist';
 import {
-	ConfigurationRequest,
 	Connection,
 	Emitter,
 	Event,
 	Range,
 	TextDocumentContentChangeEvent,
 	TextDocuments,
-	WorkspaceSymbolRequest,
 } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { URI, Utils as UriUtils } from 'vscode-uri';
@@ -71,6 +69,10 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 
 	get beanFiles(): string[] {
 		return this._beanFiles;
+	}
+
+	private override get(uri: string): TextDocument | undefined {
+		return super.get(uri);
 	}
 
 	async retrieve(uri: string): Promise<TextDocument> {
