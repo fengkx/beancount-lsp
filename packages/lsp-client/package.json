@@ -82,6 +82,19 @@
 					"type": "boolean",
 					"default": true,
 					"description": "Enable inlay hints for Beancount files."
+				},
+				"beanLsp.mainCurrency": {
+					"type": "string",
+					"default": "",
+					"description": "Main currency for price conversions. If empty, the most frequently used currency will be used."
+				},
+				"beanLsp.currencys": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"default": [],
+					"description": "List of currencies that should participate in price conversions. Commodities not included in this list (like stocks) will be excluded from conversion calculations. If empty, all commodities will be considered for conversions."
 				}
 			}
 		},

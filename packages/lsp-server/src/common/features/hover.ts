@@ -1,5 +1,6 @@
 import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
+import { TextDocument } from 'vscode-languageserver-textdocument';
 import { compactToRange } from '../common';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
@@ -26,6 +27,22 @@ export class HoverFeature implements Feature {
 				return null;
 			}
 		});
+	}
+
+	/**
+	 * Sets the main currency for PriceMap
+	 * @param currency The main currency code
+	 */
+	setPriceMapMainCurrency(currency: string): void {
+		this.priceMap.setMainCurrency(currency);
+	}
+
+	/**
+	 * Sets the allowed currencies for PriceMap
+	 * @param currencies List of allowed currency codes
+	 */
+	setPriceMapAllowedCurrencies(currencies: string[]): void {
+		this.priceMap.setAllowedCurrencies(currencies);
 	}
 
 	private async onHover(
@@ -72,26 +89,40 @@ export class HoverFeature implements Feature {
 			params.position,
 		);
 
-		if (!commodityAtPosition) {
-			return null;
+		if (commodityAtPosition) {
+			logger.debug(`Found commodity at position: ${commodityAtPosition}`);
+
+			// Get the range of the commodity
+			const range = await positionUtils.getRangeAtPosition(
+				this.trees,
+				document,
+				params.position,
+			);
+
+			// Create hover content for commodity
+			const contents = await this.createCommodityHoverContents(commodityAtPosition);
+
+			return {
+				contents,
+				range,
+			};
 		}
 
-		logger.debug(`Found commodity at position: ${commodityAtPosition}`);
+		// Check if the hover is on a price directive amount or price keyword
+		const priceAtPosition = await this.getPriceAtPosition(document, params.position);
+		if (priceAtPosition) {
+			logger.debug(`Found price at position: ${JSON.stringify(priceAtPosition)}`);
 
-		// Get the range of the commodity
-		const range = await positionUtils.getRangeAtPosition(
-			this.trees,
-			document,
-			params.position,
-		);
+			// Create hover content for price
+			const contents = await this.createPriceHoverContents(priceAtPosition);
 
-		// Create hover content for commodity
-		const contents = await this.createCommodityHoverContents(commodityAtPosition);
+			return {
+				contents,
+				range: priceAtPosition.range,
+			};
+		}
 
-		return {
-			contents,
-			range,
-		};
+		return null;
 	}
 
 	private async createCommodityHoverContents(commodity: string): Promise<lsp.MarkupContent> {
@@ -113,7 +144,9 @@ export class HoverFeature implements Feature {
 
 			// Get price trend data
 			try {
-				const priceTrend = await this.priceMap.getPriceTrend(commodity, undefined, 30);
+				// Use the original currency of the price instead of converting to main currency
+				const originalCurrency = latestPrice.price.currency;
+				const priceTrend = await this.priceMap.getPriceTrend(commodity, originalCurrency, 30);
 
 				if (priceTrend.dates.length > 0) {
 					// Add small label for the chart
@@ -198,7 +231,7 @@ export class HoverFeature implements Feature {
 					}
 
 					// Add currency info if available
-					if (priceTrend.currency && priceTrend.currency !== latestPrice.price.currency) {
+					if (priceTrend.currency) {
 						result += `\nCurrency: ${priceTrend.currency}`;
 					}
 				}
@@ -481,6 +514,301 @@ export class HoverFeature implements Feature {
 			return {
 				kind: lsp.MarkupKind.Markdown,
 				value: `**${account}**\n\nUnable to retrieve information.`,
+			};
+		}
+	}
+
+	/**
+	 * Checks if the cursor is positioned on a price amount within a price directive
+	 * @param document The text document
+	 * @param position The cursor position
+	 * @returns The price information if cursor is on a price amount, null otherwise
+	 */
+	private async getPriceAtPosition(
+		document: TextDocument,
+		position: lsp.Position,
+	): Promise<{ commodity: string; targetCurrency: string; amount: string; date: string; range: lsp.Range } | null> {
+		try {
+			// Get the line containing the position
+			const line = document.getText({
+				start: { line: position.line, character: 0 },
+				end: { line: position.line, character: Number.MAX_SAFE_INTEGER },
+			});
+
+			// Check if this is a price directive line
+			const priceLine = line.trim();
+			if (!priceLine.includes('price ')) {
+				return null;
+			}
+
+			// Parse the price directive using regex
+			// YYYY-MM-DD price COMMODITY AMOUNT CURRENCY
+			const priceRegex =
+				/^(\d{4}[-/]\d{2}[-/]\d{2})\s+price\s+([A-Z][A-Z0-9._-]*)\s+([-+]?[\d,]+\.?\d*)\s+([A-Z][A-Z0-9._-]*)/;
+			const priceMatch = priceLine.match(priceRegex);
+
+			if (!priceMatch || priceMatch.length < 5) {
+				return null;
+			}
+
+			// Safely extract match groups with null checking
+			const date = priceMatch[1] || '';
+			const commodity = priceMatch[2] || '';
+			const amount = priceMatch[3] || '';
+			const targetCurrency = priceMatch[4] || '';
+
+			// Skip if any required field is missing
+			if (!date || !commodity || !amount || !targetCurrency) {
+				return null;
+			}
+
+			// Calculate the range of the amount and price keyword
+			const priceKeywordIndex = line.indexOf('price');
+			const priceKeywordStartCharacter = priceKeywordIndex;
+			const priceKeywordEndCharacter = priceKeywordStartCharacter + 'price'.length;
+
+			const amountStartCharacter = line.indexOf(amount);
+			const amountEndCharacter = amountStartCharacter + amount.length;
+
+			// Check if cursor position is within the amount range
+			if (
+				position.character >= amountStartCharacter
+				&& position.character <= amountEndCharacter
+			) {
+				// Return the price information with the range of the amount
+				return {
+					commodity,
+					targetCurrency,
+					amount,
+					date,
+					range: {
+						start: { line: position.line, character: amountStartCharacter },
+						end: { line: position.line, character: amountEndCharacter },
+					},
+				};
+			}
+
+			// Check if cursor position is within the 'price' keyword range
+			if (
+				position.character >= priceKeywordStartCharacter
+				&& position.character <= priceKeywordEndCharacter
+			) {
+				// Return information with the range of the 'price' keyword
+				return {
+					commodity,
+					targetCurrency,
+					amount,
+					date,
+					range: {
+						start: { line: position.line, character: priceKeywordStartCharacter },
+						end: { line: position.line, character: priceKeywordEndCharacter },
+					},
+				};
+			}
+
+			return null;
+		} catch (error) {
+			logger.error(`Error getting price at position: ${error}`);
+			return null;
+		}
+	}
+
+	/**
+	 * Creates price hover content with information including trends, conversions and comparisons
+	 *
+	 * Note: All comments and hover content have been translated to English as requested.
+	 * There may be some TypeScript errors in price-map.ts related to possibly undefined values
+	 * that should be addressed in a separate fix.
+	 */
+	private async createPriceHoverContents(
+		priceInfo: { commodity: string; targetCurrency: string; amount: string; date: string; range: lsp.Range },
+	): Promise<lsp.MarkupContent> {
+		try {
+			const { commodity, targetCurrency, amount, date } = priceInfo;
+			const numericAmount = parseFloat(amount.replace(/,/g, ''));
+
+			// Unified format, regardless of whether hovering on price keyword or amount
+			// Using a format similar to commodity hover
+			let result = `\n`;
+			result += `**${commodity} to ${targetCurrency}** - ${numericAmount} ${targetCurrency} (${date})\n\n`;
+
+			// Add commodity price history summary
+			const priceHistory = await this.priceMap.getPriceHistoryByCommodity(commodity);
+			if (priceHistory && priceHistory.length > 0) {
+				// Analyze currency usage
+				const uniqueCurrencies = new Set(
+					priceHistory
+						.filter(p => p.price && p.price.currency)
+						.map(p => p.price.currency),
+				);
+
+				// Add concise price history summary
+				result += `Price history: ${priceHistory.length} entries`;
+				if (uniqueCurrencies.size > 0) {
+					result += ` in ${uniqueCurrencies.size} currencies`;
+				}
+				result += `\n\n`;
+			}
+
+			// Get price trend data and display chart
+			try {
+				const priceTrend = await this.priceMap.getPriceTrend(commodity, targetCurrency, 30);
+
+				if (priceTrend.dates.length > 0) {
+					// Add price trend visualization
+					if (priceTrend.dates.length >= 2) {
+						// Sort dates chronologically
+						const sortedDates = [...priceTrend.dates].filter(d => d !== undefined);
+						sortedDates.sort((a, b) => {
+							if (!a || !b) return 0;
+							return new Date(a).getTime() - new Date(b).getTime();
+						});
+
+						// Get date range for display
+						if (sortedDates.length >= 2) {
+							const earliestDateStr = sortedDates[0];
+							const latestDateStr = sortedDates[sortedDates.length - 1];
+
+							if (earliestDateStr && latestDateStr) {
+								try {
+									const earliestDate = new Date(earliestDateStr);
+									const latestDate = new Date(latestDateStr);
+
+									if (!isNaN(earliestDate.getTime()) && !isNaN(latestDate.getTime())) {
+										const earliestFormatted = `${earliestDate.getFullYear()}-${
+											String(earliestDate.getMonth() + 1).padStart(2, '0')
+										}-${String(earliestDate.getDate()).padStart(2, '0')}`;
+										const latestFormatted = `${latestDate.getFullYear()}-${
+											String(latestDate.getMonth() + 1).padStart(2, '0')
+										}-${String(latestDate.getDate()).padStart(2, '0')}`;
+
+										if (earliestFormatted !== latestFormatted) {
+											result += `Price trend (${earliestFormatted} to ${latestFormatted}):\n\n`;
+										} else {
+											result += `Price trend (${earliestFormatted}):\n\n`;
+										}
+									} else {
+										result += `Price trend (last 30 days):\n\n`;
+									}
+								} catch (e) {
+									result += `Price trend (last 30 days):\n\n`;
+								}
+							} else {
+								result += `Price trend (last 30 days):\n\n`;
+							}
+						} else {
+							result += `Price trend (last 30 days):\n\n`;
+						}
+					} else {
+						result += `Price trend (last 30 days):\n\n`;
+					}
+
+					// Create ASCII chart
+					const chart = this.createAsciiChart(priceTrend.prices);
+					result += '```\n' + chart + '\n```\n\n';
+
+					// Add price statistics
+					const max = Math.max(...priceTrend.prices);
+					const min = Math.min(...priceTrend.prices);
+					const avg = priceTrend.prices.reduce((sum, price) => sum + price, 0) / priceTrend.prices.length;
+
+					// Calculate price change
+					let changeText = '';
+					if (priceTrend.prices.length >= 2) {
+						const firstPrice = priceTrend.prices[0];
+						const lastPrice = priceTrend.prices[priceTrend.prices.length - 1];
+
+						if (firstPrice !== undefined && lastPrice !== undefined && firstPrice !== 0) {
+							const changePercent = ((lastPrice - firstPrice) / firstPrice) * 100;
+							const changeSymbol = changePercent >= 0 ? '↑' : '↓';
+							changeText = `Change: ${Math.abs(changePercent).toFixed(2)}% ${changeSymbol}`;
+						}
+					}
+
+					// Display statistics in compact format
+					result += `High: ${max.toFixed(2)} | Low: ${min.toFixed(2)} | Avg: ${avg.toFixed(2)}`;
+					if (changeText) {
+						result += ` | ${changeText}`;
+					}
+					result += '\n\n';
+				}
+			} catch (error) {
+				logger.error(`Error getting price trend: ${error}`);
+			}
+
+			// Show conversions to other currencies
+			result += '**Conversions:**\n\n';
+
+			// Get main currency
+			const mainCurrency = await this.priceMap.getMainCurrency();
+
+			// Only convert to main currency if different from current currency
+			let hasAnyConversion = false;
+			if (mainCurrency && mainCurrency !== targetCurrency) {
+				// Use getConvertedPrice to get optimal conversion
+				const conversion = await this.priceMap.getConvertedPrice(commodity, mainCurrency, date);
+				if (conversion) {
+					hasAnyConversion = true;
+					const convertedAmount = conversion.conversionRate.toFixed(2);
+
+					result += `1 ${commodity} = **${convertedAmount} ${mainCurrency}**\n`;
+
+					// Show conversion path if not direct conversion
+					if (conversion.path.length > 1) {
+						result += `  Via: ${conversion.path.join(' → ')} (rate: ${
+							conversion.conversionRate.toFixed(4)
+						})\n`;
+					}
+				}
+			}
+
+			if (!hasAnyConversion) {
+				if (mainCurrency) {
+					result += `No conversion rates available to ${mainCurrency} (main currency).\n`;
+				} else {
+					result += 'No main currency defined for conversions.\n';
+				}
+			}
+
+			// Try to get the latest price for comparison
+			try {
+				const latestPrice = await this.priceMap.getPriceByCommodity(commodity);
+
+				if (
+					latestPrice
+					&& latestPrice.price
+					&& latestPrice.price.amount
+					&& latestPrice.price.currency === targetCurrency
+					&& latestPrice.date !== date
+				) {
+					// Format latest date
+					const latestDate = new Date(latestPrice.date);
+					const formattedLatestDate = `${latestDate.getFullYear()}-${
+						String(latestDate.getMonth() + 1).padStart(2, '0')
+					}-${String(latestDate.getDate()).padStart(2, '0')}`;
+
+					// Calculate percentage change
+					const latestAmount = parseFloat(latestPrice.price.amount);
+					const changePercentage = ((latestAmount - numericAmount) / numericAmount * 100).toFixed(2);
+					const changeSymbol = parseFloat(changePercentage) >= 0 ? '↑' : '↓';
+
+					// Add latest price information
+					result += `\n**Latest Price (${formattedLatestDate}):** ${latestAmount} ${targetCurrency} `;
+					result += `(${Math.abs(parseFloat(changePercentage))}% ${changeSymbol} since ${date})\n`;
+				}
+			} catch (error) {
+				logger.debug(`Error getting latest price: ${error}`);
+			}
+
+			return {
+				kind: lsp.MarkupKind.Markdown,
+				value: result,
+			};
+		} catch (error) {
+			logger.error(`Error creating price hover contents: ${error}`);
+			return {
+				kind: lsp.MarkupKind.Markdown,
+				value: `**Price Information**\n\nUnable to retrieve conversion details.`,
 			};
 		}
 	}

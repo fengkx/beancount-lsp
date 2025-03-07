@@ -207,6 +207,28 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 				);
 			}
 
+			// 应用主要货币设置
+			if (config.mainCurrency) {
+				const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
+				if (featureWithPriceMap) {
+					featureWithPriceMap.setPriceMapMainCurrency(config.mainCurrency);
+					serverLogger.info(`Main currency set to: ${config.mainCurrency}`);
+				}
+			}
+
+			// 设置允许的货币列表
+			if (config.currencys !== undefined) {
+				const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
+				if (featureWithPriceMap) {
+					featureWithPriceMap.setPriceMapAllowedCurrencies(config.currencys || []);
+					if (config.currencys && config.currencys.length > 0) {
+						serverLogger.info(`Allowed currencies set to: ${config.currencys.join(', ')}`);
+					} else {
+						serverLogger.info('No currency restrictions set, all commodities will be used for conversions');
+					}
+				}
+			}
+
 			// Listen for configuration changes
 			connection.onDidChangeConfiguration(async _ => {
 				if (hasConfigurationCapability) {
@@ -219,6 +241,30 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 								logLevelToString(logLevel)
 							} (from trace.server: ${config.trace.server})`,
 						);
+					}
+
+					// 更新主要货币设置
+					if (config.mainCurrency !== undefined) {
+						const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
+						if (featureWithPriceMap) {
+							featureWithPriceMap.setPriceMapMainCurrency(config.mainCurrency);
+							serverLogger.info(`Main currency changed to: ${config.mainCurrency || '(auto)'}`);
+						}
+					}
+
+					// 更新允许的货币列表
+					if (config.currencys !== undefined) {
+						const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
+						if (featureWithPriceMap) {
+							featureWithPriceMap.setPriceMapAllowedCurrencies(config.currencys || []);
+							if (config.currencys && config.currencys.length > 0) {
+								serverLogger.info(`Allowed currencies changed to: ${config.currencys.join(', ')}`);
+							} else {
+								serverLogger.info(
+									'Currency restrictions removed, all commodities will be used for conversions',
+								);
+							}
+						}
 					}
 				}
 			});
