@@ -61,3 +61,36 @@
   Assets:Checking    -200.00 USD
   Expenses:Food       85.00 EUR @ 1.176 USD  ; = 99.96 USD
   Expenses:Food       85.00 EUR @@ 100.04 USD ; Exactly balances to 200 USD total
+
+; Transaction with inline math expressions - balanced
+2023-03-01 * "Split expense with friends"
+  Assets:Checking            -120.00 USD
+  Expenses:Dining             40.00 USD
+  Assets:Receivables:Friend1  40.00 USD
+  Assets:Receivables:Friend2  40.00 USD
+
+; Transaction with division in amount - balanced
+2023-03-05 * "Restaurant bill split three ways"
+  Assets:Checking           -90.00 USD
+  Expenses:Dining            90.00 / 3 USD
+  Assets:Receivables:Bob     90.00 / 3 USD
+  Assets:Receivables:Alice   90.00 / 3 USD
+
+; Transaction with mixed operations - balanced
+2023-03-10 * "Complex split with tax"
+  Assets:Checking          -156.00 USD
+  Expenses:Dining          120.00 + 12.00 USD  ; Food plus tip
+  Expenses:Tax              24.00 USD          ; Sales tax
+
+; Transaction with multiplication - balanced
+2023-03-15 * "Group purchase"
+  Assets:Checking          -240.00 USD
+  Expenses:Groceries         60.00 * 1 USD     ; My portion
+  Assets:Receivables:Room1   60.00 * 2 USD     ; Roommate 1 (buying double)
+  Assets:Receivables:Room2   60.00 * 1 USD     ; Roommate 2
+
+; Transaction with parentheses - balanced
+2023-03-20 * "Complex calculation"
+  Assets:Checking          -110.00 USD
+  Expenses:Utilities        (80.00 + 30.00) USD
+  

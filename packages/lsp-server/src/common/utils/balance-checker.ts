@@ -1,6 +1,7 @@
 import { Logger } from '@bean-lsp/shared';
 import Big from 'big.js';
 import type Parser from 'web-tree-sitter';
+import { parseExpression } from './expression-parser';
 
 // Logger for balance checker
 const logger = new Logger('BalanceChecker');
@@ -150,50 +151,6 @@ function groupByCurrency(postings: Posting[]): Record<string, Posting[]> {
 }
 
 /**
- * Calculates the sum of all postings for a specific currency
- *
- * This function handles the complex logic of how different posting types
- * contribute to the balance:
- * - Simple amounts in the target currency are added directly
- * - Amounts in other currencies with price annotations to target currency are converted
- * - Amounts in other currencies with cost in target currency use the total cost
- *
- * @param postings List of postings to sum
- * @param currency The currency to calculate the sum for
- * @returns The sum as a Big number
- */
-function sumPostings(postings: Posting[], currency: string): Big {
-	let sum = new Big(0);
-
-	for (const posting of postings) {
-		try {
-			// We need to handle each posting exactly once based on its relationship to the target currency
-
-			if (posting.amount) {
-				if (posting.amount.currency === currency) {
-					// Case 1: Direct amount in the target currency
-					sum = sum.plus(new Big(posting.amount.number));
-				} else {
-					// Case 2: Amount in another currency with price annotation to target currency
-					if (posting.price && posting.price.currency === currency) {
-						const convertedAmount = calculateWithPrice(posting);
-						sum = sum.plus(convertedAmount);
-					} // Case 3: Amount in another currency with cost in target currency
-					else if (posting.cost && posting.cost.currency === currency) {
-						const totalCost = calculateTotalCost(posting);
-						sum = sum.plus(totalCost);
-					}
-				}
-			}
-		} catch (e) {
-			logger.error(`Error in sumPostings: ${e}`);
-		}
-	}
-
-	return sum;
-}
-
-/**
  * Calculates the total cost for a posting with a cost specification
  *
  * @param posting The posting with cost
@@ -203,8 +160,9 @@ function calculateTotalCost(posting: Posting): Big {
 	if (!posting.amount || !posting.cost) return new Big(0);
 
 	try {
-		const units = new Big(posting.amount.number);
-		const perUnitCost = new Big(posting.cost.number);
+		// Use updated parseExpression that handles undefined
+		const units = parseExpression(posting.amount.number);
+		const perUnitCost = parseExpression(posting.cost.number);
 
 		// Calculate the total cost (units * cost per unit)
 		return units.times(perUnitCost);
@@ -228,18 +186,63 @@ function calculateWithPrice(posting: Posting): Big {
 	if (!posting.amount || !posting.price) return new Big(0);
 
 	try {
-		const units = new Big(posting.amount.number);
+		// Use updated parseExpression that handles undefined
+		const units = parseExpression(posting.amount.number);
 
 		// For @ (per-unit price)
 		if (posting.price.type === '@') {
-			const perUnitPrice = new Big(posting.price.number);
+			const perUnitPrice = parseExpression(posting.price.number);
 			return units.times(perUnitPrice);
 		} // For @@ (total price)
 		else {
-			return new Big(posting.price.number);
+			return parseExpression(posting.price.number);
 		}
 	} catch (e) {
 		logger.error(`Error calculating with price: ${e}`);
 		return new Big(0);
 	}
+}
+
+/**
+ * Calculates the sum of all postings for a specific currency
+ *
+ * This function handles the complex logic of how different posting types
+ * contribute to the balance:
+ * - Simple amounts in the target currency are added directly
+ * - Amounts in other currencies with price annotations to target currency are converted
+ * - Amounts in other currencies with cost in target currency use the total cost
+ *
+ * @param postings List of postings to sum
+ * @param currency The currency to calculate the sum for
+ * @returns The sum as a Big number
+ */
+function sumPostings(postings: Posting[], currency: string): Big {
+	let sum = new Big(0);
+
+	for (const posting of postings) {
+		try {
+			// We need to handle each posting exactly once based on its relationship to the target currency
+
+			if (posting.amount && typeof posting.amount.number === 'string') {
+				if (posting.amount.currency === currency) {
+					// Case 1: Direct amount in the target currency
+					sum = sum.plus(parseExpression(posting.amount.number));
+				} else {
+					// Case 2: Amount in another currency with price annotation to target currency
+					if (posting.price && posting.price.currency === currency) {
+						const convertedAmount = calculateWithPrice(posting);
+						sum = sum.plus(convertedAmount);
+					} // Case 3: Amount in another currency with cost in target currency
+					else if (posting.cost && posting.cost.currency === currency) {
+						const totalCost = calculateTotalCost(posting);
+						sum = sum.plus(totalCost);
+					}
+				}
+			}
+		} catch (e) {
+			logger.error(`Error in sumPostings: ${e}`);
+		}
+	}
+
+	return sum;
 }

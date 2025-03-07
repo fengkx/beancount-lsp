@@ -5,6 +5,7 @@ vi.mock('@bean-lsp/shared', () => {
 			constructor() {}
 			info() {}
 			error() {}
+			warn() {}
 		},
 	};
 });
@@ -29,7 +30,73 @@ import {
 	hasOnlyOneIncompleteAmount,
 	Posting,
 } from '../../common/utils/balance-checker';
+import { parseExpression } from '../../common/utils/expression-parser';
 import { createPosting, parseTransactionsFromTestFile } from './parser-simulator';
+
+// Helper function for testing expressions
+function testParseExpression(expression: string): string {
+	try {
+		const result = parseExpression(expression);
+		return result.toString();
+	} catch (e) {
+		return `Error: ${e}`;
+	}
+}
+
+// New test suite for parseExpression functionality
+describe('Expression Parser', () => {
+	// Basic numbers
+	it('should parse basic numeric values', () => {
+		expect(testParseExpression('42')).toBe('42');
+		expect(testParseExpression('-42')).toBe('-42');
+		expect(testParseExpression('3.14')).toBe('3.14');
+		expect(testParseExpression('0')).toBe('0');
+	});
+
+	// Simple operations
+	it('should handle basic arithmetic operations', () => {
+		expect(testParseExpression('1+2')).toBe('3');
+		expect(testParseExpression('5-3')).toBe('2');
+		expect(testParseExpression('4*5')).toBe('20');
+		expect(testParseExpression('10/2')).toBe('5');
+		expect(testParseExpression('90.00/3')).toBe('30');
+	});
+
+	// Operator precedence
+	it('should respect standard operator precedence', () => {
+		// Multiplication before addition
+		expect(testParseExpression('3*2+1')).toBe('7');
+		expect(testParseExpression('1+3*2')).toBe('7');
+
+		// Parentheses override precedence
+		expect(testParseExpression('3*(2+1)')).toBe('9');
+		expect(testParseExpression('(2+1)*3')).toBe('9');
+	});
+
+	// Complex expressions
+	it('should correctly evaluate complex expressions', () => {
+		expect(testParseExpression('100.01+200+300.05')).toBe('600.06');
+		expect(testParseExpression('5+4*3/2-1')).toBe('10');
+		expect(testParseExpression('(5+4)*(3/2-1)')).toBe('4.5');
+		expect(testParseExpression('(2-3)*(10+1)')).toBe('-11');
+	});
+
+	// Spaces in expressions
+	it('should handle spaces in expressions', () => {
+		expect(testParseExpression('1 + 2')).toBe('3');
+		expect(testParseExpression('5 - 3')).toBe('2');
+		expect(testParseExpression('4 * 5')).toBe('20');
+		expect(testParseExpression('10 / 2')).toBe('5');
+		expect(testParseExpression('3 * (2 + 1)')).toBe('9');
+	});
+
+	// Error cases
+	it('should gracefully handle invalid expressions', () => {
+		// Should return 0 for invalid expressions
+		expect(testParseExpression('invalid')).toBe('0');
+		expect(testParseExpression('')).toBe('0');
+	});
+});
 
 describe('Balance Checker', () => {
 	describe('hasOnlyOneIncompleteAmount', () => {
