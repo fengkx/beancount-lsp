@@ -142,7 +142,7 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		features.push(new DiagnosticsFeature(documents, trees));
 		features.push(new DocumentLinksFeature(documents, trees));
 		features.push(new InlayHintFeature(documents, trees));
-		features.push(new HoverFeature(documents, trees, priceMap));
+		features.push(new HoverFeature(documents, trees, priceMap, symbolIndex));
 
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
 		documents.onDidOpen(event => symbolIndex.addFile(event.document.uri));

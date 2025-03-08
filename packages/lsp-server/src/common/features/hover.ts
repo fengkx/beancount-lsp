@@ -1,24 +1,30 @@
 import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { URI, Utils } from 'vscode-uri';
 import { compactToRange } from '../common';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
 import * as positionUtils from './position-utils';
 import { PriceMap } from './prices-index/price-map';
+import { SymbolInfo } from './symbol-extractors';
+import { SymbolIndex } from './symbol-index';
 import { Feature } from './types';
 
 // Create a logger for hover functionality
 const logger = new Logger('hover');
 
 export class HoverFeature implements Feature {
+	connection: lsp.Connection;
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
 		private readonly priceMap: PriceMap,
+		private readonly symbolIndex: SymbolIndex,
 	) {}
 
 	register(connection: lsp.Connection): void {
+		this.connection = connection;
 		connection.onHover(async (params: lsp.HoverParams): Promise<lsp.Hover | null> => {
 			try {
 				return await this.onHover(params);
@@ -82,7 +88,33 @@ export class HoverFeature implements Feature {
 			};
 		}
 
-		// If not an account, try to find a commodity at the current position
+		// If not an account, try to find a tag at the current position
+		const tagAtPosition = await positionUtils.getTagAtPosition(
+			this.trees,
+			document,
+			params.position,
+		);
+
+		if (tagAtPosition) {
+			logger.debug(`Found tag at position: ${tagAtPosition}`);
+
+			// Get the range of the tag
+			const range = await positionUtils.getRangeAtPosition(
+				this.trees,
+				document,
+				params.position,
+			);
+
+			// Create hover content for tag
+			const contents = await this.createTagHoverContents(tagAtPosition);
+
+			return {
+				contents,
+				range,
+			};
+		}
+
+		// If not a tag, try to find a commodity at the current position
 		const commodityAtPosition = await positionUtils.getCommodityAtPosition(
 			this.trees,
 			document,
@@ -824,5 +856,94 @@ export class HoverFeature implements Feature {
 				value: `**Price Information**\n\nUnable to retrieve conversion details.`,
 			};
 		}
+	}
+
+	/**
+	 * Create hover contents for a tag, showing usage statistics
+	 */
+	private async createTagHoverContents(tag: string): Promise<lsp.MarkupContent> {
+		// Find all tag usages
+		const tagUsages = await this.symbolIndex.findAsync({
+			_symType: 'tag',
+			name: tag,
+		});
+
+		// Find all pushtag usages
+		const pushtagUsages = await this.symbolIndex.findAsync({
+			_symType: 'pushtag',
+			name: tag,
+		});
+
+		// Find all poptag usages
+		const poptagUsages = await this.symbolIndex.findAsync({
+			_symType: 'poptag',
+			name: tag,
+		});
+
+		// Total usage count
+		const totalUsages = tagUsages.length + pushtagUsages.length + poptagUsages.length;
+
+		// Generate a more structured and readable content
+		let content = `**Tag: #${tag}**\n\n`;
+
+		// Summary line with counts
+		content += `**Total: ${totalUsages}**\n`;
+		content += `• Regular: ${tagUsages.length}\n`;
+		content += `• Push directives: ${pushtagUsages.length}\n`;
+		content += `• Pop directives: ${poptagUsages.length}\n`;
+
+		// Create a file-based usage map to better organize the information
+		const fileUsageMap = new Map<string, { regular: number; push: number; pop: number }>();
+
+		const workspaceFolders = await this.connection.workspace.getWorkspaceFolders();
+
+		// Process all usages and group by filename
+		const processUsage = (usage: SymbolInfo, type: 'regular' | 'push' | 'pop') => {
+			const workspaceFolder = workspaceFolders?.find(folder => usage._uri.startsWith(folder.uri));
+			const uri = URI.parse(usage._uri);
+			const workspaceFolderFilePath = URI.parse(workspaceFolder!.uri).fsPath;
+			const filepath = uri.fsPath.replace(workspaceFolderFilePath, '').replace(/^[\\/\\]/, '');
+			if (!fileUsageMap.has(filepath)) {
+				fileUsageMap.set(filepath, { regular: 0, push: 0, pop: 0 });
+			}
+			const stats = fileUsageMap.get(filepath)!;
+			stats[type]++;
+		};
+
+		tagUsages.forEach(usage => processUsage(usage, 'regular'));
+		pushtagUsages.forEach(usage => processUsage(usage, 'push'));
+		poptagUsages.forEach(usage => processUsage(usage, 'pop'));
+
+		// Only show file details if we have files with pushtag/poptag directives
+		if (pushtagUsages.length > 0 || poptagUsages.length > 0) {
+			const files = Array.from(fileUsageMap.entries())
+				.filter(([_, stats]) => stats.push > 0 || stats.pop > 0)
+				.sort((a, b) => a[0].localeCompare(b[0]));
+
+			if (files.length > 0) {
+				content += `\n**Files with push/pop directives:**\n`;
+
+				files.forEach(([filename, stats]) => {
+					content += `\n**${filename}**\n`;
+
+					if (stats.push > 0) {
+						content += `  • Push: ${stats.push}\n`;
+					}
+
+					if (stats.pop > 0) {
+						content += `  • Pop: ${stats.pop}\n`;
+					}
+
+					if (stats.regular > 0) {
+						content += `  • Regular uses: ${stats.regular}\n`;
+					}
+				});
+			}
+		}
+
+		return {
+			kind: lsp.MarkupKind.Markdown,
+			value: content,
+		};
 	}
 }

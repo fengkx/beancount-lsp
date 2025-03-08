@@ -226,3 +226,95 @@ export async function getNarrationAtPosition(
 
 	return null;
 }
+
+/**
+ * Extracts the tag name from a pushtag directive at the given position
+ */
+export async function getPushTagAtPosition(
+	trees: Trees,
+	document: TextDocument,
+	position: lsp.Position,
+): Promise<string | null> {
+	const tree = await trees.getParseTree(document);
+	if (!tree) {
+		logger.warn(`Failed to get parse tree for document: ${document.uri}`);
+		return null;
+	}
+
+	// Get the node at the current position
+	const offset = document.offsetAt(position);
+	const node = tree.rootNode.descendantForIndex(offset);
+
+	if (!node) {
+		return null;
+	}
+
+	// Check if we're in a pushtag directive
+	if (node.type === 'pushtag') {
+		// Find the tag node within the pushtag
+		const tagNode = node.child(1);
+		if (tagNode && tagNode.type === 'tag') {
+			return tagNode.text.substring(1); // Remove the # prefix
+		}
+	}
+
+	// For nodes that are children of a pushtag
+	let parent = node.parent;
+	while (parent) {
+		if (parent.type === 'pushtag') {
+			const tagNode = parent.child(1);
+			if (tagNode && tagNode.type === 'tag') {
+				return tagNode.text.substring(1); // Remove the # prefix
+			}
+		}
+		parent = parent.parent;
+	}
+
+	return null;
+}
+
+/**
+ * Extracts the tag name from a poptag directive at the given position
+ */
+export async function getPopTagAtPosition(
+	trees: Trees,
+	document: TextDocument,
+	position: lsp.Position,
+): Promise<string | null> {
+	const tree = await trees.getParseTree(document);
+	if (!tree) {
+		logger.warn(`Failed to get parse tree for document: ${document.uri}`);
+		return null;
+	}
+
+	// Get the node at the current position
+	const offset = document.offsetAt(position);
+	const node = tree.rootNode.descendantForIndex(offset);
+
+	if (!node) {
+		return null;
+	}
+
+	// Check if we're in a poptag directive
+	if (node.type === 'poptag') {
+		// Find the tag node within the poptag
+		const tagNode = node.child(1);
+		if (tagNode && tagNode.type === 'tag') {
+			return tagNode.text.substring(1); // Remove the # prefix
+		}
+	}
+
+	// For nodes that are children of a poptag
+	let parent = node.parent;
+	while (parent) {
+		if (parent.type === 'poptag') {
+			const tagNode = parent.child(1);
+			if (tagNode && tagNode.type === 'tag') {
+				return tagNode.text.substring(1); // Remove the # prefix
+			}
+		}
+		parent = parent.parent;
+	}
+
+	return null;
+}

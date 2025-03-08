@@ -69,6 +69,22 @@ export class ReferencesFeature {
 			references = await this.findTagReferences(tagAtPosition);
 		}
 
+		// Try to find a pushtag at the position
+		const pushtagAtPosition = await positionUtils.getPushTagAtPosition(this.trees, document, params.position);
+		if (pushtagAtPosition && references.length === 0) {
+			logger.debug(`Found pushtag at position: ${pushtagAtPosition}`);
+			// For pushtag, find all poptag references with the same name
+			references = await this.findPushTagReferences(pushtagAtPosition);
+		}
+
+		// Try to find a poptag at the position
+		const poptagAtPosition = await positionUtils.getPopTagAtPosition(this.trees, document, params.position);
+		if (poptagAtPosition && references.length === 0) {
+			logger.debug(`Found poptag at position: ${poptagAtPosition}`);
+			// For poptag, find all pushtag references with the same name
+			references = await this.findPopTagReferences(poptagAtPosition);
+		}
+
 		// Try to find a payee at the position
 		const payeeAtPosition = await positionUtils.getPayeeAtPosition(this.trees, document, params.position);
 		if (payeeAtPosition && references.length === 0) {
@@ -208,6 +224,54 @@ export class ReferencesFeature {
 		});
 
 		logger.debug(`Found ${references.length} references to payee: ${payeeName}`);
+		return references;
+	}
+
+	/**
+	 * Find all poptag references to a specific pushtag
+	 */
+	private async findPushTagReferences(tagName: string): Promise<lsp.Location[]> {
+		const references: lsp.Location[] = [];
+
+		// Find all poptag usages for this tag
+		const tagReferences = await this.symbolIndex.findAsync({
+			_symType: 'poptag',
+			name: tagName,
+		}) as SymbolInfo[];
+
+		// Convert to LSP Locations
+		tagReferences.forEach(ref => {
+			references.push({
+				uri: ref._uri,
+				range: getRange(ref),
+			});
+		});
+
+		logger.debug(`Found ${references.length} poptag references to pushtag: ${tagName}`);
+		return references;
+	}
+
+	/**
+	 * Find all pushtag references to a specific poptag
+	 */
+	private async findPopTagReferences(tagName: string): Promise<lsp.Location[]> {
+		const references: lsp.Location[] = [];
+
+		// Find all pushtag usages for this tag
+		const tagReferences = await this.symbolIndex.findAsync({
+			_symType: 'pushtag',
+			name: tagName,
+		}) as SymbolInfo[];
+
+		// Convert to LSP Locations
+		tagReferences.forEach(ref => {
+			references.push({
+				uri: ref._uri,
+				range: getRange(ref),
+			});
+		});
+
+		logger.debug(`Found ${references.length} pushtag references to poptag: ${tagName}`);
 		return references;
 	}
 }

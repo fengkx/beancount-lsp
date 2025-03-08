@@ -197,3 +197,55 @@ export async function getPricesDeclarations(doc: TextDocument, trees: Trees): Pr
 	}
 	return result;
 }
+
+export async function getPushTags(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
+	const tree = await trees.getParseTree(doc);
+	if (!tree) {
+		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
+	}
+	const query = TreeQuery.getQueryByTokenName('pushtag');
+	const captures = await query.captures(tree.rootNode);
+	const result: SymbolInfo[] = [];
+	for (const capture of captures) {
+		// Get the tag node within the pushtag
+		const tagNode = capture.node.child(1);
+		if (tagNode && tagNode.type === 'tag') {
+			const name = tagNode.text.substring(1); // Remove the leading #
+			const range = asLspRange(capture.node);
+			result.push({
+				_symType: 'pushtag',
+				_uri: doc.uri,
+				name,
+				range: rangeToCompact(range),
+				kind: lsp.SymbolKind.Event,
+			});
+		}
+	}
+	return result;
+}
+
+export async function getPopTags(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
+	const tree = await trees.getParseTree(doc);
+	if (!tree) {
+		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
+	}
+	const query = TreeQuery.getQueryByTokenName('poptag');
+	const captures = await query.captures(tree.rootNode);
+	const result: SymbolInfo[] = [];
+	for (const capture of captures) {
+		// Get the tag node within the poptag
+		const tagNode = capture.node.child(1);
+		if (tagNode && tagNode.type === 'tag') {
+			const name = tagNode.text.substring(1); // Remove the leading #
+			const range = asLspRange(capture.node);
+			result.push({
+				_symType: 'poptag',
+				_uri: doc.uri,
+				name,
+				range: rangeToCompact(range),
+				kind: lsp.SymbolKind.Event,
+			});
+		}
+	}
+	return result;
+}

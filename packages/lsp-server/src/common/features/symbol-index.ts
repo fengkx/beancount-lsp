@@ -13,7 +13,9 @@ import {
 	getCurrencyDefinitions,
 	getNarrations,
 	getPayees,
+	getPopTags,
 	getPricesDeclarations,
+	getPushTags,
 	getTags,
 	SymbolInfo,
 } from './symbol-extractors';
@@ -197,18 +199,29 @@ export class SymbolIndex {
 
 	private async _doIndex(document: TextDocument) {
 		this.logger.debug(`[index] Indexing document: ${document.uri}`);
-		const [accountUsages, accountDefinitions, payees, narrations, commodities, tags, pricesDeclarations] =
-			await Promise.all(
-				[
-					getAccountsUsage(document, this._trees),
-					getAccountsDefinition(document, this._trees),
-					getPayees(document, this._trees),
-					getNarrations(document, this._trees),
-					getCommodities(document, this._trees),
-					getTags(document, this._trees),
-					getPricesDeclarations(document, this._trees),
-				],
-			);
+		const [
+			accountUsages,
+			accountDefinitions,
+			payees,
+			narrations,
+			commodities,
+			tags,
+			pushTags,
+			popTags,
+			pricesDeclarations,
+		] = await Promise.all(
+			[
+				getAccountsUsage(document, this._trees),
+				getAccountsDefinition(document, this._trees),
+				getPayees(document, this._trees),
+				getNarrations(document, this._trees),
+				getCommodities(document, this._trees),
+				getTags(document, this._trees),
+				getPushTags(document, this._trees),
+				getPopTags(document, this._trees),
+				getPricesDeclarations(document, this._trees),
+			],
+		);
 
 		this.logger.debug(`We Found symbols in ${document.uri}:
 			- Account usages: ${accountUsages.length}
@@ -217,6 +230,8 @@ export class SymbolIndex {
 			- Narrations: ${narrations.length}
 			- Commodities: ${commodities.length}
 			- Tags: ${tags.length}
+			- Push tags: ${pushTags.length}
+			- Pop tags: ${popTags.length}
 			- Prices declarations: ${pricesDeclarations.length}
 		`);
 
@@ -228,6 +243,8 @@ export class SymbolIndex {
 			this._symbolInfoStorage.insertAsync(narrations),
 			this._symbolInfoStorage.insertAsync(commodities),
 			this._symbolInfoStorage.insertAsync(tags),
+			this._symbolInfoStorage.insertAsync(pushTags),
+			this._symbolInfoStorage.insertAsync(popTags),
 			this._symbolInfoStorage.insertAsync(pricesDeclarations),
 		]);
 

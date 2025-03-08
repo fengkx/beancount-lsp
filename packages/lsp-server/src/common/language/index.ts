@@ -20,7 +20,9 @@ import note from './queries/note.scm';
 import number from './queries/number.scm';
 import pad from './queries/pad.scm';
 import payee from './queries/payee.scm';
+import poptag from './queries/poptag.scm';
 import price from './queries/price.scm';
+import pushtag from './queries/pushtag.scm';
 import query from './queries/query.scm';
 import string from './queries/string.scm';
 import tag from './queries/tag.scm';
@@ -54,7 +56,9 @@ const queryMap = {
 	number,
 	pad,
 	payee,
+	poptag,
 	price,
+	pushtag,
 	query,
 	string,
 	tag,
