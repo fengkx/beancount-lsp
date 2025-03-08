@@ -1373,7 +1373,11 @@ export class CompletionFeature implements Feature {
 				);
 				logger.info(`Income accounts added, items: ${completionItems.length - initialCount}`);
 			})
-			.with({ triggerCharacter: '"', previousSiblingType: 'txn' }, async () => {
+			.with({ triggerCharacter: '"', previousSiblingType: 'txn' }, {
+				triggerCharacter: '"',
+				currentType: 'payee',
+				descendantForPositionType: 'payee',
+			}, async () => {
 				// Payee and narration completions after a transaction keyword
 				logger.info('Branch: triggerCharacter " with txn sibling');
 				const initialCount = completionItems.length;
