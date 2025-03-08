@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=fengkx.beancount-lsp-client" target="_blank" rel="noopener noreferrer">
-    <img width="252" src="./assets/icon.png" alt="Beancount LSP logo">
+    <img width="252" src="https://cdn.sa.net/2025/03/08/YGTOpSwVHLAm5aW.png" alt="Beancount LSP logo">
   </a>
 </p>
 
