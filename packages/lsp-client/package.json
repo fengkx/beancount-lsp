@@ -3,7 +3,7 @@
 	"displayName": "Beancount language service",
 	"description": "An Beancount language service supporting features like syntax highlighting, code completion, and more.",
 	"icon": "assets/icon.png",
-	"version": "0.0.25",
+	"version": "0.0.26",
 	"publisher": "fengkx",
 	"repository": {
 		"type": "git",
@@ -100,7 +100,7 @@
 		},
 		"configurationDefaults": {
 			"editor.semanticHighlighting.enabled": true,
-			"editor.inlayHints.enabled": true,
+			"editor.inlayHints.enabled": "on",
 			"editor.semanticTokenColorCustomizations": {
 				"enabled": true,
 				"rules": {

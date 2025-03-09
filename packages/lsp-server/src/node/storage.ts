@@ -10,6 +10,7 @@ export const factory: IStorageFactory = {
 			// autoload: true,
 			inMemoryOnly: true,
 		});
+		await db.ensureIndex({ fieldName: 'symbol' });
 
 		return db;
 	},

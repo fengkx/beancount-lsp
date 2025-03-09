@@ -5,4 +5,3 @@ globs:
 nedb has many bugs, don't use index feature and `removeAsync` from nedb(Storage). Instead use the `remove` function.
 
 - removeAsync will occur RangeError: Maximum call stack size exceeded
-- Index feature will lose data
