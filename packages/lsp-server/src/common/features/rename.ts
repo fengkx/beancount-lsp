@@ -41,21 +41,26 @@ export class RenameFeature {
 	): Promise<lsp.Range | { range: lsp.Range; placeholder: string } | null> {
 		logger.debug(`Prepare rename requested at position: ${JSON.stringify(params.position)}`);
 
-		const document = this.documents.get(params.textDocument.uri);
+		const document = await this.documents.retrieve(params.textDocument.uri);
 		if (!document) {
 			logger.warn(`Document not found: ${params.textDocument.uri}`);
 			return null;
 		}
+
+		// Get range at position first - we'll use it to extract the exact text
+		const range = await positionUtils.getRangeAtPosition(this.trees, document, params.position);
+
+		// Get exact text from document at this range
+		const textAtRange = document.getText(range);
 
 		// Get relevant symbol at position using helper methods
 		// Check for account at position
 		const accountAtPosition = await positionUtils.getAccountAtPosition(this.trees, document, params.position);
 		if (accountAtPosition) {
 			logger.debug(`Found renamable account at position: ${accountAtPosition}`);
-			const range = await positionUtils.getRangeAtPosition(this.trees, document, params.position);
 			return {
 				range,
-				placeholder: accountAtPosition,
+				placeholder: textAtRange, // Use exact text from document
 			};
 		}
 
@@ -63,10 +68,9 @@ export class RenameFeature {
 		const commodityAtPosition = await positionUtils.getCommodityAtPosition(this.trees, document, params.position);
 		if (commodityAtPosition) {
 			logger.debug(`Found renamable commodity at position: ${commodityAtPosition}`);
-			const range = await positionUtils.getRangeAtPosition(this.trees, document, params.position);
 			return {
 				range,
-				placeholder: commodityAtPosition,
+				placeholder: textAtRange, // Use exact text from document
 			};
 		}
 
@@ -74,10 +78,9 @@ export class RenameFeature {
 		const tagAtPosition = await positionUtils.getTagAtPosition(this.trees, document, params.position);
 		if (tagAtPosition) {
 			logger.debug(`Found renamable tag at position: ${tagAtPosition}`);
-			const range = await positionUtils.getRangeAtPosition(this.trees, document, params.position);
 			return {
 				range,
-				placeholder: tagAtPosition,
+				placeholder: textAtRange, // Use exact text from document
 			};
 		}
 
@@ -85,10 +88,9 @@ export class RenameFeature {
 		const payeeAtPosition = await positionUtils.getPayeeAtPosition(this.trees, document, params.position);
 		if (payeeAtPosition) {
 			logger.debug(`Found renamable payee at position: ${payeeAtPosition}`);
-			const range = await positionUtils.getRangeAtPosition(this.trees, document, params.position);
 			return {
 				range,
-				placeholder: payeeAtPosition,
+				placeholder: textAtRange, // Use exact text from document
 			};
 		}
 
@@ -96,10 +98,9 @@ export class RenameFeature {
 		const narrationAtPosition = await positionUtils.getNarrationAtPosition(this.trees, document, params.position);
 		if (narrationAtPosition) {
 			logger.debug(`Found renamable narration at position: ${narrationAtPosition}`);
-			const range = await positionUtils.getRangeAtPosition(this.trees, document, params.position);
 			return {
 				range,
-				placeholder: narrationAtPosition,
+				placeholder: textAtRange, // Use exact text from document
 			};
 		}
 
@@ -115,7 +116,7 @@ export class RenameFeature {
 	): Promise<lsp.WorkspaceEdit | null> {
 		logger.debug(`Rename requested at position: ${JSON.stringify(params.position)} to "${params.newName}"`);
 
-		const document = this.documents.get(params.textDocument.uri);
+		const document = await this.documents.retrieve(params.textDocument.uri);
 		if (!document) {
 			logger.warn(`Document not found: ${params.textDocument.uri}`);
 			return null;
