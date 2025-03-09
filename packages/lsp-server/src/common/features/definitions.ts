@@ -20,6 +20,13 @@ export class DefinitionFeature {
 		connection.onDefinition((params) => this.onDefinition(params));
 	}
 
+	/**
+	 * Public method to get definitions - can be used by other features
+	 */
+	public async getDefinition(params: lsp.DefinitionParams): Promise<lsp.Definition | null> {
+		return this.onDefinition(params);
+	}
+
 	private async onDefinition(
 		params: lsp.DefinitionParams,
 	): Promise<lsp.Definition | null> {

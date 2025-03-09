@@ -2,6 +2,7 @@ import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
+import { DefinitionFeature } from './definitions';
 import * as positionUtils from './position-utils';
 import { ReferencesFeature } from './references';
 import { SymbolIndex } from './symbol-index';
@@ -15,6 +16,7 @@ const logger = new Logger('rename');
  */
 export class RenameFeature {
 	private references: ReferencesFeature;
+	private definitions: DefinitionFeature;
 
 	constructor(
 		private readonly documents: DocumentStore,
@@ -23,6 +25,8 @@ export class RenameFeature {
 	) {
 		// Create a references feature to use for finding all references
 		this.references = new ReferencesFeature(documents, trees, symbolIndex);
+		// Create a definitions feature to use for finding definitions
+		this.definitions = new DefinitionFeature(documents, trees, symbolIndex);
 	}
 
 	/**
@@ -122,46 +126,84 @@ export class RenameFeature {
 			return null;
 		}
 
-		// First, find all references to the symbol being renamed
-		// We can piggyback on the ReferencesFeature's onReferences method
+		// Step 1: Get all references using the ReferencesFeature
 		const referencesParams: lsp.ReferenceParams = {
 			textDocument: params.textDocument,
 			position: params.position,
 			context: { includeDeclaration: true },
 		};
 
-		const references = await this.references.onReferences(referencesParams);
+		const references = await this.references.onReferences(referencesParams) || [];
 
-		if (!references || references.length === 0) {
-			logger.warn('No references found for renaming');
+		// Step 2: Get all definitions using the DefinitionFeature
+		const definitionParams: lsp.DefinitionParams = {
+			textDocument: params.textDocument,
+			position: params.position,
+		};
+
+		// Get the definitions - they might be returned as a single location or an array
+		const definitionResult = await this.definitions.getDefinition(definitionParams);
+		let definitions: lsp.Location[] = [];
+
+		// Handle different possible return types from onDefinition
+		if (definitionResult) {
+			if (Array.isArray(definitionResult)) {
+				definitions = definitionResult;
+			} else {
+				// Single location
+				definitions = [definitionResult];
+			}
+		}
+
+		// Step 3: Combine references and definitions, ensuring no duplicates
+		const allLocations: lsp.Location[] = [...references];
+
+		// Add definitions that aren't already in the references
+		for (const def of definitions) {
+			const isDuplicate = allLocations.some(ref =>
+				ref.uri === def.uri
+				&& ref.range.start.line === def.range.start.line
+				&& ref.range.start.character === def.range.start.character
+			);
+
+			if (!isDuplicate) {
+				allLocations.push(def);
+			}
+		}
+
+		if (allLocations.length === 0) {
+			logger.warn('No references or definitions found for renaming');
 			return null;
 		}
 
-		// 使用Map来避免未定义错误
+		// Step 4: Create the edit map (same as before)
 		const editsMap = new Map<string, lsp.TextEdit[]>();
 
-		// 为每个引用创建文本编辑
-		references.forEach(ref => {
-			const uri = ref.uri;
+		// Create text edits for all locations (references and definitions)
+		allLocations.forEach(location => {
+			const uri = location.uri;
 			if (!editsMap.has(uri)) {
 				editsMap.set(uri, []);
 			}
 
-			// 通过get方法获取数组，TypeScript能确保它不是undefined
 			const edits = editsMap.get(uri)!;
 			edits.push({
-				range: ref.range,
+				range: location.range,
 				newText: params.newName,
 			});
 		});
 
-		// 将Map转换为LSP需要的格式
+		// Convert the map to the LSP-required format
 		const changes: { [uri: string]: lsp.TextEdit[] } = {};
 		editsMap.forEach((edits, uri) => {
 			changes[uri] = edits;
 		});
 
-		logger.debug(`Rename will update ${Object.keys(changes).length} files and ${references.length} occurrences`);
+		logger.debug(
+			`Rename will update ${
+				Object.keys(changes).length
+			} files and ${allLocations.length} occurrences (${references.length} references, ${definitions.length} definitions)`,
+		);
 
 		return { changes };
 	}

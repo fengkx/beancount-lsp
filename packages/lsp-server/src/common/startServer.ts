@@ -167,6 +167,7 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 						break;
 				}
 			}
+			symbolIndex.unleashFiles([]);
 		});
 
 		return result;

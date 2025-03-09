@@ -106,32 +106,6 @@ export class ReferencesFeature {
 	}
 
 	/**
-	 * 移除重复的引用位置
-	 * 通过URI和范围（起始行列和结束行列）进行去重
-	 */
-	private removeDuplicateReferences(references: lsp.Location[]): lsp.Location[] {
-		// TODO: 移除重复的引用位置
-		return references;
-		// 使用一个Set来跟踪已经添加的引用的唯一标识符
-		const uniqueRefSet = new Set<string>();
-		const uniqueReferences: lsp.Location[] = [];
-
-		for (const ref of references) {
-			// 创建引用的唯一标识符：URI + 起始位置 + 结束位置
-			const refKey =
-				`${ref.uri}|${ref.range.start.line},${ref.range.start.character}|${ref.range.end.line},${ref.range.end.character}`;
-
-			// 只有当这个标识符之前没见过时才添加
-			if (!uniqueRefSet.has(refKey)) {
-				uniqueRefSet.add(refKey);
-				uniqueReferences.push(ref);
-			}
-		}
-
-		return uniqueReferences;
-	}
-
-	/**
 	 * Find all references to a specific account
 	 */
 	private async findAccountReferences(accountName: string): Promise<lsp.Location[]> {
