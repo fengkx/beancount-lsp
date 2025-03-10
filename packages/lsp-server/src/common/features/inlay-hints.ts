@@ -5,7 +5,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
 import { findAllTransactions, getEndPosition, isNodeInRange } from '../utils/ast-utils';
-import { checkTransactionBalance, hasOnlyOneIncompleteAmount, Posting } from '../utils/balance-checker';
+import { checkTransactionBalance, hasEmptyCost, hasOnlyOneIncompleteAmount, Posting } from '../utils/balance-checker';
 import { Feature } from './types';
 
 // Create a logger for this feature
@@ -80,6 +80,10 @@ export class InlayHintFeature implements Feature {
 
 			// Check if this transaction has exactly one posting without an amount
 			if (hasOnlyOneIncompleteAmount(transaction.postings)) {
+				if (hasEmptyCost(transaction.postings)) {
+					// Currently not supported
+					continue;
+				}
 				// Find the incomplete posting
 				const incompletePosting = transaction.postings.find(posting => !posting.amount);
 
