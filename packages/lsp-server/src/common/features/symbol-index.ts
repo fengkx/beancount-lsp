@@ -11,6 +11,7 @@ import {
 	getAccountsUsage,
 	getCommodities,
 	getCurrencyDefinitions,
+	getLinks,
 	getNarrations,
 	getPayees,
 	getPopTags,
@@ -209,6 +210,7 @@ export class SymbolIndex {
 			pushTags,
 			popTags,
 			pricesDeclarations,
+			links,
 		] = await Promise.all(
 			[
 				getAccountsUsage(document, this._trees),
@@ -220,6 +222,7 @@ export class SymbolIndex {
 				getPushTags(document, this._trees),
 				getPopTags(document, this._trees),
 				getPricesDeclarations(document, this._trees),
+				getLinks(document, this._trees),
 			],
 		);
 
@@ -233,6 +236,7 @@ export class SymbolIndex {
 			- Push tags: ${pushTags.length}
 			- Pop tags: ${popTags.length}
 			- Prices declarations: ${pricesDeclarations.length}
+			- Links: ${links.length}
 		`);
 
 		this._symbolInfoStorage.remove({ _uri: document.uri }, { multi: true });
@@ -246,6 +250,7 @@ export class SymbolIndex {
 			this._symbolInfoStorage.insertAsync(pushTags),
 			this._symbolInfoStorage.insertAsync(popTags),
 			this._symbolInfoStorage.insertAsync(pricesDeclarations),
+			this._symbolInfoStorage.insertAsync(links),
 		]);
 
 		const totalSymbolsInStorage = await this._symbolInfoStorage.countAsync({});
@@ -350,6 +355,17 @@ export class SymbolIndex {
 		const uniqueTags = [...new Set(tags.map(t => t.name))];
 		this.logger.debug(`[index] Found ${tags.length} tags (${uniqueTags.length} unique)`);
 		return uniqueTags;
+	}
+
+	/**
+	 * Gets all unique links from the index
+	 */
+	public async getLinks(): Promise<string[]> {
+		this.logger.debug('[index] Getting links');
+		const links = await this._symbolInfoStorage.findAsync({ _symType: 'link' }) as SymbolInfo[];
+		const uniqueLinks = [...new Set(links.map(l => l.name))];
+		this.logger.debug(`[index] Found ${links.length} links (${uniqueLinks.length} unique)`);
+		return uniqueLinks;
 	}
 
 	/**

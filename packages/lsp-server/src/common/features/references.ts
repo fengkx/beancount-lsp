@@ -100,6 +100,14 @@ export class ReferencesFeature {
 			// but could be added in the future
 		}
 
+		// Try to find a link at the position
+		const linkAtPosition = await positionUtils.getLinkAtPosition(this.trees, document, params.position);
+		if (linkAtPosition && references.length === 0) {
+			logger.debug(`Found link at position: ${linkAtPosition}`);
+			// Find all references to this link
+			references = await this.findLinkReferences(linkAtPosition);
+		}
+
 		logger.debug(`Found ${references.length} references at the current position`);
 		return references;
 	}
@@ -245,6 +253,30 @@ export class ReferencesFeature {
 		});
 
 		logger.debug(`Found ${references.length} pushtag references to poptag: ${tagName}`);
+		return references;
+	}
+
+	/**
+	 * Find all references to a specific link
+	 */
+	private async findLinkReferences(linkName: string): Promise<lsp.Location[]> {
+		const references: lsp.Location[] = [];
+
+		// Find all link usages
+		const linkReferences = await this.symbolIndex.findAsync({
+			_symType: 'link',
+			name: linkName,
+		}) as SymbolInfo[];
+
+		// Convert to LSP Locations
+		linkReferences.forEach(ref => {
+			references.push({
+				uri: ref._uri,
+				range: getRange(ref),
+			});
+		});
+
+		logger.debug(`Found ${references.length} references to link: ${linkName}`);
 		return references;
 	}
 }

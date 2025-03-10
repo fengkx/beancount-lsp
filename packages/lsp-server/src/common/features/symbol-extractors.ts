@@ -159,6 +159,7 @@ export async function getTags(doc: TextDocument, trees: Trees): Promise<SymbolIn
 	if (!tree) {
 		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
 	}
+
 	const query = TreeQuery.getQueryByTokenName('tag');
 	const captures = await query.captures(tree.rootNode);
 	const result: SymbolInfo[] = [];
@@ -168,6 +169,32 @@ export async function getTags(doc: TextDocument, trees: Trees): Promise<SymbolIn
 		result.push({
 			_symType: 'tag',
 			_uri: doc.uri,
+			name,
+			range: rangeToCompact(range),
+			kind: lsp.SymbolKind.Key,
+		});
+	}
+	return result;
+}
+
+/**
+ * Extracts all links from a document
+ */
+export async function getLinks(document: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
+	const tree = await trees.getParseTree(document);
+	if (!tree) {
+		throw new Error(`Failed to get parse tree for document: ${document.uri}`);
+	}
+
+	const query = TreeQuery.getQueryByTokenName('link');
+	const captures = await query.captures(tree.rootNode);
+	const result: SymbolInfo[] = [];
+	for (const capture of captures) {
+		const name = capture.node.text.substring(1); // Remove the ^ prefix
+		const range = asLspRange(capture.node);
+		result.push({
+			_symType: 'link',
+			_uri: document.uri,
 			name,
 			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Key,
