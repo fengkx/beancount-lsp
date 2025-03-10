@@ -1,4 +1,3 @@
-import { CustomMessages } from '@bean-lsp/shared';
 import * as vscode from 'vscode';
 import { LanguageClient, ServerOptions, TransportKind } from 'vscode-languageclient/node';
 import {

@@ -1,4 +1,4 @@
-import { CustomMessages, Logger, LogLevel, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
+import { CustomMessages, Logger, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
 import * as vscode from 'vscode';
 // Import from base package for shared types between node and browser
 import { LanguageClientOptions, State } from 'vscode-languageclient';

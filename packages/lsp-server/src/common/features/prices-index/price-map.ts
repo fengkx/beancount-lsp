@@ -172,7 +172,6 @@ class BellmanFord {
 }
 
 export class PriceMap {
-	private priceCache: Map<string, Map<string, PriceDeclaration[]>> = new Map();
 	private mainCurrency: string | null = null;
 	private currencyUsageCache: Map<string, number> = new Map();
 	private lastCurrencyUsageUpdate: number = 0;

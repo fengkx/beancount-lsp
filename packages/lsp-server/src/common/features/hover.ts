@@ -15,7 +15,7 @@ import { Feature } from './types';
 const logger = new Logger('hover');
 
 export class HoverFeature implements Feature {
-	connection: lsp.Connection;
+	connection: lsp.Connection | null = null;
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
@@ -398,10 +398,6 @@ export class HoverFeature implements Feature {
 				if (point.price === max) point.level = numLevels - 1;
 			});
 		} else {
-			// Calculate the ideal number of points per level for even distribution
-			// We want approximately the same number of points in each level
-			const pointsPerLevel = numPoints / numLevels;
-
 			// Assign ranks based on sorted position
 			pricePoints.forEach((point, i) => {
 				point.rank = i;

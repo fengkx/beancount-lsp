@@ -112,7 +112,7 @@ function scoreMatch(itemLabel: string, filterText: string, userInput: string): n
 	score += scoreFilterVariations(filterText, input);
 
 	// Special handling for Chinese text
-	if (isChineseChar(itemLabel[0])) {
+	if (itemLabel && isChineseChar(itemLabel[0])) {
 		score += scoreChineseMatches(itemLabel, input);
 	}
 
@@ -127,7 +127,7 @@ function scoreMatch(itemLabel: string, filterText: string, userInput: string): n
 
 	// Add special case handling for beginning-consecutive + end pattern
 	// This specifically handles cases like "hxhsa" matching "华夏恒生ETF联接A"
-	if (input.length >= 3 && isChineseChar(itemLabel[0])) {
+	if (input.length >= 3 && typeof itemLabel === 'string' && isChineseChar(itemLabel[0])) {
 		const enhancedScore = scoreBeginningConsecutivePlusEndPattern(itemLabel, input);
 		score += enhancedScore;
 	}
@@ -227,7 +227,7 @@ function scoreSegmentMatching(segmentAcronyms: string[], input: string): number 
 	// For each segment acronym, check if input starts with it or contains it
 	for (let i = 0; i < segmentAcronyms.length; i++) {
 		const acronym = segmentAcronyms[i];
-		if (acronym.length > 0) {
+		if (acronym && acronym.length > 0) {
 			// Case: input matches the start of multiple segment acronyms in order
 			// Example: "hxhs" for "华夏" + "恒生"
 			if (input.startsWith(acronym)) {

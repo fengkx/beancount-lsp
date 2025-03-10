@@ -18,10 +18,9 @@ export class Trees {
 
 	private readonly _listener: Disposable[] = [];
 
-	private _parser: Parser | undefined;
 	private readonly _webTreeSitterWasmPath?: string;
 
-	constructor(private readonly _documents: DocumentStore, webTreeSitterWasmPath?: string) {
+	constructor(private readonly _documents: DocumentStore, webTreeSitterWasmPath: string) {
 		// build edits when document changes
 		this._listener.push(_documents.onDidChangeContent2(e => {
 			const info = this._cache.get(e.document.uri);

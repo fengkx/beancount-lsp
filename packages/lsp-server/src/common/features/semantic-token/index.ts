@@ -13,7 +13,6 @@ import { Feature } from '../types';
 import { TokenBuilder } from './token-builder';
 
 const DEFINITION_MODIFIER = 1 << TOKEN_MODIFIERS.indexOf('definition');
-const DECLARATION_MODIFIER = 1 << TOKEN_MODIFIERS.indexOf('declaration');
 
 export class SemanticTokenFeature implements Feature {
 	constructor(private readonly documents: DocumentStore, private readonly trees: Trees) {}

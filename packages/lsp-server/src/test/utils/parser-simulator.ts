@@ -1,13 +1,4 @@
-import { readFileSync } from 'fs';
-import path from 'path';
 import { Posting } from '../../common/utils/balance-checker';
-
-// Simple interface to mock the necessary parts of Parser.SyntaxNode
-interface MockSyntaxNode {
-	type: string;
-	text: string;
-	childCount: number;
-}
 
 /**
  * Helper to create a posting from raw parameters for testing

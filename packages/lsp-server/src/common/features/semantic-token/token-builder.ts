@@ -23,6 +23,9 @@ export class TokenBuilder {
 
 	buildSingleCaptureTokens(matches: Parser.QueryMatch[], tokenType: TokenTypes, tokenModifiers = 0) {
 		for (const m of matches) {
+			if (!m.captures[0]?.node) {
+				continue;
+			}
 			const line = m.captures[0].node.startPosition.row;
 			const startChar = m.captures[0].node.startPosition.column;
 			const length = m.captures[0].node.text.length;

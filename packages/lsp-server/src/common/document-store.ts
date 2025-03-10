@@ -21,6 +21,7 @@ export interface TextDocumentChange2 {
 	}[];
 }
 
+// @ts-expect-error intentionally override the get method to private
 export class DocumentStore extends TextDocuments<TextDocument> {
 	private readonly _decoder = new TextDecoder();
 
@@ -120,7 +121,11 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 				`Using default 'main.bean' as manBeanFile, You should configure 'beanLsp.manBeanFile'`,
 			);
 		}
-		const rootUri = workspace[0].uri;
+		const rootUri = workspace[0]?.uri;
+
+		if (!rootUri) {
+			return null;
+		}
 
 		const mainAbsPath = UriUtils.joinPath(URI.parse(rootUri), config.manBeanFile ?? 'main.bean');
 

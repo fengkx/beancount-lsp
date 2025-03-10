@@ -1,11 +1,4 @@
-import {
-	CustomMessages,
-	ILogger,
-	Logger,
-	LogLevel,
-	logLevelToString,
-	mapTraceServerToLogLevel,
-} from '@bean-lsp/shared';
+import { CustomMessages, Logger, LogLevel, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
 import {
 	Connection,
 	DidChangeConfigurationNotification,
@@ -67,7 +60,6 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 	// connection configurations
 	let hasConfigurationCapability: boolean = false;
 	let hasWorkspaceFolderCapability: boolean = false;
-	const hasDiagnosticRelatedInformationCapability: boolean = false;
 
 	const features: Feature[] = [];
 

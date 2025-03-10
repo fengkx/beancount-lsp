@@ -21,7 +21,7 @@ export class RenameFeature {
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
-		private readonly symbolIndex: SymbolIndex,
+		readonly symbolIndex: SymbolIndex,
 	) {
 		// Create a references feature to use for finding all references
 		this.references = new ReferencesFeature(documents, trees, symbolIndex);

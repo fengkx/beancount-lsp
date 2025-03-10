@@ -1,6 +1,5 @@
 import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
-import { TextDocument } from 'vscode-languageserver-textdocument';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
 import * as positionUtils from './position-utils';

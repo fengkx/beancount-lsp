@@ -1,25 +1,14 @@
 import { Logger } from '@bean-lsp/shared';
-import Big from 'big.js';
-import { Connection, Diagnostic, DiagnosticSeverity, Position, Range } from 'vscode-languageserver';
+import { Connection, Diagnostic, DiagnosticSeverity } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import Parser from 'web-tree-sitter';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
-import {
-	findAllTransactions,
-	findChildByType,
-	parseAmount,
-	parseCostSpec,
-	parsePriceAnnotation,
-	queryNodes,
-	Transaction,
-} from '../utils/ast-utils';
+import { findAllTransactions } from '../utils/ast-utils';
 import {
 	checkTransactionBalance,
 	hasBothCostAndPrice,
 	hasEmptyCost,
 	hasOnlyOneIncompleteAmount,
-	Posting,
 } from '../utils/balance-checker';
 import { Feature } from './types';
 
