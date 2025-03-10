@@ -47,7 +47,7 @@ The extension provides several configuration options to customize its behavior:
   - `messages`: Shows info-level messages, warnings, and errors (default)
   - `debug`: Shows debug-level messages and below
   - `verbose`: Shows all log messages (most verbose)
-- `beancount.mainBeanFile`: Specifies the main Beancount file to use for analysis. This should be relative to the workspace root. Default is "main.bean".
+- `beanLsp.manBeanFile`: Specifies the main Beancount file to use for analysis. This should be relative to the workspace root. Default is "main.bean".
 - `beancount.diagnostics.tolerance`: Tolerance value for transaction balancing. Set to 0 for exact matching. Default is 0.005.
 - `beanLsp.inlayHints.enable`: Enable or disable inlay hints showing calculated amounts for auto-balanced transactions. Default is true.
 - `beanLsp.mainCurrency`: Main currency for price conversions. If empty, the most frequently used currency will be automatically determined.
@@ -57,7 +57,7 @@ The extension provides several configuration options to customize its behavior:
 
 ```json
 {
-	"beancount.mainBeanFile": "main.bean",
+	"beanLsp.manBeanFile": "main.bean",
 	"beanLsp.trace.server": "debug",
 	"beanLsp.mainCurrency": "USD",
 	"beanLsp.currencys": ["USD", "EUR", "GBP", "JPY"],

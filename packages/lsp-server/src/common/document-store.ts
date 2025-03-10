@@ -100,8 +100,8 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 		return this._documentsCache.delete(uri);
 	}
 
-	public async getConfiguration() {
-		const config = await this._connection.workspace.getConfiguration({ section: LANGUAGE_ID });
+	private async getConfiguration() {
+		const config = await this._connection.workspace.getConfiguration({ section: 'beanLsp' });
 		this.logger.info(config);
 		return config;
 	}
@@ -115,14 +115,14 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 			return null;
 		}
 
-		if (workspace && !config.mainBeanFile) {
+		if (workspace && !config.manBeanFile) {
 			this._connection!.window.showWarningMessage(
-				`Using default 'main.bean' as mainBeanFile, You should configure 'beancount.mainBeanFile'`,
+				`Using default 'main.bean' as manBeanFile, You should configure 'beanLsp.manBeanFile'`,
 			);
 		}
 		const rootUri = workspace[0].uri;
 
-		const mainAbsPath = UriUtils.joinPath(URI.parse(rootUri), config.mainBeanFile ?? 'main.bean');
+		const mainAbsPath = UriUtils.joinPath(URI.parse(rootUri), config.manBeanFile ?? 'main.bean');
 
 		return mainAbsPath.toString() as string;
 	}
