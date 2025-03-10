@@ -318,3 +318,43 @@ export async function getPopTagAtPosition(
 
 	return null;
 }
+
+/**
+ * Extracts the link name at the given position
+ */
+export async function getLinkAtPosition(
+	trees: Trees,
+	document: TextDocument,
+	position: lsp.Position,
+): Promise<string | null> {
+	const tree = await trees.getParseTree(document);
+	if (!tree) {
+		logger.warn(`Failed to get parse tree for document: ${document.uri}`);
+		return null;
+	}
+
+	// Get the node at the current position
+	const offset = document.offsetAt(position);
+	const node = tree.rootNode.descendantForIndex(offset);
+
+	if (!node) {
+		return null;
+	}
+
+	// Check if we're in a link node
+	if (node.type === 'link') {
+		return node.text.substring(1); // Remove the ^ prefix
+	}
+
+	// For parent nodes that might contain a link
+	if (node.parent && node.parent.type === 'link') {
+		return node.parent.text.substring(1); // Remove the ^ prefix
+	}
+
+	// Check for text that looks like a link (starts with ^)
+	if (node.text.startsWith('^')) {
+		return node.text.substring(1);
+	}
+
+	return null;
+}
