@@ -79,7 +79,7 @@ export function parseCostSpec(costSpecNode: Parser.SyntaxNode): { number: string
 
 	// Extract cost components
 	const costCompListNode = costSpecNode.childForFieldName('cost_comp_list');
-	if (!costCompListNode) return undefined;
+	if (!costCompListNode) return { number: '', currency: '' };
 
 	// Find a compound_amount node
 	const costCompNodes = queryNodes(costCompListNode, 'cost_comp');

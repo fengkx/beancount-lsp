@@ -54,6 +54,10 @@ export function hasBothCostAndPrice(postings: Posting[]): boolean {
 	return postings.some(posting => posting.cost && posting.price);
 }
 
+export function hasEmptyCost(postings: Posting[]): boolean {
+	return postings.some(posting => posting.cost && posting.cost.number === '' && posting.cost.currency === '');
+}
+
 /**
  * Checks if a transaction has only one posting with incomplete amount
  * Beancount auto-balances these transactions, so no validation is needed

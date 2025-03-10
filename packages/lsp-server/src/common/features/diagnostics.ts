@@ -17,6 +17,7 @@ import {
 import {
 	checkTransactionBalance,
 	hasBothCostAndPrice,
+	hasEmptyCost,
 	hasOnlyOneIncompleteAmount,
 	Posting,
 } from '../utils/balance-checker';
@@ -116,12 +117,13 @@ export class DiagnosticsFeature implements Feature {
 
 				// Check for both cost and price on the same posting (which is not allowed)
 				if (hasBothCostAndPrice(transaction.postings)) {
-					diagnostics.push({
-						severity: DiagnosticSeverity.Error,
-						range: transaction.headerRange,
-						message: 'Transaction has a posting with both cost and price',
-						source: 'beancount-lsp',
-					});
+					// TODO: We are currently not supporting this
+					continue;
+				}
+
+				// Check for empty cost
+				if (hasEmptyCost(transaction.postings)) {
+					// TODO: We are currently not supporting this
 					continue;
 				}
 
