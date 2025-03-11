@@ -1084,6 +1084,47 @@ async function addAccountCompletions(
 	return cnt;
 }
 
+/**
+ * Adds link completions
+ *
+ * This function retrieves links from the symbol index and adds them
+ * as completion items.
+ *
+ * @param symbolIndex The symbol index to retrieve links from
+ * @param position The position where the completion was triggered
+ * @param set A set to track already added items
+ * @param items The array of completion items to add to
+ * @param cnt A counter for sorting when no userInput is provided
+ * @param userInput Optional user input for better scoring and sorting
+ * @returns Updated counter value
+ */
+async function addLinkCompletions(
+	symbolIndex: SymbolIndex,
+	position: Position,
+	set: Set<string>,
+	items: CompletionItem[],
+	cnt: number,
+	userInput?: string,
+): Promise<number> {
+	// Fetch links from the index
+	const links = await symbolIndex.getLinks();
+
+	// Add each link as a completion item
+	links.forEach((link: string) => {
+		cnt = addCompletionItem(
+			{ label: link, kind: CompletionItemKind.Reference, detail: '(link)' },
+			position,
+			link,
+			set,
+			items,
+			cnt,
+			userInput,
+		);
+	});
+
+	return cnt;
+}
+
 // Create a logger for the completions module
 const logger = new Logger('completions');
 
@@ -1295,6 +1336,13 @@ export class CompletionFeature implements Feature {
 				const initialCount = completionItems.length;
 				cnt = await addTagCompletions(this.symbolIndex, position, set, completionItems, cnt, userInput);
 				logger.info(`Tags added, items: ${completionItems.length - initialCount}`);
+			})
+			.with({ triggerCharacter: '^' }, async () => {
+				// Link completions when triggered by ^ character
+				logger.info('Branch: triggerCharacter ^');
+				const initialCount = completionItems.length;
+				cnt = await addLinkCompletions(this.symbolIndex, position, set, completionItems, cnt, userInput);
+				logger.info(`Links added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({ currentType: '#' }, async () => {
 				// Tag completions when positioned at a # token
