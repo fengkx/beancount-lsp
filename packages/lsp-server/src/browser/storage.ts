@@ -16,7 +16,6 @@ class BrowserStorageFactory implements IStorageFactory {
 			// autoload: true,
 			inMemoryOnly: true,
 		});
-		await db.ensureIndex({ fieldName: 'symbol' });
 
 		// Store the database instance
 		this.dbs.set(name, db);
