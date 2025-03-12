@@ -1,7 +1,7 @@
 import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { URI, Utils } from 'vscode-uri';
+import { URI } from 'vscode-uri';
 import { compactToRange } from '../common';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
@@ -891,13 +891,25 @@ export class HoverFeature implements Feature {
 		// Create a file-based usage map to better organize the information
 		const fileUsageMap = new Map<string, { regular: number; push: number; pop: number }>();
 
+		// Check if connection is available
+		if (!this.connection) {
+			return {
+				kind: lsp.MarkupKind.Markdown,
+				value: content,
+			};
+		}
+
 		const workspaceFolders = await this.connection.workspace.getWorkspaceFolders();
 
 		// Process all usages and group by filename
 		const processUsage = (usage: SymbolInfo, type: 'regular' | 'push' | 'pop') => {
-			const workspaceFolder = workspaceFolders?.find(folder => usage._uri.startsWith(folder.uri));
+			if (!workspaceFolders) return;
+
+			const workspaceFolder = workspaceFolders.find(folder => usage._uri.startsWith(folder.uri));
+			if (!workspaceFolder) return;
+
 			const uri = URI.parse(usage._uri);
-			const workspaceFolderFilePath = URI.parse(workspaceFolder!.uri).fsPath;
+			const workspaceFolderFilePath = URI.parse(workspaceFolder.uri).fsPath;
 			const filepath = uri.fsPath.replace(workspaceFolderFilePath, '').replace(/^[\\/\\]/, '');
 			if (!fileUsageMap.has(filepath)) {
 				fileUsageMap.set(filepath, { regular: 0, push: 0, pop: 0 });

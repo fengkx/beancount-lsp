@@ -116,7 +116,7 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		connection.onExit(() => factory.destroy(symbolStorage));
 
 		documents = new DocumentStore(connection);
-		const trees = new Trees(documents, options.webTreeSitterWasmPath);
+		const trees = new Trees(documents, options.webTreeSitterWasmPath!);
 
 		symbolIndex = new SymbolIndex(documents, trees, symbolStorage);
 

@@ -134,6 +134,6 @@ export class DocumentLinksFeature {
 	 */
 	private containsGlobPattern(path: string): boolean {
 		// Check for common glob pattern characters: *, ?, [, ], {, }, and **
-		return /[\*\?\[\]\{\}]/.test(path) || path.includes('**');
+		return /[*?[\]{}]/.test(path) || path.includes('**');
 	}
 }

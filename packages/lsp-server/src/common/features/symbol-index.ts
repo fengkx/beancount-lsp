@@ -59,7 +59,7 @@ class Queue {
 
 export class SymbolIndex {
 	private logger = new Logger('index');
-	public findAsync: (query: any) => Promise<SymbolInfo[]>;
+	public findAsync: (query: Record<string, unknown>) => Promise<SymbolInfo[]>;
 
 	constructor(
 		private readonly _documents: DocumentStore,
@@ -100,7 +100,7 @@ export class SymbolIndex {
 	}
 	public async update(): Promise<void> {
 		await this._currentUpdate;
-		const uris = this._syncQueue.consume(undefined, uri => true);
+		const uris = this._syncQueue.consume(undefined, () => true);
 		this._currentUpdate = this._doUpdate(uris, false);
 		return this._currentUpdate;
 	}
@@ -134,14 +134,14 @@ export class SymbolIndex {
 		);
 	}
 
-	public async unleashFiles(suffixes: string[]): Promise<void> {
+	public async unleashFiles(_suffixes: string[]): Promise<void> {
 		// this._suffixFilter.update(suffixes);
 
 		await this.update();
 
 		// async update all files that were taken from cache
 		const asyncUpdate = async () => {
-			const uris = this._asyncQueue.consume(70, uri => true);
+			const uris = this._asyncQueue.consume(70, () => true);
 			if (uris.length === 0) {
 				return;
 			}

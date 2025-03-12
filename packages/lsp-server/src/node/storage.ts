@@ -4,7 +4,7 @@ import NeDb from '@seald-io/nedb';
 import { IStorageFactory } from '../common/startServer';
 
 export const factory: IStorageFactory = {
-	async create(name, prefix = '') {
+	async create(_name, _prefix = '') {
 		const db = new NeDb({
 			// filename: URI.parse(join(prefix, name)).fsPath,
 			// autoload: true,

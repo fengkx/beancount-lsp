@@ -112,7 +112,7 @@ function scoreMatch(itemLabel: string, filterText: string, userInput: string): n
 	score += scoreFilterVariations(filterText, input);
 
 	// Special handling for Chinese text
-	if (itemLabel && isChineseChar(itemLabel[0])) {
+	if (itemLabel && typeof itemLabel === 'string' && itemLabel.length > 0 && isChineseChar(itemLabel[0]!)) {
 		score += scoreChineseMatches(itemLabel, input);
 	}
 
@@ -127,7 +127,7 @@ function scoreMatch(itemLabel: string, filterText: string, userInput: string): n
 
 	// Add special case handling for beginning-consecutive + end pattern
 	// This specifically handles cases like "hxhsa" matching "华夏恒生ETF联接A"
-	if (input.length >= 3 && typeof itemLabel === 'string' && isChineseChar(itemLabel[0])) {
+	if (input.length >= 3 && typeof itemLabel === 'string' && itemLabel.length > 0 && isChineseChar(itemLabel[0])) {
 		const enhancedScore = scoreBeginningConsecutivePlusEndPattern(itemLabel, input);
 		score += enhancedScore;
 	}
@@ -235,7 +235,11 @@ function scoreSegmentMatching(segmentAcronyms: string[], input: string): number 
 				const remainingInput = input.substring(acronym.length);
 
 				// If there are more segments and the remaining input starts with the next segment
-				if (i < segmentAcronyms.length - 1 && remainingInput.startsWith(segmentAcronyms[i + 1])) {
+				if (
+					i < segmentAcronyms.length - 1
+					&& segmentAcronyms[i + 1] !== undefined
+					&& remainingInput.startsWith(segmentAcronyms[i + 1])
+				) {
 					// This is a very strong match - input matches consecutive segment acronyms
 					score += 80;
 					break;
@@ -275,7 +279,10 @@ function scoreSequentialSegments(segmentAcronyms: string[], input: string): numb
 		// Check trailing characters match with later segments
 		let foundTrailingMatch = false;
 		for (let i = matchedSegmentCount; i < segmentAcronyms.length; i++) {
-			if (segmentAcronyms[i].startsWith(remainingInput)) {
+			if (
+				segmentAcronyms[i] !== undefined && typeof segmentAcronyms?.[0] === 'string'
+				&& segmentAcronyms[i].startsWith(remainingInput)
+			) {
 				// Found a match for the trailing part
 				score += 15;
 				foundTrailingMatch = true;

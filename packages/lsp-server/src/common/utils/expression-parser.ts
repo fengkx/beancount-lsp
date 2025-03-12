@@ -58,7 +58,7 @@ export function parseExpression(expression?: string): Big {
 
 		// Handle addition and subtraction (lower precedence)
 		// Find leftmost + or - operator that isn't a unary minus
-		const addSubRegex = /^(.+?)([+\-])(.+)$/;
+		const addSubRegex = /^(.+?)([+-])(.+)$/;
 		const match = addSubRegex.exec(expr);
 		if (match) {
 			const [, leftStr, operator, rightStr] = match;
