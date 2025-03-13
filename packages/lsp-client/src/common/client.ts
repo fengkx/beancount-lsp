@@ -64,8 +64,16 @@ export function setupStatusBar(ctx: ExtensionContext<'browser' | 'node'>): void 
  * Sets up custom message handlers for the client
  */
 export function setupCustomMessageHandlers(ctx: ExtensionContext<'browser' | 'node'>): void {
+	const exclude = `{${
+		[
+			...Object.keys(vscode.workspace.getConfiguration('search', null).get('exclude') ?? {}),
+			...Object.keys(vscode.workspace.getConfiguration('files', null).get('exclude') ?? {}),
+			'.venv',
+		].join(',')
+	}}`;
+
 	ctx.client.onRequest(CustomMessages.ListBeanFile, async () => {
-		const files = await vscode.workspace.findFiles('**/*.{bean,beancount}');
+		const files = await vscode.workspace.findFiles('**/*.{bean,beancount}', exclude);
 		const uriStrings = files.map(f => {
 			return f.toString();
 		});
@@ -129,7 +137,15 @@ export function setupConfigurationWatchers(ctx: ExtensionContext<'browser' | 'no
 }
 
 export async function setupQueueInit(ctx: ExtensionContext<'browser' | 'node'>): Promise<void> {
-	const files = await vscode.workspace.findFiles(`**/*.{bean,beancount}`);
+	const exclude = `{${
+		[
+			...Object.keys(vscode.workspace.getConfiguration('search', null).get('exclude') ?? {}),
+			...Object.keys(vscode.workspace.getConfiguration('files', null).get('exclude') ?? {}),
+			'.venv',
+		].join(',')
+	}}`;
+
+	const files = await vscode.workspace.findFiles(`**/*.{bean,beancount}`, exclude);
 
 	ctx.client.sendRequest(CustomMessages.QueueInit, files.map(f => f.toString()));
 }

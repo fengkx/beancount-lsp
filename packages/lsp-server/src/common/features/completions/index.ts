@@ -18,6 +18,7 @@ import { match, P } from 'ts-pattern';
 import {
 	CompletionItem,
 	CompletionItemKind,
+	CompletionList,
 	CompletionParams,
 	CompletionRegistrationOptions,
 	CompletionRequest,
@@ -70,6 +71,7 @@ type TriggerInfo = {
 	descendantForPositionType: string | undefined;
 	lastChildType: string | undefined;
 	lastCurrentChildTypeInError?: string;
+	currentLine: string;
 };
 
 /**
@@ -786,9 +788,9 @@ function createFilterString(text: string): string {
 		originalText,
 		enhancedFirstLetters,
 		fullPinyin,
-		combinedFirstLetters,
-		...processedSegments,
-		...partialMatches,
+		// combinedFirstLetters,
+		// ...processedSegments,
+		// ...partialMatches,
 	];
 
 	// Remove duplicates before joining
@@ -823,12 +825,17 @@ function addCompletionItem(
 		return cnt;
 	}
 
-	const filterText = createFilterString(item.label);
+	let filterText = undefined;
+	if (/^[\w:]+$/.test(item.label)) {
+		filterText = item.label;
+	} else {
+		filterText = createFilterString(item.label);
+	}
 
 	// Calculate score for sorting if userInput is provided
 	let score = 0;
 	if (userInput) {
-		score = scoreMatch(item.label, filterText, userInput);
+		// score = scoreMatch(item.label, filterText, userInput);
 
 		// Boost score based on usage count if provided
 		if (usageCount !== undefined) {
@@ -1149,6 +1156,7 @@ const logger = new Logger('completions');
  * based on the cursor position and surrounding tokens.
  */
 export class CompletionFeature implements Feature {
+	lastCompletionItems: CompletionItem[];
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
@@ -1197,11 +1205,11 @@ export class CompletionFeature implements Feature {
 	 * @param params Completion parameters from the client
 	 * @returns Array of completion items
 	 */
-	provideCompletionItems = async (params: CompletionParams): Promise<CompletionItem[]> => {
+	provideCompletionItems = async (params: CompletionParams): Promise<CompletionItem[] | CompletionList> => {
 		const document = await this.documents.retrieve(params.textDocument.uri);
 		const tree = await this.trees.getParseTree(document);
 		if (!tree) {
-			return [];
+			return CompletionList.create([]);
 		}
 
 		// Check if this is a closing quote
@@ -1216,7 +1224,7 @@ export class CompletionFeature implements Feature {
 			const quoteCount = line.split('"').length - 1;
 			// If there's an even number of quotes, this is a closing quote
 			if (quoteCount % 2 === 0) {
-				return []; // Don't trigger completion for closing quotes
+				return CompletionList.create([]); // Don't trigger completion for closing quotes
 			}
 		}
 
@@ -1272,6 +1280,11 @@ export class CompletionFeature implements Feature {
 			}
 		}
 
+		const currentLine = document.getText({
+			start: { line: params.position.line, character: 0 },
+			end: { line: params.position.line, character: params.position.character },
+		});
+
 		// Get completion items based on the context
 		const completionItems: CompletionItem[] = await this.calcCompletionItems(
 			{
@@ -1283,12 +1296,13 @@ export class CompletionFeature implements Feature {
 				descendantForPositionType: descendantForCurPos?.type,
 				lastChildType: lastChildNode?.type,
 				lastCurrentChildTypeInError: lastCurrentChildTypeInError ?? '',
+				currentLine,
 			},
 			params.position,
 			userInput,
 		);
 
-		return completionItems;
+		return CompletionList.create(completionItems);
 	};
 
 	/**
@@ -1302,7 +1316,11 @@ export class CompletionFeature implements Feature {
 	 * @param userInput Optional user input for scoring and sorting
 	 * @returns Array of completion items
 	 */
-	async calcCompletionItems(info: TriggerInfo, position: Position, userInput?: string): Promise<CompletionItem[]> {
+	async calcCompletionItems(
+		info: TriggerInfo,
+		position: Position,
+		userInput?: string,
+	): Promise<CompletionItem[] | null> {
 		let cnt = 0;
 		const set = new Set<string>();
 		const completionItems: CompletionItem[] = [];
@@ -1325,7 +1343,7 @@ export class CompletionFeature implements Feature {
 
 		logger.info(`Starting completion with info: ${JSON.stringify(info)}`);
 		const p: Promise<void> = match({ ...info, userInput })
-			.with({ triggerCharacter: '2' }, async () => {
+			.with({ triggerCharacter: '2', currentLine: P.string.regex(/^\d*$/) }, async () => {
 				// Date completions: Provide the current date, yesterday, day before yesterday, and tomorrow
 				logger.info('Branch: triggerCharacter 2');
 				const d = new Date();
@@ -1606,6 +1624,10 @@ export class CompletionFeature implements Feature {
 		await p;
 
 		logger.info(`Final completion items: ${completionItems.length}`);
+		if (completionItems.length === 0 && this.lastCompletionItems.length > 0) {
+			return this.lastCompletionItems;
+		}
+		this.lastCompletionItems = completionItems;
 		return completionItems;
 	}
 }
