@@ -14,7 +14,7 @@ const nodeConfig = defineConfig({
 		'.scm': 'text',
 	},
 	external: ['vscode'],
-	noExternal: ['@bean-lsp/shared', 'vscode-languageclient'],
+	noExternal: ['@bean-lsp/shared', 'vscode-languageclient', 'vscode-uri'],
 });
 
 const browserConfig = defineConfig({

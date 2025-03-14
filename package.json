@@ -28,14 +28,14 @@
 	"devDependencies": {
 		"@fengkx/tsconfig": "^1.0.0",
 		"@types/node": "^20.11.16",
-		"dprint": "^0.45.0",
+		"dprint": "^0.49.0",
 		"eslint": "^8.56.0",
 		"eslint-config-custom": "workspace:*",
 		"nano-staged": "^0.8.0",
 		"simple-git-hooks": "^2.11.1",
 		"tsup": "^8.0.1",
 		"tsx": "^4.19.3",
-		"turbo": "^1.12.2",
+		"turbo": "^2.4.4",
 		"typescript": "^5.3.3"
 	}
 }

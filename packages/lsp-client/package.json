@@ -31,7 +31,10 @@
 					".bean",
 					".beancount"
 				],
-				"aliases": ["Beancount", "beancount"],
+				"aliases": [
+					"Beancount",
+					"beancount"
+				],
 				"configuration": "./language-configuration.json"
 			}
 		],
@@ -248,6 +251,7 @@
 	"dependencies": {
 		"@bean-lsp/shared": "workspace:*",
 		"beancount-lsp-server": "workspace:*",
-		"vscode-languageclient": "^8.1.0"
+		"vscode-languageclient": "^8.1.0",
+		"vscode-uri": "^3.0.8"
 	}
 }
