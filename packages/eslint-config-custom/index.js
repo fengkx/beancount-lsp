@@ -12,7 +12,7 @@ module.exports = {
 	},
 	ignorePatterns: ['dist', 'out', 'grammar.js'],
 	extends: [
-		'turbo',
+		'plugin:turbo/recommended',
 		'eslint:recommended',
 		'plugin:import-x/recommended',
 		'plugin:@typescript-eslint/recommended',

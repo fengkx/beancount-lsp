@@ -31,7 +31,7 @@ const browserConfig = defineConfig({
 		'.scm': 'text',
 	},
 	external: ['vscode'],
-	noExternal: ['@bean-lsp/shared', 'vscode-languageclient'],
+	noExternal: ['@bean-lsp/shared', 'vscode-languageclient', 'vscode-uri'],
 	esbuildPlugins: [nodeModulesPolyfillPlugin(
 		{
 			modules: {
