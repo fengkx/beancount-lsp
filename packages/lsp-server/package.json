@@ -6,6 +6,7 @@
 	"browser": "dist/browser/server.js",
 	"scripts": {
 		"build": "tsup && node scripts/prepare-client-assets.js",
+		"lint": "eslint --cache .",
 		"watch": "tsup --watch",
 		"typecheck": "tsc --noEmit true",
 		"test": "vitest run",

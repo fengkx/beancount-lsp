@@ -1,5 +1,10 @@
 /** @type {import("eslint").ESLint.ConfigData} */
 module.exports = {
+	settings: {
+		'import-x/resolver': {
+			typescript: true,
+		},
+	},
 	env: {
 		browser: true,
 		es2021: true,
@@ -9,12 +14,14 @@ module.exports = {
 	extends: [
 		'turbo',
 		'eslint:recommended',
-		'plugin:import/recommended',
+		'plugin:import-x/recommended',
 		'plugin:@typescript-eslint/recommended',
 	],
 
 	rules: {
-		'import/no-unresolved': 'off',
+		'import-x/no-unresolved': 'off',
+		'import-x/no-relative-packages': 'error',
+		'import-x/no-absolute-path': 'error',
 		'@typescript-eslint/no-explicit-any': 'warn',
 		'@typescript-eslint/no-unused-vars': ['warn', {
 			argsIgnorePattern: '^_',
@@ -22,4 +29,12 @@ module.exports = {
 			caughtErrorsIgnorePattern: '^_',
 		}],
 	},
+	overrides: [
+		{
+			files: ['**/common/**/*.ts', '**/browser/**/*.ts', '**/node/**/*.ts'],
+			rules: {
+				'import-x/no-nodejs-modules': ['error'],
+			},
+		},
+	],
 };
