@@ -1,0 +1,195 @@
+{"triggerChar":null,"triggerKind":1,"line":"2021-01-0","completionType":0}
+{"triggerChar":null,"triggerKind":1,"line":"plugin","completionType":0}
+{"triggerChar":null,"triggerKind":1,"line":"2023-04-11 * \"银行A信用卡\" \"晚","completionType":4}
+{"triggerChar":null,"triggerKind":3,"line":"2024-03-04 * \"基金公司C产品1\" \"定投","completionType":4}
+{"triggerChar":"\"","triggerKind":2,"line":"# 2021-03-03 * \"","completionType":3}
+{"triggerChar":"\"","triggerKind":2,"line":"2023-05-02 * \"券商A\" \"","completionType":4}
+{"triggerChar":null,"triggerKind":3,"line":"2020-11-10 * \"快餐店A\" \"定投","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"// 上次交易 2020-11-25 * \"医","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"2021-01-19 * \"公司A\" \"定","completionType":4}
+{"triggerChar":null,"triggerKind":3,"line":"2022-11-02 * \"SaaS服务A\" \"活期理财\" #trip_","completionType":5}
+{"triggerChar":null,"triggerKind":3,"line":"2023-10-22 * \"外卖","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"// 上次交易 2020-09-11 * \"71","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"Assets:Funds 7.76 ; comment HK","completionType":2}
+{"triggerChar":null,"triggerKind":3,"line":"2020-07-11 * \"银行A信用卡\" \"晚餐\" #food #trip_","completionType":5}
+{"triggerChar":null,"triggerKind":1,"line":"Assets:Stock:BrokerB:Cash:USD 167.18 GO","completionType":2}
+{"triggerChar":null,"triggerKind":1,"line":"2023-03-01 balance Assets:Bank:BankA","completionType":7}
+{"triggerChar":null,"triggerKind":3,"line":"Assets:Funds 7.76 ; comment CN","completionType":2}
+{"triggerChar":null,"triggerKind":1,"line":"// 上次交易 2020-11-25 * \"7","completionType":3}
+{"triggerChar":"^","triggerKind":2,"line":"2024-08-04 * \"银行C信用卡\" \"水\" #medical ^","completionType":6}
+{"triggerChar":null,"triggerKind":1,"line":"# 2021-03-03 * \"超","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"2025-06-28 * \"SaaS服务A\" \"门票\" #food ^va","completionType":6}
+{"triggerChar":null,"triggerKind":1,"line":"2023-03-01 balance Assets:Bank:BankA","completionType":7}
+{"triggerChar":null,"triggerKind":1,"line":"2024-08-04 * \"银行C信用卡\" \"水\" #medical ^tr","completionType":6}
+{"triggerChar":null,"triggerKind":1,"line":"Assets:FinanceProduct:BankA 24.13 #tag GB","completionType":2}
+{"triggerChar":null,"triggerKind":3,"line":"Income:Invest:Dividend 981.14 CN","completionType":2}
+{"triggerChar":null,"triggerKind":1,"line":"Income:Invest:Dividend 981.14 ET","completionType":2}
+{"triggerChar":null,"triggerKind":1,"line":"2020-11-10 * \"快餐店A\" \"午","completionType":4}
+{"triggerChar":" ","triggerKind":2,"line":"2025-03-10 balance Assets:Bank:BankA 13425.39 CNY","completionType":0}
+{"triggerChar":null,"triggerKind":1,"line":"; This is a comment Assets:B","completionType":1}
+{"triggerChar":":","triggerKind":2,"line":"2021-04-25 * \"Some Payee\" \"Some Narration\" Assets:","completionType":1}
+{"triggerChar":"\"","triggerKind":2,"line":"// 上次交易 2020-11-25 * \"","completionType":3}
+{"triggerChar":"2","triggerKind":2,"line":"; 上个交易结束 2","completionType":7}
+{"triggerChar":null,"triggerKind":3,"line":"# 2022-03-21 * \"外卖","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"2021-04-25 * \"Some Payee\" \"Some Narration\" Assets","completionType":1}
+{"triggerChar":null,"triggerKind":1,"line":"; This is a comment Ex","completionType":1}
+{"triggerChar":"^","triggerKind":2,"line":"2025-06-28 * \"SaaS服务A\" \"门票\" #food ^","completionType":6}
+{"triggerChar":" ","triggerKind":2,"line":"2020-08-16 * \"Some Payee\" \"Some Narration\" #tag ^link","completionType":1}
+{"triggerChar":"\"","triggerKind":2,"line":"// 上次交易 2024-02-14 * \"","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"; 这是一条注释","completionType":0}
+{"triggerChar":null,"triggerKind":1,"line":"2023-09-07 * \"网","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"# 2020-06-03 * \"7","completionType":3}
+{"triggerChar":null,"triggerKind":3,"line":"Expenses:Traffic 10 CN","completionType":2}
+{"triggerChar":null,"triggerKind":1,"line":"2024-07-22 * \"电商平台A\" \"晚","completionType":4}
+{"triggerChar":"\"","triggerKind":2,"line":"2024-07-22 * \"电商平台A\" \"","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"2023-09-07 * \"71","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"2021-12-03 * \"券商A\" \"转","completionType":4}
+{"triggerChar":null,"triggerKind":3,"line":"2025-12-07 * \"个人\" \"定投","completionType":4}
+{"triggerChar":"\"","triggerKind":2,"line":"# 2020-06-03 * \"","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"2024-07-04 * \"公","completionType":3}
+{"triggerChar":null,"triggerKind":3,"line":"2023-10-14 * \"打车平台A\" \"饮料\" ^trip-2023 ^medical-","completionType":6}
+{"triggerChar":null,"triggerKind":1,"line":"2020-08-16 * \"Some Payee\" \"Some Narration\" #tag ^link Exp","completionType":1}
+{"triggerChar":null,"triggerKind":1,"line":"; 需要添加一个balance断言 2023","completionType":7}
+{"triggerChar":"\"","triggerKind":2,"line":"// 上次交易 2020-09-11 * \"","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"// 上次交易 2021-05-03 * \"餐","completionType":3}
+{"triggerChar":null,"triggerKind":3,"line":"// 上次交易 2023-01-19 * \"外卖","completionType":3}
+{"triggerChar":null,"triggerKind":3,"line":"; This is a comment Assets:Bank:","completionType":1}
+{"triggerChar":" ","triggerKind":2,"line":"2021-04-25 * \"Some Payee\" \"Some Narration\"","completionType":1}
+{"triggerChar":null,"triggerKind":1,"line":"2020-07-11 * \"银行A信用卡\" \"晚餐\" #food #i","completionType":5}
+{"triggerChar":"\"","triggerKind":2,"line":"2022-06-09 * \"","completionType":3}
+{"triggerChar":null,"triggerKind":3,"line":"// 上次交易 2023-06-06 * \"外卖","completionType":3}
+{"triggerChar":"\"","triggerKind":2,"line":"// 上次交易 2021-05-03 * \"","completionType":3}
+{"triggerChar":null,"triggerKind":3,"line":"Liabilities:Loan:Mortgage 826.27 CN","completionType":2}
+{"triggerChar":" ","triggerKind":2,"line":"Assets:FinanceProduct:BankA 24.13 #tag","completionType":2}
+{"triggerChar":null,"triggerKind":1,"line":"2024-12-08 * \"基金公司C产品1\" \"咖啡\" #f","completionType":5}
+{"triggerChar":"\"","triggerKind":2,"line":"// 上次交易 2023-01-19 * \"","completionType":3}
+{"triggerChar":" ","triggerKind":2,"line":"Assets:Checking 10 USD","completionType":1}
+{"triggerChar":null,"triggerKind":3,"line":"# 2021-03-03 * \"外卖","completionType":3}
+{"triggerChar":" ","triggerKind":2,"line":"Expenses:Traffic 10","completionType":2}
+{"triggerChar":null,"triggerKind":1,"line":"2024-09-05 * \"银行C信用卡\" \"定","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"2023-10-22 * \"交","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"2023-04-11 * \"券商B\" \"b","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"2024-03-04 * \"券商B\" \"b","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"2024-07-22 * \"券商B\" \"l","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"2023-10-14 * \"打车平台A\" \"饮料\" ^trip-2023 ^v","completionType":6}
+{"triggerChar":null,"triggerKind":1,"line":"2021-01-19 * \"券商B\" \"d","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"2023-03-01 balance Assets:Bank:BankA","completionType":7}
+{"triggerChar":" ","triggerKind":2,"line":"option","completionType":0}
+{"triggerChar":null,"triggerKind":3,"line":"// 上次交易 2024-02-14 * \"外卖","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"2022-06-09 * \"7","completionType":3}
+{"triggerChar":"\"","triggerKind":2,"line":"2023-10-22 * \"","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"; 上个交易结束 202","completionType":7}
+{"triggerChar":null,"triggerKind":3,"line":"2022-12-02 * \"基金公司G产品1\" \"早餐\" ^medical-","completionType":6}
+{"triggerChar":null,"triggerKind":1,"line":"// 上次交易 2023-06-06 * \"71","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"Income:Salary:CompanyA -12345.00 CNY Assets:B","completionType":1}
+{"triggerChar":":","triggerKind":2,"line":"Assets:","completionType":1}
+{"triggerChar":"\"","triggerKind":2,"line":"2023-04-11 * \"银行A信用卡\" \"","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":";","completionType":0}
+{"triggerChar":" ","triggerKind":2,"line":"","completionType":1}
+{"triggerChar":null,"triggerKind":3,"line":"Assets:Stock:BrokerB:Cash:USD 167.18 CN","completionType":2}
+{"triggerChar":null,"triggerKind":1,"line":"2023-10-22 * \"7","completionType":3}
+{"triggerChar":"\"","triggerKind":2,"line":"2023-09-07 * \"","completionType":3}
+{"triggerChar":"\"","triggerKind":2,"line":"2024-03-04 * \"基金公司C产品1\" \"","completionType":4}
+{"triggerChar":null,"triggerKind":3,"line":"// 上次交易 2020-09-11 * \"外卖","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"# 2021-03-03 * \"L","completionType":3}
+{"triggerChar":null,"triggerKind":3,"line":"2021-12-03 * \"券商A\" \"定投","completionType":4}
+{"triggerChar":null,"triggerKind":3,"line":"2024-12-08 * \"基金公司C产品1\" \"咖啡\" #trip_","completionType":5}
+{"triggerChar":null,"triggerKind":1,"line":"Liabilities:Loan:Mortgage 826.27 CN","completionType":2}
+{"triggerChar":null,"triggerKind":3,"line":"2024-09-27 * \"小吃店A\" \"定投","completionType":4}
+{"triggerChar":"\"","triggerKind":2,"line":"2024-09-27 * \"小吃店A\" \"","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"Assets:Stock:STKB:Shares 100 SH_","completionType":2}
+{"triggerChar":null,"triggerKind":1,"line":"Ass","completionType":1}
+{"triggerChar":null,"triggerKind":1,"line":"2023-03-01 balance Assets:Bank:BankA","completionType":7}
+{"triggerChar":null,"triggerKind":1,"line":"2022-11-02 * \"SaaS服务A\" \"活期理财\" #tr","completionType":5}
+{"triggerChar":null,"triggerKind":1,"line":"2021-12-03 * \"券商B\" \"lu","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"# 2022-03-21 * \"超","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"// 上次交易 2020-09-11 * \"咖","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"2023-03-01 * \"基金公司B产品1\" \"活期理财\" ; with posting #t","completionType":5}
+{"triggerChar":null,"triggerKind":3,"line":"; 上个交易结束 2025-0","completionType":7}
+{"triggerChar":null,"triggerKind":1,"line":"2024-09-05 * \"券商B\" \"d","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"2021-04-25 * \"Some Payee\" \"Some Narration\" Assets:B","completionType":1}
+{"triggerChar":null,"triggerKind":1,"line":"// 上次交易 2024-02-14 * \"网","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"// 上次交易 2021-05-03 * \"c","completionType":3}
+{"triggerChar":null,"triggerKind":3,"line":"2025-0","completionType":7}
+{"triggerChar":"^","triggerKind":2,"line":"2022-12-02 * \"基金公司G产品1\" \"早餐\" ^","completionType":6}
+{"triggerChar":null,"triggerKind":1,"line":"// 上次交易 2023-06-06 * \"医","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"option","completionType":0}
+{"triggerChar":null,"triggerKind":3,"line":"2024-08-04 * \"银行C信用卡\" \"水\" #medical ^medical-","completionType":6}
+{"triggerChar":null,"triggerKind":1,"line":"2","completionType":7}
+{"triggerChar":null,"triggerKind":1,"line":"2025-12-07 * \"个人\" \"还","completionType":4}
+{"triggerChar":" ","triggerKind":2,"line":"Income:Invest:Dividend 981.14","completionType":2}
+{"triggerChar":null,"triggerKind":3,"line":"2024-07-04 * \"外卖","completionType":3}
+{"triggerChar":"\"","triggerKind":2,"line":"# 2022-03-21 * \"","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"2023-05-02 * \"券商B\" \"d","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"2022-06-09 * \"超","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"2025-12-07 * \"券商B\" \"br","completionType":4}
+{"triggerChar":"#","triggerKind":2,"line":"2023-03-01 * \"基金公司B产品1\" \"活期理财\" ; with posting #","completionType":5}
+{"triggerChar":null,"triggerKind":1,"line":"2023-05-02 * \"券商A\" \"卖","completionType":4}
+{"triggerChar":"#","triggerKind":2,"line":"2022-11-02 * \"SaaS服务A\" \"活期理财\" #","completionType":5}
+{"triggerChar":"\"","triggerKind":2,"line":"2021-01-19 * \"公司A\" \"","completionType":4}
+{"triggerChar":null,"triggerKind":3,"line":"; 上一笔交易 2025-0","completionType":7}
+{"triggerChar":"2","triggerKind":2,"line":"2","completionType":7}
+{"triggerChar":" ","triggerKind":2,"line":";","completionType":0}
+{"triggerChar":":","triggerKind":2,"line":"2020-08-16 * \"Some Payee\" \"Some Narration\" #tag ^link Assets:","completionType":1}
+{"triggerChar":"#","triggerKind":2,"line":"2024-12-08 * \"基金公司C产品1\" \"咖啡\" #","completionType":5}
+{"triggerChar":null,"triggerKind":3,"line":"2021-04-25 * \"Some Payee\" \"Some Narration\" Assets:Bank:","completionType":1}
+{"triggerChar":null,"triggerKind":1,"line":"2024-03-04 * \"基金公司C产品1\" \"买","completionType":4}
+{"triggerChar":null,"triggerKind":3,"line":"2024-07-22 * \"电商平台A\" \"定投","completionType":4}
+{"triggerChar":":","triggerKind":2,"line":"Assets:Checking 10 USD Assets:","completionType":1}
+{"triggerChar":null,"triggerKind":1,"line":"Assets:B","completionType":1}
+{"triggerChar":"\"","triggerKind":2,"line":"2021-12-03 * \"券商A\" \"","completionType":4}
+{"triggerChar":" ","triggerKind":2,"line":"Assets:Stock:BrokerB:Cash:USD 167.18","completionType":2}
+{"triggerChar":" ","triggerKind":2,"line":"2021-01-0","completionType":0}
+{"triggerChar":"\"","triggerKind":2,"line":"2024-09-05 * \"银行C信用卡\" \"","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"Income:Salary:CompanyA -12345.00 CNY Ass","completionType":1}
+{"triggerChar":"\"","triggerKind":2,"line":"2020-11-10 * \"快餐店A\" \"","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"plugin \"beancount.plugins.something\"","completionType":0}
+{"triggerChar":null,"triggerKind":1,"line":"2024-07-04 * \"Lo","completionType":3}
+{"triggerChar":"2","triggerKind":2,"line":"; 上一笔交易 2","completionType":7}
+{"triggerChar":":","triggerKind":2,"line":"; This is a comment Assets:","completionType":1}
+{"triggerChar":null,"triggerKind":3,"line":"Assets:Checking 10 USD Assets:Bank:","completionType":1}
+{"triggerChar":"#","triggerKind":2,"line":"2020-07-11 * \"银行A信用卡\" \"晚餐\" #food #","completionType":5}
+{"triggerChar":null,"triggerKind":1,"line":"option \"title\"","completionType":0}
+{"triggerChar":null,"triggerKind":1,"line":"// 上次交易 2024-02-14 * \"L","completionType":3}
+{"triggerChar":" ","triggerKind":2,"line":"plugin","completionType":0}
+{"triggerChar":null,"triggerKind":1,"line":"2020-08-16 * \"Some Payee\" \"Some Narration\" #tag ^link Assets:B","completionType":1}
+{"triggerChar":null,"triggerKind":3,"line":"# 2020-06-03 * \"外卖","completionType":3}
+{"triggerChar":" ","triggerKind":2,"line":"Income:Salary:CompanyA -12345.00 CNY","completionType":1}
+{"triggerChar":"\"","triggerKind":2,"line":"2025-12-07 * \"个人\" \"","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"2024-09-27 * \"小吃店A\" \"转","completionType":4}
+{"triggerChar":null,"triggerKind":3,"line":"2021-01-19 * \"公司A\" \"定投","completionType":4}
+{"triggerChar":null,"triggerKind":3,"line":"Assets:FinanceProduct:BankA 24.13 #tag CN","completionType":2}
+{"triggerChar":null,"triggerKind":3,"line":"2024-09-05 * \"银行C信用卡\" \"定投","completionType":4}
+{"triggerChar":"^","triggerKind":2,"line":"2023-10-14 * \"打车平台A\" \"饮料\" ^trip-2023 ^","completionType":6}
+{"triggerChar":null,"triggerKind":1,"line":"Expenses:Traffic 10 HK","completionType":2}
+{"triggerChar":null,"triggerKind":1,"line":"; 上一笔交易 202","completionType":7}
+{"triggerChar":null,"triggerKind":1,"line":"2020-11-10 * \"券商B\" \"lu","completionType":4}
+{"triggerChar":null,"triggerKind":3,"line":"2023-09-07 * \"外卖","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"# 2023-12-06 * \"Lo","completionType":3}
+{"triggerChar":null,"triggerKind":3,"line":"2020-08-16 * \"Some Payee\" \"Some Narration\" #tag ^link Assets:Bank:","completionType":1}
+{"triggerChar":null,"triggerKind":1,"line":"// 上次交易 2023-01-19 * \"7","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"// 上次交易 2023-01-19 * \"餐","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"2025-03-10 balance Assets:Bank:BankA 13425.39 CNY","completionType":0}
+{"triggerChar":null,"triggerKind":3,"line":"2023-03-01 * \"基金公司B产品1\" \"活期理财\" ; with posting #trip_","completionType":5}
+{"triggerChar":"\"","triggerKind":2,"line":"2024-07-04 * \"","completionType":3}
+{"triggerChar":null,"triggerKind":3,"line":"; 需要添加一个balance断言 2025-0","completionType":7}
+{"triggerChar":":","triggerKind":2,"line":"Income:Salary:CompanyA -12345.00 CNY Assets:","completionType":1}
+{"triggerChar":null,"triggerKind":3,"line":"Income:Salary:CompanyA -12345.00 CNY Assets:Bank:","completionType":1}
+{"triggerChar":null,"triggerKind":1,"line":"2025-03-09 pad Assets:Bank:BankA Income:Invest","completionType":0}
+{"triggerChar":" ","triggerKind":2,"line":"Assets:Funds 7.76 ; comment","completionType":2}
+{"triggerChar":" ","triggerKind":2,"line":"2023-11-28 * \"网络银行A\" \"活期理财\"","completionType":1}
+{"triggerChar":null,"triggerKind":1,"line":"Assets:Checking 10 USD Assets:B","completionType":1}
+{"triggerChar":null,"triggerKind":3,"line":"2025-06-28 * \"SaaS服务A\" \"门票\" #food ^medical-","completionType":6}
+{"triggerChar":null,"triggerKind":1,"line":"2024-09-27 * \"券商B\" \"d","completionType":4}
+{"triggerChar":null,"triggerKind":1,"line":"# 2020-06-03 * \"咖","completionType":3}
+{"triggerChar":null,"triggerKind":3,"line":"2023-04-11 * \"银行A信用卡\" \"定投","completionType":4}
+{"triggerChar":null,"triggerKind":3,"line":"# 2023-12-06 * \"外卖","completionType":3}
+{"triggerChar":null,"triggerKind":1,"line":"; 已完成的交易","completionType":0}
+{"triggerChar":null,"triggerKind":3,"line":"2023-05-02 * \"券商A\" \"定投","completionType":4}
+{"triggerChar":" ","triggerKind":2,"line":"Liabilities:Loan:Mortgage 826.27","completionType":2}
+{"triggerChar":null,"triggerKind":1,"line":"# 2023-12-06 * \"超","completionType":3}
+{"triggerChar":"2","triggerKind":2,"line":"; 需要添加一个balance断言 2","completionType":7}
+{"triggerChar":null,"triggerKind":1,"line":"2022-12-02 * \"基金公司G产品1\" \"早餐\" ^me","completionType":6}
+{"triggerChar":null,"triggerKind":1,"line":"Assets:Checking 10 USD Lia","completionType":1}
+{"triggerChar":" ","triggerKind":2,"line":"; This is a comment","completionType":1}
+{"triggerChar":null,"triggerKind":3,"line":"Assets:Bank:","completionType":1}
