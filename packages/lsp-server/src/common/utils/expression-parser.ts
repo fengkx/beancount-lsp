@@ -15,7 +15,7 @@ export function parseExpression(expression?: string): Big {
 
 	try {
 		// Trim the input
-		const expr = expression.trim();
+		const expr = expression.trim().replace(/,/g, '');
 
 		// Simple number case
 		if (/^-?\d*\.?\d+$/.test(expr)) {

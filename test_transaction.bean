@@ -110,3 +110,13 @@
   Assets:Checking                              -405.00 USD
   Assets:Investments:Fund1    12.072 STOCK1 {{240.00 USD}}
   Assets:Investments:Fund2    11.552 STOCK2 {{160.00 USD}}  ; Off by 5.00 USD
+
+2024-01-01 open Assets:US:Interactive-Brokers
+2024-01-01 open Expenses:Everyday:Bank-Fees
+2024-01-01 open Assets:Transfer
+
+2024-02-05 * "Bank"
+  Assets:US:Interactive-Brokers       -15,000.00 USD
+  Expenses:Everyday:Bank-Fees               5.00 USD
+  Assets:Transfer                      14,995.00 USD 
+

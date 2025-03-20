@@ -96,6 +96,14 @@ describe('Expression Parser', () => {
 		expect(testParseExpression('invalid')).toBe('0');
 		expect(testParseExpression('')).toBe('0');
 	});
+
+	it('should handle expressions with commas', () => {
+		expect(testParseExpression('1,000.00')).toBe('1000');
+		expect(testParseExpression('1,000.00 / 2')).toBe('500');
+		expect(testParseExpression('1,000.00 / 2,000')).toBe('0.5');
+		expect(testParseExpression('1,000.00 / 2,000.00')).toBe('0.5');
+		expect(testParseExpression('(10,0.5 + 32.5) / 4')).toBe('33.25');
+	});
 });
 
 describe('Balance Checker', () => {
