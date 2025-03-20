@@ -27,6 +27,7 @@ import {
 	TextDocument,
 	TextEdit,
 } from 'vscode-languageserver';
+import type Parser from 'web-tree-sitter';
 import { asTsPoint, nodeAtPosition } from '../../common';
 import { DocumentStore } from '../../document-store';
 import { Trees } from '../../trees';
@@ -441,7 +442,15 @@ async function addCurrencyCompletions(
 	const currencies = await symbolIndex.getCommodities();
 
 	// Add each currency as a completion item
-	currencies.forEach((currency: string) => {
+	currencies.filter(c => {
+		if (!userInput) {
+			return true;
+		}
+		if (!/^[A-Z]/.test(userInput)) {
+			return true;
+		}
+		return c.startsWith(userInput);
+	}).forEach((currency: string) => {
 		cnt = addCompletionItem(
 			{ label: currency, kind: CompletionItemKind.Unit, detail: '(currency)' },
 			position,
@@ -743,6 +752,7 @@ export class CompletionFeature implements Feature {
 				currentLine,
 			},
 			params.position,
+			current,
 			userInput,
 		);
 
@@ -763,8 +773,9 @@ export class CompletionFeature implements Feature {
 	async calcCompletionItems(
 		info: TriggerInfo,
 		position: Position,
+		current: Parser.SyntaxNode,
 		userInput?: string,
-	): Promise<CompletionItem[] | null> {
+	): Promise<CompletionItem[]> {
 		let cnt = 0;
 		const set = new Set<string>();
 		const completionItems: CompletionItem[] = [];
@@ -820,17 +831,37 @@ export class CompletionFeature implements Feature {
 				cnt = await addTagCompletions(this.symbolIndex, position, set, completionItems, cnt, userInput);
 				logger.info(`Tags added, items: ${completionItems.length - initialCount}`);
 			})
-			.with({
-				triggerCharacter: ' ',
-				lastCurrentChildTypeInError: 'number',
-			}, async () => {
-				// Currency completions after a number and space
-				logger.info('Branch: number in posting - currency context');
-				const initialCount = completionItems.length;
-				cnt = await addCurrencyCompletions(this.symbolIndex, position, set, completionItems, cnt, userInput);
-				logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
-			})
-			.with({ triggerCharacter: 'A' }, { triggerCharacter: P.nullish, userInput: 'A' }, async () => {
+			.with(
+				{
+					triggerCharacter: ' ',
+					lastCurrentChildTypeInError: 'number',
+				},
+				{
+					currentType: 'posting',
+					parentType: 'transaction',
+					triggerCharacter: ' ',
+					lastChildType: 'incomplete_amount',
+				},
+				{
+					previousSiblingType: P.union('unary_number_expr', 'number', 'binary_number_expr'),
+					previousPreviousSiblingType: 'account',
+				},
+				async () => {
+					// Currency completions after a number and space
+					logger.info('Branch: number in posting - currency context');
+					const initialCount = completionItems.length;
+					cnt = await addCurrencyCompletions(
+						this.symbolIndex,
+						position,
+						set,
+						completionItems,
+						cnt,
+						userInput,
+					);
+					logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
+				},
+			)
+			.with({ triggerCharacter: 'A', currentLine: P.string.regex(/^\s*A$/) }, async () => {
 				// Assets account completions
 				logger.info('Branch: triggerCharacter A - Account completion');
 				const initialCount = completionItems.length;
@@ -845,7 +876,10 @@ export class CompletionFeature implements Feature {
 				);
 				logger.info(`Assets accounts added, items: ${completionItems.length - initialCount}`);
 			})
-			.with({ triggerCharacter: 'L' }, { triggerCharacter: P.nullish, userInput: 'L' }, async () => {
+			.with({ triggerCharacter: 'L', currentLine: P.string.regex(/^\s*L$/) }, {
+				triggerCharacter: P.nullish,
+				userInput: 'L',
+			}, async () => {
 				// Liabilities account completions
 				logger.info('Branch: triggerCharacter L - Account completion');
 				const initialCount = completionItems.length;
@@ -860,7 +894,10 @@ export class CompletionFeature implements Feature {
 				);
 				logger.info(`Liabilities accounts added, items: ${completionItems.length - initialCount}`);
 			})
-			.with({ triggerCharacter: 'E' }, { triggerCharacter: P.nullish, userInput: 'E' }, async () => {
+			.with({ triggerCharacter: 'E', currentLine: P.string.regex(/^\s*E$/) }, {
+				triggerCharacter: P.nullish,
+				userInput: 'E',
+			}, async () => {
 				// Equity and Expenses account completions
 				logger.info('Branch: triggerCharacter E - Account completion');
 				const initialCount = completionItems.length;
@@ -875,7 +912,10 @@ export class CompletionFeature implements Feature {
 				);
 				logger.info(`Equity and Expenses accounts added, items: ${completionItems.length - initialCount}`);
 			})
-			.with({ triggerCharacter: 'I' }, { triggerCharacter: P.nullish, userInput: 'I' }, async () => {
+			.with({ triggerCharacter: 'I', currentLine: P.string.regex(/^\s*I$/) }, {
+				triggerCharacter: P.nullish,
+				userInput: 'I',
+			}, async () => {
 				// Income account completions
 				logger.info('Branch: triggerCharacter I - Account completion');
 				const initialCount = completionItems.length;
@@ -1067,10 +1107,31 @@ export class CompletionFeature implements Feature {
 			});
 		await p;
 
-		logger.info(`Final completion items: ${completionItems.length}`);
-		if (completionItems.length === 0 && this.lastCompletionItems.length > 0) {
-			return this.lastCompletionItems;
+		if (completionItems?.length <= 0 && current.type === 'ERROR') {
+			const childCount = current.parent?.childCount ?? 0;
+			if (childCount > 0) {
+				const childrenType = current.parent!.children.map(c => c.type);
+				const validTypes = childrenType.filter(t => t !== 'ERROR' && t.length > 1);
+				match({ validTypes, triggerCharacter: info.triggerCharacter })
+					.with({ validTypes: ['account', 'binary_number_expr'], triggerCharacter: ' ' }, async () => {
+						const initialCount = completionItems.length;
+						cnt = await addCurrencyCompletions(
+							this.symbolIndex,
+							position,
+							set,
+							completionItems,
+							cnt,
+							userInput,
+						);
+						logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
+					});
+			}
 		}
+
+		logger.info(`Final completion items: ${completionItems.length}`);
+		// if (completionItems.length === 0 && this.lastCompletionItems.length > 0) {
+		// 	return this.lastCompletionItems;
+		// }
 		this.lastCompletionItems = completionItems;
 		return completionItems;
 	}
