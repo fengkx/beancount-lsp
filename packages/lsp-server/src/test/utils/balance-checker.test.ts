@@ -158,6 +158,133 @@ describe('Balance Checker', () => {
 		});
 	});
 
+	describe('Total Cost with Double Brackets', () => {
+		// Test single bracket per-unit cost
+		it('should correctly calculate per-unit cost with single brackets', () => {
+			const postings: Posting[] = [
+				createPosting('Assets:Checking', { number: '-1000.00', currency: 'USD' }),
+				createPosting(
+					'Assets:Investments',
+					{ number: '10', currency: 'STOCK' },
+					{ number: '100.00', currency: 'USD', isTotalCost: false },
+				),
+			];
+
+			const result = checkTransactionBalance(postings, 0.005);
+			expect(result.isBalanced).toBe(true);
+		});
+
+		// Test double bracket total cost
+		it('should correctly calculate total cost with double brackets', () => {
+			const postings: Posting[] = [
+				createPosting('Assets:Checking', { number: '-400.00', currency: 'USD' }),
+				createPosting(
+					'Assets:Investments:Fund1',
+					{ number: '12.072', currency: 'STOCK1' },
+					{ number: '240.00', currency: 'USD', isTotalCost: true },
+				),
+				createPosting(
+					'Assets:Investments:Fund2',
+					{ number: '11.552', currency: 'STOCK2' },
+					{ number: '160.00', currency: 'USD', isTotalCost: true },
+				),
+			];
+
+			const result = checkTransactionBalance(postings, 0.005);
+			expect(result.isBalanced).toBe(true);
+		});
+
+		// Test unbalanced transaction with double bracket total cost
+		it('should detect imbalance with double bracket total cost', () => {
+			const postings: Posting[] = [
+				createPosting('Assets:Checking', { number: '-405.00', currency: 'USD' }),
+				createPosting(
+					'Assets:Investments:Fund1',
+					{ number: '12.072', currency: 'STOCK1' },
+					{ number: '240.00', currency: 'USD', isTotalCost: true },
+				),
+				createPosting(
+					'Assets:Investments:Fund2',
+					{ number: '11.552', currency: 'STOCK2' },
+					{ number: '160.00', currency: 'USD', isTotalCost: true },
+				),
+			];
+
+			const result = checkTransactionBalance(postings, 0.005);
+			expect(result.isBalanced).toBe(false);
+			expect(result.difference?.toString()).toBe('-5');
+		});
+
+		// Test the difference between per-unit cost and total cost calculations
+		it('should calculate differently for per-unit vs total cost', () => {
+			// Per-unit cost: 10 shares at 20 USD per share = 200 USD total
+			const perUnitPostings: Posting[] = [
+				createPosting('Assets:Checking', { number: '-200.00', currency: 'USD' }),
+				createPosting(
+					'Assets:Investments',
+					{ number: '10', currency: 'STOCK' },
+					{ number: '20.00', currency: 'USD', isTotalCost: false },
+				),
+			];
+
+			// Total cost: 10 shares with total cost of 200 USD
+			const totalCostPostings: Posting[] = [
+				createPosting('Assets:Checking', { number: '-200.00', currency: 'USD' }),
+				createPosting(
+					'Assets:Investments',
+					{ number: '10', currency: 'STOCK' },
+					{ number: '200.00', currency: 'USD', isTotalCost: true },
+				),
+			];
+
+			// Different number of shares but same per-unit cost - should be unbalanced
+			const unbalancedPerUnitPostings: Posting[] = [
+				createPosting('Assets:Checking', { number: '-200.00', currency: 'USD' }),
+				createPosting(
+					'Assets:Investments',
+					{ number: '8', currency: 'STOCK' },
+					{ number: '20.00', currency: 'USD', isTotalCost: false },
+				),
+			];
+
+			// Different number of shares but same total cost - should be balanced
+			const balancedTotalCostPostings: Posting[] = [
+				createPosting('Assets:Checking', { number: '-200.00', currency: 'USD' }),
+				createPosting(
+					'Assets:Investments',
+					{ number: '8', currency: 'STOCK' },
+					{ number: '200.00', currency: 'USD', isTotalCost: true },
+				),
+			];
+
+			// Check results
+			expect(checkTransactionBalance(perUnitPostings, 0.005).isBalanced).toBe(true);
+			expect(checkTransactionBalance(totalCostPostings, 0.005).isBalanced).toBe(true);
+			expect(checkTransactionBalance(unbalancedPerUnitPostings, 0.005).isBalanced).toBe(false);
+			expect(checkTransactionBalance(balancedTotalCostPostings, 0.005).isBalanced).toBe(true);
+		});
+
+		// Test mixed transaction with both single and double bracket costs
+		it('should correctly balance transactions with mixed cost types', () => {
+			const mixedPostings: Posting[] = [
+				createPosting('Assets:Checking', { number: '-500.00', currency: 'USD' }),
+				createPosting(
+					'Assets:Investments:Fund1',
+					{ number: '10', currency: 'STOCK1' },
+					{ number: '30.00', currency: 'USD', isTotalCost: false }, // Per-unit cost: 10 * 30 = 300 USD
+				),
+				createPosting(
+					'Assets:Investments:Fund2',
+					{ number: '15', currency: 'STOCK2' },
+					{ number: '200.00', currency: 'USD', isTotalCost: true }, // Total cost: 200 USD
+				),
+			];
+
+			const result = checkTransactionBalance(mixedPostings, 0.005);
+			expect(result.isBalanced).toBe(true);
+		});
+	});
+
 	describe('checkTransactionBalance', () => {
 		const { balancedTransactions, unbalancedTransactions } = parseTransactionsFromTestFile();
 

@@ -20,6 +20,7 @@ export interface Posting {
 	cost?: {
 		number: string; // Changed to string to work with Big.js
 		currency: string;
+		isTotalCost?: boolean; // Added to indicate if cost is per unit (false) or total (true)
 	} | undefined;
 	price?: {
 		type: '@' | '@@';
@@ -166,10 +167,16 @@ function calculateTotalCost(posting: Posting): Big {
 	try {
 		// Use updated parseExpression that handles undefined
 		const units = parseExpression(posting.amount.number);
-		const perUnitCost = parseExpression(posting.cost.number);
+		const costValue = parseExpression(posting.cost.number);
 
-		// Calculate the total cost (units * cost per unit)
-		return units.times(perUnitCost);
+		// Handle difference between per-unit cost and total cost
+		if (posting.cost.isTotalCost) {
+			// For double-brace total cost {{}} - use the cost value directly
+			return costValue;
+		} else {
+			// For single-brace per-unit cost {} - multiply by units
+			return units.times(costValue);
+		}
 	} catch (e) {
 		logger.error(`Error calculating total cost: ${e}`);
 		return new Big(0);

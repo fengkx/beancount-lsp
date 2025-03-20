@@ -6,7 +6,7 @@ import { Posting } from '../../common/utils/balance-checker';
 export function createPosting(
 	account: string,
 	amount?: { number: string; currency: string },
-	cost?: { number: string; currency: string },
+	cost?: { number: string; currency: string; isTotalCost?: boolean },
 	price?: { type: '@' | '@@'; number: string; currency: string },
 ): Posting {
 	return {

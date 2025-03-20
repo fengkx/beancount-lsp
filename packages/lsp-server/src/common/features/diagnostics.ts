@@ -119,7 +119,7 @@ export class DiagnosticsFeature implements Feature {
 				// Check transaction balance
 				const result = checkTransactionBalance(transaction.postings, this.config.tolerance);
 				if (!result.isBalanced) {
-					const amount = result.difference?.toString() || '0';
+					const amount = result.difference?.toFixed(2) || '0';
 					const currency = result.currency || '';
 					diagnostics.push({
 						severity: DiagnosticSeverity.Error,

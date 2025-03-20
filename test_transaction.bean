@@ -98,3 +98,15 @@
 2023-03-25 * "Foreign currency purchase with inline math"
   Assets:Checking          -100.00 USD
   Assets:Foreign             100.00 / 1.25 EUR  ; USD/EUR rate of 1.25
+
+; Transaction with double bracket total cost notation - balanced
+2023-04-01 * "Buy investment with total cost"
+  Assets:Checking                              -400.00 USD
+  Assets:Investments:Fund1    12.072 STOCK1 {{240.00 USD}}
+  Assets:Investments:Fund2    11.552 STOCK2 {{160.00 USD}}
+
+; Transaction with double bracket total cost - unbalanced
+2023-04-05 * "Buy investment with total cost - error"
+  Assets:Checking                              -405.00 USD
+  Assets:Investments:Fund1    12.072 STOCK1 {{240.00 USD}}
+  Assets:Investments:Fund2    11.552 STOCK2 {{160.00 USD}}  ; Off by 5.00 USD

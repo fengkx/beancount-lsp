@@ -74,12 +74,17 @@ export function parseAmount(amountNode: Parser.SyntaxNode): { number: string; cu
 /**
  * Parse cost specification into number and currency
  */
-export function parseCostSpec(costSpecNode: Parser.SyntaxNode): { number: string; currency: string } | undefined {
+export function parseCostSpec(
+	costSpecNode: Parser.SyntaxNode,
+): { number: string; currency: string; isTotalCost?: boolean } | undefined {
 	if (!costSpecNode) return undefined;
+
+	// Check if this is a total cost (double brace) specification
+	const isTotalCost = costSpecNode.text.startsWith('{{') && costSpecNode.text.endsWith('}}');
 
 	// Extract cost components
 	const costCompListNode = costSpecNode.childForFieldName('cost_comp_list');
-	if (!costCompListNode) return { number: '', currency: '' };
+	if (!costCompListNode) return { number: '', currency: '', isTotalCost };
 
 	// Find a compound_amount node
 	const costCompNodes = queryNodes(costCompListNode, 'cost_comp');
@@ -94,7 +99,7 @@ export function parseCostSpec(costSpecNode: Parser.SyntaxNode): { number: string
 				try {
 					const number = perNode.text;
 					const currency = currencyNode.text;
-					return { number, currency };
+					return { number, currency, isTotalCost };
 				} catch (e) {
 					logger.error(`Error parsing cost: ${e}`);
 				}
