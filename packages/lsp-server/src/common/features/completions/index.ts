@@ -506,6 +506,8 @@ async function addAccountCompletions(
 		accountsNames = accounts.map((account) => account.name);
 	}
 
+	accountsNames = Array.from(new Set(accountsNames));
+
 	// Filter accounts based on the trigger character
 	const filteredAccounts = accountsNames.filter((account) => {
 		if (triggerChar === 'E') {
