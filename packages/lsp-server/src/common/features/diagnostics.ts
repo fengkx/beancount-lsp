@@ -164,7 +164,7 @@ export class DiagnosticsFeature implements Feature {
 			const allInferredTolerances = postings.filter(p => {
 				return p.amount && (p.cost || p.price);
 			}).map(posting => {
-				const smallestDigit = (new Big(10)).pow(-posting.amount!.number!.split('.')[1]!.length);
+				const smallestDigit = (new Big(10)).pow(-(posting.amount!.number!.split('.')[1]?.length ?? 0));
 				return {
 					currency: posting.cost?.currency || posting.price?.currency as string,
 					number: smallestDigit.mul(posting.cost!.number || posting.price!.number).mul(
