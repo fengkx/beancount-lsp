@@ -18,6 +18,7 @@ import link from './queries/link.scm';
 import narration from './queries/narration.scm';
 import note from './queries/note.scm';
 import number from './queries/number.scm';
+import option from './queries/option.scm';
 import pad from './queries/pad.scm';
 import payee from './queries/payee.scm';
 import poptag from './queries/poptag.scm';
@@ -54,6 +55,7 @@ const queryMap = {
 	narration,
 	note,
 	number,
+	option,
 	pad,
 	payee,
 	poptag,

@@ -28,6 +28,7 @@ import Db from '@seald-io/nedb';
 import { SymbolInfo } from './features/symbol-extractors';
 import { SymbolIndex } from './features/symbol-index';
 import { setWasmFilePath } from './language';
+import { BeancountOptionsManager } from './utils/beancount-options';
 
 export type SymbolInfoStorage = Db<SymbolInfo>;
 
@@ -117,8 +118,8 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 
 		documents = new DocumentStore(connection);
 		const trees = new Trees(documents, options.webTreeSitterWasmPath!);
-
-		symbolIndex = new SymbolIndex(documents, trees, symbolStorage);
+		const optionsManager = BeancountOptionsManager.getInstance();
+		symbolIndex = new SymbolIndex(documents, trees, symbolStorage, optionsManager);
 
 		// 创建PriceMap实例
 		const priceMap = new PriceMap(symbolIndex, trees, documents);
@@ -131,12 +132,14 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		features.push(new FoldingRangeFeature(documents, trees));
 		features.push(new RenameFeature(documents, trees, symbolIndex));
 		features.push(new DocumentSymbolsFeature(documents, trees));
-		features.push(new DiagnosticsFeature(documents, trees));
+		features.push(new DiagnosticsFeature(documents, trees, optionsManager));
 		features.push(new DocumentLinksFeature(documents, trees));
 		features.push(new InlayHintFeature(documents, trees));
 		features.push(new HoverFeature(documents, trees, priceMap, symbolIndex));
 
+		// Initialize all features
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
+
 		documents.onDidOpen(event => symbolIndex.addFile(event.document.uri));
 		documents.onDidChangeContent(event => symbolIndex.addFile(event.document.uri));
 

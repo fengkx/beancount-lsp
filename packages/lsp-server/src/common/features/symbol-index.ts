@@ -24,6 +24,7 @@ import {
 import { Logger } from '@bean-lsp/shared';
 import { URI, Utils as UriUtils } from 'vscode-uri';
 import { TreeQuery } from '../language';
+import { BeancountOptionsManager, SupportedOption } from '../utils/beancount-options';
 import { SwrCache, SwrOptions } from '../utils/swr';
 
 class Queue {
@@ -65,6 +66,7 @@ export class SymbolIndex {
 		private readonly _documents: DocumentStore,
 		private readonly _trees: Trees,
 		private readonly _symbolInfoStorage: SymbolInfoStorage,
+		private readonly _optionsManager: BeancountOptionsManager,
 	) {
 		// Initialize SWR caches
 		this._payeesCache = new SwrCache(() => this._fetchPayees(), 'index.payees');
@@ -200,6 +202,10 @@ export class SymbolIndex {
 
 	private async _doIndex(document: TextDocument) {
 		this.logger.debug(`[index] Indexing document: ${document.uri}`);
+
+		// Process options directives in this document
+		await this._processOptionsDirectives(document);
+
 		const [
 			accountUsages,
 			accountDefinitions,
@@ -291,6 +297,70 @@ export class SymbolIndex {
 				await this._symbolInfoStorage.insertAsync(d);
 			}),
 		);
+	}
+
+	/**
+	 * Process option directives in a document and register them in the options manager
+	 * @param document The document to process
+	 */
+	private async _processOptionsDirectives(document: TextDocument): Promise<void> {
+		try {
+			const tree = await this._trees.getParseTree(document);
+			if (!tree) {
+				this.logger.warn(`No syntax tree available for options processing: ${document.uri}`);
+				return;
+			}
+
+			const optionQuery = TreeQuery.getQueryByTokenName('option');
+			const optionCaptures = await optionQuery.captures(tree.rootNode);
+
+			const options = new Map<string, string>();
+
+			for (const capture of optionCaptures) {
+				// Only process the option node itself, not its children
+				if (capture.name !== 'option' || capture.node.type !== 'option') {
+					continue;
+				}
+
+				const optionNode = capture.node;
+				const keyNode = optionNode.childForFieldName('key');
+				const valueNode = optionNode.childForFieldName('value');
+
+				if (!keyNode || !valueNode) {
+					this.logger.warn(`Invalid option directive found in ${document.uri}`);
+					continue;
+				}
+
+				// Extract the key and value from the nodes (remove quotes)
+				let key = document.getText({
+					start: document.positionAt(keyNode.startIndex),
+					end: document.positionAt(keyNode.endIndex),
+				});
+				let value = document.getText({
+					start: document.positionAt(valueNode.startIndex),
+					end: document.positionAt(valueNode.endIndex),
+				});
+
+				// Remove surrounding quotes from key and value
+				key = key.replace(/^"(.*)"$/, '$1');
+				value = value.replace(/^"(.*)"$/, '$1');
+
+				options.set(key, value);
+				this.logger.debug(`Found option in ${document.uri}: ${key} = ${value}`);
+			}
+
+			// Register discovered options in the options manager
+			for (const [key, value] of options.entries()) {
+				// @ts-expect-error intented set all options by only SupportedKeys can read
+				this._optionsManager.setOption(key, value, document.uri);
+			}
+
+			if (options.size > 0) {
+				this.logger.info(`Processed ${options.size} Beancount options in ${document.uri}`);
+			}
+		} catch (error) {
+			this.logger.error(`Error processing options in ${document.uri}: ${error}`);
+		}
 	}
 
 	public async getAccountDefinitions(): Promise<import('@seald-io/nedb').Document<SymbolInfo[]>> {
@@ -430,5 +500,14 @@ export class SymbolIndex {
 		}) as SymbolInfo[];
 		this.logger.debug(`[index] Found ${pricesDeclarations.length} prices declarations`);
 		return pricesDeclarations;
+	}
+
+	/**
+	 * Get a specific Beancount option value
+	 * @param name Option name
+	 * @returns Option value and metadata, or undefined if not found
+	 */
+	public getOption(name: SupportedOption) {
+		return this._optionsManager.getOption(name);
 	}
 }

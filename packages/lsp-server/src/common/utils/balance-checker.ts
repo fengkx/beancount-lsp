@@ -83,14 +83,29 @@ export function hasOnlyOneIncompleteAmount(postings: Posting[]): boolean {
  * @param tolerance Tolerance value to use for balance checking
  * @returns Result of the balance check
  */
-export function checkTransactionBalance(postings: Posting[], tolerance: number): BalanceResult {
+export function checkTransactionBalance(
+	postings: Posting[],
+	tolerance: number | Big | Record<string, Big>,
+): BalanceResult {
 	// Group postings by currency
 	const postingsByCurrency = groupByCurrency(postings);
 
 	// For each currency group, check if they balance to zero (within tolerance)
 	for (const [currency, currencyPostings] of Object.entries(postingsByCurrency)) {
 		// Use the configured tolerance value
-		const toleranceBig = new Big(tolerance);
+
+		let toleranceBig: Big;
+		if (
+			typeof tolerance === 'object' && Object.prototype.hasOwnProperty.call(tolerance, 'c')
+			&& Object.prototype.hasOwnProperty.call(tolerance, 'e')
+		) {
+			toleranceBig = tolerance as Big;
+		} else if (typeof tolerance === 'number') {
+			toleranceBig = new Big(tolerance);
+		} else {
+			// @ts-expect-error
+			toleranceBig = tolerance[currency] ?? new Big(0.01);
+		}
 
 		// Sum all postings for this currency
 		const sum = sumPostings(currencyPostings, currency);

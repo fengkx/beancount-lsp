@@ -120,3 +120,4 @@
   Expenses:Everyday:Bank-Fees               5.00 USD
   Assets:Transfer                      14,995.00 USD 
 
+option "infer_tolerance_from_cost" "TRUE"

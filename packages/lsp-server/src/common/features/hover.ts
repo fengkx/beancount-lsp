@@ -51,6 +51,19 @@ export class HoverFeature implements Feature {
 		this.priceMap.setAllowedCurrencies(currencies);
 	}
 
+	/**
+	 * Handle Beancount option changes
+	 * @param event The option change event
+	 */
+	private handleOptionChange(event: any): void {
+		// Example: Handle 'operating_currency' option change
+		if (event.name === 'operating_currency') {
+			logger.info(`Operating currency changed to: ${event.option.value}`);
+			// Update main currency in price map if it was set by a Beancount option
+			this.setPriceMapMainCurrency(event.option.value);
+		}
+	}
+
 	private async onHover(
 		params: lsp.HoverParams,
 	): Promise<lsp.Hover | null> {
