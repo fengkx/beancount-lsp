@@ -28,7 +28,7 @@ import {
 	TextEdit,
 } from 'vscode-languageserver';
 import type Parser from 'web-tree-sitter';
-import { asTsPoint, nodeAtPosition } from '../../common';
+import { nodeAtPosition } from '../../common';
 import { DocumentStore } from '../../document-store';
 import { Trees } from '../../trees';
 import { SymbolIndex } from '../symbol-index';
@@ -43,12 +43,6 @@ const Tuple = <T extends unknown[]>(xs: readonly [...T]): T => xs as T;
  * '#' - Tag completions
  * '"' - Payee/narration completions
  * '^' - Reserved
- * ' ' - Currency completions after numbers
- * 'A', 'L', 'E', 'I' - First letters of Beancount account types:
- *   'A' - Assets
- *   'L' - Liabilities
- *   'E' - Equity and Expenses (both start with E)
- *   'I' - Income
  */
 const triggerCharacters = Tuple(['2', '#', '"', '^'] as const);
 type TriggerCharacter = (typeof triggerCharacters)[number];
@@ -63,9 +57,6 @@ type TriggerInfo = {
 	parentType: string | undefined;
 	previousSiblingType: string | undefined;
 	previousPreviousSiblingType: string | undefined;
-	descendantForPositionType: string | undefined;
-	lastChildType: string | undefined;
-	lastCurrentChildTypeInError?: string;
 	currentLine: string;
 };
 
@@ -614,6 +605,7 @@ const logger = new Logger('completions');
  * based on the cursor position and surrounding tokens.
  */
 export class CompletionFeature implements Feature {
+	private lastCompletionItems: CompletionItem[] = [];
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
@@ -694,48 +686,6 @@ export class CompletionFeature implements Feature {
 
 		// Analyze the token at the current position
 		const current = nodeAtPosition(tree.rootNode, params.position, true);
-		let lastCurrentChildTypeInError = undefined;
-		if (current.type === 'ERROR' && current.childCount > 0) {
-			lastCurrentChildTypeInError = current.children[current.childCount - 1]?.type;
-		}
-
-		// Find the token for the current position
-		const descendantForCurPos = tree.rootNode.descendantForPosition(asTsPoint(params.position));
-		let lastChildNode = descendantForCurPos.child(descendantForCurPos.childCount - 1);
-
-		// Handle error cases by looking at parent/sibling nodes
-		if (!lastChildNode || lastChildNode.type === 'ERROR') {
-			// find up
-			let parent = lastChildNode?.parent;
-			logger.info(`pp ${parent?.type} AAAA`);
-			while (
-				typeof parent == 'object' && parent !== null
-				&& parent.type === 'ERROR'
-			) {
-				logger.info(`pp ${parent?.type}`);
-				parent = parent?.parent;
-			}
-			lastChildNode = parent ?? null;
-			logger.info(`pp ${parent?.type}`);
-
-			// find sibling
-			if ((parent?.childCount ?? 0) > 0) {
-				let n = parent?.children[parent.childCount - 1];
-				while (n && n.type === 'ERROR') {
-					n = n.previousNamedSibling ?? undefined;
-				}
-				lastChildNode = n ?? null;
-			}
-
-			// find last child
-			if (lastChildNode) {
-				let n = lastChildNode;
-				while (n.childCount > 0) {
-					n = n.children[n.childCount - 1]!;
-				}
-				lastChildNode = n;
-			}
-		}
 
 		const currentLine = document.getText({
 			start: { line: params.position.line, character: 0 },
@@ -750,9 +700,6 @@ export class CompletionFeature implements Feature {
 				triggerCharacter: params.context?.triggerCharacter as TriggerCharacter,
 				previousSiblingType: current.previousSibling?.type,
 				previousPreviousSiblingType: current.previousSibling?.previousSibling?.type,
-				descendantForPositionType: descendantForCurPos?.type,
-				lastChildType: lastChildNode?.type,
-				lastCurrentChildTypeInError: lastCurrentChildTypeInError ?? '',
 				currentLine,
 			},
 			params.position,
@@ -857,7 +804,6 @@ export class CompletionFeature implements Feature {
 				{
 					triggerCharacter: '"',
 					currentType: 'payee',
-					descendantForPositionType: 'payee',
 				},
 				{
 					triggerCharacter: '"',
@@ -1009,10 +955,11 @@ export class CompletionFeature implements Feature {
 				const pp: Promise<void> = match(
 					{
 						validTypes,
+						head4ValidTypes: validTypes.slice(0, 4),
 						triggerCharacter: info.triggerCharacter,
 					},
 				)
-					.with({ validTypes: ['account', 'binary_number_expr'] }, async () => {
+					.with({ head4ValidTypes: ['account', 'binary_number_expr'] }, async () => {
 						const initialCount = completionItems.length;
 						cnt = await addCurrencyCompletions(
 							this.symbolIndex,
@@ -1035,7 +982,7 @@ export class CompletionFeature implements Feature {
 							],
 						},
 						{
-							validTypes: ['date', 'txn', 'payee', 'narration'],
+							head4ValidTypes: ['date', 'txn', 'payee', 'narration'],
 						},
 						async () => {
 							const initialCount = completionItems.length;
@@ -1050,12 +997,18 @@ export class CompletionFeature implements Feature {
 							logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
 						},
 					)
-					.run();
+					.otherwise(() => {
+						logger.info(`No matching branch found ${JSON.stringify(validTypes)}`);
+						if (cnt <= 0) {
+							completionItems.push(...this.lastCompletionItems);
+						}
+					});
 				await pp;
 			}
 		}
 
 		logger.info(`Final completion items: ${completionItems.length}`);
+		this.lastCompletionItems = completionItems;
 		return completionItems;
 	}
 }
