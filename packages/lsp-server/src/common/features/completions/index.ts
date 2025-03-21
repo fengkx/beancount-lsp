@@ -984,6 +984,12 @@ export class CompletionFeature implements Feature {
 						{
 							head4ValidTypes: ['date', 'txn', 'payee', 'narration'],
 						},
+						{
+							head4ValidTypes: ['date', 'txn', 'payee', 'posting'],
+						},
+						{
+							head4ValidTypes: ['date', 'txn', 'narration', 'posting'],
+						},
 						async () => {
 							const initialCount = completionItems.length;
 							cnt = await addAccountCompletions(
@@ -1000,6 +1006,7 @@ export class CompletionFeature implements Feature {
 					.otherwise(() => {
 						logger.info(`No matching branch found ${JSON.stringify(validTypes)}`);
 						if (cnt <= 0) {
+							// for inputing something includes trigger character in narration
 							completionItems.push(...this.lastCompletionItems);
 						}
 					});
