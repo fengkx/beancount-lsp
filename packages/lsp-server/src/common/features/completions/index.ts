@@ -1126,7 +1126,7 @@ export class CompletionFeature implements Feature {
 						cnt = await addAccountCompletions(
 							this.symbolIndex,
 							position,
-							'',
+							userInput ?? '',
 							set,
 							completionItems,
 							cnt,
