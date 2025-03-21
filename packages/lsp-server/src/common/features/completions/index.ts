@@ -707,7 +707,7 @@ export class CompletionFeature implements Feature {
 			userInput,
 		);
 
-		return completionItems;
+		return CompletionList.create(completionItems, false);
 	};
 
 	/**
