@@ -50,7 +50,7 @@ const Tuple = <T extends unknown[]>(xs: readonly [...T]): T => xs as T;
  *   'E' - Equity and Expenses (both start with E)
  *   'I' - Income
  */
-const triggerCharacters = Tuple(['2', '#', '"', '^', ' ', 'A', 'L', 'E', 'I'] as const);
+const triggerCharacters = Tuple(['2', '#', '"', '^'] as const);
 type TriggerCharacter = (typeof triggerCharacters)[number];
 
 /**
@@ -436,7 +436,7 @@ async function addCurrencyCompletions(
 	set: Set<string>,
 	items: CompletionItem[],
 	cnt: number,
-	userInput?: string,
+	userInput = '',
 ): Promise<number> {
 	// Fetch currencies/commodities from the index
 	const currencies = await symbolIndex.getCommodities();
@@ -454,7 +454,7 @@ async function addCurrencyCompletions(
 		cnt = addCompletionItem(
 			{ label: currency, kind: CompletionItemKind.Unit, detail: '(currency)' },
 			position,
-			currency,
+			currency.startsWith(userInput) ? currency.slice(userInput.length) : currency,
 			set,
 			items,
 			cnt,
@@ -834,16 +834,6 @@ export class CompletionFeature implements Feature {
 			})
 			.with(
 				{
-					triggerCharacter: ' ',
-					lastCurrentChildTypeInError: 'number',
-				},
-				{
-					currentType: 'posting',
-					parentType: 'transaction',
-					triggerCharacter: ' ',
-					lastChildType: 'incomplete_amount',
-				},
-				{
 					previousSiblingType: P.union('unary_number_expr', 'number', 'binary_number_expr'),
 					previousPreviousSiblingType: 'account',
 				},
@@ -862,75 +852,6 @@ export class CompletionFeature implements Feature {
 					logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
 				},
 			)
-			.with({ triggerCharacter: 'A', currentLine: P.string.regex(/^\s*A$/) }, async () => {
-				// Assets account completions
-				logger.info('Branch: triggerCharacter A - Account completion');
-				const initialCount = completionItems.length;
-				cnt = await addAccountCompletions(
-					this.symbolIndex,
-					position,
-					'A',
-					set,
-					completionItems,
-					cnt,
-					userInput,
-				);
-				logger.info(`Assets accounts added, items: ${completionItems.length - initialCount}`);
-			})
-			.with({ triggerCharacter: 'L', currentLine: P.string.regex(/^\s*L$/) }, {
-				triggerCharacter: P.nullish,
-				userInput: 'L',
-			}, async () => {
-				// Liabilities account completions
-				logger.info('Branch: triggerCharacter L - Account completion');
-				const initialCount = completionItems.length;
-				cnt = await addAccountCompletions(
-					this.symbolIndex,
-					position,
-					'L',
-					set,
-					completionItems,
-					cnt,
-					userInput,
-				);
-				logger.info(`Liabilities accounts added, items: ${completionItems.length - initialCount}`);
-			})
-			.with({ triggerCharacter: 'E', currentLine: P.string.regex(/^\s*E$/) }, {
-				triggerCharacter: P.nullish,
-				userInput: 'E',
-			}, async () => {
-				// Equity and Expenses account completions
-				logger.info('Branch: triggerCharacter E - Account completion');
-				const initialCount = completionItems.length;
-				cnt = await addAccountCompletions(
-					this.symbolIndex,
-					position,
-					'E',
-					set,
-					completionItems,
-					cnt,
-					userInput,
-				);
-				logger.info(`Equity and Expenses accounts added, items: ${completionItems.length - initialCount}`);
-			})
-			.with({ triggerCharacter: 'I', currentLine: P.string.regex(/^\s*I$/) }, {
-				triggerCharacter: P.nullish,
-				userInput: 'I',
-			}, async () => {
-				// Income account completions
-				logger.info('Branch: triggerCharacter I - Account completion');
-				const initialCount = completionItems.length;
-				cnt = await addAccountCompletions(
-					this.symbolIndex,
-					position,
-					'I',
-					set,
-					completionItems,
-					cnt,
-					userInput,
-				);
-				logger.info(`Income accounts added, items: ${completionItems.length - initialCount}`);
-			})
 			.with(
 				{ triggerCharacter: '"', previousSiblingType: 'txn' },
 				{
@@ -1068,16 +989,6 @@ export class CompletionFeature implements Feature {
 				});
 				logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
 			})
-			.with({ lastChildType: 'narration' }, async () => {
-				// Account completions after a narration
-				logger.info('Branch: narration last child');
-				const initialCount = completionItems.length;
-				const accounts = await this.symbolIndex.getAccountDefinitions();
-				accounts.forEach((account: { name: string }) => {
-					addItem({ label: account.name });
-				});
-				logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
-			})
 			.otherwise(() => {
 				// No matching context found, provide no completions
 				logger.info('No matching branch found');
@@ -1101,7 +1012,7 @@ export class CompletionFeature implements Feature {
 						triggerCharacter: info.triggerCharacter,
 					},
 				)
-					.with({ validTypes: ['account', 'binary_number_expr'], triggerCharacter: ' ' }, async () => {
+					.with({ validTypes: ['account', 'binary_number_expr'] }, async () => {
 						const initialCount = completionItems.length;
 						cnt = await addCurrencyCompletions(
 							this.symbolIndex,
@@ -1113,26 +1024,32 @@ export class CompletionFeature implements Feature {
 						);
 						logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
 					})
-					.with({
-						validTypes: [
-							'date',
-							'txn',
-							'payee',
-							'narration',
-							'posting',
-						],
-					}, async () => {
-						const initialCount = completionItems.length;
-						cnt = await addAccountCompletions(
-							this.symbolIndex,
-							position,
-							userInput ?? '',
-							set,
-							completionItems,
-							cnt,
-						);
-						logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
-					})
+					.with(
+						{
+							validTypes: [
+								'date',
+								'txn',
+								'payee',
+								'narration',
+								'posting',
+							],
+						},
+						{
+							validTypes: ['date', 'txn', 'payee', 'narration'],
+						},
+						async () => {
+							const initialCount = completionItems.length;
+							cnt = await addAccountCompletions(
+								this.symbolIndex,
+								position,
+								userInput ?? '',
+								set,
+								completionItems,
+								cnt,
+							);
+							logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
+						},
+					)
 					.run();
 				await pp;
 			}

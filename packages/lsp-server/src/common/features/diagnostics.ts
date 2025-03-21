@@ -129,7 +129,7 @@ export class DiagnosticsFeature implements Feature {
 				}
 
 				// Check transaction balance
-				const tolerance = this.getTolerance(transaction.postings, this.optionsManager);
+				const tolerance = this.getTolerance(transaction.postings);
 				const result = checkTransactionBalance(transaction.postings, tolerance);
 				if (!result.isBalanced) {
 					const percision = result.tolerance!.toString().split('.')?.[1]?.length ?? 2;
@@ -152,7 +152,7 @@ export class DiagnosticsFeature implements Feature {
 
 		return diagnostics;
 	}
-	private getTolerance(postings: Posting[], optionsManager: BeancountOptionsManager) {
+	private getTolerance(postings: Posting[]) {
 		if (this.optionsManager.getOption('infer_tolerance_from_cost').asBoolean()) {
 			/**
 			 * Inferring Tolerances from Cost
