@@ -16,12 +16,14 @@ import { add, formatDate, sub } from 'date-fns';
 import { pinyin } from 'pinyin-pro';
 import { match, P } from 'ts-pattern';
 import {
+	CancellationToken,
 	CompletionItem,
 	CompletionItemKind,
 	CompletionList,
 	CompletionParams,
 	CompletionRegistrationOptions,
 	CompletionRequest,
+	CompletionTriggerKind,
 	Connection,
 	Position,
 	TextDocument,
@@ -606,11 +608,12 @@ const logger = new Logger('completions');
  */
 export class CompletionFeature implements Feature {
 	private lastCompletionItems: CompletionItem[] = [];
+	private lastCompletionParams: CompletionParams & { version: number } | null = null;
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
 		private readonly symbolIndex: SymbolIndex,
-	) {}
+	) { }
 
 	/**
 	 * Registers the completion provider with the language server
@@ -654,8 +657,26 @@ export class CompletionFeature implements Feature {
 	 * @param params Completion parameters from the client
 	 * @returns Array of completion items
 	 */
-	provideCompletionItems = async (params: CompletionParams): Promise<CompletionItem[] | CompletionList | null> => {
+	provideCompletionItems = async (
+		params: CompletionParams,
+		token: CancellationToken,
+	): Promise<CompletionItem[] | CompletionList | null> => {
+		if (token.isCancellationRequested) {
+			return [];
+		}
 		const document = await this.documents.retrieve(params.textDocument.uri);
+
+		if (
+			this.lastCompletionParams?.textDocument.uri === params.textDocument.uri
+			&& this.lastCompletionParams.position.line === params.position.line
+			&& this.lastCompletionParams.position.character === params.position.character
+			&& this.lastCompletionParams.context?.triggerKind === params.context?.triggerKind
+			&& this.lastCompletionParams.context?.triggerKind === CompletionTriggerKind.Invoked
+			&& this.lastCompletionParams.version === document.version
+		) {
+			return [];
+		}
+		this.lastCompletionParams = { ...params, version: document.version };
 		const tree = await this.trees.getParseTree(document);
 		if (!tree) {
 			return CompletionList.create([]);
