@@ -510,6 +510,9 @@ async function addAccountCompletions(
 
 	// Filter accounts based on the trigger character
 	const filteredAccounts = accountsNames.filter((account) => {
+		if (!triggerChar) {
+			return true;
+		}
 		if (triggerChar === 'E') {
 			// Special case for E: match both Equity and Expenses accounts
 			return account.startsWith('Equity:') || account.startsWith('Expenses:');
@@ -611,7 +614,6 @@ const logger = new Logger('completions');
  * based on the cursor position and surrounding tokens.
  */
 export class CompletionFeature implements Feature {
-	private lastCompletionItems: CompletionItem[] = [];
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
@@ -812,26 +814,23 @@ export class CompletionFeature implements Feature {
 				});
 				logger.info(`Date completions added, items: ${completionItems.length}`);
 			})
-			.with({ triggerCharacter: '#' }, async () => {
-				// Tag completions when triggered by # character
-				logger.info('Branch: triggerCharacter #');
-				const initialCount = completionItems.length;
-				cnt = await addTagCompletions(this.symbolIndex, position, set, completionItems, cnt, userInput);
-				logger.info(`Tags added, items: ${completionItems.length - initialCount}`);
-			})
+			.with(
+				{ triggerCharacter: '#' },
+				{ currentType: '#' },
+				async () => {
+					// Tag completions when triggered by # character
+					logger.info('Branch: triggerCharacter #');
+					const initialCount = completionItems.length;
+					cnt = await addTagCompletions(this.symbolIndex, position, set, completionItems, cnt, userInput);
+					logger.info(`Tags added, items: ${completionItems.length - initialCount}`);
+				},
+			)
 			.with({ triggerCharacter: '^' }, async () => {
 				// Link completions when triggered by ^ character
 				logger.info('Branch: triggerCharacter ^');
 				const initialCount = completionItems.length;
 				cnt = await addLinkCompletions(this.symbolIndex, position, set, completionItems, cnt, userInput);
 				logger.info(`Links added, items: ${completionItems.length - initialCount}`);
-			})
-			.with({ currentType: '#' }, async () => {
-				// Tag completions when positioned at a # token
-				logger.info('Branch: triggerCharacter #');
-				const initialCount = completionItems.length;
-				cnt = await addTagCompletions(this.symbolIndex, position, set, completionItems, cnt, userInput);
-				logger.info(`Tags added, items: ${completionItems.length - initialCount}`);
 			})
 			.with(
 				{
@@ -932,62 +931,55 @@ export class CompletionFeature implements Feature {
 				);
 				logger.info(`Income accounts added, items: ${completionItems.length - initialCount}`);
 			})
-			.with({ triggerCharacter: '"', previousSiblingType: 'txn' }, {
-				triggerCharacter: '"',
-				currentType: 'payee',
-				descendantForPositionType: 'payee',
-			}, async () => {
-				// Payee and narration completions after a transaction keyword
-				logger.info('Branch: triggerCharacter " with txn sibling');
-				const initialCount = completionItems.length;
-				cnt = await addPayeesAndNarrations(
-					this.symbolIndex,
-					position,
-					true,
-					'end',
-					set,
-					completionItems,
-					cnt,
-					userInput,
-				);
-				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
-			})
-			.with({
-				triggerCharacter: '"',
-				previousSiblingType: 'txn',
-				previousPreviousSiblingType: 'date',
-			}, async () => {
-				// Payee and narration completions after date and transaction keyword
-				logger.info('Branch: triggerCharacter " with txn sibling and date previous');
-				const initialCount = completionItems.length;
-				cnt = await addPayeesAndNarrations(
-					this.symbolIndex,
-					position,
-					true,
-					'end',
-					set,
-					completionItems,
-					cnt,
-					userInput,
-				);
-				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
-			})
-			.with({ triggerCharacter: '"', previousSiblingType: 'payee' }, async () => {
-				// Narration completions only after a payee
-				logger.info('Branch: triggerCharacter " with payee sibling');
-				const initialCount = completionItems.length;
-				cnt = await addPayeesAndNarrations(
-					this.symbolIndex,
-					position,
-					false,
-					'end',
-					set,
-					completionItems,
-					cnt,
-					userInput,
-				);
-				logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
-			})
+			.with(
+				{ triggerCharacter: '"', previousSiblingType: 'txn' },
+				{
+					triggerCharacter: '"',
+					currentType: 'payee',
+					descendantForPositionType: 'payee',
+				},
+				{
+					triggerCharacter: '"',
+					previousSiblingType: 'txn',
+					previousPreviousSiblingType: 'date',
+				},
+				async () => {
+					// Payee and narration completions after a transaction keyword
+					logger.info('Branch: triggerCharacter " with txn sibling');
+					const initialCount = completionItems.length;
+					cnt = await addPayeesAndNarrations(
+						this.symbolIndex,
+						position,
+						true,
+						'end',
+						set,
+						completionItems,
+						cnt,
+						userInput,
+					);
+					logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
+				},
+			)
+			.with(
+				{ triggerCharacter: '"', previousSiblingType: 'payee' },
+				{ triggerCharacter: '"', previousSiblingType: 'string' },
+				async () => {
+					// Narration completions only after a payee
+					logger.info('Branch: triggerCharacter " with payee sibling');
+					const initialCount = completionItems.length;
+					cnt = await addPayeesAndNarrations(
+						this.symbolIndex,
+						position,
+						false,
+						'end',
+						set,
+						completionItems,
+						cnt,
+						userInput,
+					);
+					logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
+				},
+			)
 			.with({ triggerCharacter: '"', currentType: 'narration' }, async () => {
 				// Payee and narration completions when positioned at a narration
 				logger.info('Branch: triggerCharacter " with narration current');
@@ -1003,22 +995,6 @@ export class CompletionFeature implements Feature {
 					userInput,
 				);
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
-			})
-			.with({ triggerCharacter: '"', previousSiblingType: 'string' }, async () => {
-				// Narration completions after a string (likely a payee)
-				logger.info('Branch: triggerCharacter " with string sibling');
-				const initialCount = completionItems.length;
-				cnt = await addPayeesAndNarrations(
-					this.symbolIndex,
-					position,
-					false,
-					'end',
-					set,
-					completionItems,
-					cnt,
-					userInput,
-				);
-				logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({
 				triggerCharacter: '"',
@@ -1110,11 +1086,21 @@ export class CompletionFeature implements Feature {
 		await p;
 
 		if (completionItems?.length <= 0 && current.type === 'ERROR') {
-			const childCount = current.parent?.childCount ?? 0;
+			let n = current.parent;
+			let childCount = n?.childCount ?? 0;
+			if (childCount === 1 && n!.child(0)?.type === 'ERROR') {
+				n = n!.previousNamedSibling;
+				childCount = n?.childCount ?? 0;
+			}
 			if (childCount > 0) {
-				const childrenType = current.parent!.children.map(c => c.type);
+				const childrenType = n!.children.map(c => c.type);
 				const validTypes = childrenType.filter(t => t !== 'ERROR' && t.length > 1);
-				match({ validTypes, triggerCharacter: info.triggerCharacter })
+				const pp: Promise<void> = match(
+					{
+						validTypes,
+						triggerCharacter: info.triggerCharacter,
+					},
+				)
 					.with({ validTypes: ['account', 'binary_number_expr'], triggerCharacter: ' ' }, async () => {
 						const initialCount = completionItems.length;
 						cnt = await addCurrencyCompletions(
@@ -1126,15 +1112,33 @@ export class CompletionFeature implements Feature {
 							userInput,
 						);
 						logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
-					});
+					})
+					.with({
+						validTypes: [
+							'date',
+							'txn',
+							'payee',
+							'narration',
+							'posting',
+						],
+					}, async () => {
+						const initialCount = completionItems.length;
+						cnt = await addAccountCompletions(
+							this.symbolIndex,
+							position,
+							'',
+							set,
+							completionItems,
+							cnt,
+						);
+						logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
+					})
+					.run();
+				await pp;
 			}
 		}
 
 		logger.info(`Final completion items: ${completionItems.length}`);
-		// if (completionItems.length === 0 && this.lastCompletionItems.length > 0) {
-		// 	return this.lastCompletionItems;
-		// }
-		this.lastCompletionItems = completionItems;
 		return completionItems;
 	}
 }

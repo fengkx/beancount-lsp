@@ -1,18 +1,18 @@
 // Place your settings in this file to overwrite default and user settings.
 {
-  "files.exclude": {
-    "**/*.tsbuildinfo": true,
-    "packages/lsp-client/out": true
-  },
-  "search.useIgnoreFile": true,
-  "search.exclude": {
-    "**/*.tsbuildinfo": true,
-    "packages/lsp-client/out": true
-  },
-  // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
-  "typescript.tsc.autoDetect": "off",
-  "cmake.configureOnOpen": true,
-  "cSpell.words": ["Asyncify", "Beancount", "dprint", "typecheck"],
-  "search.useIgnoreFiles": true,
-  "search.useParentIgnoreFiles": true
+	"files.exclude": {
+		"**/*.tsbuildinfo": true,
+		"packages/lsp-client/out": true
+	},
+	"search.useIgnoreFile": true,
+	"search.exclude": {
+		"**/*.tsbuildinfo": true,
+		"packages/lsp-client/out": true
+	},
+	// Turn off tsc task auto detection since we have the necessary tasks as npm scripts
+	"typescript.tsc.autoDetect": "off",
+	"cmake.configureOnOpen": true,
+	"cSpell.words": ["Asyncify", "Beancount", "dprint", "typecheck"],
+	"search.useIgnoreFiles": true,
+	"search.useParentIgnoreFiles": true
 }

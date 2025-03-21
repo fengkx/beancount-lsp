@@ -1,32 +1,32 @@
 // See https://go.microsoft.com/fwlink/?LinkId=733558
 // for the documentation about the tasks.json format
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "type": "npm",
-      "script": "watch",
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "tsup",
-        "fileLocation": "relative",
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "watch",
+			"isBackground": true,
+			"problemMatcher": {
+				"owner": "tsup",
+				"fileLocation": "relative",
 
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "Watching for changes in \".\"",
-          "endsPattern": "^.+Build success in"
-        }
-      },
-      "presentation": {
-        "reveal": "never"
-      },
-      "options": {
-        "cwd": "${workspaceFolder}/packages/lsp-client"
-      },
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      }
-    }
-  ]
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "Watching for changes in \".\"",
+					"endsPattern": "^.+Build success in"
+				}
+			},
+			"presentation": {
+				"reveal": "never"
+			},
+			"options": {
+				"cwd": "${workspaceFolder}/packages/lsp-client"
+			},
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		}
+	]
 }
