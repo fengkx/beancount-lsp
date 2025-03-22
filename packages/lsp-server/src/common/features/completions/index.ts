@@ -298,6 +298,28 @@ function addCompletionItem(
 }
 
 /**
+ * Parameters for the addPayeesAndNarrations function
+ */
+interface AddPayeesAndNarrationsParams {
+	/** The symbol index to retrieve payees/narrations from */
+	symbolProvider: SymbolIndex;
+	/** The position where the completion was triggered */
+	position: Position;
+	/** Whether to include payees or just narrations */
+	shouldIncludePayees: boolean;
+	/** The quote style to use ('none', 'end', 'both') */
+	quotationStyle: 'none' | 'end' | 'both';
+	/** A set to track already added items */
+	existingCompletions: Set<string>;
+	/** The array of completion items to add to */
+	completions: CompletionItem[];
+	/** A counter for sorting when no userInput is provided */
+	completionCount: number;
+	/** Optional user input for better scoring and sorting */
+	filterText?: string | undefined;
+}
+
+/**
  * Adds payees and narrations as completion items
  *
  * This function retrieves payees and/or narrations from the symbol index
@@ -306,66 +328,65 @@ function addCompletionItem(
  * - 'end': Only closing quote (")
  * - 'both': Both opening and closing quotes ("...")
  *
- * @param symbolIndex The symbol index to retrieve payees/narrations from
- * @param position The position where the completion was triggered
- * @param addPayees Whether to include payees or just narrations
- * @param quoteStyle The quote style to use ('none', 'end', 'both')
- * @param set A set to track already added items
- * @param items The array of completion items to add to
- * @param cnt A counter for sorting when no userInput is provided
- * @param userInput Optional user input for better scoring and sorting
+ * @param params Object containing all parameters for the function
  * @returns Updated counter value
  */
 async function addPayeesAndNarrations(
-	symbolIndex: SymbolIndex,
-	position: Position,
-	addPayees: boolean,
-	quoteStyle: 'none' | 'end' | 'both',
-	set: Set<string>,
-	items: CompletionItem[],
-	cnt: number,
-	userInput?: string,
+	params: AddPayeesAndNarrationsParams,
 ): Promise<number> {
+	const {
+		symbolProvider,
+		position,
+		shouldIncludePayees,
+		quotationStyle,
+		existingCompletions,
+		completions,
+		completionCount,
+		filterText,
+	} = params;
+
 	// Fetch payees and narrations in parallel
 	const [payees, narrations] = await Promise.all([
-		addPayees ? symbolIndex.getPayees(true, { waitTime: 100 }) : Promise.resolve([]),
-		symbolIndex.getNarrations(true, { waitTime: 100 }),
+		shouldIncludePayees ? symbolProvider.getPayees(true, { waitTime: 100 }) : Promise.resolve([]),
+		symbolProvider.getNarrations(true, { waitTime: 100 }),
 	]);
 
 	// Add payees if requested
-	if (addPayees) {
+	if (shouldIncludePayees) {
 		payees.forEach((payee: string) => {
-			const quote = quoteStyle === 'both' ? '"' : quoteStyle === 'end' ? '"' : '';
-			const startQuote = quoteStyle === 'both' ? '"' : '';
-			cnt = addCompletionItem(
+			const quote = quotationStyle === 'both' ? '"' : quotationStyle === 'end' ? '"' : '';
+			const startQuote = quotationStyle === 'both' ? '"' : '';
+			let updatedCount = addCompletionItem(
 				{ label: payee, kind: CompletionItemKind.Text, detail: '(payee)' },
 				position,
 				// Add space after to allow quick editing between payee and narration
 				`${startQuote}${payee}${quote} `,
-				set,
-				items,
-				cnt,
-				userInput,
+				existingCompletions,
+				completions,
+				completionCount,
+				filterText,
 			);
+			params.completionCount = updatedCount;
 		});
 	}
 
 	// Add narrations
 	narrations.forEach((narration: string) => {
-		const quote = quoteStyle === 'both' ? '"' : quoteStyle === 'end' ? '"' : '';
-		const startQuote = quoteStyle === 'both' ? '"' : '';
-		cnt = addCompletionItem(
+		const quote = quotationStyle === 'both' ? '"' : quotationStyle === 'end' ? '"' : '';
+		const startQuote = quotationStyle === 'both' ? '"' : '';
+		let updatedCount = addCompletionItem(
 			{ label: narration, kind: CompletionItemKind.Text, detail: '(narration)' },
 			position,
 			`${startQuote}${narration}${quote}`,
-			set,
-			items,
-			cnt,
-			userInput,
+			existingCompletions,
+			completions,
+			params.completionCount,
+			filterText,
 		);
+		params.completionCount = updatedCount;
 	});
 
-	return cnt;
+	return params.completionCount;
 }
 
 /**
@@ -613,7 +634,7 @@ export class CompletionFeature implements Feature {
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
 		private readonly symbolIndex: SymbolIndex,
-	) { }
+	) {}
 
 	/**
 	 * Registers the completion provider with the language server
@@ -835,16 +856,16 @@ export class CompletionFeature implements Feature {
 					// Payee and narration completions after a transaction keyword
 					logger.info('Branch: triggerCharacter " with txn sibling');
 					const initialCount = completionItems.length;
-					cnt = await addPayeesAndNarrations(
-						this.symbolIndex,
-						position,
-						true,
-						'end',
-						set,
-						completionItems,
-						cnt,
-						userInput,
-					);
+					cnt = await addPayeesAndNarrations({
+						symbolProvider: this.symbolIndex,
+						position: position,
+						shouldIncludePayees: true,
+						quotationStyle: 'end',
+						existingCompletions: set,
+						completions: completionItems,
+						completionCount: cnt,
+						filterText: userInput,
+					});
 					logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 				},
 			)
@@ -855,16 +876,16 @@ export class CompletionFeature implements Feature {
 					// Narration completions only after a payee
 					logger.info('Branch: triggerCharacter " with payee sibling');
 					const initialCount = completionItems.length;
-					cnt = await addPayeesAndNarrations(
-						this.symbolIndex,
-						position,
-						false,
-						'end',
-						set,
-						completionItems,
-						cnt,
-						userInput,
-					);
+					cnt = await addPayeesAndNarrations({
+						symbolProvider: this.symbolIndex,
+						position: position,
+						shouldIncludePayees: false,
+						quotationStyle: 'end',
+						existingCompletions: set,
+						completions: completionItems,
+						completionCount: cnt,
+						filterText: userInput,
+					});
 					logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
 				},
 			)
@@ -872,16 +893,16 @@ export class CompletionFeature implements Feature {
 				// Payee and narration completions when positioned at a narration
 				logger.info('Branch: triggerCharacter " with narration current');
 				const initialCount = completionItems.length;
-				cnt = await addPayeesAndNarrations(
-					this.symbolIndex,
-					position,
-					true,
-					'end',
-					set,
-					completionItems,
-					cnt,
-					userInput,
-				);
+				cnt = await addPayeesAndNarrations({
+					symbolProvider: this.symbolIndex,
+					position: position,
+					shouldIncludePayees: true,
+					quotationStyle: 'both',
+					existingCompletions: set,
+					completions: completionItems,
+					completionCount: cnt,
+					filterText: userInput,
+				});
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({
@@ -893,16 +914,16 @@ export class CompletionFeature implements Feature {
 				// Narration completions in error recovery mode after string and txn
 				logger.info('Branch: triggerCharacter " with ERROR current, string sibling, txn previous');
 				const initialCount = completionItems.length;
-				cnt = await addPayeesAndNarrations(
-					this.symbolIndex,
-					position,
-					false,
-					'end',
-					set,
-					completionItems,
-					cnt,
-					userInput,
-				);
+				cnt = await addPayeesAndNarrations({
+					symbolProvider: this.symbolIndex,
+					position: position,
+					shouldIncludePayees: false,
+					quotationStyle: 'end',
+					existingCompletions: set,
+					completions: completionItems,
+					completionCount: cnt,
+					filterText: userInput,
+				});
 				logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({
@@ -914,32 +935,32 @@ export class CompletionFeature implements Feature {
 				// Payee and narration completions in error recovery mode after txn and date
 				logger.info('Branch: triggerCharacter " with ERROR current, txn sibling, date previous');
 				const initialCount = completionItems.length;
-				cnt = await addPayeesAndNarrations(
-					this.symbolIndex,
-					position,
-					true,
-					'end',
-					set,
-					completionItems,
-					cnt,
-					userInput,
-				);
+				cnt = await addPayeesAndNarrations({
+					symbolProvider: this.symbolIndex,
+					position: position,
+					shouldIncludePayees: true,
+					quotationStyle: 'end',
+					existingCompletions: set,
+					completions: completionItems,
+					completionCount: cnt,
+					filterText: userInput,
+				});
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({ currentType: 'narration' }, async () => {
 				// Payee and narration completions when positioned at a narration outside quotes
 				logger.info('Branch: narration current');
 				const initialCount = completionItems.length;
-				cnt = await addPayeesAndNarrations(
-					this.symbolIndex,
-					position,
-					true,
-					'both',
-					set,
-					completionItems,
-					cnt,
-					userInput,
-				);
+				cnt = await addPayeesAndNarrations({
+					symbolProvider: this.symbolIndex,
+					position: position,
+					shouldIncludePayees: true,
+					quotationStyle: 'both',
+					existingCompletions: set,
+					completions: completionItems,
+					completionCount: cnt,
+					filterText: userInput,
+				});
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
 			.with({
@@ -973,7 +994,7 @@ export class CompletionFeature implements Feature {
 			if (childCount > 0) {
 				const childrenType = n!.children.map(c => c.type);
 				const validTypes = childrenType.filter(t => t !== 'ERROR' && t.length > 1);
-				const pp: Promise<void> = match(
+				const pp = match(
 					{
 						validTypes,
 						head4ValidTypes: validTypes.slice(0, 4),
