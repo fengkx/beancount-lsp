@@ -14,24 +14,24 @@ It can be run fully in a browser, which means you can use it in [VSCode for Web]
 
 ### Core Language Features
 
-- **Syntax Highlighting**: Powered by tree-sitter for accurate and fast syntax highlighting ([semanticTokens](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens))
-- **Code Completion**: Intelligent code completion for accounts, currencies, payees, narrations, tags, and dates ([completion](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_completion))
-- **Error Detection**: Real-time error detection for transaction balancing issues (with configurable tolerance) ([diagnostics](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_publishDiagnostics))
-- **Hover Information**: Hover on accounts, commodities, and prices to see detailed information and price history ([hover](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_hover))
+- **Syntax Highlighting**: Powered by tree-sitter for accurate and fast syntax highlighting ([semanticTokens](https://microsoft.github.io/language-server-protocol/specification/#textDocument_semanticTokens))
+- **Code Completion**: Intelligent code completion for accounts, currencies, payees, narrations, tags, and dates ([completion](https://microsoft.github.io/language-server-protocol/specification/#textDocument_completion))
+- **Error Detection**: Real-time error detection for transaction balancing issues (with configurable tolerance) ([diagnostics](https://microsoft.github.io/language-server-protocol/specification/#textDocument_publishDiagnostics))
+- **Hover Information**: Hover on accounts, commodities, and prices to see detailed information and price history ([hover](https://microsoft.github.io/language-server-protocol/specification/#textDocument_hover))
 
 ### Navigation and Code Intelligence
 
-- **Go to Definition**: Jump to account definitions and other symbols ([definition](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_definition))
-- **Find References**: Find all references to accounts and other symbols ([references](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_references))
-- **Document Symbols**: Quick navigation through your Beancount file structure ([documentSymbol](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_documentSymbol))
-- **Folding Ranges**: Code folding support for better organization ([foldingRange](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_foldingRange))
-- **Selection Ranges**: Smart selection of Beancount elements ([selectionRange](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_selectionRange))
-- **Document Links**: Clickable links to included Beancount files ([documentLink](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_documentLink))
-- **Inlay Hints**: Inline hints showing calculated amounts for auto-balanced transactions ([inlayHint](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_inlayHint))
+- **Go to Definition**: Jump to account definitions and other symbols ([definition](https://microsoft.github.io/language-server-protocol/specification/#textDocument_definition))
+- **Find References**: Find all references to accounts and other symbols ([references](https://microsoft.github.io/language-server-protocol/specification/#textDocument_references))
+- **Document Symbols**: Quick navigation through your Beancount file structure ([documentSymbol](https://microsoft.github.io/language-server-protocol/specification/#textDocument_documentSymbol))
+- **Folding Ranges**: Code folding support for better organization ([foldingRange](https://microsoft.github.io/language-server-protocol/specification/#textDocument_foldingRange))
+- **Selection Ranges**: Smart selection of Beancount elements ([selectionRange](https://microsoft.github.io/language-server-protocol/specification/#textDocument_selectionRange))
+- **Document Links**: Clickable links to included Beancount files ([documentLink](https://microsoft.github.io/language-server-protocol/specification/#textDocument_documentLink))
+- **Inlay Hints**: Inline hints showing calculated amounts for auto-balanced transactions ([inlayHint](https://microsoft.github.io/language-server-protocol/specification/#textDocument_inlayHint))
 
 ### Code Actions and Refactoring
 
-- **Rename Symbol**: Safely rename accounts, commodities, tags, and payees across your entire codebase ([rename](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_rename))
+- **Rename Symbol**: Safely rename accounts, commodities, tags, and payees across your entire codebase ([rename](https://microsoft.github.io/language-server-protocol/specification/#textDocument_rename))
 
 ## Configuration
 
