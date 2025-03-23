@@ -1,5 +1,6 @@
 ---
 description: 
-globs: 
+globs: **/*
+alwaysApply: false
 ---
 - Use english in code and comment

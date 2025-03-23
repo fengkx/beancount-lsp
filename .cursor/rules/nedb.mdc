@@ -1,6 +1,7 @@
 ---
 description: 
-globs: 
+globs: **/*.ts
+alwaysApply: false
 ---
 nedb has many bugs, don't use index feature and `removeAsync` from nedb(Storage). Instead use the `remove` function.
 

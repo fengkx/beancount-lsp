@@ -1,5 +1,6 @@
 ---
 description: 
-globs: 
+globs: **/*
+alwaysApply: false
 ---
 - Use pnpm instead of npm
