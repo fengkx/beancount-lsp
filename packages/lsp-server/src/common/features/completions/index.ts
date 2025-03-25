@@ -826,6 +826,16 @@ export class CompletionFeature implements Feature {
 					previousSiblingType: P.union('unary_number_expr', 'number', 'binary_number_expr'),
 					previousPreviousSiblingType: 'account',
 				},
+				{
+					// Currency completions after a account (staring with flag leetters)
+					currentType: 'flag',
+					previousSiblingType: 'account',
+					userInput: P.string.regex(/^PSTCURM$/),
+				},
+				{
+					currentType: 'currency',
+					previousSiblingType: P.union('unary_number_expr', 'number', 'binary_number_expr'),
+				},
 				async () => {
 					// Currency completions after a number and space
 					logger.info('Branch: number in posting - currency context');
