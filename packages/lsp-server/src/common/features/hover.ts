@@ -1,4 +1,5 @@
 import { Logger } from '@bean-lsp/shared';
+import Big from 'big.js';
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { URI } from 'vscode-uri';
@@ -9,7 +10,7 @@ import * as positionUtils from './position-utils';
 import { PriceMap } from './prices-index/price-map';
 import { SymbolInfo } from './symbol-extractors';
 import { SymbolIndex } from './symbol-index';
-import { Feature } from './types';
+import { Feature, RealBeancountManager } from './types';
 
 // Create a logger for hover functionality
 const logger = new Logger('hover');
@@ -21,6 +22,7 @@ export class HoverFeature implements Feature {
 		private readonly trees: Trees,
 		private readonly priceMap: PriceMap,
 		private readonly symbolIndex: SymbolIndex,
+		private readonly beanMgr: RealBeancountManager | undefined,
 	) {}
 
 	register(connection: lsp.Connection): void {
@@ -521,6 +523,30 @@ export class HoverFeature implements Feature {
 
 			// Add the horizontal stats line with adequate spacing
 			result += `${stats.join('  ·  ')}\n\n\n`;
+
+			// Add account balance information if beanMgr is available
+			if (this.beanMgr) {
+				try {
+					const balances = await this.beanMgr.getBalance(account);
+					if (balances && balances.length > 0) {
+						result += `**Current Balance**\n`;
+						result += '```\n';
+						for (const balance of balances) {
+							// Split balance into amount and currency
+							let [amount, currency] = balance.trim().split(/\s+/);
+							// Pad amount to 30 characters to align currencies
+							if (!amount || !currency) {
+								continue;
+							}
+							amount = new Big(amount).toFixed(4);
+							result += `${amount.padEnd(15)}${currency}\n`;
+						}
+						result += '```\n\n';
+					}
+				} catch (error) {
+					logger.debug(`Error getting account balance: ${error}`);
+				}
+			}
 
 			// Account hierarchy visualization with tree-like structure
 			const accountParts = account.split(':');

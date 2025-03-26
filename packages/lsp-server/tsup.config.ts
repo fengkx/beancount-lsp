@@ -29,6 +29,7 @@ const nodeConfig = defineConfig({
 		'vscode-uri',
 		'web-tree-sitter',
 		'lru-cache',
+		'execa',
 	],
 });
 

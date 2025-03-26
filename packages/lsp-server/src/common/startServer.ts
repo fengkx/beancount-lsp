@@ -21,7 +21,7 @@ import { ReferencesFeature } from './features/references';
 import { RenameFeature } from './features/rename';
 import { SelectionRangesFeature } from './features/selection-ranges';
 import { SemanticTokenFeature } from './features/semantic-token';
-import { Feature } from './features/types';
+import { BeancountManagerFactory, Feature, RealBeancountManager } from './features/types';
 import { Trees } from './trees';
 
 import Db from '@seald-io/nedb';
@@ -45,7 +45,12 @@ export interface ServerOptions {
 // Create a server logger
 const serverLogger = new Logger('Server');
 
-export function startServer(connection: Connection, factory: IStorageFactory, options: ServerOptions = {}): void {
+export function startServer(
+	connection: Connection,
+	factory: IStorageFactory,
+	beanMgrFactory: BeancountManagerFactory | undefined,
+	options: ServerOptions = {},
+): void {
 	// Set initial log level from options
 	if (options.logLevel !== undefined) {
 		serverLogger.setLevel(options.logLevel);
@@ -66,6 +71,7 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 
 	let documents: DocumentStore;
 	let symbolIndex: SymbolIndex;
+	let beanMgr: RealBeancountManager | undefined;
 
 	connection.onInitialize(async (params: InitializeParams): Promise<InitializeResult> => {
 		const result: InitializeResult = {
@@ -135,7 +141,11 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 		features.push(new DiagnosticsFeature(documents, trees, optionsManager));
 		features.push(new DocumentLinksFeature(documents, trees));
 		features.push(new InlayHintFeature(documents, trees));
-		features.push(new HoverFeature(documents, trees, priceMap, symbolIndex));
+
+		if (typeof beanMgrFactory === 'function') {
+			beanMgr = beanMgrFactory(connection, params.initializationOptions?.extensionUri);
+		}
+		features.push(new HoverFeature(documents, trees, priceMap, symbolIndex, beanMgr));
 
 		// Initialize all features
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
@@ -185,9 +195,8 @@ export function startServer(connection: Connection, factory: IStorageFactory, op
 
 		if (mainBeanFile) {
 			await symbolIndex.initFiles([mainBeanFile]);
+			beanMgr?.setMainFile?.(mainBeanFile);
 		}
-
-		// await symbolIndex.unleashFiles([]);
 
 		if (hasConfigurationCapability) {
 			// Register for all configuration changes.
