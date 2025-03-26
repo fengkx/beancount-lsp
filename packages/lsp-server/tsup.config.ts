@@ -1,12 +1,9 @@
 import { nodeModulesPolyfillPlugin } from 'esbuild-plugins-node-modules-polyfill';
-import { defineConfig } from 'tsup';
+import { defineConfig, Options } from 'tsup';
 
-const nodeConfig = defineConfig({
-	entry: ['src/node/server.ts'],
-	outDir: 'dist/node',
+const commonConfig = {
 	sourcemap: true,
 	clean: true,
-	target: 'node18',
 	loader: {
 		'.wasm': 'binary',
 		'.scm': 'text',
@@ -17,7 +14,6 @@ const nodeConfig = defineConfig({
 		'@bean-lsp/shared',
 		'@seald-io/nedb',
 		'date-fns',
-		'fast-glob',
 		'micromatch',
 		'mnemonist',
 		'nominal-types',
@@ -28,38 +24,27 @@ const nodeConfig = defineConfig({
 		'vscode-languageserver-textdocument',
 		'vscode-uri',
 		'web-tree-sitter',
-		'lru-cache',
+	],
+} satisfies Partial<Options>;
+
+const nodeConfig = defineConfig({
+	...commonConfig,
+	entry: ['src/node/server.ts'],
+	outDir: 'dist/node',
+	clean: true,
+	target: 'node18',
+	noExternal: [
+		...commonConfig.noExternal,
 		'execa',
 	],
 });
 
 const browserConfig = defineConfig({
+	...commonConfig,
 	entry: ['src/browser/server.ts'],
 	outDir: 'dist/browser',
-	sourcemap: true,
 	platform: 'browser',
 	target: 'es2022',
-	loader: {
-		'.wasm': 'binary',
-		'.scm': 'text',
-	},
-	external: ['vscode'],
-	noExternal: [
-		'big.js',
-		'@bean-lsp/shared',
-		'@seald-io/nedb',
-		'date-fns',
-		'micromatch', // Note: Some modules might not be fully compatible with browser
-		'mnemonist',
-		'nominal-types',
-		'pinyin-pro',
-		'ts-pattern',
-		'tsyringe',
-		'vscode-languageserver',
-		'vscode-languageserver-textdocument',
-		'vscode-uri',
-		'web-tree-sitter',
-	],
 	// Add browser-specific configuration
 	define: {
 		'process.env.NODE_ENV': JSON.stringify('production'),
