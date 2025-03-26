@@ -803,6 +803,12 @@ export class CompletionFeature implements Feature {
 				});
 				logger.info(`Date completions added, items: ${completionItems.length}`);
 			})
+			.with({ currentType: 'identifier', previousSiblingType: P.union('date') }, async () => {
+				['open', 'close', 'balance', 'pad', 'document', 'note'].forEach((t) => {
+					addItem({ label: t, kind: CompletionItemKind.Field });
+				});
+				logger.info(`Identifier completions added, items: ${completionItems.length}`);
+			})
 			.with(
 				{ triggerCharacter: '#' },
 				{ currentType: '#' },
@@ -1041,6 +1047,9 @@ export class CompletionFeature implements Feature {
 						},
 						{
 							head4ValidTypes: ['date', 'txn', 'narration', 'posting'],
+						},
+						{
+							head4ValidTypes: ['date', P.union('balance', 'open', 'close', 'pad', 'document', 'note')],
 						},
 						async () => {
 							const initialCount = completionItems.length;
