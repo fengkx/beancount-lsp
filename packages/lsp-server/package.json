@@ -21,6 +21,7 @@
 		"@seald-io/nedb": "^4.0.4",
 		"big.js": "^6.2.2",
 		"date-fns": "^3.3.1",
+		"execa": "^9.5.2",
 		"fast-glob": "^3.3.2",
 		"micromatch": "^4.0.5",
 		"mnemonist": "^0.39.8",

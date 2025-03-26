@@ -192,6 +192,7 @@ export function createClientOptions(options: ClientOptions): LanguageClientOptio
 		initializationOptions: {
 			webTreeSitterWasmPath: options.webTreeSitterWasmPath,
 			globalStorageUri: options.globalStorageUri?.toString(),
+			extensionUri: options.extensionUri?.toString(),
 		},
 	};
 }

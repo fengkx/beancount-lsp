@@ -41,6 +41,7 @@ export function activate(context: vscode.ExtensionContext): void {
 		// Options to control the language client
 		const clientOptions = createClientOptions({
 			webTreeSitterWasmPath,
+			extensionUri: context.extensionUri,
 		});
 
 		// Following Microsoft example pattern for creating the client

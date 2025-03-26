@@ -19,7 +19,7 @@ const connection = createConnection(ProposedFeatures.all, messageReader, message
 const serverOptions: ServerOptions = {};
 
 // Start the server with the options
-startServer(connection, factory, serverOptions);
+startServer(connection, factory, undefined, serverOptions);
 
 // Listen on the connection
 connection.listen();
