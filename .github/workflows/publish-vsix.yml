@@ -15,6 +15,11 @@ on:
         required: true
         default: 'false'
         type: boolean
+      prerelease:
+        description: 'Publish as prerelease version'
+        required: false
+        default: 'false'
+        type: boolean
 
 permissions:
   contents: read
@@ -67,6 +72,7 @@ jobs:
           pat: ${{ secrets.VSCE_PAT }}
           extensionFile: ${{ steps.find-vsix.outputs.vsix_file }}
           registryUrl: https://marketplace.visualstudio.com 
+          preRelease: ${{ github.event.inputs.prerelease == 'true' }}
         
       - name: Publish to Open VSX Registry
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_to_marketplace == 'true')
@@ -74,3 +80,4 @@ jobs:
         with:
           pat: ${{ secrets.OPEN_VSIX_PAT }}
           extensionFile: ${{ steps.find-vsix.outputs.vsix_file }}
+          preRelease: ${{ github.event.inputs.prerelease == 'true' }}
