@@ -48,7 +48,7 @@ jobs:
         run: pnpm build
 
       - name: Package Extension
-        run: pnpm --filter beancount-lsp-client vsix
+        run: pnpm --filter beancount-lsp-client vsix ${{ github.event.inputs.prerelease == 'true' && '--pre-release' || '' }}
       
       - name: Find VSIX file
         id: find-vsix
