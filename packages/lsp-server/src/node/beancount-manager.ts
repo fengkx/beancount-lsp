@@ -11,7 +11,7 @@ class BeancountManager implements RealBeancountManager {
 		this.mainFile = URI.parse(mainFileUri).fsPath;
 	}
 
-	private async runBeanCheck(): Promise<string | null> {
+	private async runBeanCheck(output: 'default' | 'errors' | 'flags'): Promise<string | null> {
 		if (!this.mainFile) {
 			return null;
 		}
@@ -21,7 +21,7 @@ class BeancountManager implements RealBeancountManager {
 
 		try {
 			const extensionUri = URI.parse(this.extensionUri);
-			const checkScript = `${extensionUri.fsPath}/pythonFiles/beancheck.py`;
+			const checkScript = `${extensionUri.fsPath}/pythonFiles/beancheck.py --output ${output}`;
 			const { stdout } = await $`${python3Path} ${checkScript} ${this.mainFile}`;
 			return stdout;
 		} catch (error) {
@@ -37,6 +37,15 @@ class BeancountManager implements RealBeancountManager {
 		}
 		const data = JSON.parse(r);
 		return data?.['accounts']?.[account]?.['balance'] ?? [];
+	}
+
+	async getErrors(): Promise<{ message: string; file: string; line: number }[]> {
+		const r = await this.runBeanCheck('errors');
+		if (!r) {
+			return [];
+		}
+		const data = JSON.parse(r);
+		return data?.['errors'] ?? [];
 	}
 }
 
