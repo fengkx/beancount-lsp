@@ -168,9 +168,6 @@ export function extractPostings(txnNode: Parser.SyntaxNode): Posting[] {
 			const priceType = atNode && atNode.type === 'atat' ? '@@' : '@';
 			price = parsePriceAnnotation(priceNode, priceType);
 		}
-		if (price && amount?.number.startsWith('-') && !price?.number.startsWith('-')) {
-			price.number = '-' + price.number;
-		}
 
 		postings.push({
 			node: postingNode,
