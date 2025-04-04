@@ -491,6 +491,8 @@ async function addCurrencyCompletions(
  * It adds appropriate detail information to distinguish account types,
  * particularly for the 'E' trigger which can match two account types.
  *
+ * Closed accounts are excluded from completions to keep the suggestions relevant.
+ *
  * @param symbolIndex The symbol index to retrieve accounts from
  * @param position The position where the completion was triggered
  * @param triggerChar The trigger character ('A', 'L', 'E', or 'I')
@@ -498,6 +500,9 @@ async function addCurrencyCompletions(
  * @param items The array of completion items to add to
  * @param cnt A counter for sorting when no userInput is provided
  * @param userInput Optional user input for better scoring and sorting
+ * @param currentLine The current line text from the document
+ * @param node The current syntax node
+ * @param document The text document for additional context
  * @returns Updated counter value
  */
 async function addAccountCompletions(
@@ -508,12 +513,53 @@ async function addAccountCompletions(
 	items: CompletionItem[],
 	cnt: number,
 	userInput?: string,
+	currentLine?: string,
+	node?: Parser.SyntaxNode,
+	document?: TextDocument,
 ): Promise<number> {
 	let accountsNames: string[] = [];
 	// Fetch all account definitions from the index
 	const accounts = await symbolIndex.getAccountDefinitions();
 	// Get account usage counts for sorting
 	const accountUsageCounts = await symbolIndex.getAccountUsageCounts();
+
+	// Get closed accounts with their closing dates
+	const closedAccounts = await symbolIndex.getClosedAccounts();
+
+	// Extract current date from the current line if possible
+	let currentDate: string | undefined;
+	if (currentLine) {
+		// Try to match a date pattern in the current line
+		const dateMatch = currentLine.match(/(\d{4}[-/]\d{2}[-/]\d{2})/);
+		if (dateMatch && dateMatch[1]) {
+			currentDate = dateMatch[1];
+		}
+	}
+
+	// If we still don't have a date and we have a document, try to find
+	// the closest date from previous lines
+	if (!currentDate && document && position) {
+		// Start searching from current line and work backwards
+		const startLine = Math.max(0, position.line - 20); // Look up to 20 lines back
+		const endLine = position.line;
+
+		// Scan previous lines for dates
+		for (let lineNum = endLine; lineNum >= startLine; lineNum--) {
+			const lineText = document.getText({
+				start: { line: lineNum, character: 0 },
+				end: { line: lineNum, character: Number.MAX_SAFE_INTEGER },
+			});
+
+			// Look for a date at the beginning of the line (common in Beancount files)
+			const dateMatch = lineText.match(/^(\d{4}[-/]\d{2}[-/]\d{2})/);
+			if (dateMatch && dateMatch[1]) {
+				currentDate = dateMatch[1];
+				logger.debug(`Found date ${currentDate} on line ${lineNum} for completions`);
+				break;
+			}
+		}
+	}
+
 	if (accounts.length <= 0) {
 		accountsNames = [...accountUsageCounts.keys()];
 	} else {
@@ -522,16 +568,30 @@ async function addAccountCompletions(
 
 	accountsNames = Array.from(new Set(accountsNames));
 
-	// Filter accounts based on the trigger character
+	// Filter accounts based on the trigger character and closed status
 	const filteredAccounts = accountsNames.filter((account) => {
-		if (!triggerChar) {
-			return true;
+		// First, apply the trigger character filter
+		if (triggerChar) {
+			if (triggerChar === 'E') {
+				// Special case for E: match both Equity and Expenses accounts
+				if (!account.startsWith('Equity:') && !account.startsWith('Expenses:')) {
+					return false;
+				}
+			} else if (!account.startsWith(triggerChar)) {
+				return false;
+			}
 		}
-		if (triggerChar === 'E') {
-			// Special case for E: match both Equity and Expenses accounts
-			return account.startsWith('Equity:') || account.startsWith('Expenses:');
+
+		// Now, check if the account is closed and if the current date is after the closing date
+		if (currentDate && closedAccounts.has(account)) {
+			const closedDate = closedAccounts.get(account);
+			if (closedDate && currentDate >= closedDate) {
+				// The account is closed before or on the current date, so exclude it
+				return false;
+			}
 		}
-		return account.startsWith(triggerChar);
+
+		return true;
 	});
 
 	// Sort accounts by usage count (most used first)
@@ -549,6 +609,15 @@ async function addAccountCompletions(
 		const usageCount = accountUsageCounts.get(account) || 0;
 		if (usageCount > 0) {
 			detail += `Used ${usageCount} time${usageCount === 1 ? '' : 's'}`;
+		}
+
+		// Add closing status to the detail if available
+		if (closedAccounts.has(account)) {
+			const closedDate = closedAccounts.get(account);
+			if (closedDate) {
+				if (detail) detail += ' | ';
+				detail += `Closed on ${closedDate}`;
+			}
 		}
 
 		cnt = addCompletionItem(
@@ -747,6 +816,7 @@ export class CompletionFeature implements Feature {
 			params.position,
 			current,
 			userInput,
+			document,
 		);
 
 		return CompletionList.create(completionItems, false);
@@ -768,6 +838,7 @@ export class CompletionFeature implements Feature {
 		position: Position,
 		current: Parser.SyntaxNode,
 		userInput?: string,
+		document?: TextDocument,
 	): Promise<CompletionItem[]> {
 		let cnt = 0;
 		const set = new Set<string>();
@@ -1063,6 +1134,10 @@ export class CompletionFeature implements Feature {
 								set,
 								completionItems,
 								cnt,
+								userInput,
+								info.currentLine,
+								current,
+								document,
 							);
 							logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
 						},

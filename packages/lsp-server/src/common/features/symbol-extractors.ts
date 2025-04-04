@@ -13,6 +13,8 @@ export interface SymbolInfo {
 	// Format: [startLine, startChar, endLine, endChar]
 	range: [number, number, number, number];
 	kind: lsp.SymbolKind;
+
+	date?: string;
 }
 
 /**
@@ -20,6 +22,46 @@ export interface SymbolInfo {
  */
 export function getRange(symbol: SymbolInfo): lsp.Range {
 	return compactToRange(symbol.range);
+}
+
+/**
+ * Helper function to extract date from a node or its parent directives
+ *
+ * @param node The starting node to search from
+ * @param directiveTypes Array of directive types to look for (defaults to common ones)
+ * @returns Date string if found, undefined otherwise
+ */
+function findDateFromNode(
+	node: any,
+	directiveTypes: string[] = ['transaction', 'balance', 'open', 'close', 'pad', 'price', 'commodity'],
+): string | undefined {
+	let currentNode = node;
+
+	// First, check if the node itself has a date field
+	const dateNode = currentNode.childForFieldName && currentNode.childForFieldName('date');
+	if (dateNode) {
+		return dateNode.text;
+	}
+
+	// Otherwise, traverse up the parent chain
+	while (currentNode.parent) {
+		currentNode = currentNode.parent;
+
+		// Handle special case for tags_links
+		if (currentNode.type === 'tags_links') {
+			continue;
+		}
+
+		// Check if current node is one of the directive types we're looking for
+		if (directiveTypes.includes(currentNode.type)) {
+			const parentDateNode = currentNode.childForFieldName && currentNode.childForFieldName('date');
+			if (parentDateNode) {
+				return parentDateNode.text;
+			}
+		}
+	}
+
+	return undefined;
 }
 
 export async function getAccountsUsage(textDocument: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
@@ -33,13 +75,23 @@ export async function getAccountsUsage(textDocument: TextDocument, trees: Trees)
 	for (const capture of captures) {
 		const name = capture.node.text;
 		const range = asLspRange(capture.node);
-		result.push({
+
+		// Find date using the helper function
+		const dateValue = findDateFromNode(capture.node);
+
+		const symbolInfo: SymbolInfo = {
 			_symType: 'account_usage',
 			_uri: textDocument.uri,
 			name,
 			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Struct,
-		});
+		};
+
+		if (dateValue) {
+			symbolInfo.date = dateValue;
+		}
+
+		result.push(symbolInfo);
 	}
 	return result;
 }
@@ -56,16 +108,80 @@ export async function getAccountsDefinition(doc: TextDocument, trees: Trees): Pr
 		// console.info(`JSON: ${JSON.stringify({ text: capture.node.text, scm: capture.node.toString() })}`)
 		const name = capture.node.text;
 		const range = asLspRange(capture.node);
-		result.push({
+
+		// Find date using the helper function, limiting to 'open' directive
+		const dateValue = findDateFromNode(capture.node, ['open']);
+
+		const symbolInfo: SymbolInfo = {
 			_symType: 'account_definition',
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Struct,
-		});
+		};
+
+		if (dateValue) {
+			symbolInfo.date = dateValue;
+		}
+
+		result.push(symbolInfo);
 	}
 	return result;
 }
+
+/**
+ * Extracts account closure information from a document
+ *
+ * @param doc The text document to extract from
+ * @param trees The Trees instance for accessing parse trees
+ * @returns Array of SymbolInfo objects representing closed accounts
+ */
+export async function getAccountsClose(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
+	const tree = await trees.getParseTree(doc);
+	if (!tree) {
+		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
+	}
+	// Use the 'close' query to find close directives
+	const query = TreeQuery.getQueryByTokenName('close');
+	const captures = await query.captures(tree.rootNode);
+	const result: SymbolInfo[] = [];
+
+	for (const capture of captures) {
+		// Only process the close node itself
+		if (capture.name !== 'close' || capture.node.type !== 'close') {
+			continue;
+		}
+
+		// Get the account information from the close directive
+		const closeNode = capture.node;
+		const accountNode = closeNode.childForFieldName('account');
+
+		// Find date using the helper function
+		const dateValue = findDateFromNode(closeNode);
+
+		if (accountNode) {
+			const name = accountNode.text;
+			const range = asLspRange(closeNode);
+
+			const symbolInfo: SymbolInfo = {
+				_symType: 'account_close',
+				_uri: doc.uri,
+				name,
+				range: rangeToCompact(range),
+				kind: lsp.SymbolKind.Struct,
+			};
+
+			if (dateValue) {
+				symbolInfo.date = dateValue;
+			}
+
+			result.push(symbolInfo);
+		}
+	}
+
+	return result;
+}
+
 export async function getPayees(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
 	const tree = await trees.getParseTree(doc);
 	if (!tree) {
@@ -77,13 +193,23 @@ export async function getPayees(doc: TextDocument, trees: Trees): Promise<Symbol
 	for (const capture of captures) {
 		const name = capture.node.text.replace(/^"|"$/g, ''); // Remove quotes
 		const range = asLspRange(capture.node);
-		result.push({
+
+		// Find date using the helper function, limiting to 'transaction' directive
+		const dateValue = findDateFromNode(capture.node, ['transaction']);
+
+		const symbolInfo: SymbolInfo = {
 			_symType: 'payee',
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.String,
-		});
+		};
+
+		if (dateValue) {
+			symbolInfo.date = dateValue;
+		}
+
+		result.push(symbolInfo);
 	}
 	return result;
 }
@@ -99,13 +225,23 @@ export async function getNarrations(doc: TextDocument, trees: Trees): Promise<Sy
 	for (const capture of captures) {
 		const name = capture.node.text.replace(/^"|"$/g, ''); // Remove quotes
 		const range = asLspRange(capture.node);
-		result.push({
+
+		// Find date using the helper function, limiting to 'transaction' directive
+		const dateValue = findDateFromNode(capture.node, ['transaction']);
+
+		const symbolInfo: SymbolInfo = {
 			_symType: 'narration',
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.String,
-		});
+		};
+
+		if (dateValue) {
+			symbolInfo.date = dateValue;
+		}
+
+		result.push(symbolInfo);
 	}
 	return result;
 }
@@ -121,13 +257,23 @@ export async function getCommodities(doc: TextDocument, trees: Trees): Promise<S
 	for (const capture of captures) {
 		const name = capture.node.text;
 		const range = asLspRange(capture.node);
-		result.push({
+
+		// Find date using the helper function
+		const dateValue = findDateFromNode(capture.node, ['transaction', 'price', 'commodity']);
+
+		const symbolInfo: SymbolInfo = {
 			_symType: 'commodity',
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Constant,
-		});
+		};
+
+		if (dateValue) {
+			symbolInfo.date = dateValue;
+		}
+
+		result.push(symbolInfo);
 	}
 	return result;
 }
@@ -143,13 +289,23 @@ export async function getCurrencyDefinitions(doc: TextDocument, trees: Trees): P
 	for (const capture of captures) {
 		const name = capture.node.text;
 		const range = asLspRange(capture.node);
-		result.push({
+
+		// Find date using the helper function, limiting to 'commodity' directive
+		const dateValue = findDateFromNode(capture.node, ['commodity']);
+
+		const symbolInfo: SymbolInfo = {
 			_symType: 'currency_definition',
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Constant,
-		});
+		};
+
+		if (dateValue) {
+			symbolInfo.date = dateValue;
+		}
+
+		result.push(symbolInfo);
 	}
 	return result;
 }
@@ -166,13 +322,23 @@ export async function getTags(doc: TextDocument, trees: Trees): Promise<SymbolIn
 	for (const capture of captures) {
 		const name = capture.node.text.substring(1); // Remove the leading #
 		const range = asLspRange(capture.node);
-		result.push({
+
+		// Find date using the helper function
+		const dateValue = findDateFromNode(capture.node);
+
+		const symbolInfo: SymbolInfo = {
 			_symType: 'tag',
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Key,
-		});
+		};
+
+		if (dateValue) {
+			symbolInfo.date = dateValue;
+		}
+
+		result.push(symbolInfo);
 	}
 	return result;
 }
@@ -192,13 +358,23 @@ export async function getLinks(document: TextDocument, trees: Trees): Promise<Sy
 	for (const capture of captures) {
 		const name = capture.node.text.substring(1); // Remove the ^ prefix
 		const range = asLspRange(capture.node);
-		result.push({
+
+		// Find date using the helper function
+		const dateValue = findDateFromNode(capture.node);
+
+		const symbolInfo: SymbolInfo = {
 			_symType: 'link',
 			_uri: document.uri,
 			name,
 			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Key,
-		});
+		};
+
+		if (dateValue) {
+			symbolInfo.date = dateValue;
+		}
+
+		result.push(symbolInfo);
 	}
 	return result;
 }
@@ -214,13 +390,23 @@ export async function getPricesDeclarations(doc: TextDocument, trees: Trees): Pr
 	for (const capture of captures) {
 		const name = capture.node.childForFieldName('currency')!.text;
 		const range = asLspRange(capture.node);
-		result.push({
+
+		// Find date using the helper function
+		const dateValue = findDateFromNode(capture.node);
+
+		const symbolInfo: SymbolInfo = {
 			_symType: 'price',
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Constant,
-		});
+		};
+
+		if (dateValue) {
+			symbolInfo.date = dateValue;
+		}
+
+		result.push(symbolInfo);
 	}
 	return result;
 }

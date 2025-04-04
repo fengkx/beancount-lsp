@@ -7,6 +7,7 @@ import { DocumentStore } from '../document-store';
 import { SymbolInfoStorage } from '../startServer';
 import { Trees } from '../trees';
 import {
+	getAccountsClose,
 	getAccountsDefinition,
 	getAccountsUsage,
 	getCommodities,
@@ -209,6 +210,7 @@ export class SymbolIndex {
 		const [
 			accountUsages,
 			accountDefinitions,
+			accountCloseDertives,
 			payees,
 			narrations,
 			commodities,
@@ -221,6 +223,7 @@ export class SymbolIndex {
 			[
 				getAccountsUsage(document, this._trees),
 				getAccountsDefinition(document, this._trees),
+				getAccountsClose(document, this._trees),
 				getPayees(document, this._trees),
 				getNarrations(document, this._trees),
 				getCommodities(document, this._trees),
@@ -235,6 +238,7 @@ export class SymbolIndex {
 		this.logger.debug(`We Found symbols in ${document.uri}:
 			- Account usages: ${accountUsages.length}
 			- Account definitions: ${accountDefinitions.length}
+			- Account closures: ${accountCloseDertives.length}
 			- Payees: ${payees.length}
 			- Narrations: ${narrations.length}
 			- Commodities: ${commodities.length}
@@ -249,6 +253,7 @@ export class SymbolIndex {
 		await Promise.all([
 			this._symbolInfoStorage.insertAsync(accountUsages),
 			this._symbolInfoStorage.insertAsync(accountDefinitions),
+			this._symbolInfoStorage.insertAsync(accountCloseDertives),
 			this._symbolInfoStorage.insertAsync(payees),
 			this._symbolInfoStorage.insertAsync(narrations),
 			this._symbolInfoStorage.insertAsync(commodities),
@@ -479,17 +484,43 @@ export class SymbolIndex {
 	 */
 	public async getAccountUsageCounts(): Promise<Map<string, number>> {
 		this.logger.debug('[index] Getting account usage counts');
-		const accountUsages = await this._symbolInfoStorage.findAsync({ _symType: 'account_usage' }) as SymbolInfo[];
+		const [accountUsages] = await Promise.all([
+			this._symbolInfoStorage.findAsync({ _symType: 'account_usage' }) as Promise<SymbolInfo[]>,
+		]);
 
-		// Count occurrences of each account
+		// Count occurrences of each account, excluding closed accounts
 		const usageCounts = new Map<string, number>();
 		for (const usage of accountUsages) {
 			const count = usageCounts.get(usage.name) || 0;
 			usageCounts.set(usage.name, count + 1);
 		}
 
-		this.logger.debug(`[index] Found usage counts for ${usageCounts.size} unique accounts`);
+		this.logger.debug(`[index] Found usage counts for ${usageCounts.size} unique open accounts`);
 		return usageCounts;
+	}
+
+	/**
+	 * Gets all closed accounts with their closing dates
+	 *
+	 * @returns A Map of account names to their closing dates
+	 */
+	public async getClosedAccounts(): Promise<Map<string, string>> {
+		this.logger.debug('[index] Getting closed accounts');
+		const closedAccounts = await this._symbolInfoStorage.findAsync({
+			_symType: 'account_close',
+		}) as SymbolInfo[];
+
+		// Create a map of account names to their closing dates
+		const accountClosingDates = new Map<string, string>();
+		for (const account of closedAccounts) {
+			// Only add the account if it has a date
+			if (account.date) {
+				accountClosingDates.set(account.name, account.date);
+			}
+		}
+
+		this.logger.debug(`[index] Found ${accountClosingDates.size} closed accounts`);
+		return accountClosingDates;
 	}
 
 	public async getPricesDeclarations(query: { name?: string } = {}): Promise<SymbolInfo[]> {
