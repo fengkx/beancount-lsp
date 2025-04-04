@@ -11,18 +11,27 @@ class BeancountManager implements RealBeancountManager {
 		this.mainFile = URI.parse(mainFileUri).fsPath;
 	}
 
-	private async runBeanCheck(output: 'default' | 'errors' | 'flags'): Promise<string | null> {
+	private async runBeanCheck(output: 'default' | 'errors' | 'flags' = 'default'): Promise<string | null> {
 		if (!this.mainFile) {
 			return null;
 		}
 
 		const config = await this.connection.workspace.getConfiguration('beancount');
-		const python3Path = config.python3Path || 'python3';
+
+		let python3Path = config.python3Path || 'python3';
+		if (python3Path !== 'python3' && !python3Path.startsWith('/')) {
+			const workspaceFolders = await this.connection.workspace.getWorkspaceFolders();
+			if (workspaceFolders && workspaceFolders.length > 0) {
+				// @ts-expect-error
+				const workspacePath = URI.parse(workspaceFolders[0].uri).fsPath;
+				python3Path = `${workspacePath}/${python3Path}`;
+			}
+		}
 
 		try {
 			const extensionUri = URI.parse(this.extensionUri);
-			const checkScript = `${extensionUri.fsPath}/pythonFiles/beancheck.py --output ${output}`;
-			const { stdout } = await $`${python3Path} ${checkScript} ${this.mainFile}`;
+			const checkScript = `${extensionUri.fsPath}/pythonFiles/beancheck.py`;
+			const { stdout } = await $`${python3Path} ${checkScript} ${this.mainFile} --output ${output}`;
 			return stdout;
 		} catch (error) {
 			console.error('Error running bean-check:', error);
