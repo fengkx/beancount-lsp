@@ -221,7 +221,8 @@ function calculateWithPrice(posting: Posting): Big {
 			return units.times(perUnitPrice);
 		} // For @@ (total price)
 		else {
-			return parseExpression(posting.price.number);
+			const sign = parseExpression(posting.amount.number).lt(0) ? -1 : 1;
+			return parseExpression(posting.price.number).times(sign);
 		}
 	} catch (e) {
 		logger.error(`Error calculating with price: ${e}`);
