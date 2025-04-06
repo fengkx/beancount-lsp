@@ -60,6 +60,7 @@ describe('Expression Parser', () => {
 		expect(testParseExpression('4*5')).toBe('20');
 		expect(testParseExpression('10/2')).toBe('5');
 		expect(testParseExpression('90.00/3')).toBe('30');
+		expect(testParseExpression('3*-1.99')).toBe('-5.97');
 	});
 
 	// Operator precedence
@@ -103,6 +104,296 @@ describe('Expression Parser', () => {
 		expect(testParseExpression('1,000.00 / 2,000')).toBe('0.5');
 		expect(testParseExpression('1,000.00 / 2,000.00')).toBe('0.5');
 		expect(testParseExpression('(10,0.5 + 32.5) / 4')).toBe('33.25');
+	});
+
+	// Additional fuzzy tests
+	it('should handle nested parentheses', () => {
+		expect(testParseExpression('(1 + (2 * 3))')).toBe('7');
+		expect(testParseExpression('((2 + 3) * (4 - 1))')).toBe('15');
+		expect(testParseExpression('(1 + (2 + (3 + (4 + 5))))')).toBe('15');
+		expect(testParseExpression('(((((1) + 2) + 3) + 4) + 5)')).toBe('15');
+	});
+
+	it('should handle negative numbers in complex expressions', () => {
+		expect(testParseExpression('-5 + 10')).toBe('5');
+		expect(testParseExpression('10 + -5')).toBe('5');
+		expect(testParseExpression('-5 * -2')).toBe('10');
+		expect(testParseExpression('(-5) * (-2)')).toBe('10');
+		expect(testParseExpression('5 * (-2 + 3)')).toBe('5');
+		expect(testParseExpression('(-3) * (-2) * (-1)')).toBe('-6');
+	});
+
+	it('should handle edge cases with zero', () => {
+		expect(testParseExpression('0 + 0')).toBe('0');
+		expect(testParseExpression('5 - 5')).toBe('0');
+		expect(testParseExpression('0 * 100')).toBe('0');
+		expect(testParseExpression('0 / 5')).toBe('0');
+		expect(testParseExpression('(0) * (0 + 1)')).toBe('0');
+	});
+
+	it('should handle division by zero gracefully', () => {
+		expect(testParseExpression('5 / 0')).toBe('0'); // Should return 0 as fallback for errors
+	});
+
+	it('should handle expressions with large numbers', () => {
+		expect(testParseExpression('1000000 + 2000000')).toBe('3000000');
+		expect(testParseExpression('9999999 * 0.0001')).toBe('999.9999');
+		expect(testParseExpression('1000000 / 1000')).toBe('1000');
+		expect(testParseExpression('9876543.21 - 1234567.89')).toBe('8641975.32');
+	});
+
+	it('should handle expressions with very small numbers', () => {
+		expect(testParseExpression('0.0001 + 0.0002')).toBe('0.0003');
+		expect(testParseExpression('0.1 * 0.1')).toBe('0.01');
+		expect(testParseExpression('1 / 1000')).toBe('0.001');
+		expect(testParseExpression('0.000005 + 0.000007')).toBe('0.000012');
+	});
+
+	it('should handle unusual but valid expressions', () => {
+		expect(testParseExpression('(((1)))')).toBe('1');
+		expect(testParseExpression('(0) + (0)')).toBe('0');
+		expect(testParseExpression('-(-(-5))')).toBe('-5');
+		expect(testParseExpression('1 - - 1')).toBe('2');
+		expect(testParseExpression('1 + 1')).toBe('2');
+	});
+
+	it('should handle unbalanced parentheses gracefully', () => {
+		expect(testParseExpression('(1 + 2')).toBe('0');
+		expect(testParseExpression('1 + 2)')).toBe('0');
+		expect(testParseExpression('(1 + (2 * 3)')).toBe('0');
+		expect(testParseExpression('(1 + 2)) * 3')).toBe('0');
+	});
+
+	it('should handle malformed expressions gracefully', () => {
+		expect(testParseExpression('1 ++ 2')).toBe('0');
+		expect(testParseExpression('1 + * 2')).toBe('0');
+		expect(testParseExpression('1 +.+ 2')).toBe('0');
+		expect(testParseExpression('1 + 2 +')).toBe('0');
+		expect(testParseExpression('* 1 + 2')).toBe('0');
+	});
+
+	it('should handle expressions with mixed financial formats', () => {
+		expect(testParseExpression('1,234.56 + 9,876.54')).toBe('11111.1');
+		expect(testParseExpression('(1,000.00 - 500) * 2')).toBe('1000');
+		expect(testParseExpression('1,000 * 1.05 + 2,000 * 1.03')).toBe('3110');
+		expect(testParseExpression('(1,234.56 + 5,432.10) / 3')).toBe('2222.22');
+	});
+
+	it('should handle expressions with excessive whitespace', () => {
+		expect(testParseExpression('   1   +   2   ')).toBe('3');
+		expect(testParseExpression('\t5\t*\t3\t')).toBe('15');
+		expect(testParseExpression(' ( 10  /  2 ) ')).toBe('5');
+		expect(testParseExpression('  3  *  (  4  +  5  )  ')).toBe('27');
+	});
+
+	it('should handle more complex financial expressions', () => {
+		expect(testParseExpression('1234.56 / 3 + 500')).toBe('911.52');
+		expect(testParseExpression('(10000 * 0.05) / 12')).toBe('41.66666666666666666667');
+		expect(testParseExpression('100 * 1.05 - 100')).toBe('5');
+	});
+
+	// Additional fuzzy tests for edge cases
+	describe('Expression Parser - Advanced Fuzzy Tests', () => {
+		// Very long decimals and precision tests
+		it('should handle very long decimals with appropriate precision', () => {
+			expect(testParseExpression('1.23456789 + 2.34567891')).toBe('3.5802468');
+			expect(testParseExpression('0.1 + 0.2')).toBe('0.3'); // Classic floating point issue
+			expect(testParseExpression('0.3333333333 * 3')).toBe('0.9999999999');
+			expect(testParseExpression('1 / 3')).toBe('0.33333333333333333333');
+			expect(testParseExpression('1 / 6 + 1 / 3')).toBe('0.5');
+		});
+
+		// Consecutive operations
+		it('should handle expressions with many consecutive operations', () => {
+			expect(testParseExpression('1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10')).toBe('55');
+			expect(testParseExpression('10 - 9 - 8 - 7 - 6 - 5 - 4 - 3 - 2 - 1')).toBe('-35');
+			expect(testParseExpression('1 * 2 * 3 * 4 * 5')).toBe('120');
+			expect(testParseExpression('100 / 2 / 2 / 5 / 5')).toBe('1');
+			expect(testParseExpression('1 + 2 - 3 * 4 / 5 + 6 - 7 * 8')).toBe('-49.4');
+		});
+
+		// Mixed decimal precision
+		it('should handle mixed decimal precision correctly', () => {
+			expect(testParseExpression('100.00 + 200.5 + 300.25 + 400.125')).toBe('1000.875');
+			expect(testParseExpression('1.1 * 10 + 2.22 * 100 + 3.333 * 1000')).toBe('3566');
+			expect(testParseExpression('10000.00 / 3')).toBe('3333.33333333333333333333');
+			expect(testParseExpression('(100.5 + 99.5) / 100')).toBe('2');
+		});
+
+		// Boundary cases and extreme values
+		it('should handle boundary cases and extreme values', () => {
+			expect(testParseExpression('9999999999 + 1')).toBe('10000000000');
+			expect(testParseExpression('0.0000000001 * 10000000000')).toBe('1');
+			expect(testParseExpression('9999999.99 * 0.01')).toBe('99999.9999');
+		});
+
+		// Complex chained operations
+		it('should handle complex chained operations', () => {
+			expect(testParseExpression('(1 + 2) * 3 - 4 / 2 + 5')).toBe('12');
+			expect(testParseExpression('10 * (5 + ((3 - 1) * 2)) / 2')).toBe('45');
+			expect(testParseExpression('(((10 + 20) * 2) - 5) / 5')).toBe('11');
+			expect(testParseExpression('1 + (2 * (3 + (4 * (5 + 6))))')).toBe('95');
+		});
+
+		// Financial scenarios
+		it('should handle realistic financial calculations', () => {
+			// Discount calculation
+			expect(testParseExpression('100 - (100 * 0.15)')).toBe('85');
+
+			// Tax calculation
+			expect(testParseExpression('100 + (100 * 0.0725)')).toBe('107.25');
+
+			// Split bill with tip
+			expect(testParseExpression('(120 + (120 * 0.18)) / 4')).toBe('35.4');
+
+			expect(testParseExpression('200000 * 0.005 * (1 + 0.005) / ((1 + 0.005) - 1)')).toBe('201000');
+		});
+
+		// International number formats
+		it('should handle international number formats or gracefully fail', () => {
+			// Indian lakh/crore format
+			expect(testParseExpression('1,00,000.00')).toBe('100000');
+
+			// Mixed formats
+			expect(testParseExpression('1,234.56 + 7,890.12')).toBe('9124.68');
+		});
+
+		// Expression length limits
+		it('should handle expressions of various lengths', () => {
+			expect(testParseExpression('1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1')).toBe('30');
+
+			// Very long expression
+			const longExpression = Array(50).fill('1').join('+');
+			expect(testParseExpression(longExpression)).toBe('50');
+
+			// Long decimal
+			expect(testParseExpression('1.1111111111111111111 + 2.2222222222222222222')).toBe('3.3333333333333333333');
+		});
+
+		// Recovery from partial syntax errors
+		it('should recover from partial syntax errors where possible', () => {
+			expect(testParseExpression('5 + (3 * 2')).toBe('0'); // Unmatched parenthesis
+			expect(testParseExpression('(5 + 3) * 2)')).toBe('0'); // Extra closing parenthesis
+			expect(testParseExpression('5 + *3')).toBe('0'); // Invalid operator sequence
+		});
+
+		// Special characters and formatting
+		it('should handle or reject special characters in expressions', () => {
+			expect(testParseExpression('$100 + $200')).toBe('0'); // Currency symbols
+			expect(testParseExpression('100€ + 200€')).toBe('0'); // Currency symbols at end
+			expect(testParseExpression('100.00USD + 200.00USD')).toBe('0'); // Currency codes
+			expect(testParseExpression('½ + ¼')).toBe('0'); // Fraction characters
+			expect(testParseExpression('1,234.56 + 5,432.10')).toBe('6666.66'); // Properly handles commas
+		});
+
+		// Random combination stress tests
+		it('should handle random combinations of valid operations', () => {
+			// Randomly generated expressions with valid syntax
+			expect(testParseExpression('((15 / 3) * 4) + (10 - 2)')).toBe('28');
+			expect(testParseExpression('(1000 - 500) / (100 / 20)')).toBe('100');
+			expect(testParseExpression('(7 * 8) - (9 / 3) + (5 * 4)')).toBe('73');
+			expect(testParseExpression('((((1 + 2) * 3) + 4) * 5)')).toBe('65');
+			expect(testParseExpression('1 + 2 * 3 / 4 - 5 + 6 * 7 / 8')).toBe('2.75');
+		});
+
+		// Multi-currency expressions (should fail gracefully)
+		it('should handle or reject multi-currency expressions', () => {
+			expect(testParseExpression('100 USD + 200 EUR')).toBe('0'); // Different currencies
+			expect(testParseExpression('100USD - 50EUR')).toBe('0'); // Different currencies no space
+			expect(testParseExpression('(100 * 1.5) USD')).toBe('0'); // Currency after expression
+		});
+
+		// Extreme cases and destructive testing
+		it('should handle extreme inputs and destructive tests', () => {
+			// Very large numbers
+			expect(testParseExpression('99999999999999999 + 1')).toBe('100000000000000000');
+
+			// Very small numbers
+			expect(testParseExpression('0.000000000000001 * 10000000000000000')).toBe('10');
+
+			// Potentially problematic inputs
+			expect(testParseExpression('0/0')).toBe('0'); // Division by zero
+			expect(testParseExpression('NaN')).toBe('0'); // Not a number
+			expect(testParseExpression('Infinity')).toBe('0'); // Infinity
+			expect(testParseExpression('-Infinity')).toBe('0'); // Negative infinity
+
+			// Empty or all whitespace
+			expect(testParseExpression('')).toBe('0');
+			expect(testParseExpression('   ')).toBe('0');
+
+			// Random characters and special chars
+			expect(testParseExpression('@#$%^&*')).toBe('0');
+			expect(testParseExpression('hello world')).toBe('0');
+
+			// SQL injection-like tests
+			expect(testParseExpression('1; DROP TABLE')).toBe('0');
+			expect(testParseExpression('1 OR 1=1')).toBe('0');
+		});
+
+		// Fuzz testing with generated inputs
+		it('should safely handle fuzzy generated expressions', () => {
+			// Generate a long random expression
+			const ops = ['+', '-', '*', '/'];
+			let fuzzyExpr = '5';
+			for (let i = 0; i < 10; i++) {
+				const op = ops[Math.floor(Math.random() * ops.length)];
+				const num = Math.floor(Math.random() * 10) + 1; // Avoid division by zero
+				fuzzyExpr += ` ${op} ${num}`;
+			}
+
+			// Test that it either returns a valid number or gracefully returns 0
+			const result = testParseExpression(fuzzyExpr);
+			expect(typeof result === 'string').toBe(true);
+			expect(isNaN(Number(result))).toBe(false);
+
+			// Some examples of tricky but valid expressions
+			expect(testParseExpression('0.1 + 0.2 - 0.3')).toBe('0');
+			expect(testParseExpression('999999.999999 + 0.000001')).toBe('1000000');
+			expect(testParseExpression('0.000001 * 0.000001')).toBe('1e-12');
+		});
+
+		// Accounting and Beancount specific expressions
+		it('should handle accounting-specific expressions', () => {
+			// Common accounting calculations
+			expect(testParseExpression('1000 * 0.03')).toBe('30'); // Simple interest
+			expect(testParseExpression('1000 * 1.03')).toBe('1030'); // Principal plus interest
+			expect(testParseExpression('1200 / 12')).toBe('100'); // Monthly amount
+			expect(testParseExpression('(100 + 200 + 300) / 3')).toBe('200'); // Average
+
+			// Tax calculations
+			expect(testParseExpression('100 + (100 * 0.06)')).toBe('106'); // Sales tax
+			expect(testParseExpression('5000 * 0.22')).toBe('1100'); // Income tax bracket
+			expect(testParseExpression('1000 - (1000 * 0.25)')).toBe('750'); // After-tax income
+
+			// Depreciation
+			expect(testParseExpression('10000 / 5')).toBe('2000'); // Straight-line depreciation
+
+			// Exchange rate calculations
+			expect(testParseExpression('100 * 1.35')).toBe('135'); // USD to EUR
+			expect(testParseExpression('200 / 1.35')).toBe('148.14814814814814814815'); // EUR to USD
+
+			// Investment returns
+			expect(testParseExpression('1000 * (1.08 - 1)')).toBe('80'); // Annual return
+
+			// Complex transaction split
+			expect(testParseExpression('(156.83 / 3) * 2')).toBe('104.55333333333333333334'); // 2/3 of an expense
+			expect(testParseExpression('156.83 - (156.83 / 3) * 2')).toBe('52.27666666666666666666'); // Remaining 1/3
+
+			// Rounding to nearest cent
+			expect(testParseExpression('(156.83 / 3) + 0.005')).toBe('52.28166666666666666667'); // For manual rounding
+
+			// Cost basis calculations
+			expect(testParseExpression('(10 * 100 + 20 * 120) / (10 + 20)')).toBe('113.33333333333333333333');
+
+			// Percentage calculations
+			expect(testParseExpression('(90 - 80) / 80 * 100')).toBe('12.5'); // Percentage increase
+			expect(testParseExpression('(80 - 90) / 90 * 100')).toBe('-11.111111111111111111'); // Percentage decrease
+		});
+
+		it('should handle expressions with leading plus and minus signs', () => {
+			expect(testParseExpression('+200.00')).toBe('200');
+			expect(testParseExpression('-200.00')).toBe('-200');
+		});
 	});
 });
 
