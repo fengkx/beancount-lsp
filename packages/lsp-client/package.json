@@ -218,6 +218,12 @@
 						}
 					}
 				]
+			},
+			"workbench.colorCustomizations": {
+				"editorInlayHint.background": "#00000000"
+			},
+			"[beancount]": {
+				"editor.inlayHints.maximumLength": 0
 			}
 		}
 	},

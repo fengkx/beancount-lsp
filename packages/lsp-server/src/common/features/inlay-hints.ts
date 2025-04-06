@@ -123,12 +123,14 @@ export class InlayHintFeature implements Feature {
 
 						// Calculate spacing needed to align currency
 						const numberEndPosition = hintPosition.character + formattedNumber.length;
-						const spacesNeeded = currencyColumnPosition > 0 && currencyColumnPosition > numberEndPosition
-							? currencyColumnPosition - numberEndPosition
-							: 1; // At least one space between number and currency
+						const prefixSpacesNeeded =
+							currencyColumnPosition > 0 && currencyColumnPosition > numberEndPosition
+								? currencyColumnPosition - numberEndPosition - 1
+								: 0;
 
 						// Create a single hint with proper spacing
-						const hintLabel = formattedNumber + ' '.repeat(spacesNeeded) + balanceResult.currency;
+						const hintLabel = ' '.repeat(prefixSpacesNeeded) + formattedNumber + ' '
+							+ balanceResult.currency;
 
 						hints.push({
 							position: hintPosition,
@@ -158,7 +160,7 @@ export class InlayHintFeature implements Feature {
 			if (posting.amount && posting.node) {
 				const amountNode = posting.node.childForFieldName('amount');
 				if (amountNode) {
-					const currencyNode = amountNode.childForFieldName('currency');
+					const currencyNode = amountNode.namedChild(1);
 					if (currencyNode) {
 						// Get the position of the currency
 						const currencyPosition = currencyNode.startPosition.column;
