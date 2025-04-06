@@ -26,9 +26,9 @@ import {
 	CompletionTriggerKind,
 	Connection,
 	Position,
-	TextDocument,
 	TextEdit,
 } from 'vscode-languageserver';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type Parser from 'web-tree-sitter';
 import { nodeAtPosition } from '../../common';
 import { DocumentStore } from '../../document-store';
@@ -514,7 +514,6 @@ async function addAccountCompletions(
 	cnt: number,
 	userInput?: string,
 	currentLine?: string,
-	node?: Parser.SyntaxNode,
 	document?: TextDocument,
 ): Promise<number> {
 	let accountsNames: string[] = [];
@@ -1136,7 +1135,6 @@ export class CompletionFeature implements Feature {
 								cnt,
 								userInput,
 								info.currentLine,
-								current,
 								document,
 							);
 							logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);

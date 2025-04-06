@@ -18,12 +18,14 @@ import { Feature } from './types';
 // Configuration interface for diagnostics
 interface DiagnosticsConfig {
 	tolerance: number;
+	warnOnIncompleteTransaction: boolean;
 }
 
 export class DiagnosticsFeature implements Feature {
 	private logger = new Logger('DiagnosticsFeature');
 	private config: DiagnosticsConfig = {
 		tolerance: 0.005, // Default tolerance
+		warnOnIncompleteTransaction: true, // Default to show warnings for incomplete transactions
 	};
 
 	constructor(
@@ -32,7 +34,7 @@ export class DiagnosticsFeature implements Feature {
 		private readonly optionsManager: BeancountOptionsManager,
 	) {}
 
-	register(connection: Connection): void {
+	async register(connection: Connection): Promise<void> {
 		this.logger.info('Registering diagnostics feature');
 
 		// Listen for configuration changes
@@ -42,6 +44,12 @@ export class DiagnosticsFeature implements Feature {
 				if (typeof diagnosticsSettings.tolerance === 'number') {
 					this.config.tolerance = diagnosticsSettings.tolerance;
 					this.logger.info(`Updated tolerance to ${this.config.tolerance}`);
+				}
+				if (typeof diagnosticsSettings.warnOnIncompleteTransaction === 'boolean') {
+					this.config.warnOnIncompleteTransaction = diagnosticsSettings.warnOnIncompleteTransaction;
+					this.logger.info(
+						`Updated warnOnIncompleteTransaction to ${this.config.warnOnIncompleteTransaction}`,
+					);
 				}
 			}
 
@@ -60,25 +68,34 @@ export class DiagnosticsFeature implements Feature {
 		});
 
 		// Fetch the configuration initially
-		connection.workspace.getConfiguration().then(configuration => {
+		try {
+			const configuration = await connection.workspace.getConfiguration();
 			const diagnosticsSettings = configuration?.beancount?.diagnostics;
+
 			if (diagnosticsSettings?.tolerance !== undefined) {
 				this.config.tolerance = diagnosticsSettings.tolerance;
 				this.logger.info(`Initial tolerance set to ${this.config.tolerance}`);
 			}
-		}).catch(error => {
+
+			if (diagnosticsSettings?.warnOnIncompleteTransaction !== undefined) {
+				this.config.warnOnIncompleteTransaction = diagnosticsSettings.warnOnIncompleteTransaction;
+				this.logger.info(
+					`Initial warnOnIncompleteTransaction set to ${this.config.warnOnIncompleteTransaction}`,
+				);
+			}
+
+			// Validate all open documents initially
+			this.documents.all().forEach(document => {
+				this.validateDocument(document, connection);
+			});
+
+			// Listen for document changes and validate them
+			this.documents.onDidChangeContent(change => {
+				this.validateDocument(change.document, connection);
+			});
+		} catch (error) {
 			this.logger.error(`Error fetching configuration: ${error}`);
-		});
-
-		// Validate all open documents initially
-		this.documents.all().forEach(document => {
-			this.validateDocument(document, connection);
-		});
-
-		// Listen for document changes and validate them
-		this.documents.onDidChangeContent(change => {
-			this.validateDocument(change.document, connection);
-		});
+		}
 	}
 
 	private async validateDocument(document: TextDocument, connection: Connection): Promise<void> {
@@ -114,6 +131,15 @@ export class DiagnosticsFeature implements Feature {
 				// (Beancount will auto-compute this)
 				if (hasOnlyOneIncompleteAmount(transaction.postings)) {
 					continue;
+				}
+				// Check for pending transactions (marked with '!')
+				if (transaction.flag === '!' && this.config.warnOnIncompleteTransaction) {
+					diagnostics.push({
+						severity: DiagnosticSeverity.Warning,
+						range: transaction.headerRange,
+						message: `transaction flagged with "!": ${document.getText(transaction.headerRange)}`,
+						source: 'beancount-lsp',
+					});
 				}
 
 				// Check for both cost and price on the same posting (which is not allowed)

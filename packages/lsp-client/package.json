@@ -81,6 +81,12 @@
 					"default": 0.005,
 					"description": "Tolerance value for transaction balancing. Set to 0 for exact matching."
 				},
+				"beancount.diagnostics.warnOnIncompleteTransaction": {
+					"scope": "resource",
+					"type": "boolean",
+					"default": true,
+					"description": "Show warnings for incomplete transactions (marked with '!' flag). These are transactions that are considered unconfirmed in Beancount."
+				},
 				"beanLsp.inlayHints.enable": {
 					"type": "boolean",
 					"default": true,

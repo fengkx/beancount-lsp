@@ -115,10 +115,16 @@ export class InlayHintFeature implements Feature {
 					const accountNode = incompletePosting.node.childForFieldName('account');
 					if (accountNode) {
 						// Create position for inlay hint
-						const accountEndPos = getEndPosition(accountNode);
+						const line = document.getText(
+							Range.create(
+								Position.create(accountNode.endPosition.row, 0),
+								Position.create(accountNode.endPosition.row + 1, 0),
+							),
+						).replace(/[\r|\n]$/g, '');
+						const lineEndPos = Position.create(accountNode.endPosition.row, line.length);
 						const hintPosition = Position.create(
-							accountEndPos.line,
-							accountEndPos.character + 2, // Add 2 spaces after account
+							lineEndPos.line,
+							lineEndPos.character + 2, // Add 2 spaces after account
 						);
 
 						// Calculate spacing needed to align currency
@@ -160,7 +166,7 @@ export class InlayHintFeature implements Feature {
 			if (posting.amount && posting.node) {
 				const amountNode = posting.node.childForFieldName('amount');
 				if (amountNode) {
-					const currencyNode = amountNode.namedChild(1);
+					const currencyNode = amountNode.children.find(c => c.type === 'currency');
 					if (currencyNode) {
 						// Get the position of the currency
 						const currencyPosition = currencyNode.startPosition.column;

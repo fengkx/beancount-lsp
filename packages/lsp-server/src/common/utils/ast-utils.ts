@@ -14,6 +14,7 @@ const logger = new Logger('AstUtils');
 export interface Transaction {
 	node: Parser.SyntaxNode;
 	date: string;
+	flag: string | undefined; // Explicit with undefined to fix TypeScript error
 	headerRange: Range; // Added to store the header range for optimized highlighting
 	postings: Posting[];
 }
@@ -207,6 +208,10 @@ export function findAllTransactions(rootNode: Parser.SyntaxNode, document: TextD
 		const dateNode = node.childForFieldName('date');
 		const date = dateNode ? dateNode.text : '';
 
+		// Extract flag (if present)
+		const flagNode = node.childForFieldName('txn');
+		const flag = flagNode ? flagNode.text : undefined;
+
 		// Determine the header range for optimized highlighting
 		// The header includes date, txn, payee, narration up to the first posting
 		const headerEndRow = node.startPosition.row;
@@ -224,6 +229,7 @@ export function findAllTransactions(rootNode: Parser.SyntaxNode, document: TextD
 		transactions.push({
 			node,
 			date,
+			flag,
 			headerRange,
 			postings,
 		});
@@ -245,14 +251,4 @@ export function isNodeInRange(node: Parser.SyntaxNode, range: Range): boolean {
 		|| (nodeEndLine >= range.start.line && nodeEndLine <= range.end.line)
 		|| (nodeStartLine <= range.start.line && nodeEndLine >= range.end.line)
 	);
-}
-
-/**
- * Get the position at the end of a node
- */
-export function getEndPosition(node: Parser.SyntaxNode): Position {
-	return {
-		line: node.endPosition.row,
-		character: node.endPosition.column,
-	};
 }
