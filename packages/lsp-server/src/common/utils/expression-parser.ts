@@ -467,25 +467,6 @@ export function parseExpression(expression?: string): Big {
 			return new Big(0);
 		}
 
-		// Check for malformed expressions
-		if (
-			/[+\-*/]\s*[+*/]/.test(expr) // Double operators like + +, + *, etc.
-			|| /[+\-*/]\.[+\-*/]/.test(expr) // Operators with dots between like +.+
-			|| expr.endsWith('+') || expr.endsWith('-') || expr.endsWith('*') || expr.endsWith('/') // Ending with operator
-			|| expr.match(/^[*/]/) // Starting with * or /
-		) {
-			return new Big(0);
-		}
-
-		// Simple number case (including leading + or - sign)
-		if (/^[+-]?\d*\.?\d+$/.test(expr)) {
-			// Remove leading + sign if present
-			if (expr.startsWith('+')) {
-				expr = expr.substring(1);
-			}
-			return new Big(expr);
-		}
-
 		// Use the standard parser approach
 		const lexer = new Lexer(expr);
 		const parser = new Parser(lexer);

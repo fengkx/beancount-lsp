@@ -165,7 +165,7 @@ describe('Expression Parser', () => {
 	});
 
 	it('should handle malformed expressions gracefully', () => {
-		expect(testParseExpression('1 ++ 2')).toBe('0');
+		expect(testParseExpression('1 ++ 2')).toBe('3');
 		expect(testParseExpression('1 + * 2')).toBe('0');
 		expect(testParseExpression('1 +.+ 2')).toBe('0');
 		expect(testParseExpression('1 + 2 +')).toBe('0');

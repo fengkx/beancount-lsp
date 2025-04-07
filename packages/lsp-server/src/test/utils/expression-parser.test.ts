@@ -383,7 +383,7 @@ describe('parseExpression', () => {
 	});
 
 	it('should handle malformed expressions', () => {
-		expect(parseExpression('2 + + 3').toString()).toBe('0');
+		expect(parseExpression('2 + + 3').toString()).toBe('5');
 		expect(parseExpression('2 +.+ 3').toString()).toBe('0');
 		expect(parseExpression('2 +').toString()).toBe('0');
 		expect(parseExpression('* 2').toString()).toBe('0');
@@ -399,5 +399,99 @@ describe('parseExpression', () => {
 		expect(parseExpression('2 * 3 + 4 * 5').toString()).toBe('26');
 		expect(parseExpression('(2 + 3) * (4 + 5)').toString()).toBe('45');
 		expect(parseExpression('2 + 3 * 4 / 2 - 1').toString()).toBe('7');
+	});
+
+	// Additional test cases
+	it('should handle expressions with excessive whitespace', () => {
+		expect(parseExpression('  2   +   3  ').toString()).toBe('5');
+		expect(parseExpression('   (  3  *  4  )   ').toString()).toBe('12');
+	});
+
+	it('should handle expressions with no whitespace', () => {
+		expect(parseExpression('2+3').toString()).toBe('5');
+		expect(parseExpression('10-4').toString()).toBe('6');
+		expect(parseExpression('3*4').toString()).toBe('12');
+		expect(parseExpression('10/2').toString()).toBe('5');
+		expect(parseExpression('(2+3)*(4+5)').toString()).toBe('45');
+	});
+
+	it('should handle very large and very small numbers', () => {
+		expect(parseExpression('1000000 * 1000000').toString()).toBe('1000000000000');
+		expect(parseExpression('0.0000001 * 10000000').toString()).toBe('1');
+	});
+
+	it('should handle multiple unary operators', () => {
+		expect(parseExpression('--2').toString()).toBe('2');
+		expect(parseExpression('---2').toString()).toBe('-2');
+		expect(parseExpression('+-2').toString()).toBe('-2');
+		expect(parseExpression('-+2').toString()).toBe('-2');
+		expect(parseExpression('++2').toString()).toBe('2');
+	});
+
+	it('should handle division with very small numbers', () => {
+		expect(parseExpression('1 / 0.0001').toString()).toBe('10000');
+		expect(parseExpression('0.0001 / 0.0001').toString()).toBe('1');
+		expect(parseExpression('0 / 0.0001').toString()).toBe('0');
+	});
+
+	it('should handle decimal precision correctly', () => {
+		expect(parseExpression('0.1 + 0.2').toString()).toBe('0.3');
+		expect(parseExpression('0.3 - 0.1').toString()).toBe('0.2');
+		expect(parseExpression('1.5 * 2.5').toString()).toBe('3.75');
+		expect(parseExpression('5.5 / 2.2').toString()).toBe('2.5');
+	});
+
+	it('should handle multiple levels of nested parentheses', () => {
+		expect(parseExpression('((2 + 3) * (4 - 1))').toString()).toBe('15');
+		expect(parseExpression('(2 * (3 + (4 * 5)))').toString()).toBe('46');
+		expect(parseExpression('((((1 + 1) + 1) + 1) + 1)').toString()).toBe('5');
+	});
+
+	it('should handle mixed unary and binary operators', () => {
+		expect(parseExpression('5 + -3').toString()).toBe('2');
+		expect(parseExpression('-5 + 3').toString()).toBe('-2');
+		expect(parseExpression('5 * -3').toString()).toBe('-15');
+		expect(parseExpression('-5 * -3').toString()).toBe('15');
+		expect(parseExpression('5 / -2').toString()).toBe('-2.5');
+	});
+
+	it('should handle trailing decimal point', () => {
+		expect(parseExpression('5.').toString()).toBe('5');
+		expect(parseExpression('5. + 3').toString()).toBe('8');
+		expect(parseExpression('5. * 2.').toString()).toBe('10');
+	});
+
+	it('should handle zero-related operations', () => {
+		expect(parseExpression('0 + 0').toString()).toBe('0');
+		expect(parseExpression('0 * 5').toString()).toBe('0');
+		expect(parseExpression('5 * 0').toString()).toBe('0');
+		expect(parseExpression('0 / 5').toString()).toBe('0');
+		expect(parseExpression('5 / 0').toString()).toBe('0');
+	});
+
+	it('should handle consecutive operations of the same type', () => {
+		expect(parseExpression('5 + 3 + 2').toString()).toBe('10');
+		expect(parseExpression('10 - 3 - 2').toString()).toBe('5');
+		expect(parseExpression('2 * 3 * 4').toString()).toBe('24');
+		expect(parseExpression('24 / 3 / 2').toString()).toBe('4');
+	});
+
+	it('should evaluate expressions with repeated subexpressions', () => {
+		expect(parseExpression('(2 + 3) + (2 + 3)').toString()).toBe('10');
+		expect(parseExpression('(2 * 3) * (2 * 3)').toString()).toBe('36');
+	});
+
+	it('should handle invalid input gracefully', () => {
+		expect(parseExpression('abc').toString()).toBe('0');
+		expect(parseExpression('2 + abc').toString()).toBe('0');
+		expect(parseExpression('2 $ 3').toString()).toBe('0');
+		expect(parseExpression('2 ^ 3').toString()).toBe('0');
+	});
+
+	it('should reject scientific notation', () => {
+		expect(parseExpression('1e6').toString()).toBe('0');
+		expect(parseExpression('1.2e3').toString()).toBe('0');
+		expect(parseExpression('1e-6').toString()).toBe('0');
+		expect(parseExpression('2 + 1e3').toString()).toBe('0');
 	});
 });
