@@ -1,3 +1,5 @@
+/* eslint-disable no-case-declarations */
+
 import { Logger } from '@bean-lsp/shared';
 import Big from 'big.js';
 
@@ -454,7 +456,7 @@ export function parseExpression(expression?: string): Big {
 
 	try {
 		// Trim the input and remove commas
-		let expr = expression.trim().replace(/,/g, '');
+		const expr = expression.trim().replace(/,/g, '');
 
 		// Check for unbalanced parentheses
 		let openCount = 0;

@@ -4,7 +4,7 @@ import { Connection, InlayHint, InlayHintKind, Position, Range } from 'vscode-la
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
-import { findAllTransactions, getEndPosition, isNodeInRange } from '../utils/ast-utils';
+import { findAllTransactions, isNodeInRange } from '../utils/ast-utils';
 import { checkTransactionBalance, hasEmptyCost, hasOnlyOneIncompleteAmount, Posting } from '../utils/balance-checker';
 import { Feature } from './types';
 

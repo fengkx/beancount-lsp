@@ -103,7 +103,7 @@ export function checkTransactionBalance(
 		} else if (typeof tolerance === 'number') {
 			toleranceBig = new Big(tolerance);
 		} else {
-			// @ts-expect-error
+			// @ts-expect-error already check typeof
 			toleranceBig = tolerance[currency] ?? new Big(0.01);
 		}
 

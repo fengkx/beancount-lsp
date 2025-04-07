@@ -356,7 +356,7 @@ async function addPayeesAndNarrations(
 		payees.forEach((payee: string) => {
 			const quote = quotationStyle === 'both' ? '"' : quotationStyle === 'end' ? '"' : '';
 			const startQuote = quotationStyle === 'both' ? '"' : '';
-			let updatedCount = addCompletionItem(
+			const updatedCount = addCompletionItem(
 				{ label: payee, kind: CompletionItemKind.Text, detail: '(payee)' },
 				position,
 				// Add space after to allow quick editing between payee and narration
@@ -374,7 +374,7 @@ async function addPayeesAndNarrations(
 	narrations.forEach((narration: string) => {
 		const quote = quotationStyle === 'both' ? '"' : quotationStyle === 'end' ? '"' : '';
 		const startQuote = quotationStyle === 'both' ? '"' : '';
-		let updatedCount = addCompletionItem(
+		const updatedCount = addCompletionItem(
 			{ label: narration, kind: CompletionItemKind.Text, detail: '(narration)' },
 			position,
 			`${startQuote}${narration}${quote}`,

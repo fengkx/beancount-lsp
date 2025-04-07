@@ -22,7 +22,7 @@ class BeancountManager implements RealBeancountManager {
 		if (python3Path !== 'python3' && !python3Path.startsWith('/')) {
 			const workspaceFolders = await this.connection.workspace.getWorkspaceFolders();
 			if (workspaceFolders && workspaceFolders.length > 0) {
-				// @ts-expect-error
+				// @ts-expect-error already check length
 				const workspacePath = URI.parse(workspaceFolders[0].uri).fsPath;
 				python3Path = `${workspacePath}/${python3Path}`;
 			}
