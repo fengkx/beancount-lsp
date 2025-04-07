@@ -361,7 +361,7 @@ export class Parser {
 			// Unary plus (positive sign)
 			this.eat(TokenType.PLUS);
 			// The unary plus doesn't change the value
-			return this.factor();
+			return new UnaryOpNode(TokenType.PLUS, this.factor());
 		} else if (token.type === TokenType.MINUS) {
 			// Unary minus (negative sign)
 			this.eat(TokenType.MINUS);

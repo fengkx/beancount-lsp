@@ -1,13 +1,11 @@
 import Big from 'big.js';
 import { describe, expect, it, vi } from 'vitest';
 import {
-	ASTNode,
 	BinaryOpNode,
 	Lexer,
 	NumberNode,
 	parseExpression,
 	Parser,
-	Token,
 	TokenType,
 	UnaryOpNode,
 } from '../../common/utils/expression-parser';
@@ -259,12 +257,12 @@ describe('Parser', () => {
 			const parser = new Parser(lexer);
 			const ast = parser.parse();
 
-			expect(ast).toBeInstanceOf(NumberNode);
+			expect(ast).toBeInstanceOf(UnaryOpNode);
 			expect(ast.evaluate().toString()).toBe('32');
 		});
 
 		it('should parse and evaluate a simple addition', () => {
-			const lexer = new Lexer('2 + 3');
+			const lexer = new Lexer('2 + +3');
 			const parser = new Parser(lexer);
 			const ast = parser.parse();
 
