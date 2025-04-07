@@ -868,9 +868,72 @@ export class CompletionFeature implements Feature {
 				const yesterday = sub(d, { days: 1 });
 				const dayBeforeYesterday = sub(d, { days: 2 });
 				const tomorrow = add(d, { days: 1 });
-				[d, yesterday, tomorrow, dayBeforeYesterday].forEach((d, idx) => {
-					addItem({ label: formatDate(d, 'yyyy-MM-dd'), sortText: String.fromCharCode(65 + idx) });
+
+				// Create a set to track all dates for deduplication
+				const dateSet = new Set<string>();
+
+				// Add standard dates in specific order
+				const standardDates = [d, yesterday, tomorrow, dayBeforeYesterday];
+				const formattedStandardDates = standardDates.map(d => formatDate(d, 'yyyy-MM-dd'));
+
+				// Add these standard dates to the set for deduplication
+				formattedStandardDates.forEach(dateStr => dateSet.add(dateStr));
+
+				// Find recent dates from previous lines if document is available
+				if (document && position) {
+					// Start searching from current line and work backwards
+					const startLine = Math.max(0, position.line - 50); // Look up to 50 lines back
+					const endLine = position.line;
+					const recentDates: string[] = [];
+
+					// Scan previous lines for dates
+					for (let lineNum = endLine; lineNum >= startLine; lineNum--) {
+						const lineText = document.getText({
+							start: { line: lineNum, character: 0 },
+							end: { line: lineNum, character: Number.MAX_SAFE_INTEGER },
+						});
+
+						// Find all dates in the line
+						const dateMatches = lineText.match(/\d{4}[-/]\d{2}[-/]\d{2}/g);
+						if (dateMatches) {
+							dateMatches.forEach(date => {
+								// Only add if not already in the set
+								if (!dateSet.has(date)) {
+									dateSet.add(date);
+									recentDates.push(date);
+								}
+							});
+						}
+					}
+
+					logger.info(`Found ${recentDates.length} recent dates from previous lines`);
+				}
+
+				// First add standard dates in the specified order
+				formattedStandardDates.forEach((dateStr, idx) => {
+					addItem({
+						label: dateStr,
+						sortText: String.fromCharCode(65 + idx), // A, B, C, D for the standard dates
+						kind: CompletionItemKind.Constant,
+						detail: '', // No detail for standard dates
+					});
 				});
+
+				// Then add recent dates from the document, sorted by recency (most recent first)
+				const recentDatesFromDocument = Array.from(dateSet)
+					.filter(date => !formattedStandardDates.includes(date))
+					.sort()
+					.reverse();
+
+				recentDatesFromDocument.forEach((dateStr, idx) => {
+					addItem({
+						label: dateStr,
+						sortText: String.fromCharCode(65 + formattedStandardDates.length + idx), // E, F, G, etc. for recent dates
+						kind: CompletionItemKind.Constant,
+						detail: '(recent)',
+					});
+				});
+
 				logger.info(`Date completions added, items: ${completionItems.length}`);
 			})
 			.with({ currentType: 'identifier', previousSiblingType: P.union('date') }, async () => {

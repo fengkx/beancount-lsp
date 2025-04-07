@@ -6,21 +6,21 @@ const logger = new Logger('expression-parser');
 /**
  * Token types for the expression parser
  */
-enum TokenType {
-	NUMBER,
-	PLUS,
-	MINUS,
-	MULTIPLY,
-	DIVIDE,
-	LEFT_PAREN,
-	RIGHT_PAREN,
-	EOF,
+export const enum TokenType {
+	NUMBER = 'NUMBER',
+	PLUS = 'PLUS',
+	MINUS = 'MINUS',
+	MULTIPLY = 'MULTIPLY',
+	DIVIDE = 'DIVIDE',
+	LEFT_PAREN = 'LEFT_PAREN',
+	RIGHT_PAREN = 'RIGHT_PAREN',
+	EOF = 'EOF',
 }
 
 /**
  * Token class for representing lexical tokens
  */
-class Token {
+export class Token {
 	constructor(
 		public type: TokenType,
 		public value: string,
@@ -31,7 +31,7 @@ class Token {
 /**
  * Lexer class for tokenizing the input expression
  */
-class Lexer {
+export class Lexer {
 	private position = 0;
 	private text: string;
 	private currentChar: string | null;
@@ -42,7 +42,6 @@ class Lexer {
 		let normalizedText = text;
 		normalizedText = normalizedText.replace(/\*/g, ' * ');
 		normalizedText = normalizedText.replace(/\//g, ' / ');
-		normalizedText = normalizedText.replace(/\+/g, ' + ');
 		normalizedText = normalizedText.replace(/(?<!\s)-(?!\s)/g, ' - '); // Add spaces around - but not if already spaced
 		normalizedText = normalizedText.replace(/\(/g, ' ( ');
 		normalizedText = normalizedText.replace(/\)/g, ' ) ');
@@ -192,15 +191,15 @@ class Lexer {
 
 				if (isUnary && isFollowedByNumber) {
 					// This is a positive sign or application to a parenthesized expression
+					const plusToken = new Token(TokenType.PLUS, '+', this.position);
 					if (nextChar === '(' || nextChar === '-') {
 						// It's a positive parenthesized expression
-						const plusToken = new Token(TokenType.PLUS, '+', this.position);
 						this.advance();
 						return plusToken;
 					} else {
 						// It's a positive number (just skip the + sign)
 						this.advance(); // Skip the + sign
-						return this.number();
+						return plusToken;
 					}
 				} else {
 					// It's a binary addition operator
@@ -242,11 +241,11 @@ class Lexer {
 /**
  * Abstract syntax tree node classes
  */
-abstract class ASTNode {
+export abstract class ASTNode {
 	abstract evaluate(): Big;
 }
 
-class NumberNode extends ASTNode {
+export class NumberNode extends ASTNode {
 	constructor(public value: string) {
 		super();
 	}
@@ -256,7 +255,7 @@ class NumberNode extends ASTNode {
 	}
 }
 
-class BinaryOpNode extends ASTNode {
+export class BinaryOpNode extends ASTNode {
 	constructor(
 		public left: ASTNode,
 		public operator: TokenType,
@@ -293,7 +292,7 @@ class BinaryOpNode extends ASTNode {
 	}
 }
 
-class UnaryOpNode extends ASTNode {
+export class UnaryOpNode extends ASTNode {
 	constructor(
 		public operator: TokenType,
 		public expr: ASTNode,
@@ -323,7 +322,7 @@ class UnaryOpNode extends ASTNode {
 /**
  * Parser class for parsing the token stream and building an AST
  */
-class Parser {
+export class Parser {
 	private lexer: Lexer;
 	private currentToken: Token;
 
