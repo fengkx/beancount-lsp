@@ -8,9 +8,9 @@
 - [x] [semantic selection](https://github.com/microsoft/language-server-protocol/issues/613#issuecomment-445832563)
 - [x] auto completion
 - [ ] formating
-- [ ] inlay hints
+- [x] inlay hints
 - [x] diagnose
-- [ ] intergate with [beancount-smart-query](https://github.com/fengkx/beancount-smart-query)
+- [ ] ~~intergate with [beancount-smart-query](https://github.com/fengkx/beancount-smart-query)~~ Maybe consider another way to using LLM
 
 ## Development
 

@@ -88,3 +88,11 @@ The extension provides several configuration options to customize its behavior:
 	}
 }
 ```
+
+## Support
+
+If you find this extension helpful, please consider:
+
+1. Rating the extension on the [VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=fengkx.beancount-lsp-client)
+2. Starring the [GitHub repository](https://github.com/fengkx/beancount-lsp)
+3. Contributing to the project by submitting issues or pull requests
