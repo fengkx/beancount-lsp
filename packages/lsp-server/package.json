@@ -1,6 +1,6 @@
 {
 	"name": "beancount-lsp-server",
-	"version": "1.0.0",
+	"version": "0.0.1",
 	"description": "Language server for Beancount files with customizable tree-sitter WASM file path",
 	"main": "dist/node/server.js",
 	"browser": "dist/browser/server.js",
@@ -11,7 +11,8 @@
 		"typecheck": "tsc --noEmit true",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"test:coverage": "vitest run --coverage"
+		"test:coverage": "vitest run --coverage",
+		"prepublishOnly": "npm run build"
 	},
 	"keywords": [],
 	"author": "",

@@ -10,7 +10,8 @@
 		"check": "turbo run check",
 		"format": "turbo run format",
 		"test": "turbo run test",
-		"prepare": "simple-git-hooks"
+		"prepare": "simple-git-hooks",
+		"prepublishOnly": "pnpm build"
 	},
 	"simple-git-hooks": {
 		"pre-commit": "pnpm nano-staged"
