@@ -5,6 +5,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from 'web-tree-sitter';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
+import { globalEventBus, GlobalEvents } from '../utils/event-bus';
 import { Feature } from './types';
 
 // Constants for formatting
@@ -43,6 +44,9 @@ export class FormatterFeature implements Feature {
 			}
 		});
 
+		globalEventBus.on(GlobalEvents.ConfigurationChanged, () => {
+			this.updateFormatterConfig(connection);
+		});
 		this.updateFormatterConfig(connection);
 	}
 

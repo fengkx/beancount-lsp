@@ -13,6 +13,7 @@ import {
 	Posting,
 } from '../utils/balance-checker';
 import { BeancountOptionsManager } from '../utils/beancount-options';
+import { globalEventBus, GlobalEvents } from '../utils/event-bus';
 import { Feature } from './types';
 
 // Configuration interface for diagnostics
@@ -38,9 +39,10 @@ export class DiagnosticsFeature implements Feature {
 		this.logger.info('Registering diagnostics feature');
 
 		// Listen for configuration changes
-		connection.onDidChangeConfiguration(async (change) => {
-			if (change.settings?.beancount?.diagnostics) {
-				const diagnosticsSettings = change.settings.beancount.diagnostics;
+		globalEventBus.on(GlobalEvents.ConfigurationChanged, async () => {
+			const configuration = await connection.workspace.getConfiguration();
+			if (configuration.settings?.beancount?.diagnostics) {
+				const diagnosticsSettings = configuration.settings.beancount.diagnostics;
 				if (typeof diagnosticsSettings.tolerance === 'number') {
 					this.config.tolerance = diagnosticsSettings.tolerance;
 					this.logger.info(`Updated tolerance to ${this.config.tolerance}`);

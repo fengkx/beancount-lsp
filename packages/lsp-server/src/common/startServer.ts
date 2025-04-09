@@ -30,7 +30,7 @@ import { SymbolInfo } from './features/symbol-extractors';
 import { SymbolIndex } from './features/symbol-index';
 import { setWasmFilePath } from './language';
 import { BeancountOptionsManager } from './utils/beancount-options';
-
+import { EventBus, globalEventBus, GlobalEvents } from './utils/event-bus';
 export type SymbolInfoStorage = Db<SymbolInfo>;
 
 export interface IStorageFactory {
@@ -240,6 +240,7 @@ export function startServer(
 			// Listen for configuration changes
 			connection.onDidChangeConfiguration(async _ => {
 				if (hasConfigurationCapability) {
+					globalEventBus.emit(GlobalEvents.ConfigurationChanged);
 					const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });
 					if (config.trace && config.trace.server) {
 						const logLevel = mapTraceServerToLogLevel(config.trace.server);
