@@ -53,6 +53,7 @@ The extension provides several configuration options to customize its behavior:
 - `beanLsp.inlayHints.enable`: Enable or disable inlay hints showing calculated amounts for auto-balanced transactions. Default is true.
 - `beanLsp.mainCurrency`: Main currency for price conversions. If empty, the most frequently used currency will be automatically determined.
 - `beanLsp.currencys`: List of currencies that should participate in price conversions. Commodities not included in this list (like stocks) will be excluded from conversion calculations. If empty, all commodities will be considered for conversions.
+- `beanLsp.formatter.enabled`: Enable or disable automatic formatting of Beancount files. The formatter aligns accounts, amounts (with decimal point alignment), currencies, and comments for improved readability. Default is true.
 
 ### Example Configuration
 
@@ -64,6 +65,7 @@ The extension provides several configuration options to customize its behavior:
 	"beancount.diagnostics.warnOnIncompleteTransaction": true,
 	"beanLsp.mainCurrency": "USD",
 	"beanLsp.currencys": ["USD", "EUR", "GBP", "JPY"],
+	"beanLsp.formatter.enabled": true,
 	"editor.semanticTokenColorCustomizations": {
 		"enabled": true,
 		"rules": {

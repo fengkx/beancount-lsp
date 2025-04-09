@@ -14,6 +14,7 @@ import { DiagnosticsFeature } from './features/diagnostics';
 import { DocumentLinksFeature } from './features/document-links';
 import { DocumentSymbolsFeature } from './features/document-symbols';
 import { FoldingRangeFeature } from './features/folding-ranges';
+import { FormatterFeature } from './features/formatter';
 import { HoverFeature } from './features/hover';
 import { InlayHintFeature } from './features/inlay-hints';
 import { PriceMap } from './features/prices-index/price-map';
@@ -102,6 +103,8 @@ export function startServer(
 				inlayHintProvider: {
 					resolveProvider: false, // We don't need to resolve hints further
 				},
+				// Add document formatting capability
+				documentFormattingProvider: true,
 			},
 		};
 		if (params.capabilities.workspace?.configuration) {
@@ -140,13 +143,13 @@ export function startServer(
 		features.push(new DocumentSymbolsFeature(documents, trees));
 		features.push(new DiagnosticsFeature(documents, trees, optionsManager));
 		features.push(new DocumentLinksFeature(documents, trees));
-		features.push(new InlayHintFeature(documents, trees));
+		features.push(new FormatterFeature(documents, trees));
 
 		if (typeof beanMgrFactory === 'function') {
 			beanMgr = beanMgrFactory(connection, params.initializationOptions?.extensionUri);
 		}
 		features.push(new HoverFeature(documents, trees, priceMap, symbolIndex, beanMgr));
-
+		features.push(new InlayHintFeature(documents, trees));
 		// Initialize all features
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
 
@@ -212,7 +215,7 @@ export function startServer(
 				);
 			}
 
-			// 应用主要货币设置
+			// Apply main currency setting
 			if (config.mainCurrency) {
 				const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
 				if (featureWithPriceMap) {
@@ -221,7 +224,7 @@ export function startServer(
 				}
 			}
 
-			// 设置允许的货币列表
+			// Set allowed currencies list
 			if (config.currencys !== undefined) {
 				const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
 				if (featureWithPriceMap) {
@@ -248,7 +251,7 @@ export function startServer(
 						);
 					}
 
-					// 更新主要货币设置
+					// Update main currency setting
 					if (config.mainCurrency !== undefined) {
 						const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
 						if (featureWithPriceMap) {
@@ -257,7 +260,7 @@ export function startServer(
 						}
 					}
 
-					// 更新允许的货币列表
+					// Update allowed currencies list
 					if (config.currencys !== undefined) {
 						const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
 						if (featureWithPriceMap) {
