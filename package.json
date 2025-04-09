@@ -28,16 +28,16 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@fengkx/tsconfig": "^1.0.0",
-		"@types/node": "^20.17.28",
+		"@types/node": "^22.14.0",
 		"dprint": "^0.49.1",
-		"eslint": "^8.57.1",
+		"eslint": "^9.24.0",
 		"eslint-config-custom": "workspace:*",
 		"nano-staged": "^0.8.0",
 		"simple-git-hooks": "^2.12.1",
 		"tsup": "^8.4.0",
 		"tsx": "^4.19.3",
 		"turbo": "^2.4.4",
-		"type-fest": "^4.38.0",
-		"typescript": "^5.8.2"
+		"type-fest": "^4.39.1",
+		"typescript": "^5.8.3"
 	}
 }

@@ -255,16 +255,16 @@
 	"devDependencies": {
 		"@types/glob": "^8.1.0",
 		"@types/mocha": "^10.0.6",
-		"@types/node": "20.2.5",
-		"@types/vscode": "^1.86.0",
-		"@typescript-eslint/eslint-plugin": "^5.62.0",
-		"@typescript-eslint/parser": "^5.62.0",
-		"@vscode/test-electron": "^2.3.9",
-		"@vscode/vsce": "^3.2.2",
+		"@types/node": "22.14.0",
+		"@types/vscode": "^1.99.1",
+		"@typescript-eslint/eslint-plugin": "^8.29.1",
+		"@typescript-eslint/parser": "^8.29.1",
+		"@vscode/test-electron": "^2.5.2",
+		"@vscode/vsce": "^3.3.2",
 		"esbuild-plugins-node-modules-polyfill": "^1.7.0",
-		"eslint": "^8.56.0",
-		"glob": "^8.1.0",
-		"mocha": "^10.2.0"
+		"eslint": "^9.24.0",
+		"glob": "^11.0.1",
+		"mocha": "^11.1.0"
 	},
 	"dependencies": {
 		"@bean-lsp/shared": "workspace:*",
