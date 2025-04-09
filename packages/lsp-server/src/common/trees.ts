@@ -30,6 +30,11 @@ export class Trees {
 		}));
 		this._webTreeSitterWasmPath = webTreeSitterWasmPath;
 	}
+
+	public invalidateCache(uri: string) {
+		this._cache.delete(uri);
+	}
+
 	private static async getParserInstance(webTreeSitterWasmPath?: string) {
 		const parser = await getParser(webTreeSitterWasmPath);
 		return parser;

@@ -105,6 +105,11 @@
 					},
 					"default": [],
 					"description": "List of currencies that should participate in price conversions. Commodities not included in this list (like stocks) will be excluded from conversion calculations. If empty, all commodities will be considered for conversions."
+				},
+				"beanLsp.formatter.enabled": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable or disable automatic formatting of Beancount files. The formatter aligns accounts, amounts (with decimal point alignment), currencies, and comments for improved readability."
 				}
 			}
 		},
