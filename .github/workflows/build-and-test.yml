@@ -1,0 +1,32 @@
+name: Build and Test
+
+# Run this workflow on push to main and on pull requests
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+          run_install: true
+  
+      - name: Build packages
+        run: pnpm build
+
+      - name: Run tests
+        run: pnpm test 
