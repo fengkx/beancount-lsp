@@ -1,3 +1,4 @@
+import { RESTART_LANGUAGE_SERVER_COMMAND } from '@bean-lsp/shared';
 import * as vscode from 'vscode';
 import { LanguageClient, ServerOptions, TransportKind } from 'vscode-languageclient/node';
 import {
@@ -12,7 +13,6 @@ import {
 } from '../common/client';
 import { ExtensionContext } from '../common/types';
 import { resolveWebTreeSitterWasmPath } from '../common/utils';
-
 let client: LanguageClient;
 let statusBarItem: vscode.StatusBarItem;
 
@@ -75,6 +75,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 	// Set up configuration watchers
 	setupConfigurationWatchers(extensionContext);
+
+	// Register the restart command
+	let disposable = vscode.commands.registerCommand(RESTART_LANGUAGE_SERVER_COMMAND, async () => {
+		vscode.window.showInformationMessage('Restarting Beancount Language Server...');
+
+		if (client) {
+			await client.stop();
+			await client.start();
+		}
+	});
+
+	context.subscriptions.push(disposable);
 
 	// Start the client. This will also launch the server
 	await client.start();

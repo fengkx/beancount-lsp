@@ -1,3 +1,4 @@
+import { RESTART_LANGUAGE_SERVER_COMMAND } from '@bean-lsp/shared';
 import * as vscode from 'vscode';
 import { LanguageClient } from 'vscode-languageclient/browser';
 import {
@@ -74,6 +75,17 @@ export function activate(context: vscode.ExtensionContext): void {
 
 		// Log when the extension is activated
 		clientLogger.info('Beancount LSP extension is now active (browser)');
+
+		// Register the restart command
+		let disposable = vscode.commands.registerCommand(RESTART_LANGUAGE_SERVER_COMMAND, async () => {
+			vscode.window.showInformationMessage('Restarting Beancount Language Server...');
+			if (client) {
+				await client.stop();
+				await client.start();
+			}
+		});
+
+		context.subscriptions.push(disposable);
 	} catch (err) {
 		// Log any errors during activation
 		clientLogger.error(`Error activating browser extension: ${err instanceof Error ? err.message : String(err)}`);

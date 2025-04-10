@@ -237,7 +237,13 @@
 			"[beancount]": {
 				"editor.inlayHints.maximumLength": 0
 			}
-		}
+		},
+		"commands": [
+			{
+				"command": "extension.restartBeancountLanguageServer",
+				"title": "BeanLsp: Restart Beancount Language Server"
+			}
+		]
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run build",
