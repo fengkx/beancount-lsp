@@ -269,7 +269,7 @@
 	"dependencies": {
 		"@bean-lsp/shared": "workspace:*",
 		"beancount-lsp-server": "workspace:*",
-		"vscode-languageclient": "^8.1.0",
+		"vscode-languageclient": "^9.0.1",
 		"vscode-uri": "^3.0.8"
 	}
 }

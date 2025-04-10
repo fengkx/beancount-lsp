@@ -19,7 +19,6 @@ const commonConfig = {
 		'nominal-types',
 		'pinyin-pro',
 		'ts-pattern',
-		'tsyringe',
 		'vscode-languageserver',
 		'vscode-languageserver-textdocument',
 		'vscode-uri',
