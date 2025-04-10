@@ -36,7 +36,7 @@
 		"simple-git-hooks": "^2.12.1",
 		"tsup": "^8.4.0",
 		"tsx": "^4.19.3",
-		"turbo": "^2.4.4",
+		"turbo": "^2.5.0",
 		"type-fest": "^4.39.1",
 		"typescript": "^5.8.3"
 	}

@@ -18,7 +18,7 @@
 	"dependencies": {
 		"@typescript-eslint/eslint-plugin": "^8.29.1",
 		"@typescript-eslint/parser": "^8.29.1",
-		"eslint-plugin-turbo": "^2.4.4"
+		"eslint-plugin-turbo": "^2.5.0"
 	},
 	"devDependencies": {
 		"eslint-import-resolver-typescript": "^4.3.2",
