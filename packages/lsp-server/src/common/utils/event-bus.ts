@@ -61,22 +61,6 @@ export class EventBus<Events extends string> {
 	}
 
 	/**
-	 * Unsubscribe from an event
-	 * Note: This is a convenience method. It's more reliable to use the
-	 * disposable function returned by the 'on' method.
-	 * @param eventName Name of the event to unsubscribe from
-	 * @param handler The handler function to remove
-	 */
-	off(eventName: Events, handler: EventHandler): void {
-		// This is a limited implementation as Emitter doesn't provide a direct way
-		// to remove a specific listener. The recommended approach is to use
-		// the disposable returned by the 'on' method.
-		console.warn(
-			'EventBus.off() has limited functionality with Emitter. Use the disposable returned by on() instead.',
-		);
-	}
-
-	/**
 	 * Emit an event
 	 * @param eventName Name of the event to emit
 	 * @param data Data to pass to handlers
