@@ -6,17 +6,20 @@ import { URI } from 'vscode-uri';
 import { compactToRange } from '../common';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
+import { globalEventBus, GlobalEvents } from '../utils/event-bus';
 import * as positionUtils from './position-utils';
 import { PriceMap } from './prices-index/price-map';
 import { SymbolInfo } from './symbol-extractors';
 import { SymbolIndex } from './symbol-index';
-import { Feature, RealBeancountManager } from './types';
+import { Amount, Feature, RealBeancountManager } from './types';
 
 // Create a logger for hover functionality
 const logger = new Logger('hover');
 
 export class HoverFeature implements Feature {
 	connection: lsp.Connection | null = null;
+	private includeSubaccountBalance = false;
+
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
@@ -35,6 +38,28 @@ export class HoverFeature implements Feature {
 				return null;
 			}
 		});
+
+		globalEventBus.on(GlobalEvents.ConfigurationChanged, () => {
+			this.updateIncludeSubaccountBalance(connection);
+		});
+		this.updateIncludeSubaccountBalance(connection);
+	}
+
+	private async updateIncludeSubaccountBalance(connection: lsp.Connection): Promise<void> {
+		try {
+			const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });
+			if (config.formatter !== undefined) {
+				const includeSubaccountBalance = config.hover?.includeSubaccountBalance ?? false; // Default to false if not specified
+				this.setIncludeSubaccountBalance(includeSubaccountBalance);
+				logger.info(`Hover balance include subaccounts ${includeSubaccountBalance ? 'enabled' : 'disabled'}`);
+			}
+		} catch (error) {
+			logger.error('Error updating hover configuration:', error);
+		}
+	}
+
+	private setIncludeSubaccountBalance(include: boolean): void {
+		this.includeSubaccountBalance = include;
 	}
 
 	/**
@@ -439,6 +464,62 @@ export class HoverFeature implements Feature {
 		return result.join('\n');
 	}
 
+	private getAccountBalance(account: string): string {
+		const getBalanceStr = (balances: Amount[]): string => {
+			let result = '';
+			if (balances.length === 0) {
+				return result;
+			}
+
+			result += '```\n';
+			const maxWidth = balances.reduce((acc, cur) => {
+				const number_str = new Big(cur.number).toFixed(4);
+				return Math.max(acc, number_str.length);
+			}, 0) + 1;
+
+			for (const { number, currency } of balances.sort((a, b) => a.currency.localeCompare(b.currency))) {
+				const number_str = new Big(number).toFixed(4);
+				result += `${number_str.padEnd(maxWidth)}${currency}\n`;
+			}
+			result += '```\n';
+			return result;
+		};
+		let result = '';
+		try {
+			const balances = this.beanMgr!.getBalance(account, this.includeSubaccountBalance);
+			if (balances.length === 0) {
+				return result;
+			}
+
+			result += `**Current Balance**\n`;
+			result += getBalanceStr(balances);
+			result += '\n\n';
+
+			if (!this.includeSubaccountBalance) {
+				return result;
+			}
+
+			const subaccountBalances = this.beanMgr!.getSubaccountBalances(account);
+			if (subaccountBalances.size <= 1) {
+				return result;
+			}
+
+			for (const [account, balances] of subaccountBalances.entries()) {
+				if (balances.length === 0) {
+					continue;
+				}
+
+				result += `${account}\n`;
+				result += getBalanceStr(balances);
+				result += '\n';
+			}
+			result += '\n';
+		} catch (error) {
+			logger.debug(`Error getting account balance: ${error}`);
+		}
+		return result;
+	}
+
 	/**
 	 * Creates hover content for an account, showing relevant financial information
 	 *
@@ -513,27 +594,7 @@ export class HoverFeature implements Feature {
 
 			// Add account balance information if beanMgr is available
 			if (this.beanMgr) {
-				try {
-					const balances = await this.beanMgr.getBalance(account);
-					if (balances && balances.length > 0) {
-						result += `**Current Balance**\n`;
-						result += '```\n';
-						for (const balance of balances) {
-							// Split balance into amount and currency
-							// eslint-disable-next-line prefer-const
-							let [amount, currency] = balance.trim().split(/\s+/);
-							// Pad amount to 30 characters to align currencies
-							if (!amount || !currency) {
-								continue;
-							}
-							amount = new Big(amount).toFixed(4);
-							result += `${amount.padEnd(15)}${currency}\n`;
-						}
-						result += '```\n\n';
-					}
-				} catch (error) {
-					logger.debug(`Error getting account balance: ${error}`);
-				}
+				result += this.getAccountBalance(account);
 			}
 
 			// Account hierarchy visualization with tree-like structure
