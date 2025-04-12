@@ -13,6 +13,7 @@ const ACCOUNT_MIN_COLUMN = 40; // Minimum column for account alignment
 const AMOUNT_MIN_COLUMN = 52; // Minimum column for amount alignment
 const CURRENCY_MIN_COLUMN = 64; // Minimum column for currency alignment
 const COMMENT_MIN_COLUMN = 76; // Minimum column for comment alignment
+const CURRENCY_MIN_SPACING = 3; // Minimum spacing between account and currency for directives
 
 export class FormatterFeature implements Feature {
 	// Formatter configuration
@@ -140,13 +141,14 @@ export class FormatterFeature implements Feature {
 
 				// Calculate ideal position for currencies (after account)
 				const accountStartPos = document.positionAt(account.startIndex);
+				const accountVisualEndPos = accountStartPos.character + this.calculateStringWidth(accountText);
 				const ideal = Math.max(
-					accountStartPos.character + this.calculateStringWidth(accountText) + 3,
+					accountVisualEndPos + CURRENCY_MIN_SPACING,
 					CURRENCY_MIN_COLUMN,
 				);
 
-				// Create whitespace before currencies
-				const whitespace = ' '.repeat(ideal - currenciesStart.character);
+				// Create whitespace between account and currencies
+				const whitespace = ' '.repeat(ideal - accountVisualEndPos);
 
 				// Replace existing whitespace
 				if (currenciesStart.character !== ideal) {
