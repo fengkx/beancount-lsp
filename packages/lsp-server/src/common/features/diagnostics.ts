@@ -129,11 +129,6 @@ export class DiagnosticsFeature implements Feature {
 			const chunk = transactions.slice(i, i + CHUNK_SIZE);
 
 			for (const transaction of chunk) {
-				// Skip transactions with only one posting having no amount
-				// (Beancount will auto-compute this)
-				if (hasOnlyOneIncompleteAmount(transaction.postings)) {
-					continue;
-				}
 				// Check for pending transactions (marked with '!')
 				if (transaction.flag === '!' && this.config.warnOnIncompleteTransaction) {
 					diagnostics.push({
@@ -142,6 +137,12 @@ export class DiagnosticsFeature implements Feature {
 						message: `transaction flagged with "!": ${document.getText(transaction.headerRange)}`,
 						source: 'beancount-lsp',
 					});
+				}
+
+				// Skip transactions with only one posting having no amount
+				// (Beancount will auto-compute this)
+				if (hasOnlyOneIncompleteAmount(transaction.postings)) {
+					continue;
 				}
 
 				// Check for both cost and price on the same posting (which is not allowed)
