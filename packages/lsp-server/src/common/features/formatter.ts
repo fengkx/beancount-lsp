@@ -382,8 +382,12 @@ export class FormatterFeature implements Feature {
 			}
 
 			// Check if there's a currency symbol directly after the amount
+			const amountWithoutCurrency = amount.namedChild(0);
+			const amountWithoutCurrencyEndPos = amountWithoutCurrency
+				? document.positionAt(amountWithoutCurrency.endIndex)
+				: amountEndPos;
 			const restOfLine = document.getText({
-				start: amountEndPos,
+				start: amountWithoutCurrencyEndPos,
 				end: document.positionAt(posting.endIndex),
 			});
 
@@ -394,15 +398,15 @@ export class FormatterFeature implements Feature {
 				const currencyText = currencyMatch[1];
 				const matchIndex = restOfLine.indexOf(currencyText);
 				if (matchIndex >= 0) {
-					const currencyStart = amountEndPos.character + matchIndex;
+					const currencyStart = amountWithoutCurrencyEndPos.character + matchIndex;
 					const currencyStartPos = {
-						line: amountEndPos.line,
+						line: amountWithoutCurrencyEndPos.line,
 						character: currencyStart,
 					};
 
 					// Replace whitespace between amount and currency
 					edits.push(TextEdit.replace({
-						start: amountEndPos,
+						start: amountWithoutCurrencyEndPos,
 						end: currencyStartPos,
 					}, ' '));
 				}
