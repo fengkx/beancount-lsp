@@ -141,13 +141,13 @@ export function startServer(
 		features.push(new FoldingRangeFeature(documents, trees));
 		features.push(new RenameFeature(documents, trees, symbolIndex));
 		features.push(new DocumentSymbolsFeature(documents, trees));
-		features.push(new DiagnosticsFeature(documents, trees, optionsManager));
 		features.push(new DocumentLinksFeature(documents, trees));
 		features.push(new FormatterFeature(documents, trees));
 
 		if (typeof beanMgrFactory === 'function') {
 			beanMgr = beanMgrFactory(connection, params.initializationOptions?.extensionUri);
 		}
+		features.push(new DiagnosticsFeature(documents, trees, optionsManager, beanMgr));
 		features.push(new HoverFeature(documents, trees, priceMap, symbolIndex, beanMgr));
 		features.push(new InlayHintFeature(documents, trees));
 		// Initialize all features

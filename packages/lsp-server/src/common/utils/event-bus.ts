@@ -134,4 +134,5 @@ export const globalEventBus = new EventBus<GlobalEvents>();
 
 export const enum GlobalEvents {
 	ConfigurationChanged = 'configuration-changed',
+	BeancountUpdate = 'beancount-update',
 }
