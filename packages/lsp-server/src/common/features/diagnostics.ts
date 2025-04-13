@@ -14,7 +14,7 @@ import {
 } from '../utils/balance-checker';
 import { BeancountOptionsManager } from '../utils/beancount-options';
 import { globalEventBus, GlobalEvents } from '../utils/event-bus';
-import { Feature } from './types';
+import { Feature, RealBeancountManager } from './types';
 
 // Configuration interface for diagnostics
 interface DiagnosticsConfig {
@@ -28,15 +28,23 @@ export class DiagnosticsFeature implements Feature {
 		tolerance: 0.005, // Default tolerance
 		warnOnIncompleteTransaction: true, // Default to show warnings for incomplete transactions
 	};
+	private diagnosticsFromBeancount: { [uri: string]: Diagnostic[] } = {};
 
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
 		private readonly optionsManager: BeancountOptionsManager,
+		private readonly beanMgr: RealBeancountManager | undefined,
 	) {}
 
 	async register(connection: Connection): Promise<void> {
 		this.logger.info('Registering diagnostics feature');
+
+		// Register callback on global bus to update diagnosticsFromBeancount on save
+		globalEventBus.on(GlobalEvents.BeancountUpdate, async () => {
+			this.updateDiagnosticsFromBeancount();
+			await this.validateAllDocuments(connection);
+		});
 
 		// Listen for configuration changes
 		globalEventBus.on(GlobalEvents.ConfigurationChanged, async () => {
@@ -56,16 +64,12 @@ export class DiagnosticsFeature implements Feature {
 			}
 
 			// Re-validate all open documents with new configuration
-			this.documents.all().forEach(document => {
-				this.validateDocument(document, connection);
-			});
+			await this.validateAllDocuments(connection);
 		});
 
-		this.optionsManager.onOptionChange(e => {
+		this.optionsManager.onOptionChange(async e => {
 			if (['infer_tolerance_from_cost', 'inferred_tolerance_multiplier'].includes(e.name)) {
-				this.documents.all().forEach(doc => {
-					this.validateDocument(doc, connection);
-				});
+				await this.validateAllDocuments(connection);
 			}
 		});
 
@@ -87,17 +91,79 @@ export class DiagnosticsFeature implements Feature {
 			}
 
 			// Validate all open documents initially
-			this.documents.all().forEach(document => {
-				this.validateDocument(document, connection);
-			});
+			await this.validateAllDocuments(connection);
 
 			// Listen for document changes and validate them
-			this.documents.onDidChangeContent(change => {
-				this.validateDocument(change.document, connection);
+			this.documents.onDidChangeContent(async change => {
+				await this.validateDocument(change.document, connection);
 			});
 		} catch (error) {
 			this.logger.error(`Error fetching configuration: ${error}`);
 		}
+	}
+
+	private async validateAllDocuments(connection: Connection): Promise<void> {
+		await Promise.all(
+			this.documents.all().map(async doc => {
+				await this.validateDocument(doc, connection);
+			}),
+		);
+
+		const documentsInStore = new Set(this.documents.keys());
+		await Promise.all(
+			Object.entries(this.diagnosticsFromBeancount).map(async ([uri, diagnostics]) => {
+				if (documentsInStore.has(uri)) {
+					return;
+				}
+
+				await connection.sendDiagnostics({ uri, diagnostics });
+			}),
+		);
+	}
+
+	private updateDiagnosticsFromBeancount() {
+		if (!this.beanMgr) {
+			return;
+		}
+
+		let diagnosticsFromBeancount: { [uri: string]: Diagnostic[] } = {};
+
+		const errors = this.beanMgr.getErrors();
+		const flags = this.beanMgr.getFlagged();
+
+		const addDiagnostic = (severity: DiagnosticSeverity, line: number, file: string, message: string) => {
+			const range = {
+				start: { line: Math.max(line - 1, 0), character: 0 },
+				end: { line: Math.max(line, 1), character: 0 },
+			};
+
+			const diag = {
+				severity,
+				range,
+				message,
+				source: 'beancount-lsp',
+			} as Diagnostic;
+
+			let uri = `file://${file}`;
+
+			if (diagnosticsFromBeancount[uri] === undefined) {
+				diagnosticsFromBeancount[uri] = [];
+			}
+			diagnosticsFromBeancount[uri]!.push(diag);
+		};
+
+		errors.forEach((e) => {
+			addDiagnostic(DiagnosticSeverity.Error, e.line, e.file, e.message);
+		});
+
+		flags.forEach((f) => {
+			if (f.flag !== '!') {
+				return;
+			}
+
+			addDiagnostic(DiagnosticSeverity.Warning, f.line, f.file, f.message);
+		});
+		this.diagnosticsFromBeancount = diagnosticsFromBeancount;
 	}
 
 	private async validateDocument(document: TextDocument, connection: Connection): Promise<void> {
@@ -185,8 +251,34 @@ export class DiagnosticsFeature implements Feature {
 			}
 		}
 
-		return diagnostics;
+		const beancountDiagnostics = this.diagnosticsFromBeancount[document.uri];
+		if (!beancountDiagnostics) {
+			return diagnostics;
+		}
+		this.logger.info(beancountDiagnostics);
+
+		const mergedDiagnostics = this.mergeAndDedupDiagnostics(beancountDiagnostics, diagnostics);
+		this.logger.info(mergedDiagnostics);
+
+		return mergedDiagnostics;
 	}
+
+	private mergeAndDedupDiagnostics(preferred: Diagnostic[], if_missing: Diagnostic[]): Diagnostic[] {
+		const seen = new Map<string, Diagnostic>();
+
+		// generate a key based on line no and severity, as we only need one diagnostic of each kind
+		const getKey = (d: Diagnostic) => `${d.range.start.line}:${d.severity}`;
+
+		[...preferred, ...if_missing].forEach(d => {
+			const key = getKey(d);
+			if (!seen.has(key)) {
+				seen.set(key, d);
+			}
+		});
+
+		return Array.from(seen.values());
+	}
+
 	private getTolerance(postings: Posting[]) {
 		if (this.optionsManager.getOption('infer_tolerance_from_cost').asBoolean()) {
 			/**

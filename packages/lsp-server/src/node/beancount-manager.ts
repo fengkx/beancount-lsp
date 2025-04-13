@@ -1,9 +1,16 @@
 import { Logger } from '@bean-lsp/shared';
 import { $ } from 'execa';
 import { trace } from 'node:console';
-import { Amount, BeancountManagerFactory, RealBeancountManager } from 'src/common/features/types';
+import {
+	Amount,
+	BeancountError,
+	BeancountFlag,
+	BeancountManagerFactory,
+	RealBeancountManager,
+} from 'src/common/features/types';
 import { Connection, DidSaveTextDocumentParams } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
+import { globalEventBus, GlobalEvents } from '../common/utils/event-bus';
 
 interface AccountDetails {
 	open: string;
@@ -13,9 +20,15 @@ interface AccountDetails {
 	balance_incl_subaccounts: string[];
 }
 
+interface BeancheckOutput {
+	errors: BeancountError[];
+	flags: BeancountFlag[];
+	general: any;
+}
+
 class BeancountManager implements RealBeancountManager {
 	private mainFile: string | null = null;
-	private result_json: any | null = null;
+	private result: BeancheckOutput | null = null;
 	private readonly logger = new Logger('BeancountManager');
 
 	constructor(private readonly connection: Connection, private readonly extensionUri: string) {
@@ -67,11 +80,12 @@ class BeancountManager implements RealBeancountManager {
 		}
 
 		this.logger.debug(r);
-		this.result_json = JSON.parse(r);
+		this.result = JSON.parse(r) as BeancheckOutput;
+		globalEventBus.emit(GlobalEvents.BeancountUpdate);
 	}
 
 	getBalance(account: string, includeSubaccountBalance: boolean): Amount[] {
-		let accountDetails = this.result_json?.['general']?.['accounts']?.[account] as AccountDetails | null;
+		let accountDetails = this.result?.['general']?.['accounts']?.[account] as AccountDetails | null;
 		if (!accountDetails) {
 			return [];
 		}
@@ -85,7 +99,7 @@ class BeancountManager implements RealBeancountManager {
 	}
 
 	getSubaccountBalances(account: string): Map<string, Amount[]> {
-		const accounts = this.result_json?.['general']?.['accounts'];
+		const accounts = this.result?.['general']?.['accounts'];
 
 		const subaccounts = new Map();
 
@@ -111,8 +125,12 @@ class BeancountManager implements RealBeancountManager {
 		return subaccounts;
 	}
 
-	async getErrors(): Promise<{ message: string; file: string; line: number }[]> {
-		return this.result_json?.['errors'] ?? [];
+	getErrors(): BeancountError[] {
+		return this.result?.errors ?? [];
+	}
+
+	getFlagged(): BeancountFlag[] {
+		return this.result?.flags ?? [];
 	}
 }
 
