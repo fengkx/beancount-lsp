@@ -9,3 +9,5 @@ updates:
         versions: [ "*" ]
       - dependency-name: "tree-sitter-cli"
         versions: [ "*" ]
+      - dependency-name: "@types/vscode"
+        versions: [ "*" ]
