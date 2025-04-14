@@ -317,19 +317,17 @@ export class FormatterFeature implements Feature {
 
 			// Implement decimal point alignment
 			const parts = amountText.split('.');
-			const integerPart = parts[0]?.trim() || '';
+			let integerPart = parts[0]?.trim() || '';
+
+			// Clean integer part and calculate width
+			if (parts.length === 1) {
+				integerPart = integerPart.replace(/[^\d]/g, '');
+			}
 			const integerWidth = this.calculateStringWidth(integerPart);
 
-			// Calculate required spaces
-			let whitespaceLength;
-			// If there's a decimal point, align to the decimal point position
-			if (parts.length > 1) {
-				const spaceNeeded = positions.decimalPointColumn - accountEndPos.character - integerWidth;
-				whitespaceLength = Math.max(1, spaceNeeded);
-			} else {
-				// For cases without decimal point (integers, currency symbols, etc.)
-				whitespaceLength = Math.max(1, positions.amountColumn - accountEndPos.character);
-			}
+			// Calculate required spaces for decimal point alignment
+			const spaceNeeded = positions.decimalPointColumn - accountEndPos.character - integerWidth;
+			const whitespaceLength = Math.max(1, spaceNeeded);
 
 			const whitespace = ' '.repeat(whitespaceLength);
 			edits.push(TextEdit.replace(spaceRange, whitespace));
