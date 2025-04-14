@@ -161,13 +161,19 @@ export class DiagnosticsFeature implements Feature {
 				const tolerance = this.getTolerance(transaction.postings);
 				const result = checkTransactionBalance(transaction.postings, tolerance);
 				if (!result.isBalanced) {
-					const percision = result.tolerance!.toString().split('.')?.[1]?.length ?? 2;
-					const amount = result.difference?.toFixed(percision) || '0';
-					const currency = result.currency || '';
+					const imbalanceMessages: string[] = [];
+
+					for (const imbalance of result.imbalances) {
+						const precision = imbalance.tolerance.toString().split('.')?.[1]?.length ?? 2;
+						const amount = imbalance.difference.toFixed(precision) || '0';
+						const currency = imbalance.currency || '';
+						imbalanceMessages.push(`${amount} ${currency}`);
+					}
+
 					diagnostics.push({
 						severity: DiagnosticSeverity.Error,
 						range: transaction.headerRange,
-						message: `Transaction does not balance: ${amount} ${currency}`,
+						message: `Transaction does not balance: ${imbalanceMessages.join(', ')}`,
 						source: 'beancount-lsp',
 					});
 				}

@@ -92,24 +92,38 @@ export class InlayHintFeature implements Feature {
 					const balanceResult = checkTransactionBalance(transaction.postings, 0.001); // Using a tolerance of 0.001
 
 					// If the transaction is already balanced (which shouldn't happen with one incomplete posting)
-					// or if we don't have a currency, skip
-					if (balanceResult.isBalanced || !balanceResult.currency) {
+					// or if we don't have any imbalances, skip
+					if (balanceResult.isBalanced || balanceResult.imbalances.length === 0) {
 						continue;
 					}
 
-					// Format the amount with the correct sign (negated since it balances the others)
-					const calculatedAmount = balanceResult.difference?.neg() || new Big(0);
+					// Build combined hint from all imbalances
+					const formattedImbalances: string[] = [];
+					let firstNumberLength = 0;
 
-					// Format the number to have at least 2 decimal places
-					let formattedNumber = calculatedAmount.toFixed(2);
-					// If the original number had more decimal places, preserve them
-					const originalDecimals = calculatedAmount.toString().split('.')[1]?.length || 0;
-					if (originalDecimals > 2) {
-						formattedNumber = calculatedAmount.toFixed(originalDecimals);
+					for (const imbalance of balanceResult.imbalances) {
+						// Format the amount with the correct sign (negated since it balances the others)
+						const calculatedAmount = imbalance.difference.neg() || new Big(0);
+
+						// Format the number to have at least 2 decimal places
+						let formattedNumber = calculatedAmount.toFixed(2);
+						if (firstNumberLength === 0) {
+							firstNumberLength = formattedNumber.length;
+						}
+						// If the original number had more decimal places, preserve them
+						const originalDecimals = calculatedAmount.toString().split('.')[1]?.length || 0;
+						if (originalDecimals > 2) {
+							formattedNumber = calculatedAmount.toFixed(originalDecimals);
+						}
+
+						formattedImbalances.push(`${formattedNumber} ${imbalance.currency}`);
 					}
 
 					// Get the currency column position for alignment
 					const currencyColumnPosition = this.findCurrencyColumnPosition(transaction.postings);
+
+					// Join all imbalance strings with comma and space
+					const combinedImbalanceText = formattedImbalances.join(', ');
 
 					// Create an inlay hint for the calculated amount
 					const accountNode = incompletePosting.node.childForFieldName('account');
@@ -128,15 +142,14 @@ export class InlayHintFeature implements Feature {
 						);
 
 						// Calculate spacing needed to align currency
-						const numberEndPosition = hintPosition.character + formattedNumber.length;
+						const numberEndPosition = hintPosition.character + firstNumberLength;
 						const prefixSpacesNeeded =
 							currencyColumnPosition > 0 && currencyColumnPosition > numberEndPosition
 								? currencyColumnPosition - numberEndPosition - 1
 								: 0;
 
 						// Create a single hint with proper spacing
-						const hintLabel = ' '.repeat(prefixSpacesNeeded) + formattedNumber + ' '
-							+ balanceResult.currency;
+						const hintLabel = ' '.repeat(prefixSpacesNeeded) + combinedImbalanceText;
 
 						hints.push({
 							position: hintPosition,

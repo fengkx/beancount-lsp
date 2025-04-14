@@ -35,12 +35,12 @@ export interface Posting {
 export interface BalanceResult {
 	// Whether the transaction is balanced
 	isBalanced: boolean;
-	// The currency with the imbalance (if any)
-	currency?: string;
-	// The difference amount (positive means missing, negative means extra)
-	difference?: Big;
-	// The tolerance used for this check
-	tolerance?: Big;
+	// Array of all imbalances found (empty if balanced)
+	imbalances: Array<{
+		currency: string;
+		difference: Big;
+		tolerance: Big;
+	}>;
 }
 
 /**
@@ -81,7 +81,7 @@ export function hasOnlyOneIncompleteAmount(postings: Posting[]): boolean {
  *
  * @param postings List of postings in the transaction
  * @param tolerance Tolerance value to use for balance checking
- * @returns Result of the balance check
+ * @returns Result of the balance check with all imbalances found
  */
 export function checkTransactionBalance(
 	postings: Posting[],
@@ -89,11 +89,11 @@ export function checkTransactionBalance(
 ): BalanceResult {
 	// Group postings by currency
 	const postingsByCurrency = groupByCurrency(postings);
+	const imbalances: Array<{ currency: string; difference: Big; tolerance: Big }> = [];
 
 	// For each currency group, check if they balance to zero (within tolerance)
 	for (const [currency, currencyPostings] of Object.entries(postingsByCurrency)) {
 		// Use the configured tolerance value
-
 		let toleranceBig: Big;
 		if (
 			typeof tolerance === 'object' && Object.prototype.hasOwnProperty.call(tolerance, 'c')
@@ -112,16 +112,18 @@ export function checkTransactionBalance(
 
 		// Check if sum is within tolerance
 		if (sum.abs().gt(toleranceBig)) {
-			return {
-				isBalanced: false,
+			imbalances.push({
 				currency,
 				difference: sum,
 				tolerance: toleranceBig,
-			};
+			});
 		}
 	}
 
-	return { isBalanced: true };
+	return {
+		isBalanced: imbalances.length === 0,
+		imbalances,
+	};
 }
 
 /**

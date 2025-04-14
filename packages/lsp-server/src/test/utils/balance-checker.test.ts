@@ -511,7 +511,10 @@ describe('Balance Checker', () => {
 
 			const result = checkTransactionBalance(postings, 0.005);
 			expect(result.isBalanced).toBe(false);
-			expect(result.difference?.toString()).toBe('-5');
+			expect(result.imbalances.length).toBeGreaterThan(0);
+			const imbalance = result.imbalances[0];
+			expect(imbalance).toBeDefined();
+			expect(imbalance?.difference.toString()).toBe('-5');
 		});
 
 		// Test the difference between per-unit cost and total cost calculations
@@ -592,9 +595,7 @@ describe('Balance Checker', () => {
 				const result = checkTransactionBalance(postings, 0.005);
 				console.log(`Transaction ${index}:`, {
 					isBalanced: result.isBalanced,
-					currency: result.currency,
-					difference: result.difference?.toString(),
-					tolerance: result.tolerance?.toString(),
+					imbalances: result.imbalances,
 				});
 				expect(result.isBalanced, `Transaction ${index} should be balanced`).toBe(true);
 			}
@@ -604,7 +605,10 @@ describe('Balance Checker', () => {
 			for (const [index, postings] of unbalancedTransactions.entries()) {
 				const result = checkTransactionBalance(postings, 0.005);
 				expect(result.isBalanced, `Transaction ${index} should be unbalanced`).toBe(false);
-				expect(result.currency).toBe('USD');
+				expect(result.imbalances.length).toBeGreaterThan(0);
+				const imbalance = result.imbalances[0];
+				expect(imbalance).toBeDefined();
+				expect(imbalance?.currency).toBe('USD');
 			}
 		});
 
@@ -613,19 +617,39 @@ describe('Balance Checker', () => {
 
 			// Simple unbalanced transaction: -120.00 + 119.95 = -0.05
 			const simpleResult = checkTransactionBalance(unbalancedTransactions[0]!, 0.005);
-			expect(simpleResult.difference?.toString()).toBe('-0.05');
+			expect(simpleResult.isBalanced).toBe(false);
+			expect(simpleResult.imbalances.length).toBeGreaterThan(0);
+			const simpleImbalance = simpleResult.imbalances[0];
+			expect(simpleImbalance).toBeDefined();
+			expect(simpleImbalance?.currency).toBe('USD');
+			expect(simpleImbalance?.difference.toString()).toBe('-0.05');
 
 			// Price annotation transaction: -100.00 + (85.00 * 1.15) = -100.00 + 97.75 = -2.25
 			const priceResult = checkTransactionBalance(unbalancedTransactions[1]!, 0.005);
-			expect(priceResult.difference?.toString()).toBe('-2.25');
+			expect(priceResult.isBalanced).toBe(false);
+			expect(priceResult.imbalances.length).toBeGreaterThan(0);
+			const priceImbalance = priceResult.imbalances[0];
+			expect(priceImbalance).toBeDefined();
+			expect(priceImbalance?.currency).toBe('USD');
+			expect(priceImbalance?.difference.toString()).toBe('-2.25');
 
 			// Cost transaction: -1000.00 + (9 * 110.00) = -1000.00 + 990.00 = -10.00
 			const costResult = checkTransactionBalance(unbalancedTransactions[2]!, 0.005);
-			expect(costResult.difference?.toString()).toBe('-10');
+			expect(costResult.isBalanced).toBe(false);
+			expect(costResult.imbalances.length).toBeGreaterThan(0);
+			const costImbalance = costResult.imbalances[0];
+			expect(costImbalance).toBeDefined();
+			expect(costImbalance?.currency).toBe('USD');
+			expect(costImbalance?.difference.toString()).toBe('-10');
 
 			// @@ price transaction: -100.00 + 98.50 = -1.50
 			const totalPriceResult = checkTransactionBalance(unbalancedTransactions[3]!, 0.005);
-			expect(totalPriceResult.difference?.toString()).toBe('-1.5');
+			expect(totalPriceResult.isBalanced).toBe(false);
+			expect(totalPriceResult.imbalances.length).toBeGreaterThan(0);
+			const totalPriceImbalance = totalPriceResult.imbalances[0];
+			expect(totalPriceImbalance).toBeDefined();
+			expect(totalPriceImbalance?.currency).toBe('USD');
+			expect(totalPriceImbalance?.difference.toString()).toBe('-1.5');
 		});
 
 		it('should respect the provided tolerance value', () => {
@@ -674,8 +698,7 @@ describe('Balance Checker', () => {
 
 		// Verify calculation of expressions
 		// 243.00 / 3 = 81.00, so 3 * 81.00 - 243.00 = 0
-		expect(result.currency).toBeUndefined(); // No imbalance detected
-		expect(result.difference).toBeUndefined(); // No difference when balanced
+		expect(result.imbalances.length).toBe(0); // No imbalances when balanced
 	});
 
 	// Additional test to verify expression calculations specifically
@@ -690,7 +713,10 @@ describe('Balance Checker', () => {
 		// Verify the expression was evaluated correctly: 243.00 / 3 = 81.00
 		// We know the balance is 81 CNY as there is only one posting
 		expect(result.isBalanced).toBe(false); // Not balanced with just one posting
-		expect(result.currency).toBe('CNY');
-		expect(result.difference?.toString()).toBe('81'); // The difference is exactly 81
+		expect(result.imbalances.length).toBeGreaterThan(0);
+		const imbalance = result.imbalances[0];
+		expect(imbalance).toBeDefined();
+		expect(imbalance?.currency).toBe('CNY');
+		expect(imbalance?.difference.toString()).toBe('81'); // The difference is exactly 81
 	});
 });
