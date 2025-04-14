@@ -22,7 +22,7 @@ on:
         type: boolean
 
 permissions:
-  contents: read
+  contents: write  # Changed from read to write to allow commits
   packages: read
   
 jobs:
@@ -46,6 +46,9 @@ jobs:
   
       - name: Build packages
         run: pnpm build
+
+      - name: Generate CHANGELOG.md
+        run: node scripts/generate-changelog.js
 
       - name: Package Extension
         run: pnpm --filter beancount-lsp-client vsix ${{ github.event.inputs.prerelease == 'true' && '--pre-release' || '' }}
@@ -81,3 +84,24 @@ jobs:
           pat: ${{ secrets.OPEN_VSIX_PAT }}
           extensionFile: ${{ steps.find-vsix.outputs.vsix_file }}
           preRelease: ${{ github.event.inputs.prerelease == 'true' }}
+      
+      # Commit CHANGELOG.md after successful publish
+      - name: Commit CHANGELOG.md
+        if: success() && github.event.inputs.publish_to_marketplace == 'true'
+        run: |
+          # Configure Git
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Get version from package.json
+          VERSION=$(node -p "require('./packages/lsp-client/package.json').version")
+          
+          # Check if there are changes to the CHANGELOG
+          if git diff --quiet packages/lsp-client/CHANGELOG.md; then
+            echo "No changes to CHANGELOG.md, skipping commit"
+          else
+            echo "Changes detected in CHANGELOG.md, committing..."
+            git add packages/lsp-client/CHANGELOG.md
+            git commit -m "docs: update CHANGELOG.md for v${VERSION}"
+            git push
+          fi
