@@ -38,6 +38,9 @@ export class FormatterFeature implements Feature {
 				const edits = await this.formatBeancountDocument(document);
 				// Workaround, reusing trees after formatting will get a wrong tree
 				this.trees.invalidateCache(params.textDocument.uri);
+				setTimeout(() => {
+					this.trees.invalidateCache(params.textDocument.uri);
+				}, 1000);
 				return edits;
 			} catch (error) {
 				this.logger.error('Error retrieving document for formatting:', error);
