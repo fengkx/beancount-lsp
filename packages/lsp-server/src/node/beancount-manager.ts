@@ -11,13 +11,13 @@ class BeancountManager implements RealBeancountManager {
 
 	constructor(private readonly connection: Connection, private readonly extensionUri: string) {
 		connection.onDidSaveTextDocument(async (_params: DidSaveTextDocumentParams): Promise<void> => {
-			await this.saveBeanCheckResult();
+			await this.revalidateBeanCheck();
 		});
 	}
 
 	async setMainFile(mainFileUri: string): Promise<void> {
 		this.mainFile = URI.parse(mainFileUri).fsPath;
-		await this.saveBeanCheckResult();
+		await this.revalidateBeanCheck();
 	}
 
 	private async runBeanCheck(): Promise<string | null> {
@@ -48,7 +48,7 @@ class BeancountManager implements RealBeancountManager {
 		}
 	}
 
-	private async saveBeanCheckResult(): Promise<void> {
+	private async revalidateBeanCheck(): Promise<void> {
 		this.logger.info('running beancheck');
 		const r = await this.runBeanCheck();
 		this.logger.info('received response for beancheck');
