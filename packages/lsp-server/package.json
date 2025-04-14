@@ -35,7 +35,7 @@
 		"web-tree-sitter": "^0.20.8"
 	},
 	"devDependencies": {
-		"@swc/core": "^1.11.20",
+		"@swc/core": "^1.11.21",
 		"@types/big.js": "^6.2.2",
 		"@types/micromatch": "^4.0.6",
 		"esbuild-plugins-node-modules-polyfill": "^1.7.0",
