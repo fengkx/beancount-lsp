@@ -1,9 +1,18 @@
 import { Logger } from '@bean-lsp/shared';
 import { $ } from 'execa';
 import { trace } from 'node:console';
-import { BeancountManagerFactory, RealBeancountManager } from 'src/common/features/types';
+import { Amount, BeancountManagerFactory, RealBeancountManager } from 'src/common/features/types';
 import { Connection, DidSaveTextDocumentParams } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
+
+interface AccountDetails {
+	open: string;
+	currencies: string[];
+	close: string;
+	balance: string[];
+	balance_incl_subaccounts: string[];
+}
+
 class BeancountManager implements RealBeancountManager {
 	private mainFile: string | null = null;
 	private result_json: any | null = null;
@@ -61,8 +70,45 @@ class BeancountManager implements RealBeancountManager {
 		this.result_json = JSON.parse(r);
 	}
 
-	async getBalance(account: string): Promise<string[]> {
-		return this.result_json?.['general']?.['accounts']?.[account]?.['balance'] ?? [];
+	getBalance(account: string, includeSubaccountBalance: boolean): Amount[] {
+		let accountDetails = this.result_json?.['general']?.['accounts']?.[account] as AccountDetails | null;
+		if (!accountDetails) {
+			return [];
+		}
+
+		const balances = includeSubaccountBalance ? accountDetails.balance_incl_subaccounts : accountDetails.balance;
+
+		return balances.map((balance_str) => {
+			const [number, currency] = balance_str.trim().split(/\s+/) as [string, string];
+			return { number, currency };
+		});
+	}
+
+	getSubaccountBalances(account: string): Map<string, Amount[]> {
+		const accounts = this.result_json?.['general']?.['accounts'];
+
+		const subaccounts = new Map();
+
+		if (!accounts) {
+			return subaccounts;
+		}
+
+		const prefix = account + ':';
+
+		for (const [candidateAccount, value] of Object.entries(accounts)) {
+			if (!candidateAccount.startsWith(prefix) && !(candidateAccount === account)) {
+				continue;
+			}
+
+			const details = value as AccountDetails;
+			const balances = details.balance.map((balance_str) => {
+				const [number, currency] = balance_str.trim().split(/\s+/) as [string, string];
+				return { number, currency };
+			});
+			subaccounts.set(candidateAccount, balances);
+		}
+
+		return subaccounts;
 	}
 
 	async getErrors(): Promise<{ message: string; file: string; line: number }[]> {

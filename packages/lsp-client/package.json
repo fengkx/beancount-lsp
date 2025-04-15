@@ -110,6 +110,11 @@
 					"type": "boolean",
 					"default": true,
 					"description": "Enable or disable automatic formatting of Beancount files. The formatter aligns accounts, amounts (with decimal point alignment), currencies, and comments for improved readability."
+				},
+				"beanLsp.hover.includeSubaccountBalance": {
+					"type": "boolean",
+					"default": false,
+					"description": "Enable or disable the hover window including balances of subaccounts. By default, only show the balance of the hovered account."
 				}
 			}
 		},
