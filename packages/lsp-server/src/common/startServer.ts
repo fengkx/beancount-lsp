@@ -198,7 +198,7 @@ export function startServer(
 
 		if (mainBeanFile) {
 			await symbolIndex.initFiles([mainBeanFile]);
-			beanMgr?.setMainFile?.(mainBeanFile);
+			await beanMgr?.setMainFile?.(mainBeanFile);
 		}
 
 		if (hasConfigurationCapability) {

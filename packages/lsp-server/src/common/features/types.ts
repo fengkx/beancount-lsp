@@ -9,7 +9,7 @@ export interface Feature {
  */
 export interface RealBeancountManager {
 	getBalance(account: string): Promise<string[]>;
-	setMainFile(mainFile: string): void;
+	setMainFile(mainFile: string): Promise<void>;
 }
 
 export type BeancountManagerFactory = (connection: Connection, extensionUri: string) => RealBeancountManager;

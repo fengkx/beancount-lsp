@@ -1,17 +1,26 @@
+import { Logger } from '@bean-lsp/shared';
 import { $ } from 'execa';
+import { trace } from 'node:console';
 import { BeancountManagerFactory, RealBeancountManager } from 'src/common/features/types';
-import { Connection } from 'vscode-languageserver';
+import { Connection, DidSaveTextDocumentParams } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 class BeancountManager implements RealBeancountManager {
 	private mainFile: string | null = null;
+	private result_json: any | null = null;
+	private readonly logger = new Logger('BeancountManager');
 
-	constructor(private readonly connection: Connection, private readonly extensionUri: string) {}
-
-	setMainFile(mainFileUri: string) {
-		this.mainFile = URI.parse(mainFileUri).fsPath;
+	constructor(private readonly connection: Connection, private readonly extensionUri: string) {
+		connection.onDidSaveTextDocument(async (_params: DidSaveTextDocumentParams): Promise<void> => {
+			await this.revalidateBeanCheck();
+		});
 	}
 
-	private async runBeanCheck(output: 'default' | 'errors' | 'flags' = 'default'): Promise<string | null> {
+	async setMainFile(mainFileUri: string): Promise<void> {
+		this.mainFile = URI.parse(mainFileUri).fsPath;
+		await this.revalidateBeanCheck();
+	}
+
+	private async runBeanCheck(): Promise<string | null> {
 		if (!this.mainFile) {
 			return null;
 		}
@@ -31,30 +40,33 @@ class BeancountManager implements RealBeancountManager {
 		try {
 			const extensionUri = URI.parse(this.extensionUri);
 			const checkScript = `${extensionUri.fsPath}/pythonFiles/beancheck.py`;
-			const { stdout } = await $`${python3Path} ${checkScript} ${this.mainFile} --output ${output}`;
+			const { stdout } = await $`${python3Path} ${checkScript} ${this.mainFile}`;
 			return stdout;
 		} catch (error) {
-			console.error('Error running bean-check:', error);
+			this.logger.error('Error running bean-check:', error);
 			return null;
 		}
 	}
 
-	async getBalance(account: string): Promise<string[]> {
+	private async revalidateBeanCheck(): Promise<void> {
+		this.logger.info('running beancheck');
 		const r = await this.runBeanCheck();
+		this.logger.info('received response for beancheck');
+
 		if (!r) {
-			return [];
+			return;
 		}
-		const data = JSON.parse(r);
-		return data?.['accounts']?.[account]?.['balance'] ?? [];
+
+		this.logger.debug(r);
+		this.result_json = JSON.parse(r);
+	}
+
+	async getBalance(account: string): Promise<string[]> {
+		return this.result_json?.['general']?.['accounts']?.[account]?.['balance'] ?? [];
 	}
 
 	async getErrors(): Promise<{ message: string; file: string; line: number }[]> {
-		const r = await this.runBeanCheck('errors');
-		if (!r) {
-			return [];
-		}
-		const data = JSON.parse(r);
-		return data?.['errors'] ?? [];
+		return this.result_json?.['errors'] ?? [];
 	}
 }
 
