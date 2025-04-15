@@ -207,7 +207,15 @@ export class FormatterFeature implements Feature {
 
 				// Analyze integer and decimal parts of the amount
 				const parts = amountText.split('.');
-				const integerPart = parts[0]?.trim() || '';
+				let integerPart = parts[0]?.trim() || '';
+
+				// Clean integer part and calculate width - matching formatPosting logic
+				if (parts.length === 1) {
+					const match = integerPart.match(/^\d+/);
+					if (match) {
+						integerPart = match[0];
+					}
+				}
 				const integerWidth = this.calculateStringWidth(integerPart);
 				maxIntegerWidth = Math.max(maxIntegerWidth, integerWidth);
 
@@ -324,7 +332,7 @@ export class FormatterFeature implements Feature {
 
 			// Clean integer part and calculate width
 			if (parts.length === 1) {
-				integerPart = integerPart.replace(/[^\d]/g, '');
+				integerPart = integerPart.match(/^\d+/)![0];
 			}
 			const integerWidth = this.calculateStringWidth(integerPart);
 
