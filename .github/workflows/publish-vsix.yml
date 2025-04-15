@@ -90,8 +90,8 @@ jobs:
         if: success() && github.event.inputs.publish_to_marketplace == 'true'
         run: |
           # Configure Git
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           
           # Get version from package.json
           VERSION=$(node -p "require('./packages/lsp-client/package.json').version")
