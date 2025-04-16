@@ -4,7 +4,7 @@ import { CancellationTokenSource } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { isInteresting, parallel, StopWatch } from '../common';
 import { DocumentStore } from '../document-store';
-import { SymbolInfoStorage } from '../startServer';
+import { StorageInstance } from '../startServer';
 import { Trees } from '../trees';
 import {
 	getAccountsClose,
@@ -67,7 +67,7 @@ export class SymbolIndex {
 	constructor(
 		private readonly _documents: DocumentStore,
 		private readonly _trees: Trees,
-		private readonly _symbolInfoStorage: SymbolInfoStorage,
+		private readonly _symbolInfoStorage: StorageInstance<SymbolInfo>,
 		private readonly _optionsManager: BeancountOptionsManager,
 		private readonly _historyContext: HistoryContext,
 	) {
@@ -117,7 +117,7 @@ export class SymbolIndex {
 		const sw = new StopWatch();
 		this.logger.debug(`[index] initializing index for ${uris.size} files.`);
 
-		const all = await this._symbolInfoStorage.findAsync({});
+		const all = await this._symbolInfoStorage.findAsync<SymbolInfo>({});
 		const urisInStore = new Set(all.map((info: { _uri: string }) => info._uri));
 
 		const newUris = difference(uris, urisInStore);
@@ -374,7 +374,7 @@ export class SymbolIndex {
 
 	public async getAccountDefinitions(): Promise<import('@seald-io/nedb').Document<SymbolInfo[]>> {
 		this.logger.debug('[index] Getting account definitions');
-		const accountDefinitions = this._symbolInfoStorage.findAsync({ _symType: 'account_definition' });
+		const accountDefinitions = this._symbolInfoStorage.findAsync<SymbolInfo>({ _symType: 'account_definition' });
 		accountDefinitions.then(defs => this.logger.debug(`[index] Found ${defs.length} account definitions`));
 		return accountDefinitions;
 	}
