@@ -126,7 +126,7 @@ export class DiagnosticsFeature implements Feature {
 			return;
 		}
 
-		let diagnosticsFromBeancount: { [uri: string]: Diagnostic[] } = {};
+		let diagnosticsFromBeancount: Record<string, Diagnostic[]> = {};
 
 		const errors = this.beanMgr.getErrors();
 		const flags = this.beanMgr.getFlagged();

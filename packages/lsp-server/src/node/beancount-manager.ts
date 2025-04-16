@@ -23,7 +23,14 @@ interface AccountDetails {
 interface BeancheckOutput {
 	errors: BeancountError[];
 	flags: BeancountFlag[];
-	general: any;
+	general?: {
+		accounts: Record<string, AccountDetails>;
+		commodities: string[];
+		payees: string[];
+		narrations: string[];
+		tags: string[];
+		links: string[];
+	};
 }
 
 class BeancountManager implements RealBeancountManager {
@@ -85,7 +92,7 @@ class BeancountManager implements RealBeancountManager {
 	}
 
 	getBalance(account: string, includeSubaccountBalance: boolean): Amount[] {
-		let accountDetails = this.result?.['general']?.['accounts']?.[account] as AccountDetails | null;
+		let accountDetails = this.result?.general?.accounts?.[account] as AccountDetails | null;
 		if (!accountDetails) {
 			return [];
 		}
@@ -99,7 +106,7 @@ class BeancountManager implements RealBeancountManager {
 	}
 
 	getSubaccountBalances(account: string): Map<string, Amount[]> {
-		const accounts = this.result?.['general']?.['accounts'];
+		const accounts = this.result?.general?.accounts;
 
 		const subaccounts = new Map();
 
