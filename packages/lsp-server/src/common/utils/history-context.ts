@@ -37,7 +37,10 @@ export class HistoryContext {
 		const transactionNodes = await TreeQuery.getQueryByTokenName('transaction').matches(tree.rootNode);
 
 		for (const match of transactionNodes) {
-			const node = match.captures[0].node;
+			const node = match.captures?.[0]?.node;
+			if (!node) {
+				continue;
+			}
 
 			// Extract payee
 			const payeeNode = node.children.find(child => child.type === 'payee');

@@ -17,7 +17,8 @@
 		"pre-commit": "pnpm nano-staged"
 	},
 	"nano-staged": {
-		"*.{ts,tsx,js,jsx,cjs,mjs,json,md}": "pnpm dprint fmt"
+		"*.{ts,tsx,js,jsx,cjs,mjs,json,md}": "pnpm dprint fmt",
+		"*.{ts,tsx,js,jsx,cjs,mjs}": "pnpm eslint --fix"
 	},
 	"keywords": [
 		"beancount",

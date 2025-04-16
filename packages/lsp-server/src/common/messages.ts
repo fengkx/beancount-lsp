@@ -1,21 +1,14 @@
 import { CustomMessages, Logger } from '@bean-lsp/shared';
-import { CustomMessagesSchema } from '@bean-lsp/shared';
 import { Connection } from 'vscode-languageserver';
-import { z } from 'zod';
 import { DocumentStore } from './document-store';
 import { SymbolIndex } from './features/symbol-index';
-import { TreeQuery } from './language';
-import { Trees } from './trees';
 
 const logger = new Logger('CustomMessages');
 
-type Response = z.infer<typeof CustomMessagesSchema.GetHistoryContext.response>;
-
 export function registerCustomMessageHandlers(
 	connection: Connection,
-	documentStore: DocumentStore,
+	_documentStore: DocumentStore,
 	symbolIndex: SymbolIndex,
-	trees: Trees,
 ): void {
 	// Get history context
 	connection.onRequest(CustomMessages.GetHistoryContext, async () => {
