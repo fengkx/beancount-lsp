@@ -1,13 +1,11 @@
 import * as vscode from 'vscode';
 import type { LanguageModelTool } from 'vscode';
-import type { BaseLanguageClient } from 'vscode-languageclient';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { ExtensionContext } from '../../types';
 export abstract class ToolImpl<T> implements LanguageModelTool<T> {
 	constructor(
 		protected readonly ctx: ExtensionContext<'browser' | 'node'>,
-		protected readonly client: BaseLanguageClient,
 	) {
 	}
 

@@ -50,7 +50,7 @@ export class GetAccountsTool extends ToolImpl<Request> {
 		options: vscode.LanguageModelToolInvocationOptions<Request>,
 		_token: vscode.CancellationToken,
 	): Promise<vscode.LanguageModelToolResult> {
-		const accounts = await this.client.sendRequest<Response>(CustomMessages.GetAccounts, options.input);
+		const accounts = await this.ctx.client.sendRequest<Response>(CustomMessages.GetAccounts, options.input);
 		return {
 			content: [
 				new vscode.LanguageModelTextPart(accounts.join('\n')),

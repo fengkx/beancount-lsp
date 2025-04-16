@@ -335,7 +335,7 @@ export function setupInlayHints(ctx: ExtensionContext<'browser' | 'node'>): void
 
 export function setupLLMFeatures(ctx: ExtensionContext<'browser' | 'node'>): void {
 	for (const tool of tools) {
-		const instance = new tool(ctx, ctx.client);
+		const instance = new tool(ctx);
 		instance.register();
 	}
 }

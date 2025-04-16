@@ -50,7 +50,7 @@ export class GetHistoryContextTool extends ToolImpl<Request> {
 		options: vscode.LanguageModelToolInvocationOptions<Request>,
 		_token: vscode.CancellationToken,
 	): Promise<vscode.LanguageModelToolResult> {
-		const history = await this.client.sendRequest<Response>(
+		const history = await this.ctx.client.sendRequest<Response>(
 			CustomMessages.GetHistoryContext,
 			options.input,
 		);
