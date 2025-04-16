@@ -1,5 +1,5 @@
 import { Logger } from '@bean-lsp/shared';
-import { $ } from 'execa';
+import { $, execa } from 'execa';
 import {
 	Amount,
 	BeancountError,
@@ -35,12 +35,10 @@ interface BeancheckOutput {
 class BeancountManager implements RealBeancountManager {
 	private mainFile: string | null = null;
 	private result: BeancheckOutput | null = null;
-	private readonly logger = new Logger('BeancountManager');
+	private logger = new Logger('BeancountManager');
 
-	constructor(private readonly connection: Connection, private readonly extensionUri: string) {
-		connection.onDidSaveTextDocument(async (_params: DidSaveTextDocumentParams): Promise<void> => {
-			await this.revalidateBeanCheck();
-		});
+	constructor(private connection: Connection, private extensionUri: string) {
+		connection.onDidSaveTextDocument(this.onDocumentSaved.bind(this));
 	}
 
 	async setMainFile(mainFileUri: string): Promise<void> {
@@ -48,14 +46,10 @@ class BeancountManager implements RealBeancountManager {
 		await this.revalidateBeanCheck();
 	}
 
-	private async runBeanCheck(): Promise<string | null> {
-		if (!this.mainFile) {
-			return null;
-		}
-
+	async getPython3Path(): Promise<string> {
 		const config = await this.connection.workspace.getConfiguration('beancount');
-
 		let python3Path = config.python3Path || 'python3';
+
 		if (python3Path !== 'python3' && !python3Path.startsWith('/')) {
 			const workspaceFolders = await this.connection.workspace.getWorkspaceFolders();
 			if (workspaceFolders && workspaceFolders.length > 0) {
@@ -64,6 +58,16 @@ class BeancountManager implements RealBeancountManager {
 				python3Path = `${workspacePath}/${python3Path}`;
 			}
 		}
+
+		return python3Path;
+	}
+
+	private async runBeanCheck(): Promise<string | null> {
+		if (!this.mainFile) {
+			return null;
+		}
+
+		const python3Path = await this.getPython3Path();
 
 		try {
 			const extensionUri = URI.parse(this.extensionUri);
@@ -88,6 +92,18 @@ class BeancountManager implements RealBeancountManager {
 		this.logger.debug(r);
 		this.result = JSON.parse(r) as BeancheckOutput;
 		globalEventBus.emit(GlobalEvents.BeancountUpdate);
+	}
+
+	private onDocumentSaved(params: DidSaveTextDocumentParams): void {
+		if (!this.mainFile) {
+			return;
+		}
+		// Only check bean files
+		if (!params.textDocument.uri.endsWith('.bean') && !params.textDocument.uri.endsWith('.beancount')) {
+			return;
+		}
+
+		this.revalidateBeanCheck();
 	}
 
 	getBalance(account: string, includeSubaccountBalance: boolean): Amount[] {
@@ -137,6 +153,25 @@ class BeancountManager implements RealBeancountManager {
 
 	getFlagged(): BeancountFlag[] {
 		return this.result?.flags ?? [];
+	}
+
+	async runQuery(query: string): Promise<string> {
+		if (!this.mainFile) {
+			throw new Error('No main file set. Please set a main Beancount file first.');
+		}
+
+		const python3Path = await this.getPython3Path();
+		const { stdout: prefix } = await $`${python3Path} -c ${'import sys; print(sys.prefix)'}`;
+
+		this.logger.info(`Running bean-query: ${query}`);
+
+		const { stdout } = await execa({
+			extendEnv: true,
+			env: {
+				PATH: `${prefix}/bin` + ':' + process.env['PATH'],
+			},
+		})`bean-query ${this.mainFile} ${query}`;
+		return stdout;
 	}
 }
 

@@ -13,6 +13,10 @@
 		"./messages": {
 			"types": "./out/messages.d.ts",
 			"default": "./out/messages.js"
+		},
+		"./constraint/*": {
+			"types": "./out/constraint/*.d.ts",
+			"default": "./out/constraint/*.js"
 		}
 	},
 	"scripts": {
@@ -24,8 +28,9 @@
 		"format:fix": "dprint fmt"
 	},
 	"dependencies": {
-		"web-tree-sitter": "^0.20.8",
-		"tree-sitter-beancount": "npm:@fengkx/tree-sitter-beancount"
+		"proper-tags": "^2.0.2",
+		"tree-sitter-beancount": "npm:@fengkx/tree-sitter-beancount",
+		"web-tree-sitter": "^0.20.8"
 	},
 	"keywords": [],
 	"author": "",

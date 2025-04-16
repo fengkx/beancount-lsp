@@ -182,7 +182,7 @@ export function startServer(
 		});
 
 		// Add this code to register our custom message handlers
-		registerCustomMessageHandlers(connection, documents, symbolIndex);
+		registerCustomMessageHandlers(connection, documents, symbolIndex, beanMgr);
 
 		return result;
 	});

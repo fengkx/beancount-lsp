@@ -197,6 +197,9 @@ importers:
 
   packages/shared:
     dependencies:
+      proper-tags:
+        specifier: ^2.0.2
+        version: 2.0.2
       tree-sitter-beancount:
         specifier: npm:@fengkx/tree-sitter-beancount
         version: '@fengkx/tree-sitter-beancount@0.0.1'
@@ -2517,6 +2520,10 @@ packages:
 
   process-nextick-args@2.0.1:
     resolution: {integrity: sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag==}
+
+  proper-tags@2.0.2:
+    resolution: {integrity: sha512-rpgQb3JC9uWAogm9J3G6heeg7n/Gq82GZKaFt080JPVbydKvGW6ECj9Ui1a6taTFv9Oa+dq9GMhHeOJyxxaURA==}
+    engines: {node: '>=12.0.0'}
 
   pump@3.0.2:
     resolution: {integrity: sha512-tUPXtzlGM8FE3P0ZL6DVs/3P58k9nk8/jZeQCurTJylQA8qFYzHFfhBJkuqyE0FifOsQ0uKWekiZ5g8wtr28cw==}
@@ -5358,6 +5365,8 @@ snapshots:
       parse-ms: 4.0.0
 
   process-nextick-args@2.0.1: {}
+
+  proper-tags@2.0.2: {}
 
   pump@3.0.2:
     dependencies:

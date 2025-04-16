@@ -31,7 +31,7 @@ export class GetHistoryContextTool extends ToolImpl<Request> {
 	}
 
 	public static get canBeReferencedInPrompt(): boolean {
-		return true;
+		return false;
 	}
 
 	public static get toolReferenceName(): string {

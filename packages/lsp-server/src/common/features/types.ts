@@ -31,6 +31,7 @@ export interface RealBeancountManager {
 	getErrors(): BeancountError[];
 	getFlagged(): BeancountFlag[];
 	setMainFile(mainFile: string): Promise<void>;
+	runQuery(query: string): Promise<string>;
 }
 
 export type BeancountManagerFactory = (connection: Connection, extensionUri: string) => RealBeancountManager;
