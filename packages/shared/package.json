@@ -5,6 +5,16 @@
 	"private": true,
 	"main": "out/index.js",
 	"typings": "out/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./out/index.d.ts",
+			"default": "./out/index.js"
+		},
+		"./messages": {
+			"types": "./out/messages.d.ts",
+			"default": "./out/messages.js"
+		}
+	},
 	"scripts": {
 		"build": "tsc -b",
 		"watch": "tsc -b --watch",

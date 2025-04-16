@@ -7,6 +7,7 @@ import {
 	setupConfigurationWatchers,
 	setupCustomMessageHandlers,
 	setupInlayHints,
+	setupLLMFeatures,
 	setupLogger,
 	setupQueueInit,
 	setupStatusBar,
@@ -72,6 +73,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
 		// Setup inlay hints
 		setupInlayHints(extensionContext);
+
+		setupLLMFeatures(extensionContext);
 
 		// Log when the extension is activated
 		clientLogger.info('Beancount LSP extension is now active (browser)');

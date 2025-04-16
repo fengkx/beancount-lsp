@@ -29,8 +29,10 @@ import Db from '@seald-io/nedb';
 import { SymbolInfo } from './features/symbol-extractors';
 import { SymbolIndex } from './features/symbol-index';
 import { setWasmFilePath } from './language';
+import { registerCustomMessageHandlers } from './messages';
 import { BeancountOptionsManager } from './utils/beancount-options';
 import { globalEventBus, GlobalEvents } from './utils/event-bus';
+import { HistoryContext } from './utils/history-context';
 export type SymbolInfoStorage = Db<SymbolInfo>;
 
 export interface IStorageFactory {
@@ -128,7 +130,8 @@ export function startServer(
 		documents = new DocumentStore(connection);
 		const trees = new Trees(documents, options.webTreeSitterWasmPath!);
 		const optionsManager = BeancountOptionsManager.getInstance();
-		symbolIndex = new SymbolIndex(documents, trees, symbolStorage, optionsManager);
+		const historyContext = new HistoryContext(trees);
+		symbolIndex = new SymbolIndex(documents, trees, symbolStorage, optionsManager, historyContext);
 
 		// 创建PriceMap实例
 		const priceMap = new PriceMap(symbolIndex, trees, documents);
@@ -177,6 +180,9 @@ export function startServer(
 			}
 			symbolIndex.unleashFiles([]);
 		});
+
+		// Add this code to register our custom message handlers
+		registerCustomMessageHandlers(connection, documents, symbolIndex);
 
 		return result;
 	});

@@ -20,14 +20,19 @@ export class Trees {
 
 	private readonly _webTreeSitterWasmPath?: string;
 
-	constructor(private readonly _documents: DocumentStore, webTreeSitterWasmPath: string) {
+	constructor(
+		private readonly _documents: DocumentStore,
+		webTreeSitterWasmPath: string,
+	) {
 		// build edits when document changes
-		this._listener.push(_documents.onDidChangeContent2(e => {
-			const info = this._cache.get(e.document.uri);
-			if (info) {
-				info.edits.push(Trees.asEdits(e));
-			}
-		}));
+		this._listener.push(
+			_documents.onDidChangeContent2((e) => {
+				const info = this._cache.get(e.document.uri);
+				if (info) {
+					info.edits.push(Trees.asEdits(e));
+				}
+			}),
+		);
 		this._webTreeSitterWasmPath = webTreeSitterWasmPath;
 	}
 
@@ -40,7 +45,9 @@ export class Trees {
 		return parser;
 	}
 
-	async getParseTree(documentOrUri: TextDocument | string): Promise<Parser.Tree | undefined> {
+	async getParseTree(
+		documentOrUri: TextDocument | string,
+	): Promise<Parser.Tree | undefined> {
 		if (typeof documentOrUri === 'string') {
 			documentOrUri = await this._documents.retrieve(documentOrUri);
 		}
@@ -64,7 +71,7 @@ export class Trees {
 				const oldTree = info.tree;
 
 				const deltas = info.edits.flat();
-				deltas.forEach(delta => oldTree.edit(delta));
+				deltas.forEach((delta) => oldTree.edit(delta));
 				info.edits.length = 0;
 
 				info.tree = parser.parse(text, oldTree);
@@ -75,7 +82,9 @@ export class Trees {
 			return info.tree;
 		} catch (e) {
 			const errorObj = e as Error;
-			console.error(`[trees] Error parsing document: ${documentOrUri.uri} ${errorObj} ${errorObj.stack || ''}`);
+			console.error(
+				`[trees] Error parsing document: ${documentOrUri.uri} ${errorObj} ${errorObj.stack || ''}`,
+			);
 			console.error(`[trees] Error parsing text: ${documentOrUri.getText()}`);
 			this._cache.delete(documentOrUri.uri);
 			return undefined;
@@ -83,10 +92,12 @@ export class Trees {
 	}
 
 	private static asEdits(event: TextDocumentChange2): Parser.Edit[] {
-		return event.changes.map(change => ({
+		return event.changes.map((change) => ({
 			startPosition: this.asTsPoint(change.range.start),
 			oldEndPosition: this.asTsPoint(change.range.end),
-			newEndPosition: this.asTsPoint(event.document.positionAt(change.rangeOffset + change.text.length)),
+			newEndPosition: this.asTsPoint(
+				event.document.positionAt(change.rangeOffset + change.text.length),
+			),
 			startIndex: change.rangeOffset,
 			oldEndIndex: change.rangeOffset + change.rangeLength,
 			newEndIndex: change.rangeOffset + change.text.length,

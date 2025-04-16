@@ -3,7 +3,9 @@
 	"extends": "../../tsconfig.json",
 	"compilerOptions": {
 		"noEmit": true,
-		"module": "commonjs",
+		"rootDir": ".",
+		"moduleResolution": "bundler",
+		"module": "Preserve",
 		"target": "ES2022",
 		"outDir": "out",
 		"lib": ["ES2020"],

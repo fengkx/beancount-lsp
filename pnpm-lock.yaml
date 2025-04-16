@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      zod:
+        specifier: ^3.24.2
+        version: 3.24.2
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.3.1
@@ -102,15 +106,27 @@ importers:
       '@vscode/vsce':
         specifier: ^3.3.2
         version: 3.3.2
+      dprint:
+        specifier: ^0.49.1
+        version: 0.49.1
       esbuild-plugins-node-modules-polyfill:
         specifier: ^1.7.0
         version: 1.7.0(esbuild@0.25.2)
+      execa:
+        specifier: ^9.5.2
+        version: 9.5.2
       glob:
         specifier: ^11.0.1
         version: 11.0.1
       mocha:
         specifier: ^11.1.0
         version: 11.1.0
+      vitest:
+        specifier: ^3.1.1
+        version: 3.1.1(@types/node@22.14.1)(tsx@4.19.3)
+      zod-to-json-schema:
+        specifier: ^3.24.5
+        version: 3.24.5(zod@3.24.2)
 
   packages/lsp-server:
     dependencies:
@@ -3135,6 +3151,14 @@ packages:
     resolution: {integrity: sha512-GQHQqAopRhwU8Kt1DDM8NjibDXHC8eoh1erhGAJPEyveY9qqVeXvVikNKrDz69sHowPMorbPUrH/mx8c50eiBQ==}
     engines: {node: '>=18'}
 
+  zod-to-json-schema@3.24.5:
+    resolution: {integrity: sha512-/AuWwMP+YqiPbsJx5D6TfgRTc4kTLjsh5SOcd4bLsfUg2RcEXrFMJl1DGgdHy2aCfsIA/cr/1JM0xcB2GZji8g==}
+    peerDependencies:
+      zod: ^3.24.1
+
+  zod@3.24.2:
+    resolution: {integrity: sha512-lY7CDW43ECgW9u1TcT3IoXHflywfVqDYze4waEz812jR/bZ8FHDsl7pFQoSZTz5N+2NqRXs8GBwnAwo3ZNxqhQ==}
+
 snapshots:
 
   '@azure/abort-controller@2.1.2':
@@ -6022,3 +6046,9 @@ snapshots:
   yocto-queue@0.1.0: {}
 
   yoctocolors@2.1.1: {}
+
+  zod-to-json-schema@3.24.5(zod@3.24.2):
+    dependencies:
+      zod: 3.24.2
+
+  zod@3.24.2: {}

@@ -26,6 +26,7 @@ import { Logger } from '@bean-lsp/shared';
 import { URI, Utils as UriUtils } from 'vscode-uri';
 import { TreeQuery } from '../language';
 import { BeancountOptionsManager, SupportedOption } from '../utils/beancount-options';
+import type { HistoryContext } from '../utils/history-context';
 import { SwrCache, SwrOptions } from '../utils/swr';
 
 class Queue {
@@ -68,6 +69,7 @@ export class SymbolIndex {
 		private readonly _trees: Trees,
 		private readonly _symbolInfoStorage: SymbolInfoStorage,
 		private readonly _optionsManager: BeancountOptionsManager,
+		private readonly _historyContext: HistoryContext,
 	) {
 		// Initialize SWR caches
 		this._payeesCache = new SwrCache(() => this._fetchPayees(), 'index.payees');
@@ -287,6 +289,8 @@ export class SymbolIndex {
 					this.addFile(uri);
 				});
 			});
+
+			await this._historyContext.extractFromDocument(document);
 
 			if (hasNew) {
 				setTimeout(() => {
@@ -540,5 +544,9 @@ export class SymbolIndex {
 	 */
 	public getOption(name: SupportedOption) {
 		return this._optionsManager.getOption(name);
+	}
+
+	public getAllContexts() {
+		return this._historyContext.getAllContexts();
 	}
 }

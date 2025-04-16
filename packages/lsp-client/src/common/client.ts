@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 // Import from base package for shared types between node and browser
 import { LanguageClientOptions, State } from 'vscode-languageclient';
 import { Utils as UriUtils } from 'vscode-uri';
+import { tools } from './llm/tools';
 import { ClientOptions, ExtensionContext } from './types';
 
 // Create a client logger
@@ -329,5 +330,12 @@ export function setupInlayHints(ctx: ExtensionContext<'browser' | 'node'>): void
 			// Request a refresh of inlay hints
 			ctx.client.sendNotification('workspace/inlayHint/refresh');
 		}
+	}
+}
+
+export function setupLLMFeatures(ctx: ExtensionContext<'browser' | 'node'>): void {
+	for (const tool of tools) {
+		const instance = new tool(ctx, ctx.client);
+		instance.register();
 	}
 }
