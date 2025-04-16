@@ -103,5 +103,7 @@ jobs:
             echo "Changes detected in CHANGELOG.md, committing..."
             git add packages/lsp-client/CHANGELOG.md
             git commit -m "docs: update CHANGELOG.md for v${VERSION}"
+            git tag -a v${VERSION} -m "v${VERSION}"
             git push
+            git push --tags
           fi
