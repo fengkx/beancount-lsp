@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.56
+
+- chore: bump lsp-client version to 0.0.56
+- feat: Try to add AI Assistant Integration with Language Model Tools (#37)
+- fix: changelog pipeline
+
 ## v0.0.55
 
 - chore: bump lsp-client version to 0.0.55
