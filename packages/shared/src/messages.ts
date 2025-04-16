@@ -7,6 +7,7 @@ export namespace CustomMessages {
 
 	export const QueueInit = 'beanLspCustom/queueInit' as const;
 	export const GetAccounts = 'beanLspCustom/getAccounts' as const;
+	export const GetHistoryContext = 'beanLspCustom/getHistoryContext' as const;
 }
 
 export namespace CustomMessagesSchema {
@@ -14,8 +15,15 @@ export namespace CustomMessagesSchema {
 		request: z.object({
 			query: z.string().optional(),
 		}),
-		response: z.object({
+		response: z.array(z.string()),
+	};
+
+	export const GetHistoryContext = {
+		request: z.object({}),
+		response: z.array(z.object({
+			payee: z.string(),
+			narration: z.string(),
 			accounts: z.array(z.string()),
-		}),
+		})),
 	};
 }

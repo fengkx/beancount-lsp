@@ -32,6 +32,7 @@ import { setWasmFilePath } from './language';
 import { registerCustomMessageHandlers } from './messages';
 import { BeancountOptionsManager } from './utils/beancount-options';
 import { globalEventBus, GlobalEvents } from './utils/event-bus';
+import { HistoryContext } from './utils/history-context';
 export type SymbolInfoStorage = Db<SymbolInfo>;
 
 export interface IStorageFactory {
@@ -129,7 +130,8 @@ export function startServer(
 		documents = new DocumentStore(connection);
 		const trees = new Trees(documents, options.webTreeSitterWasmPath!);
 		const optionsManager = BeancountOptionsManager.getInstance();
-		symbolIndex = new SymbolIndex(documents, trees, symbolStorage, optionsManager);
+		const historyContext = new HistoryContext(trees);
+		symbolIndex = new SymbolIndex(documents, trees, symbolStorage, optionsManager, historyContext);
 
 		// 创建PriceMap实例
 		const priceMap = new PriceMap(symbolIndex, trees, documents);

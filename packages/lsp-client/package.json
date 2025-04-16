@@ -14,7 +14,9 @@
 		"vscode": "^1.86.0"
 	},
 	"categories": [
-		"Programming Languages"
+		"Programming Languages",
+		"AI",
+		"Other"
 	],
 	"browser": "./dist/browser/extension.js",
 	"main": "./dist/node/extension.js",
@@ -251,11 +253,56 @@
 				"command": "extension.restartBeancountLanguageServer",
 				"title": "BeanLsp: Restart Beancount Language Server"
 			}
+		],
+		"languageModelTools": [
+			{
+				"name": "get-beancount-accounts",
+				"displayName": "Get Beancount Accounts",
+				"modelDescription": "Retrieves a list of all accounts, response in plain text, each line is an account",
+				"userDescription": "Get a list of accounts from your Beancount ledger",
+				"canBeReferencedInPrompt": true,
+				"toolReferenceName": "beancountAccounts",
+				"icon": "$(account)",
+				"tags": [
+					"beancount",
+					"finance"
+				],
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string"
+						}
+					},
+					"additionalProperties": false,
+					"$schema": "http://json-schema.org/draft-07/schema#"
+				}
+			},
+			{
+				"name": "get-beancount-history-context",
+				"displayName": "Beancount History Context",
+				"modelDescription": "Retrieves historical transaction context including payee, narration and accounts. When generating transaction, use this tool to get the historical context. Reuse payee and narration when suitable. IMPORTANT: You must only use existing accounts from the returned results, do not make up new accounts.",
+				"userDescription": "Get historical transaction context from your Beancount ledger",
+				"canBeReferencedInPrompt": true,
+				"toolReferenceName": "beancountHistoryContext",
+				"icon": "$(history)",
+				"tags": [
+					"beancount",
+					"finance",
+					"history"
+				],
+				"inputSchema": {
+					"type": "object",
+					"properties": {},
+					"additionalProperties": false,
+					"$schema": "http://json-schema.org/draft-07/schema#"
+				}
+			}
 		]
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run build",
-		"build": "tsup",
+		"build": "vitest run scripts/update-input-schema.spec.mts  && tsup",
 		"typecheck": "tsc --noEmit true",
 		"test-compile": "tsc -p ./ && npm run copy:asset",
 		"copy:asset": "cp src/queries/*.scm out/queries",
@@ -273,9 +320,13 @@
 		"@types/vscode": "^1.86.0",
 		"@vscode/test-electron": "^2.5.2",
 		"@vscode/vsce": "^3.3.2",
+		"dprint": "^0.49.1",
 		"esbuild-plugins-node-modules-polyfill": "^1.7.0",
+		"execa": "^9.5.2",
 		"glob": "^11.0.1",
-		"mocha": "^11.1.0"
+		"mocha": "^11.1.0",
+		"vitest": "^3.1.1",
+		"zod-to-json-schema": "^3.24.5"
 	},
 	"dependencies": {
 		"@bean-lsp/shared": "workspace:*",
