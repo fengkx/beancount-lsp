@@ -1,14 +1,14 @@
 import Db from '@seald-io/nedb';
-import { IStorageFactory, SymbolInfoStorage } from '../common/startServer';
+import { IStorageFactory, StorageInstance } from '../common/startServer';
 
 /**
  * Browser implementation of StorageFactory using in-memory database
  * Note: This does not persist data between sessions
  */
-class BrowserStorageFactory implements IStorageFactory {
-	private dbs = new Map<string, SymbolInfoStorage>();
+class BrowserStorageFactory<T> implements IStorageFactory<T> {
+	private dbs = new Map<string, StorageInstance<T>>();
 
-	async create(name: string): Promise<SymbolInfoStorage> {
+	async create<T>(name: string): Promise<StorageInstance<T>> {
 		// Create the database with the given name as filename
 		// Use inMemoryOnly: true to ensure we don't try to persist to disk in browser environment
 		const db = new Db({
@@ -23,7 +23,7 @@ class BrowserStorageFactory implements IStorageFactory {
 		return db;
 	}
 
-	async destroy(index: SymbolInfoStorage): Promise<void> {
+	async destroy(index: StorageInstance<T>): Promise<void> {
 		// Find the name of the database
 		let dbName: string | undefined;
 
@@ -42,4 +42,4 @@ class BrowserStorageFactory implements IStorageFactory {
 	}
 }
 
-export const factory: IStorageFactory = new BrowserStorageFactory();
+export const factory: IStorageFactory<unknown> = new BrowserStorageFactory();

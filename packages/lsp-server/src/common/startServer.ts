@@ -33,11 +33,11 @@ import { registerCustomMessageHandlers } from './messages';
 import { BeancountOptionsManager } from './utils/beancount-options';
 import { globalEventBus, GlobalEvents } from './utils/event-bus';
 import { HistoryContext } from './utils/history-context';
-export type SymbolInfoStorage = Db<SymbolInfo>;
+export type StorageInstance<T> = Db<T>;
 
-export interface IStorageFactory {
-	create(name: string, prefix?: string): Promise<SymbolInfoStorage>;
-	destroy(index: SymbolInfoStorage): Promise<void>;
+export interface IStorageFactory<T> {
+	create<T>(name: string, prefix?: string): Promise<StorageInstance<T>>;
+	destroy(index: StorageInstance<T>): Promise<void>;
 }
 
 export interface ServerOptions {
@@ -50,7 +50,7 @@ const serverLogger = new Logger('Server');
 
 export function startServer(
 	connection: Connection,
-	factory: IStorageFactory,
+	factory: IStorageFactory<unknown>,
 	beanMgrFactory: BeancountManagerFactory | undefined,
 	options: ServerOptions = {},
 ): void {
@@ -123,7 +123,10 @@ export function startServer(
 			setWasmFilePath(options.webTreeSitterWasmPath);
 		}
 
-		const symbolStorage = await factory.create('_beancount_lsp_db', params.initializationOptions?.globalStorageUri);
+		const symbolStorage = await factory.create<SymbolInfo>(
+			'_beancount_lsp_db',
+			params.initializationOptions?.globalStorageUri,
+		);
 		await symbolStorage.autoloadPromise;
 		connection.onExit(() => factory.destroy(symbolStorage));
 
