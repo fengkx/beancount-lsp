@@ -47,5 +47,8 @@
 		"turbo": "^2.5.0",
 		"type-fest": "^4.39.1",
 		"typescript": "^5.8.3"
+	},
+	"dependencies": {
+		"zod": "^3.24.2"
 	}
 }

@@ -33,6 +33,14 @@ It can be run fully in a browser, which means you can use it in [VSCode for Web]
 
 - **Rename Symbol**: Safely rename accounts, commodities, tags, and payees across your entire codebase ([rename](https://microsoft.github.io/language-server-protocol/specification/#textDocument_rename))
 
+### AI Assistant Integration
+
+- **Ledger Chat**: Chat with your Beancount ledger using natural language to ask questions about your accounts, transactions, and financial status
+- **Account Analysis**: Ask questions about account balance history, trends, and spending patterns
+- **Transaction Search**: Find transactions using natural language queries instead of complex filters
+- **Financial Insights**: Get insights and summaries about your financial data without writing queries
+- **Account References**: Access all your Beancount accounts from AI chat for easy reference and validation
+
 ## Configuration
 
 The extension provides several configuration options to customize its behavior:

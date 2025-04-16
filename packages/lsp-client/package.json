@@ -22,7 +22,10 @@
 		"untrustedWorkspaces": {
 			"supported": true
 		},
-		"virtualWorkspaces": true
+		"virtualWorkspaces": true,
+		"languageModel": {
+			"supported": true
+		}
 	},
 	"contributes": {
 		"languages": [

@@ -29,6 +29,7 @@ import Db from '@seald-io/nedb';
 import { SymbolInfo } from './features/symbol-extractors';
 import { SymbolIndex } from './features/symbol-index';
 import { setWasmFilePath } from './language';
+import { registerCustomMessageHandlers } from './messages';
 import { BeancountOptionsManager } from './utils/beancount-options';
 import { globalEventBus, GlobalEvents } from './utils/event-bus';
 export type SymbolInfoStorage = Db<SymbolInfo>;
@@ -177,6 +178,9 @@ export function startServer(
 			}
 			symbolIndex.unleashFiles([]);
 		});
+
+		// Add this code to register our custom message handlers
+		registerCustomMessageHandlers(connection, documents, symbolIndex);
 
 		return result;
 	});
