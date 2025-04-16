@@ -1,4 +1,4 @@
-import { vi, it } from 'vitest';
+import { vi, it, expect } from 'vitest';
 import { tools } from "../src/common/llm/tools";
 import { writeFile, readFile } from 'fs/promises';
 import { $ } from "execa";
@@ -25,10 +25,12 @@ async function updateInputSchema() {
     packageJsonObject['contributes']['languageModelTools'] = toolDeclartions;
     await writeFile(packageJsonUri, JSON.stringify(packageJsonObject, null, 2));
     await $`npx dprint fmt ${packageJsonUri.pathname}`
+    console.log('Updated input schema');
 
 
 }
 
 it('should update the input schema', async () => {
-    await updateInputSchema();
-})
+    expect(await updateInputSchema()).toBeUndefined();
+
+}, { timeout: 10 * 1000 })
