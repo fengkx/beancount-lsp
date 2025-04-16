@@ -1,15 +1,30 @@
 import js from '@eslint/js';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
+import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
 import importXPlugin from 'eslint-plugin-import-x';
 import turboPlugin from 'eslint-plugin-turbo';
 import unusedImportsPlugin from 'eslint-plugin-unused-imports';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import globals from 'globals';
+import fs from 'node:fs';
+
+const gitIgnore = fs.readFileSync('.gitignore', 'utf8');
+const gitIgnoreLines = gitIgnore.split('\n').filter(line => line.trim() !== '').map(line => {
+	if (!line.startsWith('/') && !line.startsWith('**/')) {
+		return `**/${line}`;
+	}
+	return line;
+});
+
+const importResolver = createTypeScriptImportResolver({
+	project: ['./tsconfig.json', './packages/*/tsconfig.json'],
+});
 
 export default defineConfig([
 	// Global ignores
 	globalIgnores([
+		...gitIgnoreLines,
 		'eslint.config.mjs',
 		'packages/tree-sitter-beancount/bindings/**/*',
 		'packages/**/dist',
@@ -35,9 +50,7 @@ export default defineConfig([
 		},
 
 		settings: {
-			'import-x/resolver': {
-				typescript: true,
-			},
+			'import-x/resolver-next': importResolver,
 		},
 
 		languageOptions: {
