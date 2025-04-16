@@ -1,0 +1,23 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Intro:
+This project is a monorepo managed by pnpm. It is a Language Server Protocol(LSP) implementation of [Beancount (A plain text accounting Language)](mdc:https:/beancount.github.io/docs/beancount_language_syntax.html).
+
+The project contains two part one `lsp-server` and `lsp-client`. server is a Language Server implemented [LSP Spec](mdc:https:/microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification). client is a VSCode Extension which connect to the server.
+
+LSP Server:
+In the Language Server, we use web-tree-sitter and tree-sitter-beancount to parse the beancount files. And provide the ability to retrieve symbols from symbol index (defined in `packages/lsp-server/src/common/features/symbol-index.ts`). It can provide language server features like diagnostic and syntax highlight, code navigateion stuffs(go to definition / references).
+All tree-sitter queries are locationed in `packages/lsp-server/src/common/language/queries`.
+LSP features should follow the `Feautre` interface defined in `packages/lsp-server/src/common/features/types.ts` like all the existed one inside `packages/lsp-server/src/common/features` folder.
+
+LSP Client:
+Clients communicate with server throgh LSP or JSON RPC with custom messages defined in `packages/shared/src/messages.ts`. Other than being a LanguageClient, it also provide LLM toolss. Tools interface should fullfiled `ToolImpl` defined in `packages/lsp-client/src/common/llm/tools/tool.ts`
+
+
+Tips:
+- things like parsing, calculations work should be done in server side and communicate throght LSP
+- Reuse existed parsing and symbol index process when possible. Improve the existed one rather than create a new one
+ 
