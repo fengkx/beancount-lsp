@@ -1,9 +1,9 @@
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { SyntaxNode } from 'web-tree-sitter';
 import { asLspRange, compactToRange, rangeToCompact } from '../common';
 import { TreeQuery } from '../language';
 import { Trees } from '../trees';
-
 export interface SymbolInfo {
 	_symType: string;
 
@@ -32,7 +32,7 @@ export function getRange(symbol: SymbolInfo): lsp.Range {
  * @returns Date string if found, undefined otherwise
  */
 function findDateFromNode(
-	node: any,
+	node: SyntaxNode,
 	directiveTypes: string[] = ['transaction', 'balance', 'open', 'close', 'pad', 'price', 'commodity'],
 ): string | undefined {
 	let currentNode = node;

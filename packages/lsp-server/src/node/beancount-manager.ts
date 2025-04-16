@@ -1,6 +1,5 @@
 import { Logger } from '@bean-lsp/shared';
 import { $ } from 'execa';
-import { trace } from 'node:console';
 import {
 	Amount,
 	BeancountError,

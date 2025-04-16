@@ -53,7 +53,7 @@ export class DocumentLinksFeature {
 				const uri = URI.parse(link.target);
 				// Use Utils.basename from vscode-uri which works consistently across platforms
 				link.tooltip = Utils.basename(uri);
-			} catch (e) {
+			} catch (_e) {
 				// If we can't parse as URI, use the raw target
 				link.tooltip = link.target;
 			}

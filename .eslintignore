@@ -1,3 +1,0 @@
-packages/tree-sitter-beancount/bindings/**/*
-packages/**/dist
-packages/**/out

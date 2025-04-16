@@ -9,7 +9,6 @@ import { globalEventBus, GlobalEvents } from '../utils/event-bus';
 import { Feature } from './types';
 
 // Constants for formatting
-const ACCOUNT_MIN_COLUMN = 40; // Minimum column for account alignment
 const AMOUNT_MIN_COLUMN = 52; // Minimum column for amount alignment
 const CURRENCY_MIN_COLUMN = 64; // Minimum column for currency alignment
 const COMMENT_MIN_COLUMN = 76; // Minimum column for comment alignment
@@ -134,13 +133,11 @@ export class FormatterFeature implements Feature {
 		for (const directive of openCloseQuery) {
 			const account = directive.childForFieldName('account');
 			const currencies = directive.childForFieldName('currencies');
-			const comment = directive.childForFieldName('comment');
 
 			if (account && currencies) {
 				// Align currencies after account
 				const accountText = document.getText(this.rangeFromNode(document, account));
 				const currenciesStart = document.positionAt(currencies.startIndex);
-				const currenciesEnd = document.positionAt(currencies.endIndex);
 
 				// Calculate ideal position for currencies (after account)
 				const accountStartPos = document.positionAt(account.startIndex);
@@ -363,7 +360,6 @@ export class FormatterFeature implements Feature {
 
 				// Find price operator (@ or @@) which should be before priceAnnotation
 				// The operator might appear as a separate node or be part of previous text
-				let priceOpText = '';
 				let priceOperatorPos = {
 					start: lastEndPos,
 					end: priceStartPos,
@@ -436,7 +432,6 @@ export class FormatterFeature implements Feature {
 		// Finally, format comments if present and if there's no existing alignment
 		if (comment) {
 			const commentStartPos = document.positionAt(comment.startIndex);
-			const commentText = document.getText(this.rangeFromNode(document, comment));
 
 			// Find the position of the last element before the comment
 			let lastEndPos;

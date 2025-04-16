@@ -30,7 +30,7 @@ import { SymbolInfo } from './features/symbol-extractors';
 import { SymbolIndex } from './features/symbol-index';
 import { setWasmFilePath } from './language';
 import { BeancountOptionsManager } from './utils/beancount-options';
-import { EventBus, globalEventBus, GlobalEvents } from './utils/event-bus';
+import { globalEventBus, GlobalEvents } from './utils/event-bus';
 export type SymbolInfoStorage = Db<SymbolInfo>;
 
 export interface IStorageFactory {
