@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.0.57
+
+- chore: update tsup config ([92c87dc](https://github.com/fengkx/beancount-lsp/commit/92c87dc))
+- chore: bump lsp-client version to 0.0.57 ([b2d192e](https://github.com/fengkx/beancount-lsp/commit/b2d192e))
+- feat: add tools for retrieving Beancount payees and narrations, and implement bean-query execution ([8500628](https://github.com/fengkx/beancount-lsp/commit/8500628))
+- feat: improve changelog generate ([e50b867](https://github.com/fengkx/beancount-lsp/commit/e50b867))
+- refactor: simplify tool initialization by removing unnecessary client parameter ([59d5b6e](https://github.com/fengkx/beancount-lsp/commit/59d5b6e))
+- fix: update ClientOptions type to include BaseLanguageClient for better compatibility ([29e187c](https://github.com/fengkx/beancount-lsp/commit/29e187c))
+
 ## v0.0.56
 
 - docs: update CHANGELOG.md for v0.0.56 ([532d8d1](https://github.com/fengkx/beancount-lsp/commit/532d8d1))
