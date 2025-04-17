@@ -9,6 +9,7 @@ const commonConfig: Partial<Options> = {
 	loader: {
 		'.wasm': 'binary',
 		'.scm': 'text',
+		'.prompt.txt': 'text',
 	},
 	external: ['vscode'],
 	noExternal: ['@bean-lsp/shared', 'vscode-languageclient', 'vscode-uri'],
