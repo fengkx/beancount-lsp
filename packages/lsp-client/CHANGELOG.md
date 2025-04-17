@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.0.58
+
+- chore: bump lsp-client version to 0.0.58 ([1a47834](https://github.com/fengkx/beancount-lsp/commit/1a47834))
+
 ## v0.0.57
 
 - chore: update tsup config ([92c87dc](https://github.com/fengkx/beancount-lsp/commit/92c87dc))
