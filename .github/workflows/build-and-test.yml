@@ -19,6 +19,9 @@ jobs:
           submodules: true
           fetch-depth: 0
 
+      - name: Cache for Turbo
+        uses: rharkor/caching-for-turbo@v1.8
+
       - name: Setup PNPM
         uses: pnpm/action-setup@v3
         with:
