@@ -41,7 +41,6 @@ jobs:
       - name: Setup PNPM
         uses: pnpm/action-setup@v3
         with:
-          version: 9
           run_install: true
   
       - name: Build packages
