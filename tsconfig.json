@@ -6,6 +6,7 @@
 		"module": "esnext",
 		"sourceMap": true,
 		"outDir": "out",
+		"noEmit": true,
 		"rootDir": ".",
 		"baseUrl": ".",
 		"strict": true,

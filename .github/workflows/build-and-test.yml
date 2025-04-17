@@ -24,7 +24,13 @@ jobs:
         with:
           version: 9
           run_install: true
-  
+    
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+    
       - name: Build packages
         run: pnpm build
       
