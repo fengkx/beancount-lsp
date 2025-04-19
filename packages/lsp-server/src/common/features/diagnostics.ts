@@ -2,6 +2,7 @@ import { Logger } from '@bean-lsp/shared';
 import Big from 'big.js';
 import { Connection, Diagnostic, DiagnosticSeverity } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { URI } from 'vscode-uri';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
 import { findAllTransactions } from '../utils/ast-utils';
@@ -102,6 +103,15 @@ export class DiagnosticsFeature implements Feature {
 		}
 	}
 
+	private uriForDiagnostics(uri: string): string {
+		if (!this.beanMgr) {
+			return uri;
+		}
+
+		// return as file uri for better integration with beancount diagnostics
+		return 'file://' + URI.parse(uri).fsPath;
+	}
+
 	private async validateAllDocuments(connection: Connection): Promise<void> {
 		await Promise.all(
 			this.documents.all().map(async doc => {
@@ -109,7 +119,7 @@ export class DiagnosticsFeature implements Feature {
 			}),
 		);
 
-		const documentsInStore = new Set(this.documents.keys());
+		const documentsInStore = new Set(this.documents.keys().map(this.uriForDiagnostics, this));
 		await Promise.all(
 			Object.entries(this.diagnosticsFromBeancount).map(async ([uri, diagnostics]) => {
 				if (documentsInStore.has(uri)) {
@@ -170,7 +180,7 @@ export class DiagnosticsFeature implements Feature {
 		try {
 			const diagnostics = await this.provideDiagnostics(document);
 			connection.sendDiagnostics({
-				uri: document.uri,
+				uri: this.uriForDiagnostics(document.uri),
 				diagnostics,
 			});
 		} catch (err) {
@@ -251,14 +261,12 @@ export class DiagnosticsFeature implements Feature {
 			}
 		}
 
-		const beancountDiagnostics = this.diagnosticsFromBeancount[document.uri];
+		const beancountDiagnostics = this.diagnosticsFromBeancount[this.uriForDiagnostics(document.uri)];
 		if (!beancountDiagnostics) {
 			return diagnostics;
 		}
-		this.logger.info(beancountDiagnostics);
 
 		const mergedDiagnostics = this.mergeAndDedupDiagnostics(beancountDiagnostics, diagnostics);
-		this.logger.info(mergedDiagnostics);
 
 		return mergedDiagnostics;
 	}
