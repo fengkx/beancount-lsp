@@ -208,7 +208,7 @@ export class FormatterFeature implements Feature {
 
 				// Clean integer part and calculate width - matching formatPosting logic
 				if (parts.length === 1) {
-					const match = integerPart.match(/^\d+/);
+					const match = integerPart.match(/^-?\d+/);
 					if (match) {
 						integerPart = match[0];
 					}
@@ -329,7 +329,7 @@ export class FormatterFeature implements Feature {
 
 			// Clean integer part and calculate width
 			if (parts.length === 1) {
-				integerPart = integerPart.match(/^\d+/)![0];
+				integerPart = integerPart.match(/^-?\d+/)![0];
 			}
 			const integerWidth = this.calculateStringWidth(integerPart);
 
