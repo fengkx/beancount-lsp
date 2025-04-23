@@ -43,6 +43,8 @@ export interface IStorageFactory<T> {
 export interface ServerOptions {
 	webTreeSitterWasmPath?: string;
 	logLevel?: LogLevel;
+
+	isBrowser: boolean;
 }
 
 // Create a server logger
@@ -52,7 +54,7 @@ export function startServer(
 	connection: Connection,
 	factory: IStorageFactory<unknown>,
 	beanMgrFactory: BeancountManagerFactory | undefined,
-	options: ServerOptions = {},
+	options: ServerOptions,
 ): void {
 	// Set initial log level from options
 	if (options.logLevel !== undefined) {
@@ -130,7 +132,7 @@ export function startServer(
 		await symbolStorage.autoloadPromise;
 		connection.onExit(() => factory.destroy(symbolStorage));
 
-		documents = new DocumentStore(connection);
+		documents = new DocumentStore(connection, params, options.isBrowser);
 		const trees = new Trees(documents, options.webTreeSitterWasmPath!);
 		const optionsManager = BeancountOptionsManager.getInstance();
 		const historyContext = new HistoryContext(trees);

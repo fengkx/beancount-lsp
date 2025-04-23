@@ -16,7 +16,9 @@ const messageWriter = new BrowserMessageWriter(self);
 const connection = createConnection(ProposedFeatures.all, messageReader, messageWriter);
 
 // Server options - will be populated by the initialization options in startServer
-const serverOptions: ServerOptions = {};
+const serverOptions: ServerOptions = {
+	isBrowser: true,
+};
 
 // Start the server with the options
 startServer(connection, factory, undefined, serverOptions);

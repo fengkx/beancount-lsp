@@ -32,11 +32,6 @@ export function activate(context: vscode.ExtensionContext): void {
 	statusBarItem.show();
 	context.subscriptions.push(statusBarItem);
 
-	// Show notification that this is experimental
-	vscode.window.showInformationMessage(
-		'Beancount LSP browser extension is experimental and might have limited functionality compared to the desktop version.',
-	);
-
 	try {
 		// Resolve the web-tree-sitter.wasm path
 		const webTreeSitterWasmPath = resolveWebTreeSitterWasmPath(context);

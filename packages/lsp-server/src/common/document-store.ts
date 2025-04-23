@@ -4,6 +4,7 @@ import {
 	Connection,
 	Emitter,
 	Event,
+	InitializeParams,
 	Range,
 	TextDocumentContentChangeEvent,
 	TextDocuments,
@@ -29,10 +30,15 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 	readonly onDidChangeContent2: Event<TextDocumentChange2> = this._onDidChangeContent2.event;
 
 	private _beanFiles: string[] = [];
+	private readonly _initializeParams: InitializeParams;
 
 	private logger = new Logger('DocumentStore');
 
-	constructor(private readonly _connection: Connection) {
+	constructor(
+		private readonly _connection: Connection,
+		initializeParams: InitializeParams,
+		private readonly _isBrowser: boolean,
+	) {
 		super({
 			create: TextDocument.create,
 			update: (doc, changes, version) => {
@@ -60,10 +66,22 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 			},
 		});
 		this.listen(_connection);
+		this._initializeParams = initializeParams;
 	}
+
 	private readonly _documentsCache = new LRUMap<string, TextDocument>(200);
 
 	async refetchBeanFiles(): Promise<void> {
+		// Check if client supports ListBeanFile capability
+		// @ts-expect-error customMessage is not part of the protocol
+		if (!this._initializeParams?.capabilities?.customMessage?.[CustomMessages.ListBeanFile]) {
+			if (!this._isBrowser) {
+				// find beancount files throgh nodejs
+			}
+			this.logger.warn('Client does not support ListBeanFile capability');
+			return;
+		}
+
 		const files = await this._connection.sendRequest<string[]>(CustomMessages.ListBeanFile);
 		this._beanFiles = files;
 	}
