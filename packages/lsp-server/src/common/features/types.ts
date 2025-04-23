@@ -35,3 +35,8 @@ export interface RealBeancountManager {
 }
 
 export type BeancountManagerFactory = (connection: Connection, extensionUri: string) => RealBeancountManager;
+
+export interface PlatformMethods {
+	findBeanFiles: () => Promise<string[]>;
+	readFile: (uri: string) => Promise<string>;
+}

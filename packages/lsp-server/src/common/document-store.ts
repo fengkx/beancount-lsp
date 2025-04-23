@@ -8,6 +8,7 @@ import {
 	Range,
 	TextDocumentContentChangeEvent,
 	TextDocuments,
+	WorkspaceFolder,
 } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { URI, Utils as UriUtils } from 'vscode-uri';
@@ -30,14 +31,12 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 	readonly onDidChangeContent2: Event<TextDocumentChange2> = this._onDidChangeContent2.event;
 
 	private _beanFiles: string[] = [];
-	private readonly _initializeParams: InitializeParams;
+	private _initializeParams: InitializeParams | undefined;
 
 	private logger = new Logger('DocumentStore');
 
 	constructor(
 		private readonly _connection: Connection,
-		initializeParams: InitializeParams,
-		private readonly _isBrowser: boolean,
 	) {
 		super({
 			create: TextDocument.create,
@@ -66,6 +65,9 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 			},
 		});
 		this.listen(_connection);
+	}
+
+	public setInitializeParams(initializeParams: InitializeParams) {
 		this._initializeParams = initializeParams;
 	}
 
@@ -75,15 +77,21 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 		// Check if client supports ListBeanFile capability
 		// @ts-expect-error customMessage is not part of the protocol
 		if (!this._initializeParams?.capabilities?.customMessage?.[CustomMessages.ListBeanFile]) {
-			if (!this._isBrowser) {
-				// find beancount files throgh nodejs
+			if (!this._initializeParams?.workspaceFolders?.[0]) {
+				this._beanFiles = [];
+				return;
 			}
-			this.logger.warn('Client does not support ListBeanFile capability');
+			this._beanFiles = await this.fallbackListBeanFiles(this._initializeParams.workspaceFolders[0]);
 			return;
 		}
 
 		const files = await this._connection.sendRequest<string[]>(CustomMessages.ListBeanFile);
 		this._beanFiles = files;
+	}
+
+	protected async fallbackListBeanFiles(_workspaceFolder: WorkspaceFolder): Promise<string[]> {
+		this.logger.warn('Client does not support ListBeanFile capability');
+		return this.all().map(doc => doc.uri);
 	}
 
 	get beanFiles(): string[] {
@@ -110,9 +118,23 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 	}
 
 	private async _requestDocument(uri: string): Promise<TextDocument> {
-		const reply = await this._connection.sendRequest<number[]>(CustomMessages.FileRead, uri);
+		const reply = await this.fileRead(uri);
 		const bytes = new Uint8Array(reply);
 		return TextDocument.create(uri, LANGUAGE_ID, 1, this._decoder.decode(bytes));
+	}
+
+	private async fileRead(uri: string): Promise<ArrayBuffer> {
+		// Check if client supports FileRead capability
+		// @ts-expect-error customMessage is not part of the protocol
+		if (!this._initializeParams?.capabilities?.customMessage?.[CustomMessages.FileRead]) {
+			return this.fallbackFileRead(uri);
+		}
+		return this._connection.sendRequest<ArrayBuffer>(CustomMessages.FileRead, uri);
+	}
+
+	protected async fallbackFileRead(_uri: string): Promise<ArrayBuffer> {
+		this.logger.warn('Client does not support FileRead capability');
+		return new ArrayBuffer(0);
 	}
 
 	removeFile(uri: string): boolean {

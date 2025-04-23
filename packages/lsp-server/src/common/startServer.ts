@@ -53,6 +53,7 @@ const serverLogger = new Logger('Server');
 export function startServer(
 	connection: Connection,
 	factory: IStorageFactory<unknown>,
+	documents: DocumentStore,
 	beanMgrFactory: BeancountManagerFactory | undefined,
 	options: ServerOptions,
 ): void {
@@ -74,11 +75,11 @@ export function startServer(
 
 	const features: Feature[] = [];
 
-	let documents: DocumentStore;
 	let symbolIndex: SymbolIndex;
 	let beanMgr: RealBeancountManager | undefined;
 
 	connection.onInitialize(async (params: InitializeParams): Promise<InitializeResult> => {
+		documents.setInitializeParams(params);
 		const result: InitializeResult = {
 			capabilities: {
 				textDocumentSync: TextDocumentSyncKind.Incremental,
@@ -132,7 +133,6 @@ export function startServer(
 		await symbolStorage.autoloadPromise;
 		connection.onExit(() => factory.destroy(symbolStorage));
 
-		documents = new DocumentStore(connection, params, options.isBrowser);
 		const trees = new Trees(documents, options.webTreeSitterWasmPath!);
 		const optionsManager = BeancountOptionsManager.getInstance();
 		const historyContext = new HistoryContext(trees);

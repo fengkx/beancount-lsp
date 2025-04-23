@@ -5,6 +5,7 @@ import {
 	ProposedFeatures,
 } from 'vscode-languageserver/browser';
 
+import { DocumentStore } from 'src/common/document-store';
 import { ServerOptions, startServer } from '../common/startServer';
 import { factory } from './storage';
 
@@ -20,8 +21,9 @@ const serverOptions: ServerOptions = {
 	isBrowser: true,
 };
 
+const documents = new DocumentStore(connection);
 // Start the server with the options
-startServer(connection, factory, undefined, serverOptions);
+startServer(connection, factory, documents, undefined, serverOptions);
 
 // Listen on the connection
 connection.listen();
