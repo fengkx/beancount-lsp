@@ -75,7 +75,7 @@
 					"default": "messages",
 					"description": "Controls the verbosity of logging and traces the communication between VS Code and the language server. Values from least to most verbose: off (errors only), error, warn, messages (info), debug, verbose (trace)."
 				},
-				"beanLsp.manBeanFile": {
+				"beanLsp.mainBeanFile": {
 					"scope": "resource",
 					"type": "string",
 					"default": "main.bean",

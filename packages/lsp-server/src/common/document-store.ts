@@ -156,9 +156,9 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 			return null;
 		}
 
-		if (workspace && !config.manBeanFile) {
+		if (workspace && !config.mainBeanFile) {
 			this._connection!.window.showWarningMessage(
-				`Using default 'main.bean' as manBeanFile, You should configure 'beanLsp.manBeanFile'`,
+				`Using default 'main.bean' as manBeanFile, You should configure 'beanLsp.mainBeanFile'`,
 			);
 		}
 		const rootUri = workspace[0]?.uri;
@@ -167,7 +167,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 			return null;
 		}
 
-		const mainAbsPath = UriUtils.joinPath(URI.parse(rootUri), config.manBeanFile ?? 'main.bean');
+		const mainAbsPath = UriUtils.joinPath(URI.parse(rootUri), config.mainBeanFile ?? 'main.bean');
 
 		return mainAbsPath.toString() as string;
 	}
