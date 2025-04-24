@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.62
+
+- chore: bump lsp-client version to 0.0.62 ([fefe775](https://github.com/fengkx/beancount-lsp/commit/fefe775))
+- fix: correct configuration property name in DocumentStore ([ef05566](https://github.com/fengkx/beancount-lsp/commit/ef05566))
+- chore: update dependencies in package.json files ([ea57ffe](https://github.com/fengkx/beancount-lsp/commit/ea57ffe))
+
 ## v0.0.60
 
 - chore: bump lsp-client version to 0.0.60 ([7fb03fe](https://github.com/fengkx/beancount-lsp/commit/7fb03fe))
