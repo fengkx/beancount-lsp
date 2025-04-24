@@ -47,7 +47,7 @@ The extension provides several configuration options to customize its behavior:
   - `messages`: Shows info-level messages, warnings, and errors (default)
   - `debug`: Shows debug-level messages and below
   - `verbose`: Shows all log messages (most verbose)
-- `beanLsp.manBeanFile`: Specifies the main Beancount file to use for analysis. This should be relative to the workspace root. Default is "main.bean".
+- `beanLsp.mainBeanFile`: Specifies the main Beancount file to use for analysis. This should be relative to the workspace root. Default is "main.bean".
 - `beancount.diagnostics.tolerance`: Tolerance value for transaction balancing. Set to 0 for exact matching. Default is 0.005.
 - `beancount.diagnostics.warnOnIncompleteTransaction`: Show warnings for incomplete transactions (marked with '!' flag). These are transactions that are considered unconfirmed in Beancount. Default is true.
 - `beanLsp.inlayHints.enable`: Enable or disable inlay hints showing calculated amounts for auto-balanced transactions. Default is true.
@@ -60,7 +60,7 @@ The extension provides several configuration options to customize its behavior:
 
 ```json
 {
-	"beanLsp.manBeanFile": "main.bean",
+	"beanLsp.mainBeanFile": "main.bean",
 	"beanLsp.trace.server": "debug",
 	"beancount.diagnostics.tolerance": 0.005,
 	"beancount.diagnostics.warnOnIncompleteTransaction": true,
