@@ -206,6 +206,8 @@ export function startServer(
 		const mainBeanFile = await documents.getMainBeanFileUri();
 		serverLogger.info(`mainBeanFile ${mainBeanFile}`);
 		await documents.refetchBeanFiles();
+		await symbolIndex.initFiles(documents.beanFiles);
+		await symbolIndex.unleashFiles([]);
 
 		if (mainBeanFile) {
 			await symbolIndex.initFiles([mainBeanFile]);
