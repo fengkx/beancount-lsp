@@ -35,6 +35,7 @@ const nodeConfig = defineConfig({
 	noExternal: [
 		...commonConfig.noExternal,
 		'execa',
+		'fast-glob',
 	],
 });
 

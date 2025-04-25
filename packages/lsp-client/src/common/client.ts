@@ -1,7 +1,8 @@
 import { CustomMessages, Logger, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
 import * as vscode from 'vscode';
 // Import from base package for shared types between node and browser
-import { LanguageClientOptions, State } from 'vscode-languageclient';
+import type { InitializeParams, LanguageClientOptions, ProtocolConnection } from 'vscode-languageclient';
+import { State } from 'vscode-languageclient';
 import { Utils as UriUtils } from 'vscode-uri';
 import { tools } from './llm/tools';
 import { ClientOptions, ExtensionContext } from './types';
@@ -223,6 +224,17 @@ export function setupStatusBar(ctx: ExtensionContext<'browser' | 'node'>): void 
  * Sets up custom message handlers for the client
  */
 export function setupCustomMessageHandlers(ctx: ExtensionContext<'browser' | 'node'>): void {
+	const originalInitialize = ctx.client['doInitialize'].bind(ctx.client);
+	ctx.client['doInitialize'] = async (connection: ProtocolConnection, params: InitializeParams) => {
+		console.log('===== doInitialize', params);
+		// @ts-expect-error customMessage is not part of the protocol
+		params.capabilities['customMessage'] = {
+			[CustomMessages.ListBeanFile]: true,
+			[CustomMessages.FileRead]: true,
+		};
+		return originalInitialize(connection, params);
+	};
+
 	ctx.client.onRequest(CustomMessages.ListBeanFile, async () => {
 		const exclude = await generateExcludePattern();
 		const files = await vscode.workspace.findFiles('**/*.{bean,beancount}', exclude);

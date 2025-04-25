@@ -1,14 +1,14 @@
 import { Logger } from '@bean-lsp/shared';
 import { $, execa } from 'execa';
+import { Connection, DidSaveTextDocumentParams } from 'vscode-languageserver';
+import { URI } from 'vscode-uri';
 import {
 	Amount,
 	BeancountError,
 	BeancountFlag,
 	BeancountManagerFactory,
 	RealBeancountManager,
-} from 'src/common/features/types';
-import { Connection, DidSaveTextDocumentParams } from 'vscode-languageserver';
-import { URI } from 'vscode-uri';
+} from '../common/features/types';
 import { globalEventBus, GlobalEvents } from '../common/utils/event-bus';
 
 interface AccountDetails {

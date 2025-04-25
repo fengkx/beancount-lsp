@@ -43,6 +43,8 @@ export interface IStorageFactory<T> {
 export interface ServerOptions {
 	webTreeSitterWasmPath?: string;
 	logLevel?: LogLevel;
+
+	isBrowser: boolean;
 }
 
 // Create a server logger
@@ -51,8 +53,9 @@ const serverLogger = new Logger('Server');
 export function startServer(
 	connection: Connection,
 	factory: IStorageFactory<unknown>,
+	documents: DocumentStore,
 	beanMgrFactory: BeancountManagerFactory | undefined,
-	options: ServerOptions = {},
+	options: ServerOptions,
 ): void {
 	// Set initial log level from options
 	if (options.logLevel !== undefined) {
@@ -72,11 +75,11 @@ export function startServer(
 
 	const features: Feature[] = [];
 
-	let documents: DocumentStore;
 	let symbolIndex: SymbolIndex;
 	let beanMgr: RealBeancountManager | undefined;
 
 	connection.onInitialize(async (params: InitializeParams): Promise<InitializeResult> => {
+		documents.setInitializeParams(params);
 		const result: InitializeResult = {
 			capabilities: {
 				textDocumentSync: TextDocumentSyncKind.Incremental,
@@ -130,7 +133,6 @@ export function startServer(
 		await symbolStorage.autoloadPromise;
 		connection.onExit(() => factory.destroy(symbolStorage));
 
-		documents = new DocumentStore(connection);
 		const trees = new Trees(documents, options.webTreeSitterWasmPath!);
 		const optionsManager = BeancountOptionsManager.getInstance();
 		const historyContext = new HistoryContext(trees);
@@ -204,6 +206,8 @@ export function startServer(
 		const mainBeanFile = await documents.getMainBeanFileUri();
 		serverLogger.info(`mainBeanFile ${mainBeanFile}`);
 		await documents.refetchBeanFiles();
+		await symbolIndex.initFiles(documents.beanFiles);
+		await symbolIndex.unleashFiles([]);
 
 		if (mainBeanFile) {
 			await symbolIndex.initFiles([mainBeanFile]);
