@@ -200,7 +200,7 @@ export async function parallel<R>(
 ): Promise<R[]> {
 	const result: R[] = [];
 	let pos = 0;
-	// eslint-disable-next-line no-constant-condition
+
 	while (true) {
 		if (token.isCancellationRequested) {
 			throw new Error('cancelled');
