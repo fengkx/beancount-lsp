@@ -1,5 +1,3 @@
-/* eslint-disable no-case-declarations */
-
 import { Logger } from '@bean-lsp/shared';
 import Big from 'big.js';
 

@@ -3,12 +3,12 @@ import tsPlugin from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
 import importXPlugin from 'eslint-plugin-import-x';
+import oxlint from 'eslint-plugin-oxlint';
 import turboPlugin from 'eslint-plugin-turbo';
 import unusedImportsPlugin from 'eslint-plugin-unused-imports';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import globals from 'globals';
 import fs from 'node:fs';
-
 const gitIgnore = fs.readFileSync('.gitignore', 'utf8');
 const gitIgnoreLines = gitIgnore.split('\n').filter(line => line.trim() !== '').map(line => {
 	if (!line.startsWith('/') && !line.startsWith('**/')) {
@@ -83,6 +83,7 @@ export default defineConfig([
 			}],
 			'@typescript-eslint/no-require-imports': 'error',
 			'no-undef': 'off',
+			...oxlint.configs.recommended.rules,
 		},
 	},
 
@@ -155,4 +156,5 @@ export default defineConfig([
 			},
 		},
 	},
+	...oxlint.buildFromOxlintConfigFile('./.oxlintrc.json'),
 ]);

@@ -40,6 +40,7 @@
 		"eslint": "catalog:lint",
 		"eslint-import-resolver-typescript": "catalog:lint",
 		"eslint-plugin-import-x": "catalog:lint",
+		"eslint-plugin-oxlint": "^1.26.0",
 		"eslint-plugin-turbo": "catalog:lint",
 		"eslint-plugin-unused-imports": "catalog:lint",
 		"globals": "catalog:types",
