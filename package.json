@@ -2,7 +2,7 @@
 	"name": "beancount-lsp",
 	"version": "0.0.0",
 	"description": "BeanCount language server",
-	"packageManager": "pnpm@10.8.1",
+	"packageManager": "pnpm@10.10.0",
 	"private": true,
 	"scripts": {
 		"build": "turbo run build",
@@ -28,28 +28,28 @@
 	"author": "fengkx",
 	"license": "MIT",
 	"devDependencies": {
-		"@eslint/eslintrc": "^3.3.1",
-		"@eslint/js": "^9.25.1",
-		"@fengkx/tsconfig": "^1.0.0",
-		"@types/node": "^22.15.3",
-		"@typescript-eslint/eslint-plugin": "^8.31.0",
-		"@typescript-eslint/parser": "^8.31.0",
-		"dprint": "^0.49.1",
-		"eslint": "^9.25.1",
-		"eslint-import-resolver-typescript": "^4.3.4",
-		"eslint-plugin-import-x": "^4.11.0",
-		"eslint-plugin-turbo": "^2.5.2",
-		"eslint-plugin-unused-imports": "^4.1.4",
-		"globals": "^16.0.0",
-		"nano-staged": "^0.8.0",
-		"simple-git-hooks": "^2.13.0",
-		"tsup": "^8.4.0",
-		"tsx": "^4.19.3",
-		"turbo": "^2.5.2",
-		"type-fest": "^4.40.1",
-		"typescript": "^5.8.3"
+		"@eslint/eslintrc": "catalog:lint",
+		"@eslint/js": "catalog:lint",
+		"@fengkx/tsconfig": "catalog:types",
+		"@types/node": "catalog:types",
+		"@typescript-eslint/eslint-plugin": "catalog:lint",
+		"@typescript-eslint/parser": "catalog:lint",
+		"dprint": "catalog:lint",
+		"eslint": "catalog:lint",
+		"eslint-import-resolver-typescript": "catalog:lint",
+		"eslint-plugin-import-x": "catalog:lint",
+		"eslint-plugin-turbo": "catalog:lint",
+		"eslint-plugin-unused-imports": "catalog:lint",
+		"globals": "catalog:types",
+		"nano-staged": "catalog:dev",
+		"simple-git-hooks": "catalog:dev",
+		"tsup": "catalog:build",
+		"tsx": "catalog:build",
+		"turbo": "catalog:build",
+		"type-fest": "catalog:types",
+		"typescript": "catalog:types"
 	},
 	"dependencies": {
-		"zod": "^3.24.3"
+		"zod": "catalog:prod"
 	}
 }

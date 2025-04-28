@@ -9,3 +9,41 @@ onlyBuiltDependencies:
   - simple-git-hooks
   - tree-sitter-cli
   - keytar
+
+# Dependency catalogs for better organization
+catalogs:
+  # Build and bundling tools
+  build:
+    tsup: ^8.4.0
+    turbo: ^2.5.2
+    tsx: ^4.19.3
+
+  # Linting and formatting tools
+  lint:
+    dprint: ^0.49.1
+    eslint: ^9.25.1
+    '@eslint/eslintrc': ^3.3.1
+    '@eslint/js': ^9.25.1
+    '@typescript-eslint/eslint-plugin': ^8.31.0
+    '@typescript-eslint/parser': ^8.31.0
+    'eslint-import-resolver-typescript': ^4.3.4
+    'eslint-plugin-import-x': ^4.11.0
+    'eslint-plugin-turbo': ^2.5.2
+    'eslint-plugin-unused-imports': ^4.1.4
+
+  # TypeScript and type definitions
+  types:
+    '@types/node': ^22.15.3
+    '@fengkx/tsconfig': ^1.0.0
+    typescript: ^5.8.3
+    'type-fest': ^4.40.1
+    globals: ^16.0.0
+
+  # Development utilities
+  dev:
+    'nano-staged': ^0.8.0
+    'simple-git-hooks': ^2.13.0
+
+  # Production runtime dependencies
+  prod:
+    zod: ^3.24.3
