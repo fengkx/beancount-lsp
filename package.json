@@ -42,7 +42,7 @@
 		"eslint-plugin-unused-imports": "^4.1.4",
 		"globals": "^16.0.0",
 		"nano-staged": "^0.8.0",
-		"simple-git-hooks": "^2.12.1",
+		"simple-git-hooks": "^2.13.0",
 		"tsup": "^8.4.0",
 		"tsx": "^4.19.3",
 		"turbo": "^2.5.0",

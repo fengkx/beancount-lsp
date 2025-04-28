@@ -55,8 +55,8 @@ importers:
         specifier: ^0.8.0
         version: 0.8.0
       simple-git-hooks:
-        specifier: ^2.12.1
-        version: 2.12.1
+        specifier: ^2.13.0
+        version: 2.13.0
       tsup:
         specifier: ^8.4.0
         version: 8.4.0(@swc/core@1.11.21)(postcss@8.5.3)(tsx@4.19.3)(typescript@5.8.3)
@@ -2727,8 +2727,8 @@ packages:
   simple-get@4.0.1:
     resolution: {integrity: sha512-brv7p5WgH0jmQJr1ZDDfKDOSeWWg+OVypG99A/5vYGPqJ6pxiaHLy8nxtFjBA7oMa01ebA9gfh1uMCFqOuXxvA==}
 
-  simple-git-hooks@2.12.1:
-    resolution: {integrity: sha512-NB3V4XyCOrWTIhjh85DyEoVlM3adHWwqQXKYHmuegy/108bJPP6YxuPGm4ZKBq1+GVKRbKJuzNY//09cMJYp+A==}
+  simple-git-hooks@2.13.0:
+    resolution: {integrity: sha512-N+goiLxlkHJlyaYEglFypzVNMaNplPAk5syu0+OPp/Bk6dwVoXF6FfOw2vO0Dp+JHsBaI+w6cm8TnFl2Hw6tDA==}
     hasBin: true
 
   source-map-js@1.2.1:
@@ -5664,7 +5664,7 @@ snapshots:
       simple-concat: 1.0.1
     optional: true
 
-  simple-git-hooks@2.12.1: {}
+  simple-git-hooks@2.13.0: {}
 
   source-map-js@1.2.1: {}
 
