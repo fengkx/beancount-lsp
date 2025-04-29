@@ -4,9 +4,11 @@ import {
 	Connection,
 	Emitter,
 	Event,
+	InitializeParams,
 	Range,
 	TextDocumentContentChangeEvent,
 	TextDocuments,
+	WorkspaceFolder,
 } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { URI, Utils as UriUtils } from 'vscode-uri';
@@ -29,10 +31,13 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 	readonly onDidChangeContent2: Event<TextDocumentChange2> = this._onDidChangeContent2.event;
 
 	private _beanFiles: string[] = [];
+	private _initializeParams: InitializeParams | undefined;
 
 	private logger = new Logger('DocumentStore');
 
-	constructor(private readonly _connection: Connection) {
+	constructor(
+		private readonly _connection: Connection,
+	) {
 		super({
 			create: TextDocument.create,
 			update: (doc, changes, version) => {
@@ -61,11 +66,32 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 		});
 		this.listen(_connection);
 	}
+
+	public setInitializeParams(initializeParams: InitializeParams) {
+		this._initializeParams = initializeParams;
+	}
+
 	private readonly _documentsCache = new LRUMap<string, TextDocument>(200);
 
 	async refetchBeanFiles(): Promise<void> {
+		// Check if client supports ListBeanFile capability
+		// @ts-expect-error customMessage is not part of the protocol
+		if (!this._initializeParams?.capabilities?.customMessage?.[CustomMessages.ListBeanFile]) {
+			if (!this._initializeParams?.workspaceFolders?.[0]) {
+				this._beanFiles = [];
+				return;
+			}
+			this._beanFiles = await this.fallbackListBeanFiles(this._initializeParams.workspaceFolders[0]);
+			return;
+		}
+
 		const files = await this._connection.sendRequest<string[]>(CustomMessages.ListBeanFile);
 		this._beanFiles = files;
+	}
+
+	protected async fallbackListBeanFiles(_workspaceFolder: WorkspaceFolder): Promise<string[]> {
+		this.logger.warn('Client does not support ListBeanFile capability');
+		return this.all().map(doc => doc.uri);
 	}
 
 	get beanFiles(): string[] {
@@ -92,9 +118,23 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 	}
 
 	private async _requestDocument(uri: string): Promise<TextDocument> {
-		const reply = await this._connection.sendRequest<number[]>(CustomMessages.FileRead, uri);
+		const reply = await this.fileRead(uri);
 		const bytes = new Uint8Array(reply);
 		return TextDocument.create(uri, LANGUAGE_ID, 1, this._decoder.decode(bytes));
+	}
+
+	private async fileRead(uri: string): Promise<ArrayBuffer> {
+		// Check if client supports FileRead capability
+		// @ts-expect-error customMessage is not part of the protocol
+		if (!this._initializeParams?.capabilities?.customMessage?.[CustomMessages.FileRead]) {
+			return this.fallbackFileRead(uri);
+		}
+		return this._connection.sendRequest<ArrayBuffer>(CustomMessages.FileRead, uri);
+	}
+
+	protected async fallbackFileRead(_uri: string): Promise<ArrayBuffer> {
+		this.logger.warn('Client does not support FileRead capability');
+		return new ArrayBuffer(0);
 	}
 
 	removeFile(uri: string): boolean {
@@ -116,9 +156,9 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 			return null;
 		}
 
-		if (workspace && !config.manBeanFile) {
+		if (workspace && !config.mainBeanFile) {
 			this._connection!.window.showWarningMessage(
-				`Using default 'main.bean' as manBeanFile, You should configure 'beanLsp.manBeanFile'`,
+				`Using default 'main.bean' as manBeanFile, You should configure 'beanLsp.mainBeanFile'`,
 			);
 		}
 		const rootUri = workspace[0]?.uri;
@@ -127,7 +167,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 			return null;
 		}
 
-		const mainAbsPath = UriUtils.joinPath(URI.parse(rootUri), config.manBeanFile ?? 'main.bean');
+		const mainAbsPath = UriUtils.joinPath(URI.parse(rootUri), config.mainBeanFile ?? 'main.bean');
 
 		return mainAbsPath.toString() as string;
 	}

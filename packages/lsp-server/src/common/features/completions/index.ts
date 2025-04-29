@@ -16,7 +16,6 @@ import { add, formatDate, sub } from 'date-fns';
 import { pinyin } from 'pinyin-pro';
 import { match, P } from 'ts-pattern';
 import {
-	CancellationToken,
 	CompletionItem,
 	CompletionItemKind,
 	CompletionList,
@@ -317,6 +316,9 @@ interface AddPayeesAndNarrationsParams {
 	completionCount: number;
 	/** Optional user input for better scoring and sorting */
 	filterText?: string | undefined;
+
+	/** Whether to add a space after the text edit */
+	addSpaceAfter: boolean;
 }
 
 /**
@@ -343,6 +345,7 @@ async function addPayeesAndNarrations(
 		completions,
 		completionCount,
 		filterText,
+		addSpaceAfter,
 	} = params;
 
 	// Fetch payees and narrations in parallel
@@ -360,7 +363,7 @@ async function addPayeesAndNarrations(
 				{ label: payee, kind: CompletionItemKind.Text, detail: '(payee)' },
 				position,
 				// Add space after to allow quick editing between payee and narration
-				`${startQuote}${payee}${quote} `,
+				`${startQuote}${payee}${quote}${addSpaceAfter ? ' ' : ''}`,
 				existingCompletions,
 				completions,
 				completionCount,
@@ -377,7 +380,7 @@ async function addPayeesAndNarrations(
 		const updatedCount = addCompletionItem(
 			{ label: narration, kind: CompletionItemKind.Text, detail: '(narration)' },
 			position,
-			`${startQuote}${narration}${quote}`,
+			`${startQuote}${narration}${quote}${addSpaceAfter ? ' ' : ''}`,
 			existingCompletions,
 			completions,
 			params.completionCount,
@@ -748,11 +751,7 @@ export class CompletionFeature implements Feature {
 	 */
 	provideCompletionItems = async (
 		params: CompletionParams,
-		token: CancellationToken,
 	): Promise<CompletionItem[] | CompletionList | null> => {
-		if (token.isCancellationRequested) {
-			return [];
-		}
 		const document = await this.documents.retrieve(params.textDocument.uri);
 
 		if (
@@ -1014,6 +1013,7 @@ export class CompletionFeature implements Feature {
 						completions: completionItems,
 						completionCount: cnt,
 						filterText: userInput,
+						addSpaceAfter: true,
 					});
 					logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 				},
@@ -1034,6 +1034,7 @@ export class CompletionFeature implements Feature {
 						completions: completionItems,
 						completionCount: cnt,
 						filterText: userInput,
+						addSpaceAfter: false,
 					});
 					logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
 				},
@@ -1051,6 +1052,7 @@ export class CompletionFeature implements Feature {
 					completions: completionItems,
 					completionCount: cnt,
 					filterText: userInput,
+					addSpaceAfter: false,
 				});
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
@@ -1072,6 +1074,7 @@ export class CompletionFeature implements Feature {
 					completions: completionItems,
 					completionCount: cnt,
 					filterText: userInput,
+					addSpaceAfter: false,
 				});
 				logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
 			})
@@ -1093,6 +1096,7 @@ export class CompletionFeature implements Feature {
 					completions: completionItems,
 					completionCount: cnt,
 					filterText: userInput,
+					addSpaceAfter: true,
 				});
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
@@ -1109,6 +1113,7 @@ export class CompletionFeature implements Feature {
 					completions: completionItems,
 					completionCount: cnt,
 					filterText: userInput,
+					addSpaceAfter: true,
 				});
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})

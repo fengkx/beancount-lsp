@@ -3,7 +3,7 @@
 	"displayName": "Beancount language service",
 	"description": "An Beancount language service supporting features like syntax highlighting, code completion, and more.",
 	"icon": "assets/icon.png",
-	"version": "0.0.58",
+	"version": "0.0.64",
 	"publisher": "fengkx",
 	"private": true,
 	"repository": {
@@ -75,7 +75,7 @@
 					"default": "messages",
 					"description": "Controls the verbosity of logging and traces the communication between VS Code and the language server. Values from least to most verbose: off (errors only), error, warn, messages (info), debug, verbose (trace)."
 				},
-				"beanLsp.manBeanFile": {
+				"beanLsp.mainBeanFile": {
 					"scope": "resource",
 					"type": "string",
 					"default": "main.bean",
@@ -394,16 +394,16 @@
 	"devDependencies": {
 		"@types/glob": "^8.1.0",
 		"@types/mocha": "^10.0.6",
-		"@types/node": "22.14.1",
+		"@types/node": "22.15.3",
 		"@types/vscode": "^1.86.0",
 		"@vscode/test-electron": "^2.5.2",
 		"@vscode/vsce": "^3.3.2",
 		"dprint": "^0.49.1",
 		"esbuild-plugins-node-modules-polyfill": "^1.7.0",
 		"execa": "^9.5.2",
-		"glob": "^11.0.1",
+		"glob": "^11.0.2",
 		"mocha": "^11.1.0",
-		"vitest": "^3.1.1",
+		"vitest": "^3.1.2",
 		"zod-to-json-schema": "^3.24.5"
 	},
 	"dependencies": {

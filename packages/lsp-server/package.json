@@ -19,7 +19,7 @@
 	"dependencies": {
 		"@bean-lsp/shared": "workspace:*",
 		"@seald-io/nedb": "^4.1.1",
-		"big.js": "^6.2.2",
+		"big.js": "^7.0.1",
 		"date-fns": "^4.1.0",
 		"execa": "^9.5.2",
 		"fast-glob": "^3.3.2",
@@ -34,11 +34,11 @@
 		"web-tree-sitter": "^0.20.8"
 	},
 	"devDependencies": {
-		"@swc/core": "^1.11.21",
+		"@swc/core": "^1.11.22",
 		"@types/big.js": "^6.2.2",
 		"@types/micromatch": "^4.0.6",
 		"esbuild-plugins-node-modules-polyfill": "^1.7.0",
-		"type-fest": "^4.39.1",
-		"vitest": "^3.1.1"
+		"type-fest": "^4.40.1",
+		"vitest": "^3.1.2"
 	}
 }

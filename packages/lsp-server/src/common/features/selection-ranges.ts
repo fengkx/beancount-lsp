@@ -45,7 +45,6 @@ export class SelectionRangesFeature implements Feature {
 			let node = tree.rootNode;
 			stack.push(node);
 
-			// eslint-disable-next-line no-constant-condition
 			while (true) {
 				const child = node.children.find(candidate => {
 					return candidate.startIndex <= offset && candidate.endIndex > offset;

@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=fengkx.beancount-lsp-client" target="_blank" rel="noopener noreferrer">
-    <img width="252" src="https://cdn.sa.net/2025/03/08/YGTOpSwVHLAm5aW.png" alt="Beancount LSP logo">
+    <img width="252" src="https://raw.githubusercontent.com/fengkx/beancount-lsp/master/packages/lsp-client/assets/icon.png" alt="Beancount LSP logo">
   </a>
 </p>
 
@@ -47,7 +47,7 @@ The extension provides several configuration options to customize its behavior:
   - `messages`: Shows info-level messages, warnings, and errors (default)
   - `debug`: Shows debug-level messages and below
   - `verbose`: Shows all log messages (most verbose)
-- `beanLsp.manBeanFile`: Specifies the main Beancount file to use for analysis. This should be relative to the workspace root. Default is "main.bean".
+- `beanLsp.mainBeanFile`: Specifies the main Beancount file to use for analysis. This should be relative to the workspace root. Default is "main.bean".
 - `beancount.diagnostics.tolerance`: Tolerance value for transaction balancing. Set to 0 for exact matching. Default is 0.005.
 - `beancount.diagnostics.warnOnIncompleteTransaction`: Show warnings for incomplete transactions (marked with '!' flag). These are transactions that are considered unconfirmed in Beancount. Default is true.
 - `beanLsp.inlayHints.enable`: Enable or disable inlay hints showing calculated amounts for auto-balanced transactions. Default is true.
@@ -60,7 +60,7 @@ The extension provides several configuration options to customize its behavior:
 
 ```json
 {
-	"beanLsp.manBeanFile": "main.bean",
+	"beanLsp.mainBeanFile": "main.bean",
 	"beanLsp.trace.server": "debug",
 	"beancount.diagnostics.tolerance": 0.005,
 	"beancount.diagnostics.warnOnIncompleteTransaction": true,
@@ -100,3 +100,52 @@ If you find this extension helpful, please consider:
 1. Rating the extension on the [VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=fengkx.beancount-lsp-client)
 2. Starring the [GitHub repository](https://github.com/fengkx/beancount-lsp)
 3. Contributing to the project by submitting issues or pull requests
+
+## Development
+
+### Prerequisites
+
+- [VSCode](https://code.visualstudio.com/) installed
+- [Node.js](https://nodejs.org/) installed
+- [pnpm](https://pnpm.io/) package manager installed
+
+### Setup and Building
+
+To set up the development environment:
+
+```bash
+# Clone the repository
+git clone https://github.com/fengkx/beancount-lsp.git
+cd beancount-lsp
+
+# Install dependencies
+pnpm install
+
+# Build all packages
+pnpm build
+```
+
+### Running and Debugging
+
+To run and debug the extension:
+
+1. Open the project in VSCode
+2. Press `F5` to start a new Extension Development Host window
+   - Alternatively, you can use the "Run and Debug" tab in VSCode and select the launch configuration
+
+The Extension Development Host will open a new VSCode window with your extension loaded, allowing you to test its functionality and debug in real-time.
+
+### Building and Packaging
+
+To build the extension for distribution:
+
+```bash
+# Package the extension into a .vsix file
+cd packages/lsp-client
+pnpm run vsix
+```
+
+## Prior Art
+
+- [vscode-anycode](https://github.com/microsoft/vscode-anycode) Learn a lot from it about how to write a Language Server Extension
+- [vscode-beancount](https://github.com/Lencerf/vscode-beancount) Used its Python [beancheck code](https://github.com/fengkx/beancount-lsp/blob/master/packages/lsp-client/pythonFiles/beancheck.py). Get many inspiration from its features.
