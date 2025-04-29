@@ -1,6 +1,7 @@
 import { RESTART_LANGUAGE_SERVER_COMMAND } from '@bean-lsp/shared';
 import * as vscode from 'vscode';
-import { LanguageClient, LanguageClientOptions } from 'vscode-languageclient/browser';
+import { LanguageClient } from 'vscode-languageclient/browser';
+import type { LanguageClientOptions } from 'vscode-languageclient/node';
 import {
 	clientLogger,
 	createClientOptions,
@@ -12,7 +13,7 @@ import {
 	setupQueueInit,
 	setupStatusBar,
 } from '../common/client';
-import { ExtensionContext } from '../common/types';
+import type { ExtensionContext } from '../common/types';
 import { resolveWebTreeSitterWasmPath } from '../common/utils';
 
 let client: LanguageClient;

@@ -1,4 +1,4 @@
-import { ExtensionContext } from 'src/common/types';
+import type { ExtensionContext } from '../../types';
 import { GetAccountsTool } from './get-accounts';
 import { GetHistoryContextTool } from './get-history-context';
 import { GetNarrationsTool } from './get-narrations';

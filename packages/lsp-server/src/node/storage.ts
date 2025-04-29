@@ -1,7 +1,7 @@
 import NeDb from '@seald-io/nedb';
 // import { join } from 'path';
 // import { URI } from 'vscode-uri';
-import { IStorageFactory } from '../common/startServer';
+import type { IStorageFactory } from '../common/startServer';
 
 export const factory: IStorageFactory<unknown> = {
 	async create(_name, _prefix = '') {

@@ -1,5 +1,6 @@
 import { nodeModulesPolyfillPlugin } from 'esbuild-plugins-node-modules-polyfill';
-import { defineConfig, Options } from 'tsup';
+import { defineConfig } from 'tsup';
+import type { Options } from 'tsup';
 
 // Common configuration options
 const commonConfig: Partial<Options> = {

@@ -9,7 +9,6 @@
 		"target": "ES2022",
 		"outDir": "out",
 		"lib": ["ES2020", "DOM"],
-		"baseUrl": ".",
 		"sourceMap": true,
 		"allowSyntheticDefaultImports": true,
 		"isolatedDeclarations": false,

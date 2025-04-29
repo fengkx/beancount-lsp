@@ -5,7 +5,7 @@ import type { InitializeParams, LanguageClientOptions, ProtocolConnection } from
 import { State } from 'vscode-languageclient';
 import { Utils as UriUtils } from 'vscode-uri';
 import { tools } from './llm/tools';
-import { ClientOptions, ExtensionContext } from './types';
+import type { ClientOptions, ExtensionContext } from './types';
 
 // Create a client logger
 export const clientLogger: Logger = new Logger('Client');

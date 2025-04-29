@@ -14,5 +14,6 @@
 	"cmake.configureOnOpen": true,
 	"cSpell.words": ["Asyncify", "Beancount", "dprint", "typecheck"],
 	"search.useIgnoreFiles": true,
-	"search.useParentIgnoreFiles": true
+	"search.useParentIgnoreFiles": true,
+	"typescript.tsdk": "node_modules/typescript/lib"
 }

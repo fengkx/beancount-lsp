@@ -1,6 +1,6 @@
 import { RESTART_LANGUAGE_SERVER_COMMAND } from '@bean-lsp/shared';
 import * as vscode from 'vscode';
-import { LanguageClient, ServerOptions, TransportKind } from 'vscode-languageclient/node';
+import { LanguageClient, type ServerOptions, TransportKind } from 'vscode-languageclient/node';
 import {
 	clientLogger,
 	createClientOptions,
@@ -12,7 +12,7 @@ import {
 	setupQueueInit,
 	setupStatusBar,
 } from '../common/client';
-import { ExtensionContext } from '../common/types';
+import type { ExtensionContext } from '../common/types';
 import { resolveWebTreeSitterWasmPath } from '../common/utils';
 let client: LanguageClient;
 let statusBarItem: vscode.StatusBarItem;
