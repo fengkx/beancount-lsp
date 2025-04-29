@@ -16,7 +16,6 @@ import { add, formatDate, sub } from 'date-fns';
 import { pinyin } from 'pinyin-pro';
 import { match, P } from 'ts-pattern';
 import {
-	CancellationToken,
 	CompletionItem,
 	CompletionItemKind,
 	CompletionList,
@@ -752,11 +751,7 @@ export class CompletionFeature implements Feature {
 	 */
 	provideCompletionItems = async (
 		params: CompletionParams,
-		token: CancellationToken,
 	): Promise<CompletionItem[] | CompletionList | null> => {
-		if (token.isCancellationRequested) {
-			return [];
-		}
 		const document = await this.documents.retrieve(params.textDocument.uri);
 
 		if (
