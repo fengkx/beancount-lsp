@@ -1,6 +1,6 @@
 import { RESTART_LANGUAGE_SERVER_COMMAND } from '@bean-lsp/shared';
 import * as vscode from 'vscode';
-import { LanguageClient } from 'vscode-languageclient/browser';
+import { LanguageClient, LanguageClientOptions } from 'vscode-languageclient/browser';
 import {
 	clientLogger,
 	createClientOptions,
@@ -14,9 +14,6 @@ import {
 } from '../common/client';
 import { ExtensionContext } from '../common/types';
 import { resolveWebTreeSitterWasmPath } from '../common/utils';
-
-// Explicitly declare types for the browser environment
-declare const Worker: any;
 
 let client: LanguageClient;
 let statusBarItem: vscode.StatusBarItem;
@@ -102,7 +99,7 @@ export function activate(context: vscode.ExtensionContext): void {
 /**
  * Creates a language client that uses a web worker for the language server
  */
-function createWorkerLanguageClient(context: vscode.ExtensionContext, clientOptions: any) {
+function createWorkerLanguageClient(context: vscode.ExtensionContext, clientOptions: LanguageClientOptions) {
 	// Get path to the server's worker script
 	const workerPath = vscode.Uri.joinPath(context.extensionUri, 'server', 'browser.js');
 	clientLogger.info(`Worker path: ${workerPath.toString()}`);

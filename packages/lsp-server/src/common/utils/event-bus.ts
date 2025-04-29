@@ -3,7 +3,7 @@ import { Emitter } from 'vscode-languageserver';
 /**
  * Type definition for event handlers
  */
-export type EventHandler<T = any> = (data: T) => void;
+export type EventHandler<T = unknown> = (data: T) => void;
 
 /**
  * EventBus for handling application-wide events
@@ -11,7 +11,7 @@ export type EventHandler<T = any> = (data: T) => void;
  * Uses vscode-languageserver Emitter for event handling
  */
 export class EventBus<Events extends string> {
-	private emitters: Map<Events, Emitter<any>>;
+	private emitters: Map<Events, Emitter<unknown>>;
 
 	constructor() {
 		this.emitters = new Map();
@@ -26,7 +26,7 @@ export class EventBus<Events extends string> {
 		if (!this.emitters.has(eventName)) {
 			this.emitters.set(eventName, new Emitter<T>());
 		}
-		return this.emitters.get(eventName)!;
+		return this.emitters.get(eventName)! as Emitter<T>;
 	}
 
 	/**
@@ -35,7 +35,7 @@ export class EventBus<Events extends string> {
 	 * @param handler Function to be called when the event is emitted
 	 * @returns A function that unsubscribes the handler
 	 */
-	on<T = any>(eventName: Events, handler: EventHandler<T>): () => void {
+	on<T = unknown>(eventName: Events, handler: EventHandler<T>): () => void {
 		const emitter = this.getEmitter<T>(eventName);
 		const disposable = emitter.event(handler);
 
@@ -65,7 +65,7 @@ export class EventBus<Events extends string> {
 	 * @param eventName Name of the event to emit
 	 * @param data Data to pass to handlers
 	 */
-	emit<T = any>(eventName: Events, data?: T): void {
+	emit<T = unknown>(eventName: Events, data?: T): void {
 		if (this.emitters.has(eventName)) {
 			try {
 				this.emitters.get(eventName)!.fire(data!);
@@ -81,7 +81,7 @@ export class EventBus<Events extends string> {
 	 * @param handler Function to be called when the event is emitted
 	 * @returns A function that unsubscribes the handler
 	 */
-	once<T = any>(eventName: Events, handler: EventHandler<T>): () => void {
+	once<T = unknown>(eventName: Events, handler: EventHandler<T>): () => void {
 		const emitter = this.getEmitter<T>(eventName);
 		let disposable: { dispose: () => void } | null = null;
 

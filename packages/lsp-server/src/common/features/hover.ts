@@ -247,7 +247,7 @@ export class HoverFeature implements Feature {
 									} else {
 										result += `Price trend (last 30 days):\n\n`;
 									}
-								} catch (e) {
+								} catch (_e) {
 									result += `Price trend (last 30 days):\n\n`;
 								}
 							} else {
@@ -819,7 +819,7 @@ export class HoverFeature implements Feature {
 									} else {
 										result += `Price trend (last 30 days):\n\n`;
 									}
-								} catch (e) {
+								} catch (_e) {
 									result += `Price trend (last 30 days):\n\n`;
 								}
 							} else {

@@ -51,7 +51,7 @@ export abstract class ToolImpl<T> implements LanguageModelTool<T> {
 		throw new Error(`${this.name} must implement tags`);
 	}
 
-	public static get inputSchema(): Record<string, any> {
+	public static get inputSchema(): Record<string, unknown> {
 		return zodToJsonSchema(this.inputZodSchema);
 	}
 
