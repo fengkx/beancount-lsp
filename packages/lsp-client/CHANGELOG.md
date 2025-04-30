@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.66
+
+- chore: bump lsp-client version to 0.0.66 ([04b19ed](https://github.com/fengkx/beancount-lsp/commit/04b19ed))
+- refactor: clean up TypeScript configurations and improve type imports ([e9b62c3](https://github.com/fengkx/beancount-lsp/commit/e9b62c3))
+- refactor: enhance type definitions and improve code readability ([17b6c75](https://github.com/fengkx/beancount-lsp/commit/17b6c75))
+- chore: update dependencies in package.json files ([22985b4](https://github.com/fengkx/beancount-lsp/commit/22985b4))
+- docs: udpate readme ([42a17d6](https://github.com/fengkx/beancount-lsp/commit/42a17d6))
+
 ## v0.0.64
 
 - chore: bump lsp-client version to 0.0.64 ([6af7eb9](https://github.com/fengkx/beancount-lsp/commit/6af7eb9))
