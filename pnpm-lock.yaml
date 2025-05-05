@@ -59,8 +59,8 @@ catalogs:
       version: 3.24.3
   types:
     '@fengkx/tsconfig':
-      specifier: ^1.0.0
-      version: 1.0.0
+      specifier: ^2.0.0
+      version: 2.0.0
     '@types/node':
       specifier: ^22.15.3
       version: 22.15.3
@@ -90,7 +90,7 @@ importers:
         version: 9.25.1
       '@fengkx/tsconfig':
         specifier: catalog:types
-        version: 1.0.0(typescript@5.8.3)
+        version: 2.0.0(typescript@5.8.3)
       '@types/node':
         specifier: catalog:types
         version: 22.15.3
@@ -578,8 +578,8 @@ packages:
   '@fengkx/tree-sitter-beancount@0.0.1':
     resolution: {integrity: sha512-nNLj76P+kaITCvxQTlcD6olYPl6gSo5m1u4DnAc5iiwm7k2B43A844Tcejj0Hqn9fcqjxgeGNS2khMfVNOjtxg==}
 
-  '@fengkx/tsconfig@1.0.0':
-    resolution: {integrity: sha512-CM6RXkZhQxfYH3ZO5MizaLURN3ivSR6ekpkyOC5jHB8WzgwWQThDvQmFBxai087wj0lVSB0tslcBdHxTFmjaSA==}
+  '@fengkx/tsconfig@2.0.0':
+    resolution: {integrity: sha512-hzMPHs92XYnuDsEeIO2NW+dFnAO4wGsEfa0hfbjgHV4IVEEMwUnrfcBFChxRNCu0Va3v39y4t+5ZyD6co6t/aw==}
     peerDependencies:
       typescript: ^5
 
@@ -823,6 +823,7 @@ packages:
   '@swc/core@1.11.22':
     resolution: {integrity: sha512-mjPYbqq8XjwqSE0hEPT9CzaJDyxql97LgK4iyvYlwVSQhdN1uK0DBG4eP9PxYzCS2MUGAXB34WFLegdUj5HGpg==}
     engines: {node: '>=10'}
+    deprecated: It has a bug. See https://github.com/swc-project/swc/issues/10413
     peerDependencies:
       '@swc/helpers': '>=0.5.17'
     peerDependenciesMeta:
@@ -3219,7 +3220,7 @@ snapshots:
     dependencies:
       nan: 2.22.2
 
-  '@fengkx/tsconfig@1.0.0(typescript@5.8.3)':
+  '@fengkx/tsconfig@2.0.0(typescript@5.8.3)':
     dependencies:
       typescript: 5.8.3
 
