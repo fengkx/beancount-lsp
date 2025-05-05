@@ -402,7 +402,7 @@
 		"esbuild-plugins-node-modules-polyfill": "^1.7.0",
 		"execa": "^9.5.2",
 		"glob": "^11.0.2",
-		"mocha": "^11.1.0",
+		"mocha": "^11.2.2",
 		"vitest": "^3.1.2",
 		"zod-to-json-schema": "^3.24.5"
 	},
