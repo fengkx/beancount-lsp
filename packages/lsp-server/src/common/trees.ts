@@ -71,10 +71,14 @@ export class Trees {
 				const oldTree = info.tree;
 
 				const deltas = info.edits.flat();
-				deltas.forEach((delta) => oldTree.edit(delta));
+				if (deltas.length <= 1) {
+					deltas.forEach((delta) => oldTree.edit(delta));
+					info.tree = parser.parse(text, oldTree);
+				} else {
+					info.tree = parser.parse(text);
+				}
 				info.edits.length = 0;
 
-				info.tree = parser.parse(text, oldTree);
 				info.version = version;
 				oldTree.delete();
 			}
