@@ -251,7 +251,7 @@ function createFilterString(text: string): string {
 function addCompletionItem(
 	item: { label: string; kind?: CompletionItemKind; detail?: string },
 	position: Position,
-	textEdit: string,
+	textEdit: string | TextEdit,
 	set: Set<string>,
 	items: CompletionItem[],
 	cnt: number,
@@ -287,7 +287,7 @@ function addCompletionItem(
 		...item,
 		kind: item.kind || CompletionItemKind.Text,
 		filterText,
-		textEdit: TextEdit.insert(position, textEdit),
+		textEdit: typeof textEdit === 'string' ? TextEdit.insert(position, textEdit) : textEdit,
 		sortText: String(1000000 - Math.round(score)).padStart(7, '0'),
 		// Add data for debugging if needed
 		data: userInput ? { score, usageCount } : undefined,
@@ -471,7 +471,13 @@ async function addCurrencyCompletions(
 		cnt = addCompletionItem(
 			{ label: currency, kind: CompletionItemKind.Unit, detail: '(currency)' },
 			position,
-			currency.startsWith(userInput) ? currency.slice(userInput.length) : currency,
+			TextEdit.replace(
+				{
+					start: { line: position.line, character: position.character - userInput.length },
+					end: { line: position.line, character: position.character },
+				},
+				currency,
+			),
 			set,
 			items,
 			cnt,
@@ -573,16 +579,16 @@ async function addAccountCompletions(
 	// Filter accounts based on the trigger character and closed status
 	const filteredAccounts = accountsNames.filter((account) => {
 		// First, apply the trigger character filter
-		if (triggerChar) {
-			if (triggerChar === 'E') {
-				// Special case for E: match both Equity and Expenses accounts
-				if (!account.startsWith('Equity:') && !account.startsWith('Expenses:')) {
-					return false;
-				}
-			} else if (!account.startsWith(triggerChar)) {
-				return false;
-			}
-		}
+		// if (triggerChar) {
+		// 	if (triggerChar === 'E') {
+		// 		// Special case for E: match both Equity and Expenses accounts
+		// 		if (!account.startsWith('Equity:') && !account.startsWith('Expenses:')) {
+		// 			return false;
+		// 		}
+		// 	} else if (!account.startsWith(triggerChar)) {
+		// 		return false;
+		// 	}
+		// }
 
 		// Now, check if the account is closed and if the current date is after the closing date
 		if (currentDate && closedAccounts.has(account)) {
@@ -629,7 +635,13 @@ async function addAccountCompletions(
 				detail,
 			},
 			position,
-			account.replace(new RegExp(`^${triggerChar}`), '') + ' ',
+			TextEdit.replace(
+				{
+					start: { line: position.line, character: position.character - triggerChar.length },
+					end: { line: position.line, character: position.character },
+				},
+				account + ' ',
+			),
 			set,
 			items,
 			cnt,
@@ -1117,18 +1129,21 @@ export class CompletionFeature implements Feature {
 				});
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
-			.with({
-				previousPreviousSiblingType: '\n',
-				previousSiblingType: 'transaction',
-				parentType: 'file',
-			}, async () => {
-				// Account completions after a transaction line
-				logger.info('Branch: transaction sibling with newline previous');
+			.with({ currentType: 'account', parentType: 'posting' }, async () => {
+				// Account completions after a posting
+				logger.info('Branch: account current, posting parent');
 				const initialCount = completionItems.length;
-				const accounts = await this.symbolIndex.getAccountDefinitions();
-				accounts.forEach((account: { name: string }) => {
-					addItem({ label: account.name });
-				});
+				cnt = await addAccountCompletions(
+					this.symbolIndex,
+					position,
+					userInput ?? '',
+					set,
+					completionItems,
+					cnt,
+					userInput,
+					info.currentLine,
+					document,
+				);
 				logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
 			})
 			.otherwise(() => {
