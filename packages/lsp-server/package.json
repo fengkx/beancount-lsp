@@ -1,14 +1,17 @@
 {
 	"name": "beancount-lsp-server",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"description": "Language server for Beancount files with customizable tree-sitter WASM file path",
 	"main": "dist/node/server.js",
 	"browser": "dist/browser/server.js",
 	"bin": {
 		"beancount-lsp-server": "./dist/node/server.js"
 	},
+	"files": [
+		"dist"
+	],
 	"scripts": {
-		"build": "tsup && node scripts/prepare-client-assets.js",
+		"build": "tsup && node scripts/prepare-client-assets.js && node scripts/prepare-npm-package.js",
 		"watch": "tsup --watch",
 		"typecheck": "tsc --noEmit true",
 		"test": "vitest run",
@@ -19,7 +22,11 @@
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
-	"dependencies": {
+	"publishConfig": {
+		"access": "public",
+		"dependencies": {}
+	},
+	"devDependencies": {
 		"@bean-lsp/shared": "workspace:*",
 		"@seald-io/nedb": "^4.1.1",
 		"big.js": "^7.0.1",
@@ -34,9 +41,7 @@
 		"vscode-languageserver": "^9.0.1",
 		"vscode-languageserver-textdocument": "^1.0.11",
 		"vscode-uri": "^3.0.8",
-		"web-tree-sitter": "^0.20.8"
-	},
-	"devDependencies": {
+		"web-tree-sitter": "^0.20.8",
 		"@swc/core": "^1.11.24",
 		"@types/big.js": "^6.2.2",
 		"@types/micromatch": "^4.0.6",

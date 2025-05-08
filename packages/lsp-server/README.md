@@ -6,10 +6,8 @@ A Language Server Protocol (LSP) implementation for [Beancount](https://beancoun
 
 The Beancount LSP Server provides intelligent features for Beancount files, including diagnostics, completions, hover information, and navigation capabilities etc...
 
-## Installation
-
 ```bash
-pnpm add @beancount/lsp-server
+npx beancount-lsp-server
 ```
 
 ## Usage
@@ -19,7 +17,7 @@ The LSP server can be used programmatically in your JavaScript/TypeScript applic
 ### Programmatic Usage
 
 ```typescript
-import { BeancountLSPServer } from '@beancount/lsp-server';
+import { BeancountLSPServer } from 'beancount-lsp-server';
 import { createConnection, ProposedFeatures } from 'vscode-languageserver/node';
 
 // Create a connection to the client
@@ -59,11 +57,11 @@ const client = new LanguageClient(
 	'Beancount Language Server',
 	{
 		run: {
-			module: '@beancount/lsp-server',
+			module: 'beancount-lsp-server',
 			transport: TransportKind.ipc,
 		},
 		debug: {
-			module: '@beancount/lsp-server',
+			module: 'beancount-lsp-server',
 			transport: TransportKind.ipc,
 			options: {
 				execArgv: ['--nolazy', '--inspect=6009'],
