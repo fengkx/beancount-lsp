@@ -31,12 +31,15 @@ const nodeConfig = defineConfig({
 	entry: ['src/node/server.ts'],
 	outDir: 'dist/node',
 	clean: true,
-	target: 'node18',
+	target: 'node20',
 	noExternal: [
 		...commonConfig.noExternal,
 		'execa',
 		'fast-glob',
 	],
+	banner: {
+		js: '#!/usr/bin/env node',
+	},
 });
 
 const browserConfig = defineConfig({

@@ -4,6 +4,9 @@
 	"description": "Language server for Beancount files with customizable tree-sitter WASM file path",
 	"main": "dist/node/server.js",
 	"browser": "dist/browser/server.js",
+	"bin": {
+		"beancount-lsp-server": "./dist/node/server.js"
+	},
 	"scripts": {
 		"build": "tsup && node scripts/prepare-client-assets.js",
 		"watch": "tsup --watch",
