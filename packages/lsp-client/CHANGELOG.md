@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.68
+
+- chore: bump lsp-client version to 0.0.68 ([3112cad](https://github.com/fengkx/beancount-lsp/commit/3112cad))
+- fix: enhance word pattern to support unicode characters and improve text edit handling in completions ([ec2b7b1](https://github.com/fengkx/beancount-lsp/commit/ec2b7b1))
+- chore: update @types/node and type-fest to latest versions ([2e9ed14](https://github.com/fengkx/beancount-lsp/commit/2e9ed14))
+- chore: update package dependencies to latest versions ([e01671b](https://github.com/fengkx/beancount-lsp/commit/e01671b))
+
 ## v0.0.66
 
 - chore: bump lsp-client version to 0.0.66 ([04b19ed](https://github.com/fengkx/beancount-lsp/commit/04b19ed))
