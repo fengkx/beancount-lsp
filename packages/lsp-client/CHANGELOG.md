@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.70
+
+- chore: bump lsp-client version to 0.0.70 ([79b9f43](https://github.com/fengkx/beancount-lsp/commit/79b9f43))
+- feat: add support for cjk account name ([b77640d](https://github.com/fengkx/beancount-lsp/commit/b77640d))
+- chore: update dependencies in lsp-client and lsp-server ([c2f7d4d](https://github.com/fengkx/beancount-lsp/commit/c2f7d4d))
+- feat: better word pattern using regexpu ([b36eafb](https://github.com/fengkx/beancount-lsp/commit/b36eafb))
+
 ## v0.0.68
 
 - chore: bump lsp-client version to 0.0.68 ([3112cad](https://github.com/fengkx/beancount-lsp/commit/3112cad))
