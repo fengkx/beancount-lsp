@@ -126,3 +126,13 @@ option "infer_tolerance_from_cost" "TRUE"
   Income:A                                          -1 USD
   Income:B                                          -1 HKD
   Assets:A
+
+2023-01-01 open Assets:Checking:中文
+2023-01-01 open Assets:Checking:かな
+
+2025-05-12 * "Test"
+  Assets:Checking:中文                                 1.00 CNY
+  Assets:Checking:かな                                -1.00 CNY
+
+2025-05-13 balance Assets:Checking:中文  1.00 CNY
+2025-05-13 balance Assets:Checking:かな -1.00 CNY

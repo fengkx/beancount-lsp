@@ -29,7 +29,7 @@
 	},
 	"dependencies": {
 		"proper-tags": "^2.0.2",
-		"tree-sitter-beancount": "npm:@fengkx/tree-sitter-beancount",
+		"tree-sitter-beancount": "workspace:@fengkx/tree-sitter-beancount@*",
 		"web-tree-sitter": "^0.20.8"
 	},
 	"keywords": [],
