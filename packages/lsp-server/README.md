@@ -43,7 +43,6 @@ When initializing the Beancount LSP server, you can provide the following parame
 
 #### Optional Parameters
 
-- `webTreeSitterWasmPath`: Path to the WebAssembly binary for Tree-sitter parsing.
 - `extensionUri`: URI string for the extension's location. which contain `pythonFiles` directory [and python files needed](https://github.com/fengkx/beancount-lsp/tree/master/packages/lsp-client/pythonFiles)
 
 ## Server Configuration
@@ -74,7 +73,6 @@ const client = new LanguageClient(
 			fileEvents: workspace.createFileSystemWatcher('**/*.bean'),
 		},
 		initializationOptions: {
-			webTreeSitterWasmPath: '/path/to/tree-sitter-wasm',
 			extensionUri: extensionUri.toString(),
 		},
 	},
