@@ -32,8 +32,8 @@ try {
 // Generate changelog content for current version
 function generateCurrentVersionChangelog() {
 	const gitLogCmd = previousTag
-		? `git log --pretty=format:"- %s ([%h](https://github.com/fengkx/beancount-lsp/commit/%h))" "${previousTag}..HEAD" -- packages/lsp-client`
-		: `git log --pretty=format:"- %s ([%h](https://github.com/fengkx/beancount-lsp/commit/%h))" -- packages/lsp-client`;
+		? `git log --pretty=format:"- %s ([%h](https://github.com/fengkx/beancount-lsp/commit/%h))" "${previousTag}..HEAD"`
+		: `git log --pretty=format:"- %s ([%h](https://github.com/fengkx/beancount-lsp/commit/%h))"`;
 
 	let commits = '';
 	try {
