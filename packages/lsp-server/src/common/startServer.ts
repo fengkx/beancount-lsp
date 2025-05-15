@@ -28,7 +28,6 @@ import { Trees } from './trees';
 import Db from '@seald-io/nedb';
 import { SymbolInfo } from './features/symbol-extractors';
 import { SymbolIndex } from './features/symbol-index';
-import { setWasmFilePath } from './language';
 import { registerCustomMessageHandlers } from './messages';
 import { BeancountOptionsManager } from './utils/beancount-options';
 import { globalEventBus, GlobalEvents } from './utils/event-bus';
@@ -122,8 +121,6 @@ export function startServer(
 		// Extract webTreeSitterWasmPath from initialization options if available
 		if (params.initializationOptions?.webTreeSitterWasmPath) {
 			options.webTreeSitterWasmPath = params.initializationOptions.webTreeSitterWasmPath;
-			// Update wasmFilePath in the language module
-			setWasmFilePath(options.webTreeSitterWasmPath);
 		}
 
 		const symbolStorage = await factory.create<SymbolInfo>(
@@ -133,7 +130,7 @@ export function startServer(
 		await symbolStorage.autoloadPromise;
 		connection.onExit(() => factory.destroy(symbolStorage));
 
-		const trees = new Trees(documents, options.webTreeSitterWasmPath!);
+		const trees = new Trees(documents);
 		const optionsManager = BeancountOptionsManager.getInstance();
 		const historyContext = new HistoryContext(trees);
 		symbolIndex = new SymbolIndex(documents, trees, symbolStorage, optionsManager, historyContext);

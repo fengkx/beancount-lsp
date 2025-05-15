@@ -74,13 +74,6 @@ const queryMap = {
 type BeanTokenName = keyof typeof queryMap;
 
 const map = new Map<BeanTokenName, TreeQuery>();
-// Store web-tree-sitter WASM path in a module variable that can be updated
-let _webTreeSitterWasmPath: string | undefined;
-
-// Update the web-tree-sitter WASM path
-export function setWasmFilePath(path: string | undefined) {
-	_webTreeSitterWasmPath = path;
-}
 
 export class TreeQuery {
 	query: string | undefined;
@@ -105,7 +98,7 @@ export class TreeQuery {
 		endPosition?: Parser.Point,
 	): Promise<Parser.QueryMatch[]> {
 		// Use the module-level WASM path
-		const parser = await getParser(_webTreeSitterWasmPath);
+		const parser = await getParser();
 		return parser.getLanguage().query(this.query!).matches(rootNode, startPosition, endPosition);
 	}
 
@@ -115,7 +108,7 @@ export class TreeQuery {
 		endPosition?: Parser.Point,
 	): Promise<Parser.QueryCapture[]> {
 		// Use the module-level WASM path
-		const parser = await getParser(_webTreeSitterWasmPath);
+		const parser = await getParser();
 		return parser.getLanguage().query(this.query!).captures(rootNode, startPosition, endPosition);
 	}
 
@@ -126,7 +119,7 @@ export class TreeQuery {
 		endPosition?: Parser.Point,
 	): Promise<Parser.QueryMatch[]> {
 		// Use the module-level WASM path
-		const parser = await getParser(_webTreeSitterWasmPath);
+		const parser = await getParser();
 		return parser.getLanguage().query(query).matches(rootNode, startPosition, endPosition);
 	}
 	static async captures(
@@ -136,7 +129,7 @@ export class TreeQuery {
 		endPosition?: Parser.Point,
 	): Promise<Parser.QueryCapture[]> {
 		// Use the module-level WASM path
-		const parser = await getParser(_webTreeSitterWasmPath);
+		const parser = await getParser();
 		return parser.getLanguage().query(query).captures(rootNode, startPosition, endPosition);
 	}
 }

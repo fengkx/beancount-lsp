@@ -1,28 +1,23 @@
 import BeancountLang from 'tree-sitter-beancount/tree-sitter-beancount.wasm';
 import Parser from 'web-tree-sitter';
+import TreeSitterWasm from 'web-tree-sitter/tree-sitter.wasm';
 
 let parser: Parser | undefined;
 let isInitialized = false;
 
-// This initializes web-tree-sitter with the provided WASM file
-export async function initializeParser(webTreeSitterWasmPath?: string) {
+export async function initializeParser() {
 	if (isInitialized) return;
 
 	await Parser.init({
-		locateFile(scriptName: string) {
-			if (webTreeSitterWasmPath && scriptName === 'tree-sitter.wasm') {
-				return webTreeSitterWasmPath;
-			}
-			return require.resolve(`web-tree-sitter/${scriptName}`);
-		},
+		wasmBinary: TreeSitterWasm,
 	});
 
 	isInitialized = true;
 }
 
-export const getParser = async (webTreeSitterWasmPath?: string): Promise<Parser> => {
+export const getParser = async (): Promise<Parser> => {
 	// Initialize the parser with the provided web-tree-sitter WASM path
-	await initializeParser(webTreeSitterWasmPath);
+	await initializeParser();
 
 	// Return existing parser instance if available
 	if (parser) return parser;

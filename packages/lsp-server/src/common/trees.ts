@@ -18,11 +18,8 @@ export class Trees {
 
 	private readonly _listener: Disposable[] = [];
 
-	private readonly _webTreeSitterWasmPath?: string;
-
 	constructor(
 		private readonly _documents: DocumentStore,
-		webTreeSitterWasmPath: string,
 	) {
 		// build edits when document changes
 		this._listener.push(
@@ -33,15 +30,14 @@ export class Trees {
 				}
 			}),
 		);
-		this._webTreeSitterWasmPath = webTreeSitterWasmPath;
 	}
 
 	public invalidateCache(uri: string) {
 		this._cache.delete(uri);
 	}
 
-	private static async getParserInstance(webTreeSitterWasmPath?: string) {
-		const parser = await getParser(webTreeSitterWasmPath);
+	private static async getParserInstance() {
+		const parser = await getParser();
 		return parser;
 	}
 
@@ -51,7 +47,7 @@ export class Trees {
 		if (typeof documentOrUri === 'string') {
 			documentOrUri = await this._documents.retrieve(documentOrUri);
 		}
-		const parser = await Trees.getParserInstance(this._webTreeSitterWasmPath);
+		const parser = await Trees.getParserInstance();
 		let info = this._cache.get(documentOrUri.uri);
 		try {
 			const version = documentOrUri.version;
