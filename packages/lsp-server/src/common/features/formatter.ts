@@ -287,6 +287,9 @@ export class FormatterFeature implements Feature {
 		// Format the indentation + optflag + account portion
 		const accountStartPos = document.positionAt(account.startIndex);
 		const accountEndPos = document.positionAt(account.endIndex);
+		const accountText = account.text;
+		const accountVisualWidth = this.calculateStringWidth(accountText);
+		const accountVisualEndCol = accountStartPos.character + accountVisualWidth;
 
 		// Fix indentation if needed (should be positions.accountColumn spaces)
 		const currentIndent = accountStartPos.character;
@@ -334,7 +337,7 @@ export class FormatterFeature implements Feature {
 			const integerWidth = this.calculateStringWidth(integerPart);
 
 			// Calculate required spaces for decimal point alignment
-			const spaceNeeded = positions.decimalPointColumn - accountEndPos.character - integerWidth;
+			const spaceNeeded = positions.decimalPointColumn - accountVisualEndCol - integerWidth;
 			const whitespaceLength = Math.max(1, spaceNeeded);
 
 			const whitespace = ' '.repeat(whitespaceLength);
@@ -424,7 +427,7 @@ export class FormatterFeature implements Feature {
 				edits.push(TextEdit.replace({
 					start: lastEndPos,
 					end: costStartPos,
-				}, ' '.repeat(positions.amountColumn - accountEndPos.character)));
+				}, ' '.repeat(positions.amountColumn - accountVisualEndCol)));
 				lastEndPos = document.positionAt(costSpec.endIndex);
 			}
 		}
@@ -472,14 +475,9 @@ export class FormatterFeature implements Feature {
 		for (const char of text) {
 			// Use a more comprehensive check for wide characters
 			// This includes CJK Unified Ideographs, Hiragana, Katakana, Hangul, etc.
+
 			if (
-				(char >= '\u4e00' && char <= '\u9fff') // CJK Unified Ideographs
-				|| (char >= '\u3040' && char <= '\u309f') // Hiragana
-				|| (char >= '\u30a0' && char <= '\u30ff') // Katakana
-				|| (char >= '\u3400' && char <= '\u4dbf') // CJK Extension A
-				|| (char >= '\uf900' && char <= '\ufaff') // CJK Compatibility Ideographs
-				|| (char >= '\uac00' && char <= '\ud7af') // Hangul Syllables
-				|| (char >= '\u3000' && char <= '\u303f') // CJK Symbols and Punctuation
+				/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(char)
 			) {
 				width += 2;
 			} else {
