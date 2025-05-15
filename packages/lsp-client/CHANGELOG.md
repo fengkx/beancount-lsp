@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.72
+
+- chore: bump lsp-client version to 0.0.72 ([8f80ea6](https://github.com/fengkx/beancount-lsp/commit/8f80ea6))
+- fix(formatter): improve account formatting logic and enhance wide character handling ([7758170](https://github.com/fengkx/beancount-lsp/commit/7758170))
+- chore(deps): bump eslint-plugin-turbo from 2.5.2 to 2.5.3 (#63) ([e3b87c0](https://github.com/fengkx/beancount-lsp/commit/e3b87c0))
+- feat: add bug report issue template for improved issue tracking ([7a8e4cd](https://github.com/fengkx/beancount-lsp/commit/7a8e4cd))
+- chore: update deps ([da2c515](https://github.com/fengkx/beancount-lsp/commit/da2c515))
+
 ## v0.0.70
 
 - chore: bump lsp-client version to 0.0.70 ([79b9f43](https://github.com/fengkx/beancount-lsp/commit/79b9f43))
