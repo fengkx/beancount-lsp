@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.74
+
+- chore: bump lsp-client version to 0.0.74 ([9fe2878](https://github.com/fengkx/beancount-lsp/commit/9fe2878))
+- docs: remove webTreeSitterWasmPath reference from README.md ([add24d5](https://github.com/fengkx/beancount-lsp/commit/add24d5))
+
 ## v0.0.73
 
 - chore: bump lsp-client version to 0.0.73 ([a0a3b40](https://github.com/fengkx/beancount-lsp/commit/a0a3b40))
