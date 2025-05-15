@@ -7,6 +7,7 @@ const commonConfig = {
 	loader: {
 		'.wasm': 'binary',
 		'.scm': 'text',
+		'.py': 'text',
 	},
 	external: ['vscode'],
 	noExternal: [

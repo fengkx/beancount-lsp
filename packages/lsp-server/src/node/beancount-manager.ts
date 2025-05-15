@@ -10,6 +10,7 @@ import {
 	RealBeancountManager,
 } from '../common/features/types';
 import { globalEventBus, GlobalEvents } from '../common/utils/event-bus';
+import beanCheckPythonCode from './beancheck.py';
 
 interface AccountDetails {
 	open: string;
@@ -37,7 +38,7 @@ class BeancountManager implements RealBeancountManager {
 	private result: BeancheckOutput | null = null;
 	private logger = new Logger('BeancountManager');
 
-	constructor(private connection: Connection, private extensionUri: string) {
+	constructor(private connection: Connection) {
 		connection.onDidSaveTextDocument(this.onDocumentSaved.bind(this));
 	}
 
@@ -70,9 +71,7 @@ class BeancountManager implements RealBeancountManager {
 		const python3Path = await this.getPython3Path();
 
 		try {
-			const extensionUri = URI.parse(this.extensionUri);
-			const checkScript = `${extensionUri.fsPath}/pythonFiles/beancheck.py`;
-			const { stdout } = await $`${python3Path} ${checkScript} ${this.mainFile}`;
+			const { stdout } = await $`${python3Path} -c ${beanCheckPythonCode} ${this.mainFile}`;
 			return stdout;
 		} catch (error) {
 			this.logger.error('Error running bean-check:', error);
@@ -175,5 +174,4 @@ class BeancountManager implements RealBeancountManager {
 	}
 }
 
-export const beananagerFactory: BeancountManagerFactory = (connection: Connection, extensionPath: string) =>
-	new BeancountManager(connection, extensionPath);
+export const beananagerFactory: BeancountManagerFactory = (connection: Connection) => new BeancountManager(connection);

@@ -34,7 +34,7 @@ export interface RealBeancountManager {
 	runQuery(query: string): Promise<string>;
 }
 
-export type BeancountManagerFactory = (connection: Connection, extensionUri: string) => RealBeancountManager;
+export type BeancountManagerFactory = (connection: Connection) => RealBeancountManager;
 
 export interface PlatformMethods {
 	findBeanFiles: () => Promise<string[]>;

@@ -150,7 +150,7 @@ export function startServer(
 		features.push(new FormatterFeature(documents, trees));
 
 		if (typeof beanMgrFactory === 'function') {
-			beanMgr = beanMgrFactory(connection, params.initializationOptions?.extensionUri);
+			beanMgr = beanMgrFactory(connection);
 		}
 		features.push(new DiagnosticsFeature(documents, trees, optionsManager, beanMgr));
 		features.push(new HoverFeature(documents, trees, priceMap, symbolIndex, beanMgr));
