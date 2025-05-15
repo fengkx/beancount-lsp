@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.73
+
+- chore: bump lsp-client version to 0.0.73 ([a0a3b40](https://github.com/fengkx/beancount-lsp/commit/a0a3b40))
+- refactor: remove webTreeSitterWasmPath dependency from Trees and language modules ([fd9d996](https://github.com/fengkx/beancount-lsp/commit/fd9d996))
+- fix(changelog): update git log command to exclude package path for changelog generation ([1f452c6](https://github.com/fengkx/beancount-lsp/commit/1f452c6))
+- docs: update CHANGELOG.md for v0.0.72 ([c9aad59](https://github.com/fengkx/beancount-lsp/commit/c9aad59))
+- chore: bump lsp-client version to 0.0.72 ([8f80ea6](https://github.com/fengkx/beancount-lsp/commit/8f80ea6))
+- fix(formatter): improve account formatting logic and enhance wide character handling ([7758170](https://github.com/fengkx/beancount-lsp/commit/7758170))
+- chore(deps): bump eslint-plugin-turbo from 2.5.2 to 2.5.3 (#63) ([e3b87c0](https://github.com/fengkx/beancount-lsp/commit/e3b87c0))
+- feat: add bug report issue template for improved issue tracking ([7a8e4cd](https://github.com/fengkx/beancount-lsp/commit/7a8e4cd))
+- chore: update deps ([da2c515](https://github.com/fengkx/beancount-lsp/commit/da2c515))
+
 ## v0.0.72
 
 - chore: bump lsp-client version to 0.0.72 ([8f80ea6](https://github.com/fengkx/beancount-lsp/commit/8f80ea6))
