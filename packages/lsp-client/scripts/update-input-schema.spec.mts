@@ -2,6 +2,7 @@ import { vi, it, expect } from 'vitest';
 import { tools } from "../src/common/llm/tools";
 import { writeFile, readFile } from 'fs/promises';
 import { $ } from "execa";
+import { applyEdits, modify } from 'jsonc-parser';
 
 vi.mock('vscode', () => {
     return {}
@@ -21,9 +22,11 @@ async function updateInputSchema() {
     const packageJsonUri = new URL('../package.json', import.meta.url);
 
     const packageJson = await readFile(packageJsonUri, { encoding: 'utf-8' });
-    const packageJsonObject = JSON.parse(packageJson);
-    packageJsonObject['contributes']['languageModelTools'] = toolDeclartions;
-    await writeFile(packageJsonUri, JSON.stringify(packageJsonObject, null, 2));
+    const edits = modify(packageJson, ['contributes', 'languageModelTools'], toolDeclartions, {
+        formattingOptions: { keepLines: true },
+    });
+    const newText = applyEdits(packageJson, edits);
+    await writeFile(packageJsonUri, newText);
     await $`npx dprint fmt ${packageJsonUri.pathname}`
     console.log('Updated input schema');
 
