@@ -11,7 +11,7 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "tsup && node scripts/prepare-client-assets.js && node scripts/prepare-npm-package.js",
+		"build": "tsup && node scripts/prepare-client-assets.js",
 		"watch": "tsup --watch",
 		"typecheck": "tsc --noEmit true",
 		"test": "vitest run",
