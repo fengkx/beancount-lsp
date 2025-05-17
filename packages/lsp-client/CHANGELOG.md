@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.0.76
+
+- fix: set platform to 'node' in tsup configuration for LSP server ([1b822e2](https://github.com/fengkx/beancount-lsp/commit/1b822e2))
+- chore: bump lsp-client version to 0.0.76 ([842ff2b](https://github.com/fengkx/beancount-lsp/commit/842ff2b))
+- chore: update dependencies in pnpm-lock.yaml and package.json ([b20b575](https://github.com/fengkx/beancount-lsp/commit/b20b575))
+- refactor: simplify build process by removing npm package preparation script ([d5da460](https://github.com/fengkx/beancount-lsp/commit/d5da460))
+- feat: embeding python code to LSP server without external dep ([1a60761](https://github.com/fengkx/beancount-lsp/commit/1a60761))
+- refactor: update input schema modification logic in update-input-schema.spec.mts ([76b7675](https://github.com/fengkx/beancount-lsp/commit/76b7675))
+
 ## v0.0.74
 
 - chore: bump lsp-client version to 0.0.74 ([9fe2878](https://github.com/fengkx/beancount-lsp/commit/9fe2878))
