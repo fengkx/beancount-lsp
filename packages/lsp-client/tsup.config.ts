@@ -21,6 +21,7 @@ const nodeConfig = defineConfig({
 	entry: {
 		'node/extension': 'src/node/extension.ts',
 	},
+	platform: 'node',
 	clean: true,
 });
 

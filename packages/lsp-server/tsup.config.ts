@@ -29,6 +29,7 @@ const commonConfig = {
 
 const nodeConfig = defineConfig({
 	...commonConfig,
+	platform: 'node',
 	entry: ['src/node/server.ts'],
 	outDir: 'dist/node',
 	clean: true,
@@ -60,6 +61,7 @@ const browserConfig = defineConfig({
 			modules: {
 				fs: 'empty',
 				path: 'empty',
+				events: 'empty',
 			},
 		}),
 	],
