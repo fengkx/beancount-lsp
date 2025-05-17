@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.78
+
+- chore: bump lsp-client version to 0.0.78 ([5ffcb37](https://github.com/fengkx/beancount-lsp/commit/5ffcb37))
+- fix: update events module configuration in tsup for LSP server ([51cdd80](https://github.com/fengkx/beancount-lsp/commit/51cdd80))
+
 ## v0.0.76
 
 - fix: set platform to 'node' in tsup configuration for LSP server ([1b822e2](https://github.com/fengkx/beancount-lsp/commit/1b822e2))
