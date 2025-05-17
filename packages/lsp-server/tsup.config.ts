@@ -61,7 +61,7 @@ const browserConfig = defineConfig({
 			modules: {
 				fs: 'empty',
 				path: 'empty',
-				events: 'empty',
+				events: true,
 			},
 		}),
 	],
