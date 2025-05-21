@@ -1,0 +1,18 @@
+{
+	"name": "@bean-lsp/storage",
+	"version": "0.0.1",
+	"private": true,
+	"dependencies": {
+		"nanoid": "^5.1.5"
+	},
+	"main": "./out/datastore.js",
+	"types": "./out/datastore.d.ts",
+	"scripts": {
+		"build": "tsc -b",
+		"watch": "tsc -b --watch",
+		"typecheck": "tsc --noEmit true",
+		"test": "echo \"Error: no test specified\"",
+		"format:check": "dprint check",
+		"format:fix": "dprint fmt"
+	}
+}

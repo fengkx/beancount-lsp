@@ -13,7 +13,7 @@ const commonConfig = {
 	noExternal: [
 		'big.js',
 		'@bean-lsp/shared',
-		'@seald-io/nedb',
+		'@bean-lsp/storage',
 		'date-fns',
 		'micromatch',
 		'mnemonist',

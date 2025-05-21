@@ -95,7 +95,7 @@ export class SymbolIndex {
 	removeFile(uri: string): void {
 		this._syncQueue.dequeue(uri);
 		this._asyncQueue.dequeue(uri);
-		this._symbolInfoStorage.remove({ _uri: uri }, { multi: true });
+		this._symbolInfoStorage.removeAsync({ _uri: uri });
 	}
 
 	async consume(): Promise<void> {
@@ -233,7 +233,7 @@ export class SymbolIndex {
 			- Links: ${links.length}
 		`);
 
-		this._symbolInfoStorage.remove({ _uri: document.uri }, { multi: true });
+		this._symbolInfoStorage.removeAsync({ _uri: document.uri });
 		await Promise.all([
 			this._symbolInfoStorage.insertAsync(accountUsages),
 			this._symbolInfoStorage.insertAsync(accountDefinitions),
@@ -279,7 +279,7 @@ export class SymbolIndex {
 		const currencyDefinitions = await getCurrencyDefinitions(document, this._trees);
 		await Promise.all(
 			currencyDefinitions.map(async (d) => {
-				await this._symbolInfoStorage.insertAsync(d);
+				await this._symbolInfoStorage.insertAsync([d]);
 			}),
 		);
 	}
@@ -348,21 +348,21 @@ export class SymbolIndex {
 		}
 	}
 
-	public async getAccountDefinitions(): Promise<import('@seald-io/nedb').Document<SymbolInfo[]>> {
+	public async getAccountDefinitions(): Promise<Readonly<SymbolInfo>[]> {
 		this.logger.debug('[index] Getting account definitions');
-		const accountDefinitions = this._symbolInfoStorage.findAsync<SymbolInfo>({
+		const accountDefinitions = await this._symbolInfoStorage.findAsync({
 			[SymbolKey.TYPE]: SymbolType.ACCOUNT_DEFINITION,
 		});
-		accountDefinitions.then(defs => this.logger.debug(`[index] Found ${defs.length} account definitions`));
+		this.logger.debug(`[index] Found ${accountDefinitions.length} account definitions`);
 		return accountDefinitions;
 	}
 
-	public async getCommodityDefinitions(): Promise<import('@seald-io/nedb').Document<SymbolInfo[]>> {
+	public async getCommodityDefinitions(): Promise<Readonly<SymbolInfo>[]> {
 		this.logger.debug('[index] Getting commodity definitions');
-		const commodityDefinitions = this._symbolInfoStorage.findAsync({
+		const commodityDefinitions = await this._symbolInfoStorage.findAsync({
 			[SymbolKey.TYPE]: SymbolType.CURRENCY_DEFINITION,
 		});
-		commodityDefinitions.then(defs => this.logger.debug(`[index] Found ${defs.length} commodity definitions`));
+		this.logger.debug(`[index] Found ${commodityDefinitions.length} commodity definitions`);
 		return commodityDefinitions;
 	}
 

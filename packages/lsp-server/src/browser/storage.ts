@@ -1,6 +1,6 @@
-import Db from '@seald-io/nedb';
+import Db from '@bean-lsp/storage';
+import { SymbolKey } from '../common/features/symbol-extractors';
 import { IStorageFactory, StorageInstance } from '../common/startServer';
-
 /**
  * Browser implementation of StorageFactory using in-memory database
  * Note: This does not persist data between sessions
@@ -9,15 +9,12 @@ class BrowserStorageFactory<T> implements IStorageFactory<T> {
 	private dbs = new Map<string, StorageInstance<T>>();
 
 	async create<T>(name: string): Promise<StorageInstance<T>> {
-		// Create the database with the given name as filename
-		// Use inMemoryOnly: true to ensure we don't try to persist to disk in browser environment
-		const db = new Db({
-			// filename: name,
-			// autoload: true,
-			inMemoryOnly: true,
-		});
+		const db = new Db<T>({});
+		db.ensureIndexAsync('_uri');
+		db.ensureIndexAsync(SymbolKey.TYPE);
 
 		// Store the database instance
+		// @ts-expect-error - TODO: fix this
 		this.dbs.set(name, db);
 
 		return db;

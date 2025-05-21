@@ -138,7 +138,7 @@ export class DefinitionFeature {
 	private async findAccountDefinition(accountName: string): Promise<lsp.Location[] | null> {
 		// Get account definitions from index
 		const definitionsResult = await this.symbolIndex.getAccountDefinitions();
-		const definitions = definitionsResult as unknown as SymbolInfo[];
+		const definitions = definitionsResult;
 
 		// Filter definitions to find the ones for this account
 		const matchingDefinitions = definitions.filter(def => def.name === accountName);

@@ -25,7 +25,7 @@ import { SemanticTokenFeature } from './features/semantic-token';
 import { BeancountManagerFactory, Feature, RealBeancountManager } from './features/types';
 import { Trees } from './trees';
 
-import Db from '@seald-io/nedb';
+import Db from '@bean-lsp/storage';
 import { SymbolInfo } from './features/symbol-extractors';
 import { SymbolIndex } from './features/symbol-index';
 import { registerCustomMessageHandlers } from './messages';
@@ -126,7 +126,7 @@ export function startServer(
 			'_beancount_lsp_db',
 			params.initializationOptions?.globalStorageUri,
 		);
-		await symbolStorage.autoloadPromise;
+		// await symbolStorage.autoloadPromise;
 		connection.onExit(() => factory.destroy(symbolStorage));
 
 		const trees = new Trees(documents);
@@ -254,7 +254,8 @@ export function startServer(
 						const logLevel = mapTraceServerToLogLevel(config.trace.server);
 						serverLogger.setLevel(logLevel);
 						serverLogger.info(
-							`Log level changed to ${logLevelToString(logLevel)
+							`Log level changed to ${
+								logLevelToString(logLevel)
 							} (from trace.server: ${config.trace.server})`,
 						);
 					}
