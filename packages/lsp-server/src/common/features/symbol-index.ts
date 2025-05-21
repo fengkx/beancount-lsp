@@ -1,5 +1,4 @@
 import mm from 'micromatch';
-import { difference, intersection } from 'mnemonist/set';
 import { CancellationTokenSource } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { isInteresting, parallel, StopWatch } from '../common';
@@ -123,9 +122,7 @@ export class SymbolIndex {
 				this.addSyncFile(uri);
 			}
 			this.addAsyncFile(uri);
-
 		}
-
 	}
 
 	public async unleashFiles(_suffixes: string[]): Promise<void> {
@@ -160,7 +157,8 @@ export class SymbolIndex {
 				totalIndex += stat.durationIndex;
 			}
 			this.logger.debug(
-				`[index] (${async ? 'async' : 'sync'}) added ${uris.length} files ${sw.elapsed()}ms (retrieval: ${Math.round(totalRetrieve)
+				`[index] (${async ? 'async' : 'sync'}) added ${uris.length} files ${sw.elapsed()}ms (retrieval: ${
+					Math.round(totalRetrieve)
 				}ms, indexing: ${Math.round(totalIndex)}ms) (files: ${uris.map(String).join(', ')})`,
 			);
 		}
