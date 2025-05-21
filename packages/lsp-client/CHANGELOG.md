@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.79
+
+- refactor: remove unused imports from symbol-index.ts ([7d4073c](https://github.com/fengkx/beancount-lsp/commit/7d4073c))
+- chore: bump lsp-client version to 0.0.79 ([d59388b](https://github.com/fengkx/beancount-lsp/commit/d59388b))
+- feat: optimize startup response time ([07bf14d](https://github.com/fengkx/beancount-lsp/commit/07bf14d))
+- feat: remove history context tool and related functionality for memory performance ([d30067f](https://github.com/fengkx/beancount-lsp/commit/d30067f))
+
 ## v0.0.78
 
 - chore: bump lsp-client version to 0.0.78 ([5ffcb37](https://github.com/fengkx/beancount-lsp/commit/5ffcb37))
