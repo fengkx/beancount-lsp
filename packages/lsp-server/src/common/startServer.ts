@@ -156,8 +156,8 @@ export function startServer(
 		// Initialize all features
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
 
-		documents.onDidOpen(event => symbolIndex.addFile(event.document.uri));
-		documents.onDidChangeContent(event => symbolIndex.addFile(event.document.uri));
+		documents.onDidOpen(event => symbolIndex.addSyncFile(event.document.uri));
+		documents.onDidChangeContent(event => symbolIndex.addSyncFile(event.document.uri));
 
 		connection.onDidChangeWatchedFiles(e => {
 			documents.refetchBeanFiles();
@@ -165,7 +165,7 @@ export function startServer(
 				switch (type) {
 					case FileChangeType.Created:
 						documents.refetchBeanFiles();
-						symbolIndex.addFile(uri);
+						symbolIndex.addSyncFile(uri);
 						break;
 					case FileChangeType.Deleted:
 						documents.refetchBeanFiles();
@@ -173,7 +173,7 @@ export function startServer(
 						documents.removeFile(uri);
 						break;
 					case FileChangeType.Changed:
-						symbolIndex.addFile(uri);
+						symbolIndex.addSyncFile(uri);
 						documents.removeFile(uri);
 						break;
 				}
@@ -254,8 +254,7 @@ export function startServer(
 						const logLevel = mapTraceServerToLogLevel(config.trace.server);
 						serverLogger.setLevel(logLevel);
 						serverLogger.info(
-							`Log level changed to ${
-								logLevelToString(logLevel)
+							`Log level changed to ${logLevelToString(logLevel)
 							} (from trace.server: ${config.trace.server})`,
 						);
 					}

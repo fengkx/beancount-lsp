@@ -83,9 +83,12 @@ export class SymbolIndex {
 	private readonly _payeesCache: SwrCache<string[]>;
 	private readonly _narrationsCache: SwrCache<string[]>;
 
-	addFile(uri: string): void {
+	addSyncFile(uri: string): void {
 		this._syncQueue.enqueue(uri);
-		this._asyncQueue.dequeue(uri);
+	}
+
+	addAsyncFile(uri: string): void {
+		this._asyncQueue.enqueue(uri);
 	}
 
 	removeFile(uri: string): void {
@@ -112,26 +115,17 @@ export class SymbolIndex {
 
 	public async initFiles(_uris: string[]): Promise<void> {
 		const uris = new Set(_uris);
-		const sw = new StopWatch();
 		this.logger.debug(`[index] initializing index for ${uris.size} files.`);
 
-		const all = await this._symbolInfoStorage.findAsync<SymbolInfo>({});
-		const urisInStore = new Set(all.map((info: { _uri: string }) => info._uri));
+		let cnt = 0;
+		for (const uri of uris) {
+			if (cnt < 1) {
+				this.addSyncFile(uri);
+			}
+			this.addAsyncFile(uri);
 
-		const newUris = difference(uris, urisInStore);
-		const urisNeedAsyncUpdate = intersection(uris, urisInStore);
-
-		urisNeedAsyncUpdate.forEach((uri: string) => {
-			this._asyncQueue.enqueue(uri);
-		});
-
-		for (const uri of newUris) {
-			this.addFile(uri);
 		}
 
-		this.logger.debug(
-			`[index] added FROM CACHE ${all.length} files ${sw.elapsed()}ms, all need revalidation, ${uris.size} files are NEW`,
-		);
 	}
 
 	public async unleashFiles(_suffixes: string[]): Promise<void> {
@@ -166,8 +160,7 @@ export class SymbolIndex {
 				totalIndex += stat.durationIndex;
 			}
 			this.logger.debug(
-				`[index] (${async ? 'async' : 'sync'}) added ${uris.length} files ${sw.elapsed()}ms (retrieval: ${
-					Math.round(totalRetrieve)
+				`[index] (${async ? 'async' : 'sync'}) added ${uris.length} files ${sw.elapsed()}ms (retrieval: ${Math.round(totalRetrieve)
 				}ms, indexing: ${Math.round(totalIndex)}ms) (files: ${uris.map(String).join(', ')})`,
 			);
 		}
@@ -275,7 +268,7 @@ export class SymbolIndex {
 				const matched = mm.match(list, pattern, { contains: true });
 				matched.map((p: string) => p).forEach((uri: string) => {
 					hasNew = true;
-					this.addFile(uri);
+					this.addAsyncFile(uri);
 				});
 			});
 			if (hasNew) {
