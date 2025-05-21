@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.80
+
+- chore: bump lsp-client version to 0.0.80 ([f6c6504](https://github.com/fengkx/beancount-lsp/commit/f6c6504))
+- feat: add scheduler-polyfill dependency and integrate into lsp-server ([92d7c99](https://github.com/fengkx/beancount-lsp/commit/92d7c99))
+
 ## v0.0.79
 
 - refactor: remove unused imports from symbol-index.ts ([7d4073c](https://github.com/fengkx/beancount-lsp/commit/7d4073c))
