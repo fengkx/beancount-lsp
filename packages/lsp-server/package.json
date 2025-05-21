@@ -48,5 +48,8 @@
 		"vscode-languageserver-textdocument": "^1.0.11",
 		"vscode-uri": "^3.0.8",
 		"web-tree-sitter": "^0.20.8"
+	},
+	"dependencies": {
+		"@remusao/smaz": "^2.2.0"
 	}
 }

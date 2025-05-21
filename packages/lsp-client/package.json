@@ -280,26 +280,6 @@
 				}
 			},
 			{
-				"name": "get-beancount-history-context",
-				"displayName": "Beancount History Context",
-				"modelDescription": "Retrieves historical transaction context including payee, narration and accounts. When generating transaction, use this tool to get the historical context. Reuse payee and narration when suitable. IMPORTANT: You must only use existing accounts from the returned results, do not make up new accounts.",
-				"userDescription": "Get historical transaction context from your Beancount ledger",
-				"canBeReferencedInPrompt": false,
-				"toolReferenceName": "beancountHistoryContext",
-				"icon": "$(history)",
-				"tags": [
-					"beancount",
-					"finance",
-					"history"
-				],
-				"inputSchema": {
-					"type": "object",
-					"properties": {},
-					"additionalProperties": false,
-					"$schema": "http://json-schema.org/draft-07/schema#"
-				}
-			},
-			{
 				"name": "get-beancount-payees",
 				"displayName": "Get Beancount Payees",
 				"modelDescription": "Retrieves a list of all payees used in transactions, response in plain text, each line is a payee",

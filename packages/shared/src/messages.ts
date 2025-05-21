@@ -6,7 +6,6 @@ export const CustomMessages = {
 	ListBeanFile: 'beanLsPCustom/listBeanFile' as const,
 	QueueInit: 'beanLspCustom/queueInit' as const,
 	GetAccounts: 'beanLspCustom/getAccounts' as const,
-	GetHistoryContext: 'beanLspCustom/getHistoryContext' as const,
 	GetPayees: 'beanLspCustom/getPayees' as const,
 	GetNarrations: 'beanLspCustom/getNarrations' as const,
 	RunBeanQuery: 'beanLspCustom/runBeanQuery' as const,
@@ -19,15 +18,6 @@ export const GetAccountsSchema = {
 		),
 	}),
 	response: z.array(z.string()),
-};
-
-export const GetHistoryContextSchema = {
-	request: z.object({}),
-	response: z.array(z.object({
-		payee: z.string(),
-		narration: z.string(),
-		accounts: z.array(z.string()),
-	})),
 };
 
 export const GetPayeesSchema = {
@@ -61,7 +51,6 @@ export const RunBeanQuerySchema = {
 
 export const CustomMessagesSchema = {
 	GetAccounts: GetAccountsSchema,
-	GetHistoryContext: GetHistoryContextSchema,
 	GetPayees: GetPayeesSchema,
 	GetNarrations: GetNarrationsSchema,
 	RunBeanQuery: RunBeanQuerySchema,

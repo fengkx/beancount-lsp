@@ -26,7 +26,6 @@ import { Logger } from '@bean-lsp/shared';
 import { URI, Utils as UriUtils } from 'vscode-uri';
 import { TreeQuery } from '../language';
 import { BeancountOptionsManager, SupportedOption } from '../utils/beancount-options';
-import type { HistoryContext } from '../utils/history-context';
 import { SwrCache, SwrOptions } from '../utils/swr';
 
 class Queue {
@@ -69,7 +68,6 @@ export class SymbolIndex {
 		private readonly _trees: Trees,
 		private readonly _symbolInfoStorage: StorageInstance<SymbolInfo>,
 		private readonly _optionsManager: BeancountOptionsManager,
-		private readonly _historyContext: HistoryContext,
 	) {
 		// Initialize SWR caches
 		this._payeesCache = new SwrCache(() => this._fetchPayees(), 'index.payees');
@@ -131,9 +129,6 @@ export class SymbolIndex {
 			this.addFile(uri);
 		}
 
-		const totalSymbolsInStorage = await this._symbolInfoStorage.countAsync({});
-		this.logger.info(`Total symbols in storage: ${totalSymbolsInStorage}`);
-
 		this.logger.debug(
 			`[index] added FROM CACHE ${all.length} files ${sw.elapsed()}ms, all need revalidation, ${uris.size} files are NEW`,
 		);
@@ -146,7 +141,7 @@ export class SymbolIndex {
 
 		// async update all files that were taken from cache
 		const asyncUpdate = async () => {
-			const uris = this._asyncQueue.consume(70, () => true);
+			const uris = this._asyncQueue.consume(10, () => true);
 			if (uris.length === 0) {
 				return;
 			}
@@ -162,7 +157,7 @@ export class SymbolIndex {
 			// schedule a new task to update the cache for changed uris
 			const sw = new StopWatch();
 			const tasks = uris.map(this._createIndexTask, this);
-			const stats = await parallel(tasks, 50, new CancellationTokenSource().token);
+			const stats = await parallel(tasks, 10, new CancellationTokenSource().token);
 
 			let totalRetrieve = 0;
 			let totalIndex = 0;
@@ -170,19 +165,16 @@ export class SymbolIndex {
 				totalRetrieve += stat.durationRetrieve;
 				totalIndex += stat.durationIndex;
 			}
-
 			this.logger.debug(
 				`[index] (${async ? 'async' : 'sync'}) added ${uris.length} files ${sw.elapsed()}ms (retrieval: ${
 					Math.round(totalRetrieve)
-				}ms, indexing: ${Math.round(totalIndex)}ms) (files: ${uris.map(String)})`,
+				}ms, indexing: ${Math.round(totalIndex)}ms) (files: ${uris.map(String).join(', ')})`,
 			);
 		}
 	}
 
 	private _createIndexTask(uri: string): () => Promise<{ durationRetrieve: number; durationIndex: number }> {
 		return async () => {
-			this.logger.debug(`Building Index ${uri}`);
-			// fetch document
 			const _t1Retrieve = performance.now();
 			const document = await this._documents.retrieve(uri);
 			const durationRetrieve = performance.now() - _t1Retrieve;
@@ -266,9 +258,6 @@ export class SymbolIndex {
 			this._symbolInfoStorage.insertAsync(links),
 		]);
 
-		const totalSymbolsInStorage = await this._symbolInfoStorage.countAsync({});
-		this.logger.info(`Total symbols in storage: ${totalSymbolsInStorage}`);
-
 		const tree = await this._trees.getParseTree(document);
 		if (tree) {
 			const captures = await TreeQuery.captures('(include (string) @path)', tree.rootNode);
@@ -289,9 +278,6 @@ export class SymbolIndex {
 					this.addFile(uri);
 				});
 			});
-
-			await this._historyContext.extractFromDocument(document);
-
 			if (hasNew) {
 				setTimeout(() => {
 					this.unleashFiles([]);
@@ -544,9 +530,5 @@ export class SymbolIndex {
 	 */
 	public getOption(name: SupportedOption) {
 		return this._optionsManager.getOption(name);
-	}
-
-	public getAllContexts() {
-		return this._historyContext.getAllContexts();
 	}
 }

@@ -31,7 +31,6 @@ import { SymbolIndex } from './features/symbol-index';
 import { registerCustomMessageHandlers } from './messages';
 import { BeancountOptionsManager } from './utils/beancount-options';
 import { globalEventBus, GlobalEvents } from './utils/event-bus';
-import { HistoryContext } from './utils/history-context';
 export type StorageInstance<T> = Db<T>;
 
 export interface IStorageFactory<T> {
@@ -132,8 +131,7 @@ export function startServer(
 
 		const trees = new Trees(documents);
 		const optionsManager = BeancountOptionsManager.getInstance();
-		const historyContext = new HistoryContext(trees);
-		symbolIndex = new SymbolIndex(documents, trees, symbolStorage, optionsManager, historyContext);
+		symbolIndex = new SymbolIndex(documents, trees, symbolStorage, optionsManager);
 
 		// 创建PriceMap实例
 		const priceMap = new PriceMap(symbolIndex, trees, documents);

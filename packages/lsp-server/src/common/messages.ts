@@ -14,19 +14,6 @@ export function registerCustomMessageHandlers(
 	symbolIndex: SymbolIndex,
 	beanMgr: RealBeancountManager | undefined,
 ): void {
-	// Get history context
-	connection.onRequest(CustomMessages.GetHistoryContext, async () => {
-		logger.info('Received request for history context');
-		try {
-			const contexts = symbolIndex.getAllContexts();
-			logger.info(`Returning ${contexts.length} transaction contexts`);
-			return contexts;
-		} catch (error) {
-			logger.error(`Error getting history context: ${error}`);
-			return [];
-		}
-	});
-
 	// Get accounts
 	connection.onRequest(CustomMessages.GetAccounts, async () => {
 		logger.info('Received request for accounts');
