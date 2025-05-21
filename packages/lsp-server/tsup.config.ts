@@ -62,6 +62,7 @@ const browserConfig = defineConfig({
 				fs: 'empty',
 				path: 'empty',
 				events: true,
+				util: true,
 			},
 		}),
 	],
