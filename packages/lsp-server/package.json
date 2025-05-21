@@ -50,6 +50,7 @@
 		"web-tree-sitter": "^0.20.8"
 	},
 	"dependencies": {
-		"@remusao/smaz": "^2.2.0"
+		"@remusao/smaz": "^2.2.0",
+		"scheduler-polyfill": "^1.3.0"
 	}
 }

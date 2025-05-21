@@ -9,7 +9,7 @@ import { Trees } from '../trees';
 import { globalEventBus, GlobalEvents } from '../utils/event-bus';
 import * as positionUtils from './position-utils';
 import { PriceMap } from './prices-index/price-map';
-import { SymbolInfo } from './symbol-extractors';
+import { SymbolInfo, SymbolKey, SymbolType } from './symbol-extractors';
 import { SymbolIndex } from './symbol-index';
 import { Amount, Feature, RealBeancountManager } from './types';
 
@@ -575,16 +575,13 @@ export class HoverFeature implements Feature {
 			}
 
 			// Retrieve all account-related symbols
-			const allAccountSymbols = await symbolIndex.findAsync({
-				name: account,
-				$or: [
-					{ _symType: 'account_usage' },
-					{ _symType: 'account_definition' },
-				],
-			});
+			const accountSymbols = await Promise.all([
+				symbolIndex.findAsync({ [SymbolKey.TYPE]: SymbolType.ACCOUNT_USAGE }),
+				symbolIndex.findAsync({ [SymbolKey.TYPE]: SymbolType.ACCOUNT_DEFINITION }),
+			]);
 
 			// Display file usage information
-			const uniqueFiles = new Set(allAccountSymbols.map(s => s._uri));
+			const uniqueFiles = new Set(accountSymbols.flat().map(s => s._uri));
 			if (uniqueFiles.size > 0) {
 				stats.push(`Files: ${uniqueFiles.size}`);
 			}
@@ -947,34 +944,34 @@ export class HoverFeature implements Feature {
 	 */
 	private async createTagHoverContents(tag: string): Promise<lsp.MarkupContent> {
 		// Find all tag usages
-		const tagUsages = await this.symbolIndex.findAsync({
-			_symType: 'tag',
+		const tagSymbols = await this.symbolIndex.findAsync({
+			[SymbolKey.TYPE]: SymbolType.TAG,
 			name: tag,
 		});
 
 		// Find all pushtag usages
-		const pushtagUsages = await this.symbolIndex.findAsync({
-			_symType: 'pushtag',
+		const pushtagSymbols = await this.symbolIndex.findAsync({
+			[SymbolKey.TYPE]: SymbolType.PUSHTAG,
 			name: tag,
 		});
 
 		// Find all poptag usages
-		const poptagUsages = await this.symbolIndex.findAsync({
-			_symType: 'poptag',
+		const poptagSymbols = await this.symbolIndex.findAsync({
+			[SymbolKey.TYPE]: SymbolType.POPTAG,
 			name: tag,
 		});
 
 		// Total usage count
-		const totalUsages = tagUsages.length + pushtagUsages.length + poptagUsages.length;
+		const totalUsages = tagSymbols.length + pushtagSymbols.length + poptagSymbols.length;
 
 		// Generate a more structured and readable content
 		let content = `**Tag: #${tag}**\n\n`;
 
 		// Summary line with counts
 		content += `**Total: ${totalUsages}**\n`;
-		content += `• Regular: ${tagUsages.length}\n`;
-		content += `• Push directives: ${pushtagUsages.length}\n`;
-		content += `• Pop directives: ${poptagUsages.length}\n`;
+		content += `• Regular: ${tagSymbols.length}\n`;
+		content += `• Push directives: ${pushtagSymbols.length}\n`;
+		content += `• Pop directives: ${poptagSymbols.length}\n`;
 
 		// Create a file-based usage map to better organize the information
 		const fileUsageMap = new Map<string, { regular: number; push: number; pop: number }>();
@@ -1006,12 +1003,12 @@ export class HoverFeature implements Feature {
 			stats[type]++;
 		};
 
-		tagUsages.forEach(usage => processUsage(usage, 'regular'));
-		pushtagUsages.forEach(usage => processUsage(usage, 'push'));
-		poptagUsages.forEach(usage => processUsage(usage, 'pop'));
+		tagSymbols.forEach(usage => processUsage(usage, 'regular'));
+		pushtagSymbols.forEach(usage => processUsage(usage, 'push'));
+		poptagSymbols.forEach(usage => processUsage(usage, 'pop'));
 
 		// Only show file details if we have files with pushtag/poptag directives
-		if (pushtagUsages.length > 0 || poptagUsages.length > 0) {
+		if (pushtagSymbols.length > 0 || poptagSymbols.length > 0) {
 			const files = Array.from(fileUsageMap.entries())
 				.filter(([_, stats]) => stats.push > 0 || stats.pop > 0)
 				.sort((a, b) => a[0].localeCompare(b[0]));

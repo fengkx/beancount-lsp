@@ -46,3 +46,5 @@ globalThis.fs = {
 		throw new Error('fs.writeFileSync is not available in the browser');
 	},
 };
+
+import 'scheduler-polyfill';

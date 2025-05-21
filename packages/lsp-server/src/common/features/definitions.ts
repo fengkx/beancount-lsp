@@ -3,7 +3,7 @@ import * as lsp from 'vscode-languageserver';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
 import * as positionUtils from './position-utils';
-import { getRange, SymbolInfo } from './symbol-extractors';
+import { getRange, SymbolInfo, SymbolKey, SymbolType } from './symbol-extractors';
 import { SymbolIndex } from './symbol-index';
 
 // Create a logger for the definitions module
@@ -79,7 +79,7 @@ export class DefinitionFeature {
 	private async findPushTagDefinitions(tagName: string, currentUri: string): Promise<lsp.Location[] | null> {
 		// Find all pushtag declarations
 		const pushtagDeclarations = await this.symbolIndex.findAsync({
-			_symType: 'pushtag',
+			[SymbolKey.TYPE]: SymbolType.PUSHTAG,
 			name: tagName,
 		}) as SymbolInfo[];
 
@@ -118,7 +118,7 @@ export class DefinitionFeature {
 	private async findTagUsages(tagName: string): Promise<lsp.Location[] | null> {
 		// Find all tag usages
 		const tagUsages = await this.symbolIndex.findAsync({
-			_symType: 'tag',
+			[SymbolKey.TYPE]: SymbolType.TAG,
 			name: tagName,
 		}) as SymbolInfo[];
 

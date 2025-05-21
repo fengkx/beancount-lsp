@@ -3,7 +3,7 @@ import * as lsp from 'vscode-languageserver';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
 import * as positionUtils from './position-utils';
-import { getRange, SymbolInfo } from './symbol-extractors';
+import { getRange, SymbolInfo, SymbolKey, SymbolType } from './symbol-extractors';
 import { SymbolIndex } from './symbol-index';
 
 // Create a logger for the references module
@@ -116,19 +116,19 @@ export class ReferencesFeature {
 	 * Find all references to a specific account
 	 */
 	private async findAccountReferences(accountName: string): Promise<lsp.Location[]> {
-		const references: lsp.Location[] = [];
-
-		// Find all account usages
+		// Find all account usage locations
 		const accountUsages = await this.symbolIndex.findAsync({
-			_symType: 'account_usage',
+			[SymbolKey.TYPE]: SymbolType.ACCOUNT_USAGE,
 			name: accountName,
 		}) as SymbolInfo[];
 
+		const references: lsp.Location[] = [];
+
 		// Convert to LSP Locations
-		accountUsages.forEach(ref => {
+		accountUsages.forEach(usage => {
 			references.push({
-				uri: ref._uri,
-				range: getRange(ref),
+				uri: usage._uri,
+				range: getRange(usage),
 			});
 		});
 
@@ -140,19 +140,19 @@ export class ReferencesFeature {
 	 * Find all references to a specific commodity
 	 */
 	private async findCommodityReferences(commodityName: string): Promise<lsp.Location[]> {
-		const references: lsp.Location[] = [];
-
-		// Find all commodity usages
+		// Find all commodity usage locations
 		const commodityUsages = await this.symbolIndex.findAsync({
-			_symType: 'commodity',
+			[SymbolKey.TYPE]: SymbolType.COMMODITY,
 			name: commodityName,
 		}) as SymbolInfo[];
 
+		const references: lsp.Location[] = [];
+
 		// Convert to LSP Locations
-		commodityUsages.forEach(ref => {
+		commodityUsages.forEach(usage => {
 			references.push({
-				uri: ref._uri,
-				range: getRange(ref),
+				uri: usage._uri,
+				range: getRange(usage),
 			});
 		});
 
@@ -164,16 +164,16 @@ export class ReferencesFeature {
 	 * Find all references to a specific tag
 	 */
 	private async findTagReferences(tagName: string): Promise<lsp.Location[]> {
-		const references: lsp.Location[] = [];
-
-		// Find all tag usages
-		const tagReferences = await this.symbolIndex.findAsync({
-			_symType: 'tag',
+		// Find all tag usage locations
+		const tagUsages = await this.symbolIndex.findAsync({
+			[SymbolKey.TYPE]: SymbolType.TAG,
 			name: tagName,
 		}) as SymbolInfo[];
 
+		const references: lsp.Location[] = [];
+
 		// Convert to LSP Locations
-		tagReferences.forEach(ref => {
+		tagUsages.forEach(ref => {
 			references.push({
 				uri: ref._uri,
 				range: getRange(ref),
@@ -188,16 +188,16 @@ export class ReferencesFeature {
 	 * Find all references to a specific payee
 	 */
 	private async findPayeeReferences(payeeName: string): Promise<lsp.Location[]> {
-		const references: lsp.Location[] = [];
-
-		// Find all payee usages
-		const payeeReferences = await this.symbolIndex.findAsync({
-			_symType: 'payee',
+		// Find all payee usage locations
+		const payeeUsages = await this.symbolIndex.findAsync({
+			[SymbolKey.TYPE]: SymbolType.PAYEE,
 			name: payeeName,
 		}) as SymbolInfo[];
 
+		const references: lsp.Location[] = [];
+
 		// Convert to LSP Locations
-		payeeReferences.forEach(ref => {
+		payeeUsages.forEach(ref => {
 			references.push({
 				uri: ref._uri,
 				range: getRange(ref),
@@ -212,16 +212,16 @@ export class ReferencesFeature {
 	 * Find all poptag references to a specific pushtag
 	 */
 	private async findPushTagReferences(tagName: string): Promise<lsp.Location[]> {
-		const references: lsp.Location[] = [];
-
-		// Find all poptag usages for this tag
-		const tagReferences = await this.symbolIndex.findAsync({
-			_symType: 'poptag',
+		// Find all pushtag usage locations
+		const pushtagUsages = await this.symbolIndex.findAsync({
+			[SymbolKey.TYPE]: SymbolType.PUSHTAG,
 			name: tagName,
 		}) as SymbolInfo[];
 
+		const references: lsp.Location[] = [];
+
 		// Convert to LSP Locations
-		tagReferences.forEach(ref => {
+		pushtagUsages.forEach(ref => {
 			references.push({
 				uri: ref._uri,
 				range: getRange(ref),
@@ -236,16 +236,16 @@ export class ReferencesFeature {
 	 * Find all pushtag references to a specific poptag
 	 */
 	private async findPopTagReferences(tagName: string): Promise<lsp.Location[]> {
-		const references: lsp.Location[] = [];
-
-		// Find all pushtag usages for this tag
-		const tagReferences = await this.symbolIndex.findAsync({
-			_symType: 'pushtag',
+		// Find all poptag usage locations
+		const poptagUsages = await this.symbolIndex.findAsync({
+			[SymbolKey.TYPE]: SymbolType.POPTAG,
 			name: tagName,
 		}) as SymbolInfo[];
 
+		const references: lsp.Location[] = [];
+
 		// Convert to LSP Locations
-		tagReferences.forEach(ref => {
+		poptagUsages.forEach(ref => {
 			references.push({
 				uri: ref._uri,
 				range: getRange(ref),
@@ -260,16 +260,16 @@ export class ReferencesFeature {
 	 * Find all references to a specific link
 	 */
 	private async findLinkReferences(linkName: string): Promise<lsp.Location[]> {
-		const references: lsp.Location[] = [];
-
-		// Find all link usages
-		const linkReferences = await this.symbolIndex.findAsync({
-			_symType: 'link',
+		// Find all link usage locations
+		const linkUsages = await this.symbolIndex.findAsync({
+			[SymbolKey.TYPE]: SymbolType.LINK,
 			name: linkName,
 		}) as SymbolInfo[];
 
+		const references: lsp.Location[] = [];
+
 		// Convert to LSP Locations
-		linkReferences.forEach(ref => {
+		linkUsages.forEach(ref => {
 			references.push({
 				uri: ref._uri,
 				range: getRange(ref),

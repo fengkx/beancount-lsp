@@ -19,6 +19,8 @@ import {
 	getPushTags,
 	getTags,
 	SymbolInfo,
+	SymbolKey,
+	SymbolType,
 } from './symbol-extractors';
 
 import { Logger } from '@bean-lsp/shared';
@@ -136,9 +138,10 @@ export class SymbolIndex {
 			if (uris.length === 0) {
 				return;
 			}
-			const t1 = performance.now();
+			// const t1 = performance.now();
 			await this._doUpdate(uris, true);
-			setTimeout(() => asyncUpdate(), Math.max(50, (performance.now() - t1) * 4));
+			await yieldToMain();
+			asyncUpdate();
 		};
 		asyncUpdate();
 	}
@@ -169,10 +172,6 @@ export class SymbolIndex {
 			const _t1Retrieve = performance.now();
 			const document = await this._documents.retrieve(uri);
 			const durationRetrieve = performance.now() - _t1Retrieve;
-
-			// remove current data
-			this._symbolInfoStorage.remove({ _uri: uri }, { multi: true });
-
 			// update index
 			const _t1Index = performance.now();
 			try {
@@ -249,6 +248,7 @@ export class SymbolIndex {
 			this._symbolInfoStorage.insertAsync(links),
 		]);
 
+		await yieldToMain();
 		const tree = await this._trees.getParseTree(document);
 		if (tree) {
 			const captures = await TreeQuery.captures('(include (string) @path)', tree.rootNode);
@@ -270,9 +270,8 @@ export class SymbolIndex {
 				});
 			});
 			if (hasNew) {
-				setTimeout(() => {
-					this.unleashFiles([]);
-				}, 10);
+				await yieldToMain();
+				this.unleashFiles([]);
 			}
 		}
 
@@ -351,14 +350,18 @@ export class SymbolIndex {
 
 	public async getAccountDefinitions(): Promise<import('@seald-io/nedb').Document<SymbolInfo[]>> {
 		this.logger.debug('[index] Getting account definitions');
-		const accountDefinitions = this._symbolInfoStorage.findAsync<SymbolInfo>({ _symType: 'account_definition' });
+		const accountDefinitions = this._symbolInfoStorage.findAsync<SymbolInfo>({
+			[SymbolKey.TYPE]: SymbolType.ACCOUNT_DEFINITION,
+		});
 		accountDefinitions.then(defs => this.logger.debug(`[index] Found ${defs.length} account definitions`));
 		return accountDefinitions;
 	}
 
 	public async getCommodityDefinitions(): Promise<import('@seald-io/nedb').Document<SymbolInfo[]>> {
 		this.logger.debug('[index] Getting commodity definitions');
-		const commodityDefinitions = this._symbolInfoStorage.findAsync({ _symType: 'currency_definition' });
+		const commodityDefinitions = this._symbolInfoStorage.findAsync({
+			[SymbolKey.TYPE]: SymbolType.CURRENCY_DEFINITION,
+		});
 		commodityDefinitions.then(defs => this.logger.debug(`[index] Found ${defs.length} commodity definitions`));
 		return commodityDefinitions;
 	}
@@ -391,7 +394,7 @@ export class SymbolIndex {
 	}
 
 	private async _fetchPayees(): Promise<string[]> {
-		const payees = await this._symbolInfoStorage.findAsync({ _symType: 'payee' }) as SymbolInfo[];
+		const payees = await this._symbolInfoStorage.findAsync({ [SymbolKey.TYPE]: SymbolType.PAYEE }) as SymbolInfo[];
 		const uniquePayees = [...new Set(payees.map(p => p.name))];
 		this.logger.debug(`[index] Found ${payees.length} payees (${uniquePayees.length} unique)`);
 		return uniquePayees;
@@ -399,7 +402,9 @@ export class SymbolIndex {
 
 	public async getCommodities(): Promise<string[]> {
 		this.logger.debug('[index] Getting commodities');
-		const commodities = await this._symbolInfoStorage.findAsync({ _symType: 'commodity' }) as SymbolInfo[];
+		const commodities = await this._symbolInfoStorage.findAsync({
+			[SymbolKey.TYPE]: SymbolType.COMMODITY,
+		}) as SymbolInfo[];
 		const uniqueCommodities = [...new Set(commodities.map(c => c.name))];
 		this.logger.debug(`[index] Found ${commodities.length} commodities (${uniqueCommodities.length} unique)`);
 		return uniqueCommodities;
@@ -407,7 +412,7 @@ export class SymbolIndex {
 
 	public async getTags(): Promise<string[]> {
 		this.logger.debug('[index] Getting tags');
-		const tags = await this._symbolInfoStorage.findAsync({ _symType: 'tag' }) as SymbolInfo[];
+		const tags = await this._symbolInfoStorage.findAsync({ [SymbolKey.TYPE]: SymbolType.TAG }) as SymbolInfo[];
 		const uniqueTags = [...new Set(tags.map(t => t.name))];
 		this.logger.debug(`[index] Found ${tags.length} tags (${uniqueTags.length} unique)`);
 		return uniqueTags;
@@ -418,7 +423,7 @@ export class SymbolIndex {
 	 */
 	public async getLinks(): Promise<string[]> {
 		this.logger.debug('[index] Getting links');
-		const links = await this._symbolInfoStorage.findAsync({ _symType: 'link' }) as SymbolInfo[];
+		const links = await this._symbolInfoStorage.findAsync({ [SymbolKey.TYPE]: SymbolType.LINK }) as SymbolInfo[];
 		const uniqueLinks = [...new Set(links.map(l => l.name))];
 		this.logger.debug(`[index] Found ${links.length} links (${uniqueLinks.length} unique)`);
 		return uniqueLinks;
@@ -452,7 +457,9 @@ export class SymbolIndex {
 	}
 
 	private async _fetchNarrations(): Promise<string[]> {
-		const narrations = await this._symbolInfoStorage.findAsync({ _symType: 'narration' }) as SymbolInfo[];
+		const narrations = await this._symbolInfoStorage.findAsync({
+			[SymbolKey.TYPE]: SymbolType.NARRATION,
+		}) as SymbolInfo[];
 		const uniqueNarrations = [...new Set(narrations.map(n => n.name))];
 		this.logger.debug(`[index] Found ${narrations.length} narrations (${uniqueNarrations.length} unique)`);
 		return uniqueNarrations;
@@ -466,7 +473,7 @@ export class SymbolIndex {
 	public async getAccountUsageCounts(): Promise<Map<string, number>> {
 		this.logger.debug('[index] Getting account usage counts');
 		const [accountUsages] = await Promise.all([
-			this._symbolInfoStorage.findAsync({ _symType: 'account_usage' }) as Promise<SymbolInfo[]>,
+			this._symbolInfoStorage.findAsync({ [SymbolKey.TYPE]: SymbolType.ACCOUNT_USAGE }) as Promise<SymbolInfo[]>,
 		]);
 
 		// Count occurrences of each account, excluding closed accounts
@@ -488,7 +495,7 @@ export class SymbolIndex {
 	public async getClosedAccounts(): Promise<Map<string, string>> {
 		this.logger.debug('[index] Getting closed accounts');
 		const closedAccounts = await this._symbolInfoStorage.findAsync({
-			_symType: 'account_close',
+			[SymbolKey.TYPE]: SymbolType.ACCOUNT_CLOSE,
 		}) as SymbolInfo[];
 
 		// Create a map of account names to their closing dates
@@ -507,7 +514,7 @@ export class SymbolIndex {
 	public async getPricesDeclarations(query: { name?: string } = {}): Promise<SymbolInfo[]> {
 		this.logger.debug('[index] Getting prices declarations');
 		const pricesDeclarations = await this._symbolInfoStorage.findAsync({
-			_symType: 'price',
+			[SymbolKey.TYPE]: SymbolType.PRICE,
 			...query,
 		}) as SymbolInfo[];
 		this.logger.debug(`[index] Found ${pricesDeclarations.length} prices declarations`);
@@ -522,4 +529,8 @@ export class SymbolIndex {
 	public getOption(name: SupportedOption) {
 		return this._optionsManager.getOption(name);
 	}
+}
+
+async function yieldToMain() {
+	await (globalThis as any)?.scheduler?.yield?.();
 }

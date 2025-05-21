@@ -4,9 +4,28 @@ import type { SyntaxNode } from 'web-tree-sitter';
 import { asLspRange, compactToRange, rangeToCompact } from '../common';
 import { TreeQuery } from '../language';
 import { Trees } from '../trees';
-export interface SymbolInfo {
-	_symType: string;
 
+export const SymbolType = {
+	ACCOUNT_USAGE: 0,
+	ACCOUNT_DEFINITION: 1,
+	ACCOUNT_CLOSE: 2,
+	PAYEE: 3,
+	NARRATION: 4,
+	COMMODITY: 5,
+	TAG: 6,
+	PUSHTAG: 7,
+	POPTAG: 8,
+	PRICE: 9,
+	LINK: 10,
+	CURRENCY_DEFINITION: 11,
+} as const;
+
+export const SymbolKey = {
+	TYPE: 's',
+} as const;
+
+export interface SymbolInfo {
+	[SymbolKey.TYPE]: typeof SymbolType[keyof typeof SymbolType];
 	_uri: string;
 	name: string;
 	// Use a compact array representation instead of full lsp.Range object
@@ -80,7 +99,7 @@ export async function getAccountsUsage(textDocument: TextDocument, trees: Trees)
 		const dateValue = findDateFromNode(capture.node);
 
 		const symbolInfo: SymbolInfo = {
-			_symType: 'account_usage',
+			[SymbolKey.TYPE]: SymbolType.ACCOUNT_USAGE,
 			_uri: textDocument.uri,
 			name,
 			range: rangeToCompact(range),
@@ -113,7 +132,7 @@ export async function getAccountsDefinition(doc: TextDocument, trees: Trees): Pr
 		const dateValue = findDateFromNode(capture.node, ['open']);
 
 		const symbolInfo: SymbolInfo = {
-			_symType: 'account_definition',
+			[SymbolKey.TYPE]: SymbolType.ACCOUNT_DEFINITION,
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
@@ -164,7 +183,7 @@ export async function getAccountsClose(doc: TextDocument, trees: Trees): Promise
 			const range = asLspRange(closeNode);
 
 			const symbolInfo: SymbolInfo = {
-				_symType: 'account_close',
+				[SymbolKey.TYPE]: SymbolType.ACCOUNT_CLOSE,
 				_uri: doc.uri,
 				name,
 				range: rangeToCompact(range),
@@ -198,7 +217,7 @@ export async function getPayees(doc: TextDocument, trees: Trees): Promise<Symbol
 		const dateValue = findDateFromNode(capture.node, ['transaction']);
 
 		const symbolInfo: SymbolInfo = {
-			_symType: 'payee',
+			s: SymbolType.PAYEE,
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
@@ -230,7 +249,7 @@ export async function getNarrations(doc: TextDocument, trees: Trees): Promise<Sy
 		const dateValue = findDateFromNode(capture.node, ['transaction']);
 
 		const symbolInfo: SymbolInfo = {
-			_symType: 'narration',
+			s: SymbolType.NARRATION,
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
@@ -262,7 +281,7 @@ export async function getCommodities(doc: TextDocument, trees: Trees): Promise<S
 		const dateValue = findDateFromNode(capture.node, ['transaction', 'price', 'commodity']);
 
 		const symbolInfo: SymbolInfo = {
-			_symType: 'commodity',
+			s: SymbolType.COMMODITY,
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
@@ -294,7 +313,7 @@ export async function getCurrencyDefinitions(doc: TextDocument, trees: Trees): P
 		const dateValue = findDateFromNode(capture.node, ['commodity']);
 
 		const symbolInfo: SymbolInfo = {
-			_symType: 'currency_definition',
+			s: SymbolType.CURRENCY_DEFINITION,
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
@@ -327,7 +346,7 @@ export async function getTags(doc: TextDocument, trees: Trees): Promise<SymbolIn
 		const dateValue = findDateFromNode(capture.node);
 
 		const symbolInfo: SymbolInfo = {
-			_symType: 'tag',
+			s: SymbolType.TAG,
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
@@ -363,7 +382,7 @@ export async function getLinks(document: TextDocument, trees: Trees): Promise<Sy
 		const dateValue = findDateFromNode(capture.node);
 
 		const symbolInfo: SymbolInfo = {
-			_symType: 'link',
+			s: SymbolType.LINK,
 			_uri: document.uri,
 			name,
 			range: rangeToCompact(range),
@@ -395,7 +414,7 @@ export async function getPricesDeclarations(doc: TextDocument, trees: Trees): Pr
 		const dateValue = findDateFromNode(capture.node);
 
 		const symbolInfo: SymbolInfo = {
-			_symType: 'price',
+			s: SymbolType.PRICE,
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
@@ -426,7 +445,7 @@ export async function getPushTags(doc: TextDocument, trees: Trees): Promise<Symb
 			const name = tagNode.text.substring(1); // Remove the leading #
 			const range = asLspRange(capture.node);
 			result.push({
-				_symType: 'pushtag',
+				s: SymbolType.PUSHTAG,
 				_uri: doc.uri,
 				name,
 				range: rangeToCompact(range),
@@ -452,7 +471,7 @@ export async function getPopTags(doc: TextDocument, trees: Trees): Promise<Symbo
 			const name = tagNode.text.substring(1); // Remove the leading #
 			const range = asLspRange(capture.node);
 			result.push({
-				_symType: 'poptag',
+				s: SymbolType.POPTAG,
 				_uri: doc.uri,
 				name,
 				range: rangeToCompact(range),

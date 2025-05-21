@@ -65,6 +65,12 @@ const browserConfig = defineConfig({
 			},
 		}),
 	],
+	noExternal: [
+		...commonConfig.noExternal,
+		'execa',
+		'fast-glob',
+		'scheduler-polyfill',
+	],
 });
 
 export default [nodeConfig, browserConfig];
