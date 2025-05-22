@@ -65,8 +65,8 @@ catalogs:
       specifier: ^22.15.3
       version: 22.15.18
     globals:
-      specifier: ^16.0.0
-      version: 16.0.0
+      specifier: ^16.1.0
+      version: 16.1.0
     type-fest:
       specifier: ^4.40.1
       version: 4.41.0
@@ -120,7 +120,7 @@ importers:
         version: 4.1.4(@typescript-eslint/eslint-plugin@8.31.0(@typescript-eslint/parser@8.31.0(eslint@9.26.0)(typescript@5.8.3))(eslint@9.26.0)(typescript@5.8.3))(eslint@9.26.0)
       globals:
         specifier: catalog:types
-        version: 16.0.0
+        version: 16.1.0
       nano-staged:
         specifier: catalog:dev
         version: 0.8.0
@@ -2219,8 +2219,8 @@ packages:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
     engines: {node: '>=18'}
 
-  globals@16.0.0:
-    resolution: {integrity: sha512-iInW14XItCXET01CQFqudPOWP2jYMl7T+QRQT+UNcR/iQncN/F0UNpgd76iFkBPgNQb4+X3LV9tLJYzwh+Gl3A==}
+  globals@16.1.0:
+    resolution: {integrity: sha512-aibexHNbb/jiUSObBgpHLj+sIuUmJnYcgXBlrfsiDZ9rt4aF2TFRbyLgZ2iFQuVZ1K5Mx3FVkbKRSgKrbK3K2g==}
     engines: {node: '>=18'}
 
   globby@14.1.0:
@@ -5608,7 +5608,7 @@ snapshots:
 
   globals@14.0.0: {}
 
-  globals@16.0.0: {}
+  globals@16.1.0: {}
 
   globby@14.1.0:
     dependencies:
