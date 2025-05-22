@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.81
+
+- chore: bump lsp-client version to 0.0.81 ([d2f9283](https://github.com/fengkx/beancount-lsp/commit/d2f9283))
+- fix: update package reference and clean up storage code ([f38e0d1](https://github.com/fengkx/beancount-lsp/commit/f38e0d1))
+- feat: improving performance for building indexes ([6ed8c87](https://github.com/fengkx/beancount-lsp/commit/6ed8c87))
+- fix: add 'util' to browserConfig in tsup configuration ([6b504e0](https://github.com/fengkx/beancount-lsp/commit/6b504e0))
+- refactor: replace nedb with custom storage which is faster for heavy write wrokload ([f9a922c](https://github.com/fengkx/beancount-lsp/commit/f9a922c))
+
 ## v0.0.80
 
 - chore: bump lsp-client version to 0.0.80 ([f6c6504](https://github.com/fengkx/beancount-lsp/commit/f6c6504))
