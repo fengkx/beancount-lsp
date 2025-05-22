@@ -142,12 +142,23 @@ class DataStore<Schema = Record<string, any>> {
 		}
 	}
 
+	public async findAsync(query: Query<Schema>): Promise<Document<Schema>[]> {
+		return this.findSync(query);
+	}
+
+	public removeSync(query: Query<Schema>): void {
+		const docs = this.findSync(query);
+		for (const doc of docs) {
+			this.removeOne(doc._id);
+		}
+	}
+
 	/**
 	 * Remove multiple documents by their IDs
 	 * @param ids Array of document IDs to remove
 	 */
 	public async removeAsync(query: Query<Schema>): Promise<void> {
-		const docs = await this.findAsync(query);
+		const docs = this.findSync(query);
 		for (const doc of docs) {
 			this.removeOne(doc._id);
 		}
@@ -203,7 +214,7 @@ class DataStore<Schema = Record<string, any>> {
 	 * @returns Array of matching documents
 	 */
 
-	public async findAsync(query: Query<Schema>): Promise<Document<Schema>[]> {
+	public findSync(query: Query<Schema>): Document<Schema>[] {
 		const results: Document<Schema>[] = [];
 
 		// Check if we can use any indexed field for the query
@@ -356,7 +367,7 @@ class DataStore<Schema = Record<string, any>> {
 	 * @returns Number of matching documents
 	 */
 	async countAsync(query: Query<Schema> = {}): Promise<number> {
-		const results = await this.findAsync(query);
+		const results = await this.findSync(query);
 		return results.length;
 	}
 

@@ -95,7 +95,7 @@ export class SymbolIndex {
 	removeFile(uri: string): void {
 		this._syncQueue.dequeue(uri);
 		this._asyncQueue.dequeue(uri);
-		this._symbolInfoStorage.removeAsync({ _uri: uri });
+		this._symbolInfoStorage.removeSync({ _uri: uri });
 	}
 
 	async consume(): Promise<void> {
@@ -233,7 +233,7 @@ export class SymbolIndex {
 			- Links: ${links.length}
 		`);
 
-		this._symbolInfoStorage.removeAsync({ _uri: document.uri });
+		this._symbolInfoStorage.removeSync({ _uri: document.uri });
 		await Promise.all([
 			this._symbolInfoStorage.insertAsync(accountUsages),
 			this._symbolInfoStorage.insertAsync(accountDefinitions),

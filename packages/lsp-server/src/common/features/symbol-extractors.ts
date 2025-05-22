@@ -33,6 +33,16 @@ export interface SymbolInfo {
 	range: [number, number, number, number];
 	kind: lsp.SymbolKind;
 
+	/**
+	 * finding date require recursive search through the parent nodes.
+	 * It is a time consuming operation. only do it when necessary.
+	 *
+	 * Currently symbol type have date:
+	 * - account usage and definition directives for opening and closing dates
+	 * - price declarations for price date
+	 *
+	 * @link {findDateFromNode}
+	 */
 	date?: string;
 }
 
@@ -213,8 +223,8 @@ export async function getPayees(doc: TextDocument, trees: Trees): Promise<Symbol
 		const name = capture.node.text.replace(/^"|"$/g, ''); // Remove quotes
 		const range = asLspRange(capture.node);
 
-		// Find date using the helper function, limiting to 'transaction' directive
-		const dateValue = findDateFromNode(capture.node, ['transaction']);
+		// // Find date using the helper function, limiting to 'transaction' directive
+		// const dateValue = findDateFromNode(capture.node, ['transaction']);
 
 		const symbolInfo: SymbolInfo = {
 			s: SymbolType.PAYEE,
@@ -224,9 +234,9 @@ export async function getPayees(doc: TextDocument, trees: Trees): Promise<Symbol
 			kind: lsp.SymbolKind.String,
 		};
 
-		if (dateValue) {
-			symbolInfo.date = dateValue;
-		}
+		// if (dateValue) {
+		// 	symbolInfo.date = dateValue;
+		// }
 
 		result.push(symbolInfo);
 	}
@@ -245,8 +255,8 @@ export async function getNarrations(doc: TextDocument, trees: Trees): Promise<Sy
 		const name = capture.node.text.replace(/^"|"$/g, ''); // Remove quotes
 		const range = asLspRange(capture.node);
 
-		// Find date using the helper function, limiting to 'transaction' directive
-		const dateValue = findDateFromNode(capture.node, ['transaction']);
+		// // Find date using the helper function, limiting to 'transaction' directive
+		// const dateValue = findDateFromNode(capture.node, ['transaction']);
 
 		const symbolInfo: SymbolInfo = {
 			s: SymbolType.NARRATION,
@@ -256,9 +266,9 @@ export async function getNarrations(doc: TextDocument, trees: Trees): Promise<Sy
 			kind: lsp.SymbolKind.String,
 		};
 
-		if (dateValue) {
-			symbolInfo.date = dateValue;
-		}
+		// if (dateValue) {
+		// 	symbolInfo.date = dateValue;
+		// }
 
 		result.push(symbolInfo);
 	}
@@ -277,20 +287,20 @@ export async function getCommodities(doc: TextDocument, trees: Trees): Promise<S
 		const name = capture.node.text;
 		const range = asLspRange(capture.node);
 
-		// Find date using the helper function
-		const dateValue = findDateFromNode(capture.node, ['transaction', 'price', 'commodity']);
+		// // Find date using the helper function
+		// const dateValue = findDateFromNode(capture.node, ['transaction', 'price', 'commodity']);
 
 		const symbolInfo: SymbolInfo = {
-			s: SymbolType.COMMODITY,
+			[SymbolKey.TYPE]: SymbolType.COMMODITY,
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Constant,
 		};
 
-		if (dateValue) {
-			symbolInfo.date = dateValue;
-		}
+		// if (dateValue) {
+		// 	symbolInfo.date = dateValue;
+		// }
 
 		result.push(symbolInfo);
 	}
@@ -309,20 +319,20 @@ export async function getCurrencyDefinitions(doc: TextDocument, trees: Trees): P
 		const name = capture.node.text;
 		const range = asLspRange(capture.node);
 
-		// Find date using the helper function, limiting to 'commodity' directive
-		const dateValue = findDateFromNode(capture.node, ['commodity']);
+		// // Find date using the helper function, limiting to 'commodity' directive
+		// const dateValue = findDateFromNode(capture.node, ['commodity']);
 
 		const symbolInfo: SymbolInfo = {
-			s: SymbolType.CURRENCY_DEFINITION,
+			[SymbolKey.TYPE]: SymbolType.CURRENCY_DEFINITION,
 			_uri: doc.uri,
 			name,
 			range: rangeToCompact(range),
 			kind: lsp.SymbolKind.Constant,
 		};
 
-		if (dateValue) {
-			symbolInfo.date = dateValue;
-		}
+		// if (dateValue) {
+		// 	symbolInfo.date = dateValue;
+		// }
 
 		result.push(symbolInfo);
 	}
@@ -342,8 +352,8 @@ export async function getTags(doc: TextDocument, trees: Trees): Promise<SymbolIn
 		const name = capture.node.text.substring(1); // Remove the leading #
 		const range = asLspRange(capture.node);
 
-		// Find date using the helper function
-		const dateValue = findDateFromNode(capture.node);
+		// // Find date using the helper function
+		// const dateValue = findDateFromNode(capture.node);
 
 		const symbolInfo: SymbolInfo = {
 			s: SymbolType.TAG,
@@ -353,9 +363,9 @@ export async function getTags(doc: TextDocument, trees: Trees): Promise<SymbolIn
 			kind: lsp.SymbolKind.Key,
 		};
 
-		if (dateValue) {
-			symbolInfo.date = dateValue;
-		}
+		// if (dateValue) {
+		// 	symbolInfo.date = dateValue;
+		// }
 
 		result.push(symbolInfo);
 	}
@@ -378,8 +388,8 @@ export async function getLinks(document: TextDocument, trees: Trees): Promise<Sy
 		const name = capture.node.text.substring(1); // Remove the ^ prefix
 		const range = asLspRange(capture.node);
 
-		// Find date using the helper function
-		const dateValue = findDateFromNode(capture.node);
+		// // Find date using the helper function
+		// const dateValue = findDateFromNode(capture.node);
 
 		const symbolInfo: SymbolInfo = {
 			s: SymbolType.LINK,
@@ -389,9 +399,9 @@ export async function getLinks(document: TextDocument, trees: Trees): Promise<Sy
 			kind: lsp.SymbolKind.Key,
 		};
 
-		if (dateValue) {
-			symbolInfo.date = dateValue;
-		}
+		// if (dateValue) {
+		// 	symbolInfo.date = dateValue;
+		// }
 
 		result.push(symbolInfo);
 	}
