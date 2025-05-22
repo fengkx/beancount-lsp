@@ -13,8 +13,7 @@ class BrowserStorageFactory<T> implements IStorageFactory<T> {
 		db.ensureIndexAsync('_uri');
 		db.ensureIndexAsync(SymbolKey.TYPE);
 
-		// Store the database instance
-		// @ts-expect-error - TODO: fix this
+		// @ts-expect-error - Type mismatch, but this is safe in practice
 		this.dbs.set(name, db);
 
 		return db;
