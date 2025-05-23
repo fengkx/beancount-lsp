@@ -1,10 +1,6 @@
 import { customAlphabet } from 'nanoid/non-secure';
-
-export type Document<T> = Readonly<
-	T & {
-		_id: string;
-	}
->;
+import { Index } from './data-index';
+import type { Document, IndexableValue } from './types';
 
 type DataStoreOptions = {
 	/**
@@ -12,9 +8,6 @@ type DataStoreOptions = {
 	 */
 	indices?: string[];
 };
-
-// Supported field types for indexing
-type IndexableValue = string | number | boolean | null | bigint;
 
 // MongoDB-like query operators with better typing
 type ComparisonOperator<T> = {
@@ -39,8 +32,8 @@ type Query<T = any> =
 
 class DataStore<Schema = Record<string, any>> {
 	private data = new Map<string, Document<Schema>>();
-	// Change the Map to support any IndexableValue as a key, not just string
-	private indices: Map<string, Map<IndexableValue, Set<string>>> = new Map();
+	// Change to use the new Index class
+	private indices: Map<string, Index<Schema>> = new Map();
 
 	private idGenerator = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', 10);
 
@@ -63,8 +56,20 @@ class DataStore<Schema = Record<string, any>> {
 	 */
 	ensureIndexAsync(fieldName: string): void {
 		if (!this.indices.has(fieldName)) {
-			this.indices.set(fieldName, new Map());
+			this.indices.set(fieldName, new Index<Schema>(fieldName));
 		}
+	}
+
+	/**
+	 * Get the discreteness value for a specific index
+	 * @param fieldName The field name of the index
+	 * @returns Discreteness value between 0 and 1, or -1 if index doesn't exist
+	 */
+	getIndexDiscreteness(fieldName: string): number {
+		const index = this.indices.get(fieldName);
+		if (!index) return -1;
+
+		return index.getDiscreteness();
 	}
 
 	/**
@@ -91,31 +96,12 @@ class DataStore<Schema = Record<string, any>> {
 		this.data.set(_id, newDoc);
 
 		// Update indices
-		for (const field of this.indices.keys()) {
-			const index = this.indices.get(field);
-			if (index) {
-				const value = doc[field as keyof Schema];
-				// Only index supported types
-				if (this.isIndexable(value)) {
-					if (!index.has(value)) {
-						index.set(value, new Set());
-					}
-					index.get(value)?.add(_id);
-				}
-			}
+		for (const [field, index] of this.indices.entries()) {
+			const value = doc[field as keyof Schema];
+			index.add(_id, value);
 		}
 
 		return newDoc;
-	}
-
-	/**
-	 * Check if a value can be used as an index key
-	 */
-	private isIndexable(value: any): value is IndexableValue {
-		return value === null
-			|| typeof value === 'string'
-			|| typeof value === 'number'
-			|| typeof value === 'boolean';
 	}
 
 	/**
@@ -127,17 +113,9 @@ class DataStore<Schema = Record<string, any>> {
 		if (doc) {
 			this.data.delete(id);
 			// Update indices
-			for (const field of this.indices.keys()) {
-				const index = this.indices.get(field);
+			for (const [field, index] of this.indices.entries()) {
 				const value = doc[field as keyof Schema];
-				// Only consider indexable values
-				if (this.isIndexable(value)) {
-					index?.get(value)?.delete(id);
-					// Clean up empty sets
-					if (index?.get(value)?.size === 0) {
-						index.delete(value);
-					}
-				}
+				index.remove(id, value);
 			}
 		}
 	}
@@ -230,8 +208,8 @@ class DataStore<Schema = Record<string, any>> {
 				if (!index) continue;
 
 				// For simple equality queries
-				if (this.isIndexable(queryValue)) {
-					const ids = index.get(queryValue as IndexableValue);
+				if (index.isIndexable(queryValue)) {
+					const ids = index.getIds(queryValue as IndexableValue);
 					if (ids && (bestCandidateIds === null || ids.size < bestCandidateIds.size)) {
 						bestCandidateIds = ids;
 					}
@@ -267,7 +245,7 @@ class DataStore<Schema = Record<string, any>> {
 							hasRangeOperator = true;
 							const matchingKeys = comparableKeys.filter(k => k > opValue.$gt!);
 							for (const key of matchingKeys) {
-								const ids = index.get(key);
+								const ids = index.getIds(key);
 								if (ids) {
 									ids.forEach(id => candidateIds.add(id));
 								}
@@ -279,7 +257,7 @@ class DataStore<Schema = Record<string, any>> {
 							hasRangeOperator = true;
 							const matchingKeys = comparableKeys.filter(k => k >= opValue.$gte!);
 							for (const key of matchingKeys) {
-								const ids = index.get(key);
+								const ids = index.getIds(key);
 								if (ids) {
 									ids.forEach(id => candidateIds.add(id));
 								}
@@ -291,7 +269,7 @@ class DataStore<Schema = Record<string, any>> {
 							hasRangeOperator = true;
 							const matchingKeys = comparableKeys.filter(k => k < opValue.$lt!);
 							for (const key of matchingKeys) {
-								const ids = index.get(key);
+								const ids = index.getIds(key);
 								if (ids) {
 									ids.forEach(id => candidateIds.add(id));
 								}
@@ -303,7 +281,7 @@ class DataStore<Schema = Record<string, any>> {
 							hasRangeOperator = true;
 							const matchingKeys = comparableKeys.filter(k => k <= opValue.$lte!);
 							for (const key of matchingKeys) {
-								const ids = index.get(key);
+								const ids = index.getIds(key);
 								if (ids) {
 									ids.forEach(id => candidateIds.add(id));
 								}
