@@ -3,25 +3,31 @@
 	"version": "1.0.0",
 	"description": "",
 	"private": true,
-	"main": "out/index.js",
-	"typings": "out/index.d.ts",
+	"main": "src/index.ts",
+	"typings": "src/index.ts",
 	"exports": {
 		".": {
-			"types": "./out/index.d.ts",
-			"default": "./out/index.js"
+			"types": "./src/index.ts",
+			"default": "./src/index.ts"
 		},
 		"./messages": {
-			"types": "./out/messages.d.ts",
-			"default": "./out/messages.js"
+			"types": "./src/messages.ts",
+			"default": "./src/messages.ts"
 		},
 		"./constraint/*": {
-			"types": "./out/constraint/*.d.ts",
-			"default": "./out/constraint/*.js"
+			"types": "./src/constraint/*.ts",
+			"default": "./src/constraint/*.ts"
+		},
+		"./logger": {
+			"types": "./src/logger.ts",
+			"default": "./src/logger.ts"
+		},
+		"./parser": {
+			"types": "./src/parser.ts",
+			"default": "./src/parser.ts"
 		}
 	},
 	"scripts": {
-		"build": "tsc -b",
-		"watch": "tsc -b --watch",
 		"typecheck": "tsc --noEmit true",
 		"test": "echo \"Error: no test specified\"",
 		"format:check": "dprint check",

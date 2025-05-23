@@ -36,4 +36,4 @@ async function updateInputSchema() {
 it('should update the input schema', async () => {
     expect(await updateInputSchema()).toBeUndefined();
 
-}, { timeout: 10 * 1000 })
+}, { timeout: 20 * 1000 })

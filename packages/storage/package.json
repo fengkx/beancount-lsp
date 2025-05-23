@@ -5,11 +5,9 @@
 	"dependencies": {
 		"nanoid": "^5.1.5"
 	},
-	"main": "./out/datastore.js",
-	"types": "./out/datastore.d.ts",
+	"main": "./src/datastore.ts",
+	"types": "./src/datastore.ts",
 	"scripts": {
-		"build": "tsc -b",
-		"watch": "tsc -b --watch",
 		"typecheck": "tsc --noEmit true",
 		"test": "echo \"Error: no test specified\"",
 		"format:check": "dprint check",

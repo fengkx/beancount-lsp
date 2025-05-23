@@ -50,7 +50,8 @@ const serverLogger = new Logger('Server');
 
 export function startServer(
 	connection: Connection,
-	factory: IStorageFactory<unknown>,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	factory: IStorageFactory<any>,
 	documents: DocumentStore,
 	beanMgrFactory: BeancountManagerFactory | undefined,
 	options: ServerOptions,

@@ -1,4 +1,4 @@
-import { RESTART_LANGUAGE_SERVER_COMMAND } from '@bean-lsp/shared';
+import { RESTART_LANGUAGE_SERVER_COMMAND } from '@bean-lsp/shared/constraint/command';
 import * as vscode from 'vscode';
 import { LanguageClient } from 'vscode-languageclient/browser';
 import type { LanguageClientOptions } from 'vscode-languageclient/node';
