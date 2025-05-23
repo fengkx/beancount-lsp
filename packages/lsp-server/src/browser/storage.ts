@@ -1,10 +1,7 @@
 import Db from '@bean-lsp/storage';
 import { SymbolKey } from '../common/features/symbol-extractors';
 import { IStorageFactory, StorageInstance } from '../common/startServer';
-/**
- * Browser implementation of StorageFactory using in-memory database
- * Note: This does not persist data between sessions
- */
+
 class BrowserStorageFactory<T> implements IStorageFactory<T> {
 	private dbs = new Map<string, StorageInstance<T>>();
 
