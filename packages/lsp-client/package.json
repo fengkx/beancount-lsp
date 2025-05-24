@@ -51,6 +51,12 @@
 				"path": "./syntaxes/beancount.tmLanguage.json"
 			}
 		],
+		"snippets": [
+			{
+				"language": "beancount",
+				"path": "./snippets/beancount.jsonc"
+			}
+		],
 		"configuration": {
 			"type": "object",
 			"title": "Beancount Language Server",

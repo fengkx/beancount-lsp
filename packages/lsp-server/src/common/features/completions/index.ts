@@ -1207,6 +1207,8 @@ export class CompletionFeature implements Feature {
 						{
 							head4ValidTypes: ['date', 'txn', 'narration'],
 						},
+						{ head4ValidTypes: ['date', P.union('pad', 'balance'), P.union('account', 'identifier')] },
+						{ head4ValidTypes: ['date', 'pad', 'identifier', 'identifier'] },
 						async () => {
 							const initialCount = completionItems.length;
 							cnt = await addAccountCompletions(

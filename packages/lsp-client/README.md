@@ -148,4 +148,4 @@ pnpm run vsix
 ## Prior Art
 
 - [vscode-anycode](https://github.com/microsoft/vscode-anycode) Learn a lot from it about how to write a Language Server Extension
-- [vscode-beancount](https://github.com/Lencerf/vscode-beancount) Used its Python [beancheck code](https://github.com/fengkx/beancount-lsp/blob/master/packages/lsp-client/pythonFiles/beancheck.py). Get many inspiration from its features.
+- [vscode-beancount](https://github.com/Lencerf/vscode-beancount) Used its Python [beancheck code](https://github.com/fengkx/beancount-lsp/blob/master/packages/lsp-client/pythonFiles/beancheck.py) and [snippets](https://github.com/fengkx/beancount-lsp/blob/master/packages/lsp-client/snippets/beancount.json). Get many inspiration from its features.
