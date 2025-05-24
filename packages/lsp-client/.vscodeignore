@@ -12,3 +12,5 @@ vsc-extension-quickstart.md
 # Make sure we don't exclude the web-tree-sitter WASM file
 !dist/tree-sitter.wasm
 !server/common/web-tree-sitter.wasm
+.turbo
+scripts/
