@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.0.84
+
+- chore: update .vscodeignore to exclude .turbo directory ([d539a6a](https://github.com/fengkx/beancount-lsp/commit/d539a6a))
+- chore: bump lsp-client version to 0.0.84 ([0c23cb3](https://github.com/fengkx/beancount-lsp/commit/0c23cb3))
+- feat: add Beancount snippets and update package configuration ([a5097d5](https://github.com/fengkx/beancount-lsp/commit/a5097d5))
+- refactor: enhance build outputs and clean up code ([5501397](https://github.com/fengkx/beancount-lsp/commit/5501397))
+- refactor: update imports and make refernces directly to ts code ([db05553](https://github.com/fengkx/beancount-lsp/commit/db05553))
+- feat: update package manager and implement indexing improvements ([e4cee84](https://github.com/fengkx/beancount-lsp/commit/e4cee84))
+
 ## v0.0.82
 
 - chore: bump lsp-client version to 0.0.82 ([9ec66c6](https://github.com/fengkx/beancount-lsp/commit/9ec66c6))
