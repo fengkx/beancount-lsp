@@ -390,7 +390,7 @@
 		"execa": "^9.5.3",
 		"glob": "^11.0.2",
 		"jsonc-parser": "^3.3.1",
-		"mocha": "^11.4.0",
+		"mocha": "^11.5.0",
 		"regexpu-core": "^6.2.0",
 		"vitest": "^3.1.4",
 		"zod-to-json-schema": "^3.24.5"
