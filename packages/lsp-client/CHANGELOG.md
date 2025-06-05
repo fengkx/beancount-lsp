@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.86
+
+- chore: bump lsp-client version to 0.0.86 ([05a8db5](https://github.com/fengkx/beancount-lsp/commit/05a8db5))
+- fix: total cost with negative units ([4eb97e3](https://github.com/fengkx/beancount-lsp/commit/4eb97e3))
+- chore: update mocha to version 11.5.0 and bump rollup to 4.41.1 ([cc96e99](https://github.com/fengkx/beancount-lsp/commit/cc96e99))
+
 ## v0.0.84
 
 - chore: update .vscodeignore to exclude .turbo directory ([d539a6a](https://github.com/fengkx/beancount-lsp/commit/d539a6a))
