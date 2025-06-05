@@ -189,7 +189,9 @@ function calculateTotalCost(posting: Posting): Big {
 		// Handle difference between per-unit cost and total cost
 		if (posting.cost.isTotalCost) {
 			// For double-brace total cost {{}} - use the cost value directly
-			return costValue;
+			// Preserve the sign from the units when using total cost
+			const sign = units.lt(0) ? -1 : 1;
+			return costValue.times(sign);
 		} else {
 			// For single-brace per-unit cost {} - multiply by units
 			return units.times(costValue);
