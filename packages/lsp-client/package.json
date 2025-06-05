@@ -1,404 +1,404 @@
 {
-	"name": "beancount-lsp-client",
-	"displayName": "Beancount language service",
-	"description": "An Beancount language service supporting features like syntax highlighting, code completion, and more.",
-	"icon": "assets/icon.png",
-	"version": "0.0.84",
-	"publisher": "fengkx",
-	"private": true,
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/fengkx/beancount-lsp"
-	},
-	"engines": {
-		"vscode": "^1.86.0"
-	},
-	"categories": [
-		"Programming Languages",
-		"AI",
-		"Other"
-	],
-	"browser": "./dist/browser/extension.js",
-	"main": "./dist/node/extension.js",
-	"capabilities": {
-		"untrustedWorkspaces": {
-			"supported": true
-		},
-		"virtualWorkspaces": true,
-		"languageModel": {
-			"supported": true
-		}
-	},
-	"contributes": {
-		"languages": [
-			{
-				"id": "beancount",
-				"extensions": [
-					".bean",
-					".beancount"
-				],
-				"aliases": [
-					"Beancount",
-					"beancount"
-				],
-				"configuration": "./language-configuration.json"
-			}
-		],
-		"grammars": [
-			{
-				"language": "beancount",
-				"scopeName": "source.beancount",
-				"path": "./syntaxes/beancount.tmLanguage.json"
-			}
-		],
-		"snippets": [
-			{
-				"language": "beancount",
-				"path": "./snippets/beancount.jsonc"
-			}
-		],
-		"configuration": {
-			"type": "object",
-			"title": "Beancount Language Server",
-			"properties": {
-				"beanLsp.maxNumberOfProblems": {
-					"scope": "resource",
-					"type": "number",
-					"default": 100,
-					"description": "Controls the maximum number of problems produced by the server."
-				},
-				"beanLsp.trace.server": {
-					"scope": "window",
-					"type": "string",
-					"enum": [
-						"off",
-						"error",
-						"warn",
-						"messages",
-						"debug",
-						"verbose"
-					],
-					"default": "messages",
-					"description": "Controls the verbosity of logging and traces the communication between VS Code and the language server. Values from least to most verbose: off (errors only), error, warn, messages (info), debug, verbose (trace)."
-				},
-				"beanLsp.mainBeanFile": {
-					"scope": "resource",
-					"type": "string",
-					"default": "main.bean",
-					"description": "Specifies the main Beancount file to use for analysis. This should be relative to the workspace root."
-				},
-				"beancount.diagnostics.tolerance": {
-					"scope": "resource",
-					"type": "number",
-					"default": 0.005,
-					"description": "Tolerance value for transaction balancing. Set to 0 for exact matching."
-				},
-				"beancount.diagnostics.warnOnIncompleteTransaction": {
-					"scope": "resource",
-					"type": "boolean",
-					"default": true,
-					"description": "Show warnings for incomplete transactions (marked with '!' flag). These are transactions that are considered unconfirmed in Beancount."
-				},
-				"beanLsp.inlayHints.enable": {
-					"type": "boolean",
-					"default": true,
-					"description": "Enable inlay hints for Beancount files."
-				},
-				"beanLsp.mainCurrency": {
-					"type": "string",
-					"default": "",
-					"description": "Main currency for price conversions. If empty, the most frequently used currency will be used."
-				},
-				"beanLsp.currencys": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					},
-					"default": [],
-					"description": "List of currencies that should participate in price conversions. Commodities not included in this list (like stocks) will be excluded from conversion calculations. If empty, all commodities will be considered for conversions."
-				},
-				"beanLsp.formatter.enabled": {
-					"type": "boolean",
-					"default": true,
-					"description": "Enable or disable automatic formatting of Beancount files. The formatter aligns accounts, amounts (with decimal point alignment), currencies, and comments for improved readability."
-				},
-				"beanLsp.hover.includeSubaccountBalance": {
-					"type": "boolean",
-					"default": false,
-					"description": "Enable or disable the hover window including balances of subaccounts. By default, only show the balance of the hovered account."
-				}
-			}
-		},
-		"configurationDefaults": {
-			"editor.semanticHighlighting.enabled": true,
-			"editor.inlayHints.enabled": "on",
-			"editor.semanticTokenColorCustomizations": {
-				"enabled": true,
-				"rules": {
-					"date": {
-						"foreground": "#569CD6",
-						"bold": true
-					},
-					"account": {
-						"foreground": "#4EC9B0"
-					},
-					"currency": {
-						"foreground": "#D7BA7D"
-					},
-					"keyword": {
-						"foreground": "#C586C0",
-						"bold": true
-					},
-					"link": {
-						"foreground": "#DCDCAA"
-					},
-					"tag": {
-						"foreground": "#9CDCFE"
-					},
-					"kv_key": {
-						"foreground": "#B5CEA8"
-					},
-					"bool": {
-						"foreground": "#569CD6"
-					},
-					"comment": {
-						"foreground": "#6A9955"
-					},
-					"string": {
-						"foreground": "#CE9178"
-					},
-					"number": {
-						"foreground": "#B5CEA8"
-					},
-					"*.definition": {
-						"bold": true
-					}
-				}
-			},
-			"editor.tokenColorCustomizations": {
-				"textMateRules": [
-					{
-						"scope": "date",
-						"settings": {
-							"foreground": "#569CD6",
-							"fontStyle": "bold"
-						}
-					},
-					{
-						"scope": "account",
-						"settings": {
-							"foreground": "#4EC9B0"
-						}
-					},
-					{
-						"scope": "currency",
-						"settings": {
-							"foreground": "#D7BA7D"
-						}
-					},
-					{
-						"scope": "keyword",
-						"settings": {
-							"foreground": "#C586C0",
-							"fontStyle": "bold"
-						}
-					},
-					{
-						"scope": "link",
-						"settings": {
-							"foreground": "#DCDCAA"
-						}
-					},
-					{
-						"scope": "tag",
-						"settings": {
-							"foreground": "#9CDCFE"
-						}
-					},
-					{
-						"scope": "kv_key",
-						"settings": {
-							"foreground": "#B5CEA8"
-						}
-					},
-					{
-						"scope": "bool",
-						"settings": {
-							"foreground": "#569CD6"
-						}
-					},
-					{
-						"scope": "comment",
-						"settings": {
-							"foreground": "#6A9955"
-						}
-					},
-					{
-						"scope": "string",
-						"settings": {
-							"foreground": "#CE9178"
-						}
-					},
-					{
-						"scope": "number",
-						"settings": {
-							"foreground": "#B5CEA8"
-						}
-					}
-				]
-			},
-			"workbench.colorCustomizations": {
-				"editorInlayHint.background": "#00000000"
-			},
-			"[beancount]": {
-				"editor.inlayHints.maximumLength": 0
-			}
-		},
-		"commands": [
-			{
-				"command": "extension.restartBeancountLanguageServer",
-				"title": "BeanLsp: Restart Beancount Language Server"
-			}
-		],
-		"languageModelTools": [
-			{
-				"name": "get-beancount-accounts",
-				"displayName": "Get Beancount Accounts",
-				"modelDescription": "Retrieves a list of all accounts, response in plain text, each line is an account",
-				"userDescription": "Get a list of accounts from your Beancount ledger",
-				"canBeReferencedInPrompt": true,
-				"toolReferenceName": "beancountAccounts",
-				"icon": "$(account)",
-				"tags": [
-					"beancount",
-					"finance"
-				],
-				"inputSchema": {
-					"type": "object",
-					"properties": {
-						"query": {
-							"type": "string",
-							"description": "optional query keyword to filter accounts, if not provided, all accounts will be returned"
-						}
-					},
-					"additionalProperties": false,
-					"$schema": "http://json-schema.org/draft-07/schema#"
-				}
-			},
-			{
-				"name": "get-beancount-payees",
-				"displayName": "Get Beancount Payees",
-				"modelDescription": "Retrieves a list of all payees used in transactions, response in plain text, each line is a payee",
-				"userDescription": "Get a list of payees from your Beancount ledger",
-				"canBeReferencedInPrompt": true,
-				"toolReferenceName": "beancountPayees",
-				"icon": "$(person)",
-				"tags": [
-					"beancount",
-					"finance"
-				],
-				"inputSchema": {
-					"type": "object",
-					"properties": {
-						"query": {
-							"type": "string",
-							"description": "optional query keyword to filter payees, if not provided, all payees will be returned"
-						}
-					},
-					"additionalProperties": false,
-					"$schema": "http://json-schema.org/draft-07/schema#"
-				}
-			},
-			{
-				"name": "get-narrations",
-				"displayName": "Get Beancount Narrations",
-				"modelDescription": "Retrieves a list of all narrations used in transactions, response in plain text, each line is a narration",
-				"userDescription": "Get a list of narrations from your Beancount ledger",
-				"canBeReferencedInPrompt": true,
-				"toolReferenceName": "beancountNarrations",
-				"icon": "$(note)",
-				"tags": [
-					"beancount",
-					"finance"
-				],
-				"inputSchema": {
-					"type": "object",
-					"properties": {
-						"query": {
-							"type": "string",
-							"description": "optional query keyword to filter narrations, if not provided, all narrations will be returned"
-						}
-					},
-					"additionalProperties": false,
-					"$schema": "http://json-schema.org/draft-07/schema#"
-				}
-			},
-			{
-				"name": "run-bean-query",
-				"displayName": "Run Beancount SQL Query",
-				"modelDescription": "Beancount modify the SQL SELECT syntax to provide a two-level filtering syntax: since we have a single table of data, we replace the table name in FROM by a filtering expression which applies over transactions, and the WHERE clause applies to data pulled from the resulting list of postings:\nSELECT <target1>, <target2>, … FROM <entry-filter-expression> WHERE <posting-filter-expression>;\nBoth filtering expressions are optional. If no filtering expressions are provided, all postings will be enumerated over. Note that since the transactions are always filtered in date order, the results will be processed and returned in this order by default.\n\n\nMy beancount has accounts : Asset:Bank, Income:Salary, Expenses:Rent, Expenses:Food, Expenses:Traffic\n给出上个两个月的收入:\n    SELECT account, sum(convert(position, 'CNY')) as total, year, month WHERE account ~ \"^Income:*\" and date > date_add(today(), -60) GROUP BY account,year, month ORDER BY total DESC\nToday is Thu Jun 22 2023. My beancount has accounts : Asset:Funds, Asset:Bank, Income:Salary, Expenses:Rent, Expenses:Food\n给出上个季度的房租花销:\n    SELECT date, description, account, position WHERE year = 2023 AND quarter(date) = '2023-Q1' AND account = \"Expenses:Rent\"  ORDER BY date DESC\n\n",
-				"userDescription": "Run a SQL query against your Beancount ledger using bean-query",
-				"canBeReferencedInPrompt": true,
-				"toolReferenceName": "beancountQuery",
-				"icon": "$(database)",
-				"tags": [
-					"beancount",
-					"finance",
-					"query",
-					"sql"
-				],
-				"inputSchema": {
-					"type": "object",
-					"properties": {
-						"query": {
-							"type": "string",
-							"description": "The bean-query SQL query to execute. Available columns(Any columns not listed are INVALID! You can only pick column from the list):\n'account': str.\n'balance': Inventory.\n'change': Position.\n'cost_currency': str.\n'cost_date': date.\n'cost_label': str.\n'cost_number': Decimal.\n'currency': str.\n'date': date.\n'day': int.\n'description': str.\n'filename': str.\n'flag': str.\n'id': str.\n'lineno': int.\n'links': set.\n'location': str.\n'month': int.\n'narration': str.\n'number': Decimal.\n'other_accounts': set.\n'payee': str.\n'position': Position.\n'posting_flag': str.\n'price': Amount.\n'tags': set.\n'type': str.\n'weight': Amount.\n'year': int.\n \n\n Simple functions. Any function not listed is INVALID! The valid function arguments type and number of arguments is wrap in bracket:\n\n'ABS(Decimal|Inventory|Position)': Get length\n'ACCOUNT_SORTKEY(str)': Get sort key\n'ANY_META(str)': Get metadata\n'CLOSE_DATE(str)': Get close date\n'COALESCE(object,object)': First non-null\n'COMMODITY(Amount)': Get currency\n'COMMODITY_META(str)': Get metadata\n'CONVERT(Amount|Inventory|Position,str[,date])': Convert currency\n'COST(Inventory|Position)': Get cost\n'CURRENCY(Amount)': Get currency\n'CURRENCY_META(str)': Get metadata\n'DATE(int,int,int|str)': Create date\n'DATE_ADD(date,int)': Add days\n'DATE_DIFF(date,date)': Days diff\n'DAY(date)': Get day\n'ENTRY_META(str)': Get metadata\n'FILTER_CURRENCY(Inventory|Position,str)': Filter currency\n'FINDFIRST(str,set)': First match\n'GETITEM(dict,str)': Get value\n'GETPRICE(str,str[,date])': Get price\n'GREP(str,str)': Match string\n'GREPN(str,str,int)': Get subgroup\n'JOINSTR(set)': Join strings\n'LEAF(str)': Get leaf\n'LENGTH(list|set|str)': Get length\n'LOWER(str)': Lowercase\n'MAXWIDTH(str,int)': Truncate\n'META(str)': Get metadata\n'MONTH(date)': Get month\n'NEG(Amount|Decimal|Inventory|Position)': Negate\n'NUMBER(Amount)': Get number\n'ONLY(str,Inventory)': Get amount\n'OPEN_DATE(str)': Get open date\n'OPEN_META(str)': Get metadata\n'PARENT(str)': Get parent\n'POSSIGN(Amount|Decimal|Inventory|Position,str)': Fix sign\n'QUARTER(date)': Get quarter\n'ROOT(str,int)': Get root\n'SAFEDIV(Decimal,Decimal|int)': Safe divide\n'STR(object)': To string\n'SUBST(str,str,str)': Replace\n'TODAY()': Today\n'UNITS(Inventory|Position)': Get units\n'UPPER(str)': Uppercase\n'VALUE(Inventory|Position[,date])': Get value\n'WEEKDAY(date)': Get weekday\n'YEAR(date)': Get year\n'YMONTH(date)': Get year+month\n\nAggregate functions:\n'COUNT(object)': Count\n'FIRST(object)': First\n'LAST(object)': Last\n'MAX(object)': Max\n'MIN(object)': Min\n'SUM(Amount|Inventory|Position|int|float|Decimal)': Sum"
-						}
-					},
-					"required": [
-						"query"
-					],
-					"additionalProperties": false,
-					"$schema": "http://json-schema.org/draft-07/schema#"
-				}
-			}
-		]
-	},
-	"scripts": {
-		"vscode:prepublish": "npm run build",
-		"build": "vitest run scripts/update-input-schema.spec.mts && node scripts/make-word-pattern.js && tsup",
-		"typecheck": "tsc --noEmit true",
-		"test-compile": "tsc -p ./ && npm run copy:asset",
-		"copy:asset": "cp src/queries/*.scm out/queries",
-		"watch": "tsup --watch",
-		"pretest": "npm run compile && npm run lint",
-		"format:check": "dprint check",
-		"format:fix": "dprint fmt",
-		"vsix": "vsce package --no-dependencies",
-		"generate-changelog": "node ../../scripts/generate-changelog.js"
-	},
-	"devDependencies": {
-		"@types/glob": "^8.1.0",
-		"@types/mocha": "^10.0.6",
-		"@types/node": "22.15.21",
-		"@types/vscode": "^1.86.0",
-		"@vscode/test-electron": "^2.5.2",
-		"@vscode/vsce": "^3.4.2",
-		"compose-regexp": "^0.7.1",
-		"dprint": "^0.50.0",
-		"esbuild-plugins-node-modules-polyfill": "^1.7.0",
-		"execa": "^9.5.3",
-		"glob": "^11.0.2",
-		"jsonc-parser": "^3.3.1",
-		"mocha": "^11.5.0",
-		"regexpu-core": "^6.2.0",
-		"vitest": "^3.1.4",
-		"zod-to-json-schema": "^3.24.5"
-	},
-	"dependencies": {
-		"@bean-lsp/shared": "workspace:*",
-		"beancount-lsp-server": "workspace:*",
-		"vscode-languageclient": "^9.0.1",
-		"vscode-uri": "^3.0.8"
-	}
+  "name": "beancount-lsp-client",
+  "displayName": "Beancount language service",
+  "description": "An Beancount language service supporting features like syntax highlighting, code completion, and more.",
+  "icon": "assets/icon.png",
+  "version": "0.0.86",
+  "publisher": "fengkx",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fengkx/beancount-lsp"
+  },
+  "engines": {
+    "vscode": "^1.86.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "AI",
+    "Other"
+  ],
+  "browser": "./dist/browser/extension.js",
+  "main": "./dist/node/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": true,
+    "languageModel": {
+      "supported": true
+    }
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "beancount",
+        "extensions": [
+          ".bean",
+          ".beancount"
+        ],
+        "aliases": [
+          "Beancount",
+          "beancount"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "beancount",
+        "scopeName": "source.beancount",
+        "path": "./syntaxes/beancount.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "beancount",
+        "path": "./snippets/beancount.jsonc"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Beancount Language Server",
+      "properties": {
+        "beanLsp.maxNumberOfProblems": {
+          "scope": "resource",
+          "type": "number",
+          "default": 100,
+          "description": "Controls the maximum number of problems produced by the server."
+        },
+        "beanLsp.trace.server": {
+          "scope": "window",
+          "type": "string",
+          "enum": [
+            "off",
+            "error",
+            "warn",
+            "messages",
+            "debug",
+            "verbose"
+          ],
+          "default": "messages",
+          "description": "Controls the verbosity of logging and traces the communication between VS Code and the language server. Values from least to most verbose: off (errors only), error, warn, messages (info), debug, verbose (trace)."
+        },
+        "beanLsp.mainBeanFile": {
+          "scope": "resource",
+          "type": "string",
+          "default": "main.bean",
+          "description": "Specifies the main Beancount file to use for analysis. This should be relative to the workspace root."
+        },
+        "beancount.diagnostics.tolerance": {
+          "scope": "resource",
+          "type": "number",
+          "default": 0.005,
+          "description": "Tolerance value for transaction balancing. Set to 0 for exact matching."
+        },
+        "beancount.diagnostics.warnOnIncompleteTransaction": {
+          "scope": "resource",
+          "type": "boolean",
+          "default": true,
+          "description": "Show warnings for incomplete transactions (marked with '!' flag). These are transactions that are considered unconfirmed in Beancount."
+        },
+        "beanLsp.inlayHints.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inlay hints for Beancount files."
+        },
+        "beanLsp.mainCurrency": {
+          "type": "string",
+          "default": "",
+          "description": "Main currency for price conversions. If empty, the most frequently used currency will be used."
+        },
+        "beanLsp.currencys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "List of currencies that should participate in price conversions. Commodities not included in this list (like stocks) will be excluded from conversion calculations. If empty, all commodities will be considered for conversions."
+        },
+        "beanLsp.formatter.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable automatic formatting of Beancount files. The formatter aligns accounts, amounts (with decimal point alignment), currencies, and comments for improved readability."
+        },
+        "beanLsp.hover.includeSubaccountBalance": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable or disable the hover window including balances of subaccounts. By default, only show the balance of the hovered account."
+        }
+      }
+    },
+    "configurationDefaults": {
+      "editor.semanticHighlighting.enabled": true,
+      "editor.inlayHints.enabled": "on",
+      "editor.semanticTokenColorCustomizations": {
+        "enabled": true,
+        "rules": {
+          "date": {
+            "foreground": "#569CD6",
+            "bold": true
+          },
+          "account": {
+            "foreground": "#4EC9B0"
+          },
+          "currency": {
+            "foreground": "#D7BA7D"
+          },
+          "keyword": {
+            "foreground": "#C586C0",
+            "bold": true
+          },
+          "link": {
+            "foreground": "#DCDCAA"
+          },
+          "tag": {
+            "foreground": "#9CDCFE"
+          },
+          "kv_key": {
+            "foreground": "#B5CEA8"
+          },
+          "bool": {
+            "foreground": "#569CD6"
+          },
+          "comment": {
+            "foreground": "#6A9955"
+          },
+          "string": {
+            "foreground": "#CE9178"
+          },
+          "number": {
+            "foreground": "#B5CEA8"
+          },
+          "*.definition": {
+            "bold": true
+          }
+        }
+      },
+      "editor.tokenColorCustomizations": {
+        "textMateRules": [
+          {
+            "scope": "date",
+            "settings": {
+              "foreground": "#569CD6",
+              "fontStyle": "bold"
+            }
+          },
+          {
+            "scope": "account",
+            "settings": {
+              "foreground": "#4EC9B0"
+            }
+          },
+          {
+            "scope": "currency",
+            "settings": {
+              "foreground": "#D7BA7D"
+            }
+          },
+          {
+            "scope": "keyword",
+            "settings": {
+              "foreground": "#C586C0",
+              "fontStyle": "bold"
+            }
+          },
+          {
+            "scope": "link",
+            "settings": {
+              "foreground": "#DCDCAA"
+            }
+          },
+          {
+            "scope": "tag",
+            "settings": {
+              "foreground": "#9CDCFE"
+            }
+          },
+          {
+            "scope": "kv_key",
+            "settings": {
+              "foreground": "#B5CEA8"
+            }
+          },
+          {
+            "scope": "bool",
+            "settings": {
+              "foreground": "#569CD6"
+            }
+          },
+          {
+            "scope": "comment",
+            "settings": {
+              "foreground": "#6A9955"
+            }
+          },
+          {
+            "scope": "string",
+            "settings": {
+              "foreground": "#CE9178"
+            }
+          },
+          {
+            "scope": "number",
+            "settings": {
+              "foreground": "#B5CEA8"
+            }
+          }
+        ]
+      },
+      "workbench.colorCustomizations": {
+        "editorInlayHint.background": "#00000000"
+      },
+      "[beancount]": {
+        "editor.inlayHints.maximumLength": 0
+      }
+    },
+    "commands": [
+      {
+        "command": "extension.restartBeancountLanguageServer",
+        "title": "BeanLsp: Restart Beancount Language Server"
+      }
+    ],
+    "languageModelTools": [
+      {
+        "name": "get-beancount-accounts",
+        "displayName": "Get Beancount Accounts",
+        "modelDescription": "Retrieves a list of all accounts, response in plain text, each line is an account",
+        "userDescription": "Get a list of accounts from your Beancount ledger",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "beancountAccounts",
+        "icon": "$(account)",
+        "tags": [
+          "beancount",
+          "finance"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "optional query keyword to filter accounts, if not provided, all accounts will be returned"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get-beancount-payees",
+        "displayName": "Get Beancount Payees",
+        "modelDescription": "Retrieves a list of all payees used in transactions, response in plain text, each line is a payee",
+        "userDescription": "Get a list of payees from your Beancount ledger",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "beancountPayees",
+        "icon": "$(person)",
+        "tags": [
+          "beancount",
+          "finance"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "optional query keyword to filter payees, if not provided, all payees will be returned"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get-narrations",
+        "displayName": "Get Beancount Narrations",
+        "modelDescription": "Retrieves a list of all narrations used in transactions, response in plain text, each line is a narration",
+        "userDescription": "Get a list of narrations from your Beancount ledger",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "beancountNarrations",
+        "icon": "$(note)",
+        "tags": [
+          "beancount",
+          "finance"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "optional query keyword to filter narrations, if not provided, all narrations will be returned"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "run-bean-query",
+        "displayName": "Run Beancount SQL Query",
+        "modelDescription": "Beancount modify the SQL SELECT syntax to provide a two-level filtering syntax: since we have a single table of data, we replace the table name in FROM by a filtering expression which applies over transactions, and the WHERE clause applies to data pulled from the resulting list of postings:\nSELECT <target1>, <target2>, … FROM <entry-filter-expression> WHERE <posting-filter-expression>;\nBoth filtering expressions are optional. If no filtering expressions are provided, all postings will be enumerated over. Note that since the transactions are always filtered in date order, the results will be processed and returned in this order by default.\n\n\nMy beancount has accounts : Asset:Bank, Income:Salary, Expenses:Rent, Expenses:Food, Expenses:Traffic\n给出上个两个月的收入:\n    SELECT account, sum(convert(position, 'CNY')) as total, year, month WHERE account ~ \"^Income:*\" and date > date_add(today(), -60) GROUP BY account,year, month ORDER BY total DESC\nToday is Thu Jun 22 2023. My beancount has accounts : Asset:Funds, Asset:Bank, Income:Salary, Expenses:Rent, Expenses:Food\n给出上个季度的房租花销:\n    SELECT date, description, account, position WHERE year = 2023 AND quarter(date) = '2023-Q1' AND account = \"Expenses:Rent\"  ORDER BY date DESC\n\n",
+        "userDescription": "Run a SQL query against your Beancount ledger using bean-query",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "beancountQuery",
+        "icon": "$(database)",
+        "tags": [
+          "beancount",
+          "finance",
+          "query",
+          "sql"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The bean-query SQL query to execute. Available columns(Any columns not listed are INVALID! You can only pick column from the list):\n'account': str.\n'balance': Inventory.\n'change': Position.\n'cost_currency': str.\n'cost_date': date.\n'cost_label': str.\n'cost_number': Decimal.\n'currency': str.\n'date': date.\n'day': int.\n'description': str.\n'filename': str.\n'flag': str.\n'id': str.\n'lineno': int.\n'links': set.\n'location': str.\n'month': int.\n'narration': str.\n'number': Decimal.\n'other_accounts': set.\n'payee': str.\n'position': Position.\n'posting_flag': str.\n'price': Amount.\n'tags': set.\n'type': str.\n'weight': Amount.\n'year': int.\n \n\n Simple functions. Any function not listed is INVALID! The valid function arguments type and number of arguments is wrap in bracket:\n\n'ABS(Decimal|Inventory|Position)': Get length\n'ACCOUNT_SORTKEY(str)': Get sort key\n'ANY_META(str)': Get metadata\n'CLOSE_DATE(str)': Get close date\n'COALESCE(object,object)': First non-null\n'COMMODITY(Amount)': Get currency\n'COMMODITY_META(str)': Get metadata\n'CONVERT(Amount|Inventory|Position,str[,date])': Convert currency\n'COST(Inventory|Position)': Get cost\n'CURRENCY(Amount)': Get currency\n'CURRENCY_META(str)': Get metadata\n'DATE(int,int,int|str)': Create date\n'DATE_ADD(date,int)': Add days\n'DATE_DIFF(date,date)': Days diff\n'DAY(date)': Get day\n'ENTRY_META(str)': Get metadata\n'FILTER_CURRENCY(Inventory|Position,str)': Filter currency\n'FINDFIRST(str,set)': First match\n'GETITEM(dict,str)': Get value\n'GETPRICE(str,str[,date])': Get price\n'GREP(str,str)': Match string\n'GREPN(str,str,int)': Get subgroup\n'JOINSTR(set)': Join strings\n'LEAF(str)': Get leaf\n'LENGTH(list|set|str)': Get length\n'LOWER(str)': Lowercase\n'MAXWIDTH(str,int)': Truncate\n'META(str)': Get metadata\n'MONTH(date)': Get month\n'NEG(Amount|Decimal|Inventory|Position)': Negate\n'NUMBER(Amount)': Get number\n'ONLY(str,Inventory)': Get amount\n'OPEN_DATE(str)': Get open date\n'OPEN_META(str)': Get metadata\n'PARENT(str)': Get parent\n'POSSIGN(Amount|Decimal|Inventory|Position,str)': Fix sign\n'QUARTER(date)': Get quarter\n'ROOT(str,int)': Get root\n'SAFEDIV(Decimal,Decimal|int)': Safe divide\n'STR(object)': To string\n'SUBST(str,str,str)': Replace\n'TODAY()': Today\n'UNITS(Inventory|Position)': Get units\n'UPPER(str)': Uppercase\n'VALUE(Inventory|Position[,date])': Get value\n'WEEKDAY(date)': Get weekday\n'YEAR(date)': Get year\n'YMONTH(date)': Get year+month\n\nAggregate functions:\n'COUNT(object)': Count\n'FIRST(object)': First\n'LAST(object)': Last\n'MAX(object)': Max\n'MIN(object)': Min\n'SUM(Amount|Inventory|Position|int|float|Decimal)': Sum"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "vitest run scripts/update-input-schema.spec.mts && node scripts/make-word-pattern.js && tsup",
+    "typecheck": "tsc --noEmit true",
+    "test-compile": "tsc -p ./ && npm run copy:asset",
+    "copy:asset": "cp src/queries/*.scm out/queries",
+    "watch": "tsup --watch",
+    "pretest": "npm run compile && npm run lint",
+    "format:check": "dprint check",
+    "format:fix": "dprint fmt",
+    "vsix": "vsce package --no-dependencies",
+    "generate-changelog": "node ../../scripts/generate-changelog.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "22.15.21",
+    "@types/vscode": "^1.86.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.4.2",
+    "compose-regexp": "^0.7.1",
+    "dprint": "^0.50.0",
+    "esbuild-plugins-node-modules-polyfill": "^1.7.0",
+    "execa": "^9.5.3",
+    "glob": "^11.0.2",
+    "jsonc-parser": "^3.3.1",
+    "mocha": "^11.5.0",
+    "regexpu-core": "^6.2.0",
+    "vitest": "^3.1.4",
+    "zod-to-json-schema": "^3.24.5"
+  },
+  "dependencies": {
+    "@bean-lsp/shared": "workspace:*",
+    "beancount-lsp-server": "workspace:*",
+    "vscode-languageclient": "^9.0.1",
+    "vscode-uri": "^3.0.8"
+  }
 }
