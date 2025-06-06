@@ -24,7 +24,7 @@ catalogs:
     eslint: ^9.26.0
     '@eslint/eslintrc': ^3.3.1
     '@eslint/js': ^9.26.0
-    '@typescript-eslint/eslint-plugin': ^8.31.0
+    '@typescript-eslint/eslint-plugin': ^8.32.1
     '@typescript-eslint/parser': ^8.31.0
     'eslint-import-resolver-typescript': ^4.3.4
     'eslint-plugin-import-x': ^4.11.0
