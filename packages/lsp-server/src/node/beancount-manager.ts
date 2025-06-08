@@ -11,6 +11,7 @@ import {
 	RealBeancountManager,
 } from '../common/features/types';
 import { globalEventBus, GlobalEvents } from '../common/utils/event-bus';
+// eslint-disable-next-line import-x/no-relative-packages
 import beanCheckPythonCode from './beancheck.py';
 
 interface AccountDetails {

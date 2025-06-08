@@ -2,7 +2,7 @@
 	"name": "beancount-lsp",
 	"version": "0.0.0",
 	"description": "BeanCount language server",
-	"packageManager": "pnpm@10.11.0",
+	"packageManager": "pnpm@10.12.1",
 	"private": true,
 	"scripts": {
 		"build": "turbo run build",
