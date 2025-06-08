@@ -87,6 +87,11 @@
 					"default": "main.bean",
 					"description": "Specifies the main Beancount file to use for analysis. This should be relative to the workspace root."
 				},
+				"beanLsp.python3Path": {
+					"type": "string",
+					"default": "",
+					"description": "Path to Python 3 executable. If empty, the system default Python 3 will be used. This Python installation should have the beancount package installed."
+				},
 				"beancount.diagnostics.tolerance": {
 					"scope": "resource",
 					"type": "number",

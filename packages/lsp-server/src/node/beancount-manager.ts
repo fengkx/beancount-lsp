@@ -48,8 +48,8 @@ class BeancountManager implements RealBeancountManager {
 	}
 
 	async getPython3Path(): Promise<string> {
-		const config = await this.connection.workspace.getConfiguration('beancount');
-		let python3Path = config.python3Path || 'python3';
+		const config = await this.connection.workspace.getConfiguration();
+		let python3Path = config?.beanLsp?.python3Path || config?.beancount?.python3Path || 'python3';
 
 		if (python3Path !== 'python3' && !python3Path.startsWith('/')) {
 			const workspaceFolders = await this.connection.workspace.getWorkspaceFolders();
