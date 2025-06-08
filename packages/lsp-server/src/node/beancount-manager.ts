@@ -1,5 +1,6 @@
 import { Logger } from '@bean-lsp/shared';
 import { $, execa } from 'execa';
+import { isAbsolute } from 'path';
 import { Connection, DidSaveTextDocumentParams } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 import {
@@ -51,7 +52,7 @@ class BeancountManager implements RealBeancountManager {
 		const config = await this.connection.workspace.getConfiguration();
 		let python3Path = config?.beanLsp?.python3Path || config?.beancount?.python3Path || 'python3';
 
-		if (python3Path !== 'python3' && !python3Path.startsWith('/')) {
+		if (python3Path !== 'python3' && !isAbsolute(python3Path)) {
 			const workspaceFolders = await this.connection.workspace.getWorkspaceFolders();
 			if (workspaceFolders && workspaceFolders.length > 0) {
 				// @ts-expect-error already check length
