@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.0.90
+
+- chore: bump lsp-client version to 0.0.90 ([0900721](https://github.com/fengkx/beancount-lsp/commit/0900721))
+- fix: absoulte path compatible with windows path ([aeaa4ab](https://github.com/fengkx/beancount-lsp/commit/aeaa4ab))
+- chore: update dependencies ([9aeea40](https://github.com/fengkx/beancount-lsp/commit/9aeea40))
+- chore: bump lsp-client version to 0.0.88 ([30965ef](https://github.com/fengkx/beancount-lsp/commit/30965ef))
+- feat: add python3Path configuration option for Beancount ([1ec2cfd](https://github.com/fengkx/beancount-lsp/commit/1ec2cfd))
+- chore: update dependencies in lsp-client and lsp-server packages ([1dbd944](https://github.com/fengkx/beancount-lsp/commit/1dbd944))
+
 ## v0.0.86
 
 - chore: bump lsp-client version to 0.0.86 ([05a8db5](https://github.com/fengkx/beancount-lsp/commit/05a8db5))
