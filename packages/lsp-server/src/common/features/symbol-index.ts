@@ -277,11 +277,9 @@ export class SymbolIndex {
 
 		// Add currency definitions
 		const currencyDefinitions = await getCurrencyDefinitions(document, this._trees);
-		await Promise.all(
-			currencyDefinitions.map(async (d) => {
-				await this._symbolInfoStorage.insertAsync([d]);
-			}),
-		);
+		if (currencyDefinitions.length > 0) {
+			await this._symbolInfoStorage.insertAsync(currencyDefinitions);
+		}
 	}
 
 	/**

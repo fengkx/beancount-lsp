@@ -8,29 +8,29 @@ concurrency:
 on:
   release:
     types: [created]
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch: # Allow manual triggering
     inputs:
       publish_to_marketplace:
-        description: 'Publish to Extension Marketplace'
+        description: "Publish to Extension Marketplace"
         required: true
-        default: 'false'
+        default: "false"
         type: boolean
       prerelease:
-        description: 'Publish as prerelease version'
+        description: "Publish as prerelease version"
         required: false
-        default: 'false'
+        default: "false"
         type: boolean
 
 permissions:
-  contents: write  # Changed from read to write to allow commits
+  contents: write # Changed from read to write to allow commits
   packages: read
-  
+
 jobs:
   build-and-publish:
     name: Build and Publish Extension
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: production  # Use environment for protection
+    environment: production # Use environment for protection
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,7 +42,7 @@ jobs:
         uses: pnpm/action-setup@v3
         with:
           run_install: true
-  
+
       - name: Build packages
         run: pnpm build
 
@@ -51,14 +51,14 @@ jobs:
 
       - name: Package Extension
         run: pnpm --filter beancount-lsp-client vsix ${{ github.event.inputs.prerelease == 'true' && '--pre-release' || '' }}
-      
+
       - name: Find VSIX file
         id: find-vsix
         run: |
           VSIX_FILE=$(find packages/lsp-client -name "beancount-lsp-client-*.vsix" | head -n 1)
           echo "Found VSIX file: $VSIX_FILE"
           echo "vsix_file=$VSIX_FILE" >> $GITHUB_OUTPUT
-        
+
       - name: Upload VSIX as artifact (for reference)
         uses: actions/upload-artifact@v4
         with:
@@ -67,23 +67,6 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Publish to Visual Studio Marketplace
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_to_marketplace == 'true')
-        uses: HaaLeo/publish-vscode-extension@v1
-        with:
-          pat: ${{ secrets.VSCE_PAT }}
-          extensionFile: ${{ steps.find-vsix.outputs.vsix_file }}
-          registryUrl: https://marketplace.visualstudio.com 
-          preRelease: ${{ github.event.inputs.prerelease == 'true' }}
-        
-      - name: Publish to Open VSX Registry
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_to_marketplace == 'true')
-        uses: HaaLeo/publish-vscode-extension@v1
-        with:
-          pat: ${{ secrets.OPEN_VSIX_PAT }}
-          extensionFile: ${{ steps.find-vsix.outputs.vsix_file }}
-          preRelease: ${{ github.event.inputs.prerelease == 'true' }}
-      
       # Commit CHANGELOG.md after successful publish
       - name: Commit CHANGELOG.md
         if: success() && github.event.inputs.publish_to_marketplace == 'true'
@@ -91,10 +74,10 @@ jobs:
           # Configure Git
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          
+
           # Get version from package.json
           VERSION=$(node -p "require('./packages/lsp-client/package.json').version")
-          
+
           # Check if there are changes to the CHANGELOG
           if git diff --quiet packages/lsp-client/CHANGELOG.md; then
             echo "No changes to CHANGELOG.md, skipping commit"
@@ -106,3 +89,20 @@ jobs:
             git push
             git push --tags
           fi
+
+      - name: Publish to Visual Studio Marketplace
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_to_marketplace == 'true')
+        uses: HaaLeo/publish-vscode-extension@v1
+        with:
+          pat: ${{ secrets.VSCE_PAT }}
+          extensionFile: ${{ steps.find-vsix.outputs.vsix_file }}
+          registryUrl: https://marketplace.visualstudio.com
+          preRelease: ${{ github.event.inputs.prerelease == 'true' }}
+
+      - name: Publish to Open VSX Registry
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_to_marketplace == 'true')
+        uses: HaaLeo/publish-vscode-extension@v1
+        with:
+          pat: ${{ secrets.OPEN_VSIX_PAT }}
+          extensionFile: ${{ steps.find-vsix.outputs.vsix_file }}
+          preRelease: ${{ github.event.inputs.prerelease == 'true' }}
