@@ -1,6 +1,7 @@
 import { Logger } from '@bean-lsp/shared';
 import { $, execa } from 'execa';
-import { isAbsolute } from 'path';
+import os from 'os';
+import { isAbsolute, join } from 'path';
 import { Connection, DidSaveTextDocumentParams } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 import {
@@ -11,6 +12,9 @@ import {
 	RealBeancountManager,
 } from '../common/features/types';
 import { globalEventBus, GlobalEvents } from '../common/utils/event-bus';
+
+import { existsSync } from 'fs';
+import { unlink, writeFile } from 'fs/promises';
 // eslint-disable-next-line import-x/no-relative-packages
 import beanCheckPythonCode from './beancheck.py';
 
@@ -72,12 +76,25 @@ class BeancountManager implements RealBeancountManager {
 
 		const python3Path = await this.getPython3Path();
 
+		let tmpFile: string | undefined = undefined;
 		try {
-			const { stdout } = await $`${python3Path} -c ${beanCheckPythonCode} ${this.mainFile}`;
-			return stdout;
+			if (os.platform() === 'win32') {
+				const fileName = `beancount-check-${Date.now()}.py`;
+				tmpFile = join(os.tmpdir(), fileName);
+				await writeFile(tmpFile, beanCheckPythonCode);
+				const { stdout } = await $`${python3Path} ${tmpFile} ${this.mainFile}`;
+				return stdout;
+			} else {
+				const { stdout } = await $`${python3Path} -c ${beanCheckPythonCode} ${this.mainFile}`;
+				return stdout;
+			}
 		} catch (error) {
 			this.logger.error('Error running bean-check:', error);
 			return null;
+		} finally {
+			if (os.platform() === 'win32' && tmpFile && existsSync(tmpFile)) {
+				unlink(tmpFile);
+			}
 		}
 	}
 
