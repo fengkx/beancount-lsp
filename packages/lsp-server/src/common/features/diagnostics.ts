@@ -292,9 +292,10 @@ export class DiagnosticsFeature implements Feature {
 				return p.amount && (p.cost || p.price);
 			}).map(posting => {
 				const smallestDigit = (new Big(10)).pow(-(posting.amount!.number!.split('.')[1]?.length ?? 0));
+				const n = posting.cost?.number || posting.price?.number;
 				return {
 					currency: posting.cost?.currency || posting.price?.currency as string,
-					number: smallestDigit.mul(posting.cost!.number || posting.price!.number).mul(
+					number: smallestDigit.mul(n!).mul(
 						inferredToleranceMultiplier,
 					),
 				};
