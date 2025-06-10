@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.94
+
+- chore: bump lsp-client version to 0.0.94 ([1c29771](https://github.com/fengkx/beancount-lsp/commit/1c29771))
+- fix: reading number from undefined ([c6778ba](https://github.com/fengkx/beancount-lsp/commit/c6778ba))
+- chore: bump lsp-client version to 0.0.92 ([14a07a2](https://github.com/fengkx/beancount-lsp/commit/14a07a2))
+- fix: improve Windows compatibility for Beancount check execution by using tmp file ([cfb3c15](https://github.com/fengkx/beancount-lsp/commit/cfb3c15))
+- chore: update package dependencies and versions ([9792f06](https://github.com/fengkx/beancount-lsp/commit/9792f06))
+
 ## v0.0.90
 
 - chore: bump lsp-client version to 0.0.90 ([0900721](https://github.com/fengkx/beancount-lsp/commit/0900721))
