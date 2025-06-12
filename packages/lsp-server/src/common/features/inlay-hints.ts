@@ -1,6 +1,6 @@
 import { Logger } from '@bean-lsp/shared';
 import { Big } from 'big.js';
-import { Connection, InlayHint, InlayHintKind, Position, Range } from 'vscode-languageserver';
+import { Connection, InlayHint, InlayHintKind, Position, Range, TextEdit } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
@@ -138,7 +138,7 @@ export class InlayHintFeature implements Feature {
 						const lineEndPos = Position.create(accountNode.endPosition.row, line.length);
 						const hintPosition = Position.create(
 							lineEndPos.line,
-							lineEndPos.character + 2, // Add 2 spaces after account
+							lineEndPos.character,
 						);
 
 						// Calculate spacing needed to align currency
@@ -150,11 +150,21 @@ export class InlayHintFeature implements Feature {
 
 						// Create a single hint with proper spacing
 						const hintLabel = ' '.repeat(prefixSpacesNeeded) + combinedImbalanceText;
+						const textEdits: TextEdit[] = [];
+						if (formattedImbalances.length === 1) {
+							textEdits.push(
+								{
+									range: Range.create(hintPosition, hintPosition),
+									newText: hintLabel,
+								},
+							);
+						}
 
 						hints.push({
 							position: hintPosition,
-							label: `  ${hintLabel}`,
+							label: hintLabel,
 							kind: InlayHintKind.Parameter,
+							textEdits,
 							paddingLeft: false,
 							paddingRight: false,
 							tooltip: 'Calculated amount to balance transaction',
