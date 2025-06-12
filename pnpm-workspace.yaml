@@ -16,7 +16,7 @@ catalogs:
   build:
     tsup: ^8.5.0
     turbo: ^2.5.4
-    tsx: ^4.19.4
+    tsx: ^4.20.2
 
   # Linting and formatting tools
   lint:
@@ -24,10 +24,10 @@ catalogs:
     eslint: ^9.28.0
     '@eslint/eslintrc': ^3.3.1
     '@eslint/js': ^9.28.0
-    '@typescript-eslint/eslint-plugin': ^8.33.1
-    '@typescript-eslint/parser': ^8.33.1
+    '@typescript-eslint/eslint-plugin': ^8.34.0
+    '@typescript-eslint/parser': ^8.34.0
     'eslint-import-resolver-typescript': ^4.4.3
-    'eslint-plugin-import-x': ^4.15.1
+    'eslint-plugin-import-x': ^4.15.2
     'eslint-plugin-turbo': ^2.5.4
     'eslint-plugin-unused-imports': ^4.1.4
 
@@ -46,4 +46,4 @@ catalogs:
 
   # Production runtime dependencies
   prod:
-    zod: ^3.25.56
+    zod: ^3.25.64
