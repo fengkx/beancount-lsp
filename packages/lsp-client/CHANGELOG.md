@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.96
+
+- chore: bump lsp-client version to 0.0.96 ([2d8be49](https://github.com/fengkx/beancount-lsp/commit/2d8be49))
+- feat: enhance inlay hint feature with text edits ([ecffc2c](https://github.com/fengkx/beancount-lsp/commit/ecffc2c))
+- chore: update package dependencies and versions to latest releases ([5b8c31d](https://github.com/fengkx/beancount-lsp/commit/5b8c31d))
+- refactor: optimize symbol indexing and improve currency definitions insertion ([a21852b](https://github.com/fengkx/beancount-lsp/commit/a21852b))
+
 ## v0.0.94
 
 - chore: bump lsp-client version to 0.0.94 ([1c29771](https://github.com/fengkx/beancount-lsp/commit/1c29771))
