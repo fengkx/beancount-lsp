@@ -16,14 +16,14 @@ catalogs:
   build:
     tsup: ^8.5.0
     turbo: ^2.5.4
-    tsx: ^4.20.2
+    tsx: ^4.20.3
 
   # Linting and formatting tools
   lint:
     dprint: ^0.50.0
-    eslint: ^9.28.0
+    eslint: ^9.29.0
     '@eslint/eslintrc': ^3.3.1
-    '@eslint/js': ^9.28.0
+    '@eslint/js': ^9.29.0
     '@typescript-eslint/eslint-plugin': ^8.34.0
     '@typescript-eslint/parser': ^8.34.0
     'eslint-import-resolver-typescript': ^4.4.3
@@ -33,7 +33,7 @@ catalogs:
 
   # TypeScript and type definitions
   types:
-    '@types/node': ^22.15.30
+    '@types/node': ^22.15.31
     '@fengkx/tsconfig': ^2.0.0
     typescript: ^5.8.3
     'type-fest': ^4.41.0
