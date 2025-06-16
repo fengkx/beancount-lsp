@@ -33,7 +33,7 @@ catalogs:
 
   # TypeScript and type definitions
   types:
-    '@types/node': ^22.15.31
+    '@types/node': ^24.0.3
     '@fengkx/tsconfig': ^2.0.0
     typescript: ^5.8.3
     'type-fest': ^4.41.0
