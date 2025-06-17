@@ -192,7 +192,7 @@ const lruCache = new LRUCache<string, Transaction[]>(100);
  * @returns Array of transaction objects with their postings
  */
 export function findAllTransactions(rootNode: Parser.SyntaxNode, document: TextDocument): Transaction[] {
-	const key = 'txns:' + document.uri + ':' + document.version;
+	const key = 'txns:' + rootNode.id + ':' + document.version;
 	const cached = lruCache.get(key);
 	if (cached) {
 		return cached;

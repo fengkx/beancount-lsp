@@ -71,10 +71,10 @@ function findDateFromNode(
 	if (dateNode) {
 		return dateNode.text;
 	}
-
+	let parentDateNode: SyntaxNode | null = currentNode.parent;
 	// Otherwise, traverse up the parent chain
-	while (currentNode.parent) {
-		currentNode = currentNode.parent;
+	while (parentDateNode) {
+		currentNode = parentDateNode;
 
 		// Handle special case for tags_links
 		if (currentNode.type === 'tags_links') {
@@ -88,6 +88,7 @@ function findDateFromNode(
 				return parentDateNode.text;
 			}
 		}
+		parentDateNode = currentNode.parent;
 	}
 
 	return undefined;

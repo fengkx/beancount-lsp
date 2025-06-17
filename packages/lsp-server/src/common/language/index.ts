@@ -1,5 +1,6 @@
 import { getParser } from '@bean-lsp/shared';
 import type * as Parser from 'web-tree-sitter';
+import { LRUCache } from 'mnemonist';
 
 import account from './queries/account.scm';
 import balance from './queries/balance.scm';
@@ -75,8 +76,20 @@ type BeanTokenName = keyof typeof queryMap;
 
 const map = new Map<BeanTokenName, TreeQuery>();
 
+// Helper function to create a cache key for captures
+function createCapturesKey(
+	nodeId: number,
+	startPosition?: Parser.Point,
+	endPosition?: Parser.Point
+): string {
+	const start = startPosition ? `${startPosition.row}:${startPosition.column}` : 'none';
+	const end = endPosition ? `${endPosition.row}:${endPosition.column}` : 'none';
+	return `${nodeId}:${start}:${end}`;
+}
+
 export class TreeQuery {
 	query: string | undefined;
+	private readonly _capturesCache = new LRUCache<string, Parser.QueryCapture[]>(50);
 
 	constructor(public name: BeanTokenName) {
 		const r = map.get(name);
@@ -107,9 +120,23 @@ export class TreeQuery {
 		startPosition?: Parser.Point,
 		endPosition?: Parser.Point,
 	): Promise<Parser.QueryCapture[]> {
+		// Create cache key using node ID
+		const cacheKey = createCapturesKey(rootNode.id, startPosition, endPosition);
+
+		// Check cache first
+		const cached = this._capturesCache.get(cacheKey);
+		if (cached) {
+			return cached;
+		}
+
 		// Use the module-level WASM path
 		const parser = await getParser();
-		return parser.getLanguage().query(this.query!).captures(rootNode, startPosition, endPosition);
+		const result = parser.getLanguage().query(this.query!).captures(rootNode, startPosition, endPosition);
+
+		// Cache the result
+		this._capturesCache.set(cacheKey, result);
+
+		return result;
 	}
 
 	static async matches(
@@ -122,13 +149,14 @@ export class TreeQuery {
 		const parser = await getParser();
 		return parser.getLanguage().query(query).matches(rootNode, startPosition, endPosition);
 	}
+
 	static async captures(
 		query: string,
 		rootNode: Parser.SyntaxNode,
 		startPosition?: Parser.Point,
 		endPosition?: Parser.Point,
 	): Promise<Parser.QueryCapture[]> {
-		// Use the module-level WASM path
+		// Static method doesn't have instance cache, so we execute directly
 		const parser = await getParser();
 		return parser.getLanguage().query(query).captures(rootNode, startPosition, endPosition);
 	}

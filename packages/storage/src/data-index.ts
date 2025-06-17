@@ -1,5 +1,7 @@
 import type { IndexableValue } from './types';
 
+const emptySet: ReadonlySet<string> = new Set<string>();
+
 export class Index<Schema> {
 	constructor(public readonly fieldName: string) {}
 
@@ -43,8 +45,8 @@ export class Index<Schema> {
 	 * Get all document IDs for a specific value
 	 * @param value Value to look up
 	 */
-	getIds(value: IndexableValue): Set<string> | undefined {
-		return this.indexMap.get(value);
+	getIds(value: IndexableValue): ReadonlySet<string> | undefined {
+		return this.indexMap.get(value) ?? emptySet;
 	}
 
 	/**

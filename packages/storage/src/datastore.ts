@@ -201,7 +201,7 @@ class DataStore<Schema = Record<string, any>> {
 
 		if (indexedQueryEntries.length > 0) {
 			// Find the most efficient index to use
-			let bestCandidateIds: Set<string> | null = null;
+			let bestCandidateIds: ReadonlySet<string> | null = null;
 
 			for (const [field, queryValue] of indexedQueryEntries) {
 				const index = this.indices.get(field);
@@ -210,7 +210,7 @@ class DataStore<Schema = Record<string, any>> {
 				// For simple equality queries
 				if (index.isIndexable(queryValue)) {
 					const ids = index.getIds(queryValue as IndexableValue);
-					if (ids && (bestCandidateIds === null || ids.size < bestCandidateIds.size)) {
+					if (ids && (bestCandidateIds === null || (ids.size < bestCandidateIds.size))) {
 						bestCandidateIds = ids;
 					}
 					continue;
