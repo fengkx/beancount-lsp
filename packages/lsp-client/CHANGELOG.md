@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.104
+
+- chore: bump lsp-client version to 0.0.104 and update lsp.mdc with capabilities handler requirement ([0aa7f11](https://github.com/fengkx/beancount-lsp/commit/0aa7f11))
+- fix: code lens register ([d65dbfa](https://github.com/fengkx/beancount-lsp/commit/d65dbfa))
+
 ## v0.0.102
 
 - fix: type error ([3523a3b](https://github.com/fengkx/beancount-lsp/commit/3523a3b))
