@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.98
+
+- chore: bump lsp-client version to 0.0.98 and update VSCode settings ([de5949a](https://github.com/fengkx/beancount-lsp/commit/de5949a))
+- feat: add CodeLens feature for account balance display in LSP server (#81) ([b52c9b4](https://github.com/fengkx/beancount-lsp/commit/b52c9b4))
+- perf: optimize runtime speed ([3edc216](https://github.com/fengkx/beancount-lsp/commit/3edc216))
+- chore: update package dependencies to latest versions ([6eedbb6](https://github.com/fengkx/beancount-lsp/commit/6eedbb6))
+
 ## v0.0.96
 
 - chore: bump lsp-client version to 0.0.96 ([2d8be49](https://github.com/fengkx/beancount-lsp/commit/2d8be49))
