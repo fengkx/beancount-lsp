@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.102
+
+- fix: type error ([3523a3b](https://github.com/fengkx/beancount-lsp/commit/3523a3b))
+- fix: code lens error ([5a83d3d](https://github.com/fengkx/beancount-lsp/commit/5a83d3d))
+
 ## v0.0.100
 
 - chore: bump lsp-client version to 0.0.100 ([39dbe72](https://github.com/fengkx/beancount-lsp/commit/39dbe72))
