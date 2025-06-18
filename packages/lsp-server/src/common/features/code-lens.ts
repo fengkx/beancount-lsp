@@ -20,13 +20,12 @@ export class CodeLensFeature implements Feature {
     ) { }
 
     register(connection: lsp.Connection): void {
-        if (!this.beanMgr) {
-            logger.info('CodeLens feature disabled: no beancount manager available');
-            return;
-        }
-
         connection.onCodeLens(async (params) => {
             try {
+                if (!this.beanMgr) {
+                    logger.info('CodeLens feature disabled: no beancount manager available');
+                    return;
+                }
                 return await this.provideCodeLenses(params);
             } catch (error) {
                 logger.error(`Error providing code lenses: ${error}`);
