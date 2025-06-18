@@ -111,11 +111,13 @@ export function startServer(
 				// Add document formatting capability
 				documentFormattingProvider: true,
 				// Add code lens provider capability
-				codeLensProvider: beanMgr !== undefined ? {
-					resolveProvider: true,
-				} : undefined,
 			},
 		};
+		if (beanMgr !== undefined) {
+			result.capabilities.codeLensProvider = {
+				resolveProvider: true,
+			};
+		}
 		if (params.capabilities.workspace?.configuration) {
 			hasConfigurationCapability = true;
 		}
