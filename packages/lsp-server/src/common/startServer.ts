@@ -112,7 +112,7 @@ export function startServer(
 				documentFormattingProvider: true,
 				// Add code lens provider capability
 				codeLensProvider: {
-					resolveProvider: true,
+					resolveProvider: beanMgr !== undefined,
 				},
 			},
 		};
