@@ -6,3 +6,5 @@ alwaysApply: false
 Use the text document from the new vscode-languageserver-textdocument package.
 DO NOT using `import { TextDocument } from 'vscode-languageserver'`
 DO `import { TextDocument } from 'vscode-languageserver-textdocument'` instead
+
+When returned a capabilities, we MUST return something on its handler.
