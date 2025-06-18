@@ -18,6 +18,7 @@ import { FormatterFeature } from './features/formatter';
 import { HoverFeature } from './features/hover';
 import { InlayHintFeature } from './features/inlay-hints';
 import { PriceMap } from './features/prices-index/price-map';
+import { CodeLensFeature } from './features/code-lens';
 import { ReferencesFeature } from './features/references';
 import { RenameFeature } from './features/rename';
 import { SelectionRangesFeature } from './features/selection-ranges';
@@ -109,6 +110,10 @@ export function startServer(
 				},
 				// Add document formatting capability
 				documentFormattingProvider: true,
+				// Add code lens provider capability
+				codeLensProvider: {
+					resolveProvider: true,
+				},
 			},
 		};
 		if (params.capabilities.workspace?.configuration) {
@@ -154,6 +159,11 @@ export function startServer(
 		features.push(new DiagnosticsFeature(documents, trees, optionsManager, beanMgr));
 		features.push(new HoverFeature(documents, trees, priceMap, symbolIndex, beanMgr));
 		features.push(new InlayHintFeature(documents, trees));
+
+		// Add CodeLens feature only when beancount manager is available (node environment)
+		if (beanMgr) {
+			features.push(new CodeLensFeature(documents, trees, beanMgr));
+		}
 		// Initialize all features
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
 
@@ -255,8 +265,7 @@ export function startServer(
 						const logLevel = mapTraceServerToLogLevel(config.trace.server);
 						serverLogger.setLevel(logLevel);
 						serverLogger.info(
-							`Log level changed to ${
-								logLevelToString(logLevel)
+							`Log level changed to ${logLevelToString(logLevel)
 							} (from trace.server: ${config.trace.server})`,
 						);
 					}
