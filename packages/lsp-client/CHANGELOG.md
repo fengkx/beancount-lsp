@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.100
+
+- chore: bump lsp-client version to 0.0.100 ([39dbe72](https://github.com/fengkx/beancount-lsp/commit/39dbe72))
+- fix: code lens error ([228d550](https://github.com/fengkx/beancount-lsp/commit/228d550))
+
 ## v0.0.98
 
 - chore: bump lsp-client version to 0.0.98 and update VSCode settings ([de5949a](https://github.com/fengkx/beancount-lsp/commit/de5949a))
