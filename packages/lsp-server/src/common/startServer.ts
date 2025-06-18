@@ -113,11 +113,6 @@ export function startServer(
 				// Add code lens provider capability
 			},
 		};
-		if (beanMgr !== undefined) {
-			result.capabilities.codeLensProvider = {
-				resolveProvider: true,
-			};
-		}
 		if (params.capabilities.workspace?.configuration) {
 			hasConfigurationCapability = true;
 		}
@@ -164,7 +159,11 @@ export function startServer(
 
 		// Add CodeLens feature only when beancount manager is available (node environment)
 		if (beanMgr) {
+			result.capabilities.codeLensProvider = {
+				resolveProvider: true,
+			};
 			features.push(new CodeLensFeature(documents, trees, beanMgr));
+
 		}
 		// Initialize all features
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
