@@ -318,7 +318,6 @@ export class FormatterFeature implements Feature {
 		if (amount) {
 			const amountStartPos = document.positionAt(amount.startIndex);
 			const amountEndPos = document.positionAt(amount.endIndex);
-			const amountText = document.getText({ start: amountStartPos, end: amountEndPos });
 
 			// The space between account and amount
 			const spaceRange = {
@@ -327,7 +326,12 @@ export class FormatterFeature implements Feature {
 			};
 
 			// Implement decimal point alignment
-			const parts = amountText.split('.');
+			const number = amount.namedChild(0)!;
+			const numberText = document.getText({
+				start: document.positionAt(number.startIndex),
+				end: document.positionAt(number.endIndex),
+			});
+			const parts = numberText.split('.');
 			let integerPart = parts[0]?.trim() || '';
 
 			// Clean integer part and calculate width
