@@ -397,7 +397,7 @@
 		"jsonc-parser": "^3.3.1",
 		"mocha": "^11.6.0",
 		"regexpu-core": "^6.2.0",
-		"vitest": "^3.2.3",
+		"vitest": "^3.2.4",
 		"zod-to-json-schema": "^3.24.5"
 	},
 	"dependencies": {
