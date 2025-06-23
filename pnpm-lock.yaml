@@ -55,8 +55,8 @@ catalogs:
       version: 4.1.4
   prod:
     zod:
-      specifier: ^3.25.64
-      version: 3.25.64
+      specifier: ^3.25.67
+      version: 3.25.67
   types:
     '@fengkx/tsconfig':
       specifier: ^2.0.0
@@ -80,7 +80,7 @@ importers:
     dependencies:
       zod:
         specifier: catalog:prod
-        version: 3.25.64
+        version: 3.25.67
     devDependencies:
       '@eslint/eslintrc':
         specifier: catalog:lint
@@ -205,7 +205,7 @@ importers:
         version: 3.2.3(@types/node@22.15.30)(tsx@4.20.3)
       zod-to-json-schema:
         specifier: ^3.24.5
-        version: 3.24.5(zod@3.25.64)
+        version: 3.24.5(zod@3.25.67)
 
   packages/lsp-server:
     dependencies:
@@ -3525,8 +3525,8 @@ packages:
     peerDependencies:
       zod: ^3.24.1
 
-  zod@3.25.64:
-    resolution: {integrity: sha512-hbP9FpSZf7pkS7hRVUrOjhwKJNyampPgtXKc3AN6DsWtoHsg2Sb4SQaS4Tcay380zSwd2VPo9G9180emBACp5g==}
+  zod@3.25.67:
+    resolution: {integrity: sha512-idA2YXwpCdqUSKRCACDE6ItZD9TZzy3OZMtpfLoh6oPR47lipysRrJfjzMqFxQ3uJuUPyUeWe1r9vLH33xO/Qw==}
 
 snapshots:
 
@@ -6833,8 +6833,8 @@ snapshots:
 
   yoctocolors@2.1.1: {}
 
-  zod-to-json-schema@3.24.5(zod@3.25.64):
+  zod-to-json-schema@3.24.5(zod@3.25.67):
     dependencies:
-      zod: 3.25.64
+      zod: 3.25.67
 
-  zod@3.25.64: {}
+  zod@3.25.67: {}
