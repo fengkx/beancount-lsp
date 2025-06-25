@@ -385,20 +385,20 @@
 	"devDependencies": {
 		"@types/glob": "^8.1.0",
 		"@types/mocha": "^10.0.6",
-		"@types/node": "22.15.30",
+		"@types/node": "24.0.4",
 		"@types/vscode": "^1.86.0",
 		"@vscode/test-electron": "^2.5.2",
-		"@vscode/vsce": "^3.5.0",
+		"@vscode/vsce": "^3.6.0",
 		"compose-regexp": "^0.7.1",
 		"dprint": "^0.50.0",
 		"esbuild-plugins-node-modules-polyfill": "^1.7.1",
 		"execa": "^9.6.0",
 		"glob": "^11.0.3",
 		"jsonc-parser": "^3.3.1",
-		"mocha": "^11.6.0",
+		"mocha": "^11.7.1",
 		"regexpu-core": "^6.2.0",
-		"vitest": "^3.2.3",
-		"zod-to-json-schema": "^3.24.5"
+		"vitest": "^3.2.4",
+		"zod-to-json-schema": "^3.24.6"
 	},
 	"dependencies": {
 		"@bean-lsp/shared": "workspace:*",

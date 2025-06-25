@@ -1,5 +1,34 @@
 packages:
   - packages/*
+
+catalogs:
+  build:
+    tsup: ^8.5.0
+    turbo: ^2.5.4
+    tsx: ^4.20.3
+  lint:
+    dprint: ^0.50.0
+    eslint: ^9.29.0
+    '@eslint/eslintrc': ^3.3.1
+    '@eslint/js': ^9.29.0
+    '@typescript-eslint/eslint-plugin': ^8.35.0
+    '@typescript-eslint/parser': ^8.35.0
+    eslint-import-resolver-typescript: ^4.4.3
+    eslint-plugin-import-x: ^4.16.0
+    eslint-plugin-turbo: ^2.5.4
+    eslint-plugin-unused-imports: ^4.1.4
+  types:
+    '@types/node': ^24.0.4
+    '@fengkx/tsconfig': ^2.0.0
+    typescript: ^5.8.3
+    type-fest: ^4.41.0
+    globals: ^16.2.0
+  dev:
+    nano-staged: ^0.8.0
+    simple-git-hooks: ^2.13.0
+  prod:
+    zod: ^3.25.67
+
 onlyBuiltDependencies:
   - '@fengkx/tree-sitter-beancount'
   - '@swc/core'
@@ -9,41 +38,3 @@ onlyBuiltDependencies:
   - simple-git-hooks
   - tree-sitter-cli
   - keytar
-
-# Dependency catalogs for better organization
-catalogs:
-  # Build and bundling tools
-  build:
-    tsup: ^8.5.0
-    turbo: ^2.5.4
-    tsx: ^4.20.3
-
-  # Linting and formatting tools
-  lint:
-    dprint: ^0.50.0
-    eslint: ^9.29.0
-    '@eslint/eslintrc': ^3.3.1
-    '@eslint/js': ^9.29.0
-    '@typescript-eslint/eslint-plugin': ^8.34.0
-    '@typescript-eslint/parser': ^8.34.0
-    'eslint-import-resolver-typescript': ^4.4.3
-    'eslint-plugin-import-x': ^4.15.2
-    'eslint-plugin-turbo': ^2.5.4
-    'eslint-plugin-unused-imports': ^4.1.4
-
-  # TypeScript and type definitions
-  types:
-    '@types/node': ^22.15.31
-    '@fengkx/tsconfig': ^2.0.0
-    typescript: ^5.8.3
-    'type-fest': ^4.41.0
-    globals: ^16.2.0
-
-  # Development utilities
-  dev:
-    'nano-staged': ^0.8.0
-    'simple-git-hooks': ^2.13.0
-
-  # Production runtime dependencies
-  prod:
-    zod: ^3.25.64
