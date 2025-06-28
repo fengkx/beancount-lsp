@@ -332,7 +332,14 @@ export class FormatterFeature implements Feature {
 
 			// Clean integer part and calculate width
 			if (parts.length === 1) {
-				integerPart = integerPart.match(/^-?\d+/)![0];
+				const match = integerPart.match(/^-?[\d()+\-*/]+/);
+				if (match) {
+					integerPart = match[0];
+				} else {
+					// Fallback: extract any number sequence for width calculation
+					const numberMatch = integerPart.match(/\d+/);
+					integerPart = numberMatch ? numberMatch[0] : '';
+				}
 			}
 			const integerWidth = this.calculateStringWidth(integerPart);
 

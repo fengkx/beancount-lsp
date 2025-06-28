@@ -94,7 +94,15 @@ export class Logger implements ILogger {
 	}
 
 	private formatMessage(...args: unknown[]): string {
-		return [this.prefix, ...args].map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ');
+		return [this.prefix, ...args].map(arg => {
+			if (typeof arg === 'string') {
+				return arg;
+			}
+			if (arg instanceof Error) {
+				return arg.stack || arg.message;
+			}
+			return JSON.stringify(arg);
+		}).join(' ');
 	}
 }
 
