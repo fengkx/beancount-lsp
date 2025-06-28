@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.106
+
+- chore: update package versions and dependencies to latest releases ([87e9897](https://github.com/fengkx/beancount-lsp/commit/87e9897))
+- chore: bump lsp-client version to 0.0.106 ([1c42669](https://github.com/fengkx/beancount-lsp/commit/1c42669))
+- fix: improve integer part extraction in formatter and enhance logger message formatting ([0556796](https://github.com/fengkx/beancount-lsp/commit/0556796))
+- chore: update dependencies and package versions across the project ([eb7cb17](https://github.com/fengkx/beancount-lsp/commit/eb7cb17))
+- chore: bump lsp-server version to 0.0.3 ([f964daa](https://github.com/fengkx/beancount-lsp/commit/f964daa))
+
 ## v0.0.104
 
 - chore: bump lsp-client version to 0.0.104 and update lsp.mdc with capabilities handler requirement ([0aa7f11](https://github.com/fengkx/beancount-lsp/commit/0aa7f11))
