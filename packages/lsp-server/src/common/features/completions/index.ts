@@ -262,9 +262,21 @@ function addCompletionItem(
 		return cnt;
 	}
 
-	let filterText = undefined;
+	let filterText: string | undefined = undefined;
 	if (/^[\w:]+$/.test(item.label)) {
 		filterText = item.label;
+		let matches = item.label.match(/:[^:]+/g);
+		if (matches && matches?.length > 0) {
+			if (matches?.length === 1) {
+				// Make the suffix appear twice to boost the score when it is a one level account
+				matches = [matches[0], matches[0]];
+			}
+
+			// boots the score of suffixes match
+			matches?.forEach(suffix => {
+				filterText = `${item.label[0]}${suffix} ${filterText}`;
+			});
+		}
 	} else {
 		filterText = createFilterString(item.label);
 	}
@@ -283,15 +295,18 @@ function addCompletionItem(
 		}
 	}
 
-	items.push({
+	const completionItem: CompletionItem = {
 		...item,
 		kind: item.kind || CompletionItemKind.Text,
 		filterText,
 		textEdit: typeof textEdit === 'string' ? TextEdit.insert(position, textEdit) : textEdit,
-		sortText: String(1000000 - Math.round(score)).padStart(7, '0'),
 		// Add data for debugging if needed
 		data: userInput ? { score, usageCount } : undefined,
-	});
+	};
+	if (score > 0) {
+		completionItem.sortText = String(1000000 - Math.round(score)).padStart(7, '0');
+	}
+	items.push(completionItem);
 	set.add(item.label);
 	return cnt + 1;
 }
@@ -578,19 +593,7 @@ async function addAccountCompletions(
 
 	// Filter accounts based on the trigger character and closed status
 	const filteredAccounts = accountsNames.filter((account) => {
-		// First, apply the trigger character filter
-		// if (triggerChar) {
-		// 	if (triggerChar === 'E') {
-		// 		// Special case for E: match both Equity and Expenses accounts
-		// 		if (!account.startsWith('Equity:') && !account.startsWith('Expenses:')) {
-		// 			return false;
-		// 		}
-		// 	} else if (!account.startsWith(triggerChar)) {
-		// 		return false;
-		// 	}
-		// }
-
-		// Now, check if the account is closed and if the current date is after the closing date
+		// check if the account is closed and if the current date is after the closing date
 		if (currentDate && closedAccounts.has(account)) {
 			const closedDate = closedAccounts.get(account);
 			if (closedDate && currentDate >= closedDate) {
