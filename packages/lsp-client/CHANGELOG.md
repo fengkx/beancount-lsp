@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.108
+
+- chore: bump lsp-client version to 0.0.108 ([ce5cbb9](https://github.com/fengkx/beancount-lsp/commit/ce5cbb9))
+- fix: enhance completion item scoring and refactor account filtering logic ([c93369c](https://github.com/fengkx/beancount-lsp/commit/c93369c))
+
 ## v0.0.106
 
 - chore: update package versions and dependencies to latest releases ([87e9897](https://github.com/fengkx/beancount-lsp/commit/87e9897))
