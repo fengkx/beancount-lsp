@@ -12,3 +12,5 @@ declare module '*.py' {
 	const content: string;
 	export = content;
 }
+
+declare const __VSCODE__: boolean;

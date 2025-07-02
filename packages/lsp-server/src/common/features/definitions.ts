@@ -14,7 +14,7 @@ export class DefinitionFeature {
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
 		private readonly symbolIndex: SymbolIndex,
-	) {}
+	) { }
 
 	register(connection: lsp.Connection): void {
 		connection.onDefinition((params) => this.onDefinition(params));
@@ -66,6 +66,35 @@ export class DefinitionFeature {
 			logger.debug(`Found commodity at cursor: ${commodityAtPosition}`);
 			return this.findCommodityDefinition(commodityAtPosition);
 		}
+
+		// When cursor on payee and narration, we return a range include current position, which make vscode use the alternative command (usually go to references)
+		// https://github.com/microsoft/vscode/blob/b227e84a88ed27b9774ceb9aad3511c9c58b3dde/src/vs/editor/contrib/gotoSymbol/browser/goToCommands.ts#L146
+		if (__VSCODE__) {
+			const payeeAtPosition = await positionUtils.getPayeeAtPosition(this.trees, document, params.position);
+			if (payeeAtPosition) {
+				logger.debug(`Found payee at cursor: ${payeeAtPosition}`);
+				return [{
+					uri: document.uri,
+					range: {
+						start: params.position,
+						end: params.position,
+					},
+				}];
+			}
+
+			const narrationAtPosition = await positionUtils.getNarrationAtPosition(this.trees, document, params.position);
+			if (narrationAtPosition) {
+				logger.debug(`Found narration at cursor: ${narrationAtPosition}`);
+				return [{
+					uri: document.uri,
+					range: {
+						start: params.position,
+						end: params.position,
+					},
+				}];
+			}
+		}
+
 
 		return null;
 	}
