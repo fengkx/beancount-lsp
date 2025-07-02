@@ -11,13 +11,14 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "tsup && node scripts/prepare-client-assets.js",
+		"build": "cross-env LSP_CLIENT_TYPE=vscode tsup && node scripts/prepare-client-assets.js",
+		"build:npm": "tsup",
 		"watch": "tsup --watch",
 		"typecheck": "tsc --noEmit true",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
-		"prepublishOnly": "npm run build"
+		"prepublishOnly": "npm run build:npm"
 	},
 	"keywords": [],
 	"author": "",

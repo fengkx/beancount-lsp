@@ -23,7 +23,7 @@ export class InlayHintFeature implements Feature {
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
-	) {}
+	) { }
 
 	register(connection: Connection): void {
 		// Register the inlay hint provider
@@ -41,7 +41,7 @@ export class InlayHintFeature implements Feature {
 
 				if (this.inlayHintsEnabled === null) {
 					const beanLspSettings = await connection.workspace.getConfiguration({ section: 'beanLsp' });
-					this.inlayHintsEnabled = beanLspSettings.inlayHints.enable;
+					this.inlayHintsEnabled = beanLspSettings?.inlayHints?.enable;
 				}
 
 				if (!this.inlayHintsEnabled) {

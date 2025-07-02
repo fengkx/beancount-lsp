@@ -17,16 +17,31 @@ const path = require('path');
  */
 function prepareWasmAsset() {
 	try {
-		const webTreeSitterWasmPath = require.resolve('web-tree-sitter/tree-sitter.wasm');
-		const clientCommonPath = path.join(__dirname, '../../lsp-client/server/common');
+		const webTreeSitterWasmPath = require.resolve(
+			'web-tree-sitter/tree-sitter.wasm',
+		);
+		const clientCommonPath = path.join(
+			__dirname,
+			'../../lsp-client/server/common',
+		);
 
 		// Create the client common directory if it doesn't exist
 		fs.mkdirSync(clientCommonPath, { recursive: true });
 
 		// Copy the WASM file to the lsp-client/server/common directory
-		fs.copyFileSync(webTreeSitterWasmPath, path.join(clientCommonPath, 'web-tree-sitter.wasm'));
+		fs.copyFileSync(
+			webTreeSitterWasmPath,
+			path.join(clientCommonPath, 'web-tree-sitter.wasm'),
+		);
 
-		console.log(`✅ WASM asset prepared: ${path.join(clientCommonPath, 'web-tree-sitter.wasm')}`);
+		console.log(
+			`✅ WASM asset prepared: ${
+				path.join(
+					clientCommonPath,
+					'web-tree-sitter.wasm',
+				)
+			}`,
+		);
 		return true;
 	} catch (error) {
 		console.error(`❌ Failed to prepare WASM asset: ${error.message}`);
@@ -41,7 +56,10 @@ function prepareWasmAsset() {
 function prepareNodeServerAsset() {
 	try {
 		const serverJsPath = path.join(__dirname, '../dist/node/server.js');
-		const clientServerPath = path.join(__dirname, '../../lsp-client/server/node.js');
+		const clientServerPath = path.join(
+			__dirname,
+			'../../lsp-client/server/node.js',
+		);
 
 		// Check if the server.js file exists
 		if (!fs.existsSync(serverJsPath)) {
@@ -65,7 +83,10 @@ function prepareNodeServerAsset() {
 function prepareBrowserServerAsset() {
 	try {
 		const serverJsPath = path.join(__dirname, '../dist/browser/server.js');
-		const clientServerPath = path.join(__dirname, '../../lsp-client/server/browser.js');
+		const clientServerPath = path.join(
+			__dirname,
+			'../../lsp-client/server/browser.js',
+		);
 
 		// Check if the server.js file exists
 		if (!fs.existsSync(serverJsPath)) {
@@ -77,7 +98,9 @@ function prepareBrowserServerAsset() {
 		console.log(`✅ Browser server asset prepared: ${clientServerPath}`);
 		return true;
 	} catch (error) {
-		console.error(`❌ Failed to prepare browser server asset: ${error.message}`);
+		console.error(
+			`❌ Failed to prepare browser server asset: ${error.message}`,
+		);
 		return false;
 	}
 }
@@ -96,7 +119,9 @@ function prepareClientAssets() {
 		console.log('✨ All client assets prepared successfully!');
 		process.exit(0);
 	} else {
-		console.error('⚠️ Some assets failed to prepare. Check logs above for details.');
+		console.error(
+			'⚠️ Some assets failed to prepare. Check logs above for details.',
+		);
 		process.exit(1);
 	}
 }

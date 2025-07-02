@@ -26,7 +26,7 @@ export class HoverFeature implements Feature {
 		private readonly priceMap: PriceMap,
 		private readonly symbolIndex: SymbolIndex,
 		private readonly beanMgr: RealBeancountManager | undefined,
-	) {}
+	) { }
 
 	register(connection: lsp.Connection): void {
 		this.connection = connection;
@@ -193,9 +193,8 @@ export class HoverFeature implements Feature {
 
 		if (latestPrice) {
 			const date = new Date(latestPrice.date);
-			const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${
-				String(date.getDate()).padStart(2, '0')
-			}`;
+			const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')
+				}`;
 
 			// Use smaller heading and more compact layout
 			result +=
@@ -231,12 +230,10 @@ export class HoverFeature implements Feature {
 									const latestDate = new Date(latestDateStr);
 
 									if (!isNaN(earliestDate.getTime()) && !isNaN(latestDate.getTime())) {
-										const earliestFormatted = `${earliestDate.getFullYear()}-${
-											String(earliestDate.getMonth() + 1).padStart(2, '0')
-										}-${String(earliestDate.getDate()).padStart(2, '0')}`;
-										const latestFormatted = `${latestDate.getFullYear()}-${
-											String(latestDate.getMonth() + 1).padStart(2, '0')
-										}-${String(latestDate.getDate()).padStart(2, '0')}`;
+										const earliestFormatted = `${earliestDate.getFullYear()}-${String(earliestDate.getMonth() + 1).padStart(2, '0')
+											}-${String(earliestDate.getDate()).padStart(2, '0')}`;
+										const latestFormatted = `${latestDate.getFullYear()}-${String(latestDate.getMonth() + 1).padStart(2, '0')
+											}-${String(latestDate.getDate()).padStart(2, '0')}`;
 
 										// Only show date range if they're different
 										if (earliestFormatted !== latestFormatted) {
@@ -801,12 +798,10 @@ export class HoverFeature implements Feature {
 									const latestDate = new Date(latestDateStr);
 
 									if (!isNaN(earliestDate.getTime()) && !isNaN(latestDate.getTime())) {
-										const earliestFormatted = `${earliestDate.getFullYear()}-${
-											String(earliestDate.getMonth() + 1).padStart(2, '0')
-										}-${String(earliestDate.getDate()).padStart(2, '0')}`;
-										const latestFormatted = `${latestDate.getFullYear()}-${
-											String(latestDate.getMonth() + 1).padStart(2, '0')
-										}-${String(latestDate.getDate()).padStart(2, '0')}`;
+										const earliestFormatted = `${earliestDate.getFullYear()}-${String(earliestDate.getMonth() + 1).padStart(2, '0')
+											}-${String(earliestDate.getDate()).padStart(2, '0')}`;
+										const latestFormatted = `${latestDate.getFullYear()}-${String(latestDate.getMonth() + 1).padStart(2, '0')
+											}-${String(latestDate.getDate()).padStart(2, '0')}`;
 
 										if (earliestFormatted !== latestFormatted) {
 											result += `Price trend (${earliestFormatted} to ${latestFormatted}):\n\n`;
@@ -881,9 +876,8 @@ export class HoverFeature implements Feature {
 
 					// Show conversion path if not direct conversion
 					if (conversion.path.length > 1) {
-						result += `  Via: ${conversion.path.join(' → ')} (rate: ${
-							conversion.conversionRate.toFixed(4)
-						})\n`;
+						result += `  Via: ${conversion.path.join(' → ')} (rate: ${conversion.conversionRate.toFixed(4)
+							})\n`;
 					}
 				}
 			}
@@ -909,9 +903,8 @@ export class HoverFeature implements Feature {
 				) {
 					// Format latest date
 					const latestDate = new Date(latestPrice.date);
-					const formattedLatestDate = `${latestDate.getFullYear()}-${
-						String(latestDate.getMonth() + 1).padStart(2, '0')
-					}-${String(latestDate.getDate()).padStart(2, '0')}`;
+					const formattedLatestDate = `${latestDate.getFullYear()}-${String(latestDate.getMonth() + 1).padStart(2, '0')
+						}-${String(latestDate.getDate()).padStart(2, '0')}`;
 
 					// Calculate percentage change
 					const latestAmount = parseFloat(latestPrice.price.amount);

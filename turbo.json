@@ -5,6 +5,10 @@
 			"outputs": ["out/**", "dist/**", "server/**"],
 			"dependsOn": ["^build"]
 		},
+		"build:npm": {
+			"outputs": ["out/**", "dist/**", "server/**"],
+			"dependsOn": ["^build", "lsp-server#build:npm"]
+		},
 		"test": {
 			"dependsOn": ["^build"],
 			"outputs": ["coverage/**"],

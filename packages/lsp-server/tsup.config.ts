@@ -34,6 +34,9 @@ const nodeConfig = defineConfig({
 	outDir: 'dist/node',
 	clean: true,
 	target: 'node20',
+	define: {
+		'__VSCODE__': JSON.stringify(process.env['LSP_CLIENT_TYPE'] === 'vscode'),
+	},
 	noExternal: [
 		...commonConfig.noExternal,
 		'execa',
@@ -53,6 +56,7 @@ const browserConfig = defineConfig({
 	// Add browser-specific configuration
 	define: {
 		'process.env.NODE_ENV': JSON.stringify('production'),
+		'__VSCODE__': JSON.stringify(process.env['LSP_CLIENT_TYPE'] === 'vscode'),
 	},
 	// Handle node built-ins
 	inject: ['./src/browser/polyfills.js'],

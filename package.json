@@ -11,7 +11,7 @@
 		"format": "turbo run format",
 		"test": "turbo run test",
 		"prepare": "simple-git-hooks",
-		"prepublishOnly": "pnpm build"
+		"prepublishOnly": "pnpm build:npm"
 	},
 	"simple-git-hooks": {
 		"pre-commit": "pnpm nano-staged && pnpm check"
@@ -34,6 +34,7 @@
 		"@types/node": "catalog:types",
 		"@typescript-eslint/eslint-plugin": "catalog:lint",
 		"@typescript-eslint/parser": "catalog:lint",
+		"cross-env": "^7.0.3",
 		"dprint": "catalog:lint",
 		"eslint": "catalog:lint",
 		"eslint-import-resolver-typescript": "catalog:lint",
