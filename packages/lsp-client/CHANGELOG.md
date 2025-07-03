@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.116
+
+- chore: add npm build script and update dependencies in turbo.json ([dcd2d30](https://github.com/fengkx/beancount-lsp/commit/dcd2d30))
+- chore: bump lsp-server version to 0.0.4 ([f4a1d10](https://github.com/fengkx/beancount-lsp/commit/f4a1d10))
+- chore: bump lsp-client version to 0.0.116 ([d2bd7ba](https://github.com/fengkx/beancount-lsp/commit/d2bd7ba))
+- refactor: enhance default tolerance algorithm in diagnostics to skip integer amounts and clarify precision handling ([d111b82](https://github.com/fengkx/beancount-lsp/commit/d111b82))
+
 ## v0.0.114
 
 - chore: bump lsp-client version to 0.0.114 ([9c4353b](https://github.com/fengkx/beancount-lsp/commit/9c4353b))
