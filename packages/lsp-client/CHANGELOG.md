@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.110
+
+- chore: bump lsp-client version to 0.0.110 ([70d0406](https://github.com/fengkx/beancount-lsp/commit/70d0406))
+- fix: add error handling and logging for folding range retrieval in FoldingRangeFeature ([765b4fb](https://github.com/fengkx/beancount-lsp/commit/765b4fb))
+- chore: update package.json and pnpm-lock.yaml for dependency upgrades and build script adjustments ([918bba0](https://github.com/fengkx/beancount-lsp/commit/918bba0))
+- feat: add support for payee and narration definitions in DefinitionFeature ([ac6b10c](https://github.com/fengkx/beancount-lsp/commit/ac6b10c))
+
 ## v0.0.108
 
 - chore: bump lsp-client version to 0.0.108 ([ce5cbb9](https://github.com/fengkx/beancount-lsp/commit/ce5cbb9))
