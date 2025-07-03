@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.114
+
+- chore: bump lsp-client version to 0.0.114 ([9c4353b](https://github.com/fengkx/beancount-lsp/commit/9c4353b))
+- feat: implement Beancount's default tolerance algorithm in diagnostics ([886003d](https://github.com/fengkx/beancount-lsp/commit/886003d))
+
 ## v0.0.112
 
 - chore: bump lsp-client version to 0.0.112 ([039aa50](https://github.com/fengkx/beancount-lsp/commit/039aa50))
