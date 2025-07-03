@@ -35,7 +35,7 @@ export class DiagnosticsFeature implements Feature {
 		private readonly trees: Trees,
 		private readonly optionsManager: BeancountOptionsManager,
 		private readonly beanMgr: RealBeancountManager | undefined,
-	) {}
+	) { }
 
 	async register(connection: Connection): Promise<void> {
 		this.logger.info('Registering diagnostics feature');
@@ -230,7 +230,8 @@ export class DiagnosticsFeature implements Feature {
 					const imbalanceMessages: string[] = [];
 
 					for (const imbalance of result.imbalances) {
-						const precision = imbalance.tolerance.toString().split('.')?.[1]?.length ?? 2;
+						const precision = imbalance.tolerance.toString().split('.')?.[1]?.length ??
+							Math.max(2, imbalance.difference.abs().toFixed().replace(/^0+\.?/, '').length);
 						const amount = imbalance.difference.toFixed(precision) || '0';
 						const currency = imbalance.currency || '';
 						imbalanceMessages.push(`${amount} ${currency}`);
