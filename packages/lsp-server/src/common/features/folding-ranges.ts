@@ -9,6 +9,7 @@ import { DocumentStore } from '../document-store';
 import { TreeQuery } from '../language';
 import { Trees } from '../trees';
 import { Feature } from './types';
+import { Logger } from '@bean-lsp/shared';
 
 const logger = new Logger('FoldingRangeFeature');
 
