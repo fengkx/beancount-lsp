@@ -10,6 +10,8 @@ import { TreeQuery } from '../language';
 import { Trees } from '../trees';
 import { Feature } from './types';
 
+const logger = new Logger('FoldingRangeFeature');
+
 export class FoldingRangeFeature implements Feature {
 	constructor(private readonly _documents: DocumentStore, private readonly _trees: Trees) {
 	}
@@ -29,17 +31,21 @@ export class FoldingRangeFeature implements Feature {
 		}
 		const result: FoldingRange[] = [];
 		const foldingMatches = await TreeQuery.getQueryByTokenName('folding').captures(tree.rootNode);
-		foldingMatches.flat().forEach(capture => {
-			result.push(
-				FoldingRange.create(
-					capture.node.startPosition.row,
-					capture.node.endPosition.row,
-					capture.node.startPosition.column,
-					capture.node.endPosition.column,
-					capture.name,
-				),
-			);
-		});
+		try {
+			foldingMatches.flat().forEach(capture => {
+				result.push(
+					FoldingRange.create(
+						capture.node.startPosition.row,
+						capture.node.endPosition.row,
+						capture.node.startPosition.column,
+						capture.node.endPosition.column,
+						capture.name,
+					),
+				);
+			});
+		} catch (e) {
+			logger.error('Error getting folding ranges', e);
+		}
 		return result;
 	};
 }
