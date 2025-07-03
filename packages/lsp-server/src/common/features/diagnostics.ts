@@ -311,7 +311,73 @@ export class DiagnosticsFeature implements Feature {
 
 			return allInferredTolerances;
 		} else {
-			return this.config.tolerance;
+			// Implement Beancount's default tolerance algorithm
+			// Reference: https://beancount.github.io/docs/precision_tolerances.html#how-default-tolerances-are-determined
+			// Tolerance is a fraction (typically half) of the last digit of precision
+			return this.inferDefaultTolerances(postings);
 		}
+	}
+
+	/**
+	 * Infer default tolerances from postings
+	 * Implements Beancount's default tolerance algorithm: calculate tolerance for each currency separately
+	 * Tolerance = 0.5 * (10^(-precision))
+	 * 
+	 * Note: For the purpose of inferring tolerance, price and cost amounts are ignored.
+	 * Only the base amounts of postings are considered.
+	 * 
+	 * @param postings All postings in the transaction
+	 * @returns Tolerance mapping for each currency
+	 */
+	private inferDefaultTolerances(postings: Posting[]): Record<string, Big> {
+		const tolerances: Record<string, Big> = {};
+
+		// Collect precision information for each currency
+		// Only consider the base amounts, ignore costs and prices
+		const currencyPrecisions: Record<string, number> = {};
+
+		for (const posting of postings) {
+			// Only process the main amount field
+			// Prices and costs are ignored for tolerance inference per Beancount documentation
+			if (posting.amount) {
+				const currency = posting.amount.currency;
+				const precision = this.getNumberPrecision(posting.amount.number);
+				currencyPrecisions[currency] = Math.max(currencyPrecisions[currency] || 0, precision);
+			}
+		}
+
+		// Calculate tolerance for each currency
+		for (const [currency, precision] of Object.entries(currencyPrecisions)) {
+			// Tolerance = 0.5 * (10^(-precision))
+			// Example: precision 2 currency (like USD 12.34), tolerance = 0.5 * 0.01 = 0.005
+			const tolerance = new Big(0.5).mul(new Big(10).pow(-precision));
+			tolerances[currency] = tolerance;
+		}
+
+		return tolerances;
+	}
+
+	/**
+	 * Get the precision of a number string (number of digits after decimal point)
+	 * 
+	 * @param numberStr Number string
+	 * @returns Precision (number of digits after decimal point)
+	 */
+	private getNumberPrecision(numberStr: string): number {
+		if (!numberStr || numberStr.trim() === '') {
+			return 0;
+		}
+
+		// Remove spaces and handle scientific notation
+		const cleanStr = numberStr.trim();
+
+		// If contains decimal point, calculate digits after decimal point
+		const dotIndex = cleanStr.indexOf('.');
+		if (dotIndex === -1) {
+			return 0; // No decimal point, precision is 0
+		}
+
+		// Calculate digits after decimal point
+		return cleanStr.length - dotIndex - 1;
 	}
 }
