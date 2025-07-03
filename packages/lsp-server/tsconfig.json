@@ -12,6 +12,7 @@
 		"allowSyntheticDefaultImports": true,
 		"emitDecoratorMetadata": true,
 		"experimentalDecorators": true,
+		"exactOptionalPropertyTypes": false,
 		"isolatedDeclarations": false,
 		"isolatedModules": false,
 		"strict": true, /* enable all strict type-checking options */

@@ -77,7 +77,7 @@ export function parseAmount(amountNode: Parser.SyntaxNode): { number: string; cu
  */
 export function parseCostSpec(
 	costSpecNode: Parser.SyntaxNode,
-): { number: string; currency: string; isTotalCost?: boolean } | undefined {
+): { number?: string; currency?: string; isTotalCost?: boolean; date?: string } | undefined {
 	if (!costSpecNode) return undefined;
 
 	// Check if this is a total cost (double brace) specification
@@ -92,15 +92,20 @@ export function parseCostSpec(
 
 	for (const compNode of costCompNodes) {
 		const compoundAmountNode = findChildByType(compNode, 'compound_amount');
-		if (compoundAmountNode) {
-			const perNode = compoundAmountNode.childForFieldName('per');
-			const currencyNode = compoundAmountNode.childForFieldName('currency');
+		const dateNode = findChildByType(compNode, 'date');
 
-			if (perNode && currencyNode) {
+		if (compoundAmountNode || dateNode) {
+			const perNode = compoundAmountNode?.childForFieldName('per');
+			const currencyNode = compoundAmountNode?.childForFieldName('currency');
+
+			if ((perNode && currencyNode) || dateNode) {
 				try {
-					const number = perNode.text;
-					const currency = currencyNode.text;
-					return { number, currency, isTotalCost };
+					return {
+						number: perNode?.text,
+						currency: currencyNode?.text,
+						isTotalCost,
+						date: dateNode?.text
+					};
 				} catch (e) {
 					logger.error(`Error parsing cost: ${e}`);
 				}
