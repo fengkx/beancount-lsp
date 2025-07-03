@@ -325,6 +325,8 @@ export class DiagnosticsFeature implements Feature {
 	 * 
 	 * Note: For the purpose of inferring tolerance, price and cost amounts are ignored.
 	 * Only the base amounts of postings are considered.
+	 * All amounts (including integers) participate in precision comparison to find the coarsest precision.
+	 * If the coarsest precision is 0 (integer), no tolerance is inferred for that currency.
 	 * 
 	 * @param postings All postings in the transaction
 	 * @returns Tolerance mapping for each currency
@@ -348,6 +350,12 @@ export class DiagnosticsFeature implements Feature {
 
 		// Calculate tolerance for each currency
 		for (const [currency, precision] of Object.entries(currencyPrecisions)) {
+			// Skip if the coarsest precision is 0 (integer) - no tolerance is inferred
+			if (precision === 0) {
+				tolerances[currency] = new Big(0);
+				continue;
+			}
+
 			// Tolerance = 0.5 * (10^(-precision))
 			// Example: precision 2 currency (like USD 12.34), tolerance = 0.5 * 0.01 = 0.005
 			const tolerance = new Big(0.5).mul(new Big(10).pow(-precision));
