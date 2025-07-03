@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.112
+
+- chore: bump lsp-client version to 0.0.112 ([039aa50](https://github.com/fengkx/beancount-lsp/commit/039aa50))
+- fix: improve precision calculation for imbalance messages in DiagnosticsFeature ([35c98b7](https://github.com/fengkx/beancount-lsp/commit/35c98b7))
+
 ## v0.0.110
 
 - chore: bump lsp-client version to 0.0.110 ([70d0406](https://github.com/fengkx/beancount-lsp/commit/70d0406))
