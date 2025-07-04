@@ -18,9 +18,10 @@ export interface Posting {
 		currency: string;
 	} | undefined;
 	cost?: {
-		number: string; // Changed to string to work with Big.js
-		currency: string;
+		number?: string; // Changed to string to work with Big.js
+		currency?: string;
 		isTotalCost?: boolean; // Added to indicate if cost is per unit (false) or total (true)
+		date?: string;
 	} | undefined;
 	price?: {
 		type: '@' | '@@';
@@ -144,7 +145,7 @@ function groupByCurrency(postings: Posting[]): Record<string, Posting[]> {
 		// Handle different cases based on whether the posting has cost/price
 
 		if (posting.amount) {
-			if (posting.cost) {
+			if (posting.cost && posting.cost.currency) {
 				// Case 1: Posting with cost - only add to cost currency group
 				const costCurrency = posting.cost.currency;
 				if (!result[costCurrency]) {

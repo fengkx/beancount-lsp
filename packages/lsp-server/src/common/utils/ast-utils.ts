@@ -159,7 +159,7 @@ export function extractPostings(txnNode: Parser.SyntaxNode): Posting[] {
 		}
 
 		// Parse cost if present
-		let cost: { number: string; currency: string } | undefined;
+		let cost: ReturnType<typeof parseCostSpec>;
 		const costSpecNode = postingNode.childForFieldName('cost_spec');
 		if (costSpecNode) {
 			cost = parseCostSpec(costSpecNode);
