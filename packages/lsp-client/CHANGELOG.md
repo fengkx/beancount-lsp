@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.118
+
+- chore: bump lsp-client version to 0.0.118 ([37bda8c](https://github.com/fengkx/beancount-lsp/commit/37bda8c))
+- feat: extend parseCostSpec to include optional date field and adjust TypeScript configuration ([6bd1729](https://github.com/fengkx/beancount-lsp/commit/6bd1729))
+
 ## v0.0.116
 
 - chore: add npm build script and update dependencies in turbo.json ([dcd2d30](https://github.com/fengkx/beancount-lsp/commit/dcd2d30))
