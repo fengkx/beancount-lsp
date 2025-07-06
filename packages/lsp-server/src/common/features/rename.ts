@@ -142,7 +142,7 @@ export class RenameFeature {
 		};
 
 		// Get the definitions - they might be returned as a single location or an array
-		const definitionResult = await this.definitions.getDefinition(definitionParams);
+		const definitionResult = await this.definitions.getDefinition(definitionParams, true);
 		let definitions: lsp.Location[] = [];
 
 		// Handle different possible return types from onDefinition
