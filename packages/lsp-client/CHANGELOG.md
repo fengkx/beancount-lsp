@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.120
+
+- chore: bump lsp-client version to 0.0.120 ([7b116f3](https://github.com/fengkx/beancount-lsp/commit/7b116f3))
+- fix: rename payee issue ([f4d5135](https://github.com/fengkx/beancount-lsp/commit/f4d5135))
+
 ## v0.0.118
 
 - chore: bump lsp-client version to 0.0.118 ([37bda8c](https://github.com/fengkx/beancount-lsp/commit/37bda8c))
