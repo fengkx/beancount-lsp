@@ -135,117 +135,126 @@
 			}
 		},
 		"configurationDefaults": {
-			"editor.semanticHighlighting.enabled": true,
-			"editor.inlayHints.enabled": "on",
 			"editor.semanticTokenColorCustomizations": {
-				"enabled": true,
 				"rules": {
 					"date": {
 						"foreground": "#569CD6",
+						"scope": "source.beancount",
 						"bold": true
 					},
 					"account": {
-						"foreground": "#4EC9B0"
+						"foreground": "#4EC9B0",
+						"scope": "source.beancount"
 					},
 					"currency": {
-						"foreground": "#D7BA7D"
+						"foreground": "#D7BA7D",
+						"scope": "source.beancount"
 					},
 					"keyword": {
 						"foreground": "#C586C0",
+						"scope": "source.beancount",
 						"bold": true
 					},
 					"link": {
-						"foreground": "#DCDCAA"
+						"foreground": "#DCDCAA",
+						"scope": "source.beancount"
 					},
 					"tag": {
-						"foreground": "#9CDCFE"
+						"foreground": "#9CDCFE",
+						"scope": "source.beancount"
 					},
 					"kv_key": {
-						"foreground": "#B5CEA8"
+						"foreground": "#B5CEA8",
+						"scope": "source.beancount"
 					},
 					"bool": {
-						"foreground": "#569CD6"
+						"foreground": "#569CD6",
+						"scope": "source.beancount"
 					},
 					"comment": {
-						"foreground": "#6A9955"
+						"foreground": "#6A9955",
+						"scope": "source.beancount"
 					},
 					"string": {
-						"foreground": "#CE9178"
+						"foreground": "#CE9178",
+						"scope": "source.beancount"
 					},
 					"number": {
-						"foreground": "#B5CEA8"
+						"foreground": "#B5CEA8",
+						"scope": "source.beancount"
 					},
 					"*.definition": {
-						"bold": true
+						"bold": true,
+						"scope": "source.beancount"
 					}
 				}
 			},
 			"editor.tokenColorCustomizations": {
 				"textMateRules": [
 					{
-						"scope": "date",
+						"scope": "source.beancount date",
 						"settings": {
 							"foreground": "#569CD6",
 							"fontStyle": "bold"
 						}
 					},
 					{
-						"scope": "account",
+						"scope": "source.beancount account",
 						"settings": {
 							"foreground": "#4EC9B0"
 						}
 					},
 					{
-						"scope": "currency",
+						"scope": "source.beancount currency",
 						"settings": {
 							"foreground": "#D7BA7D"
 						}
 					},
 					{
-						"scope": "keyword",
+						"scope": "source.beancount keyword",
 						"settings": {
 							"foreground": "#C586C0",
 							"fontStyle": "bold"
 						}
 					},
 					{
-						"scope": "link",
+						"scope": "source.beancount link",
 						"settings": {
 							"foreground": "#DCDCAA"
 						}
 					},
 					{
-						"scope": "tag",
+						"scope": "source.beancount tag",
 						"settings": {
 							"foreground": "#9CDCFE"
 						}
 					},
 					{
-						"scope": "kv_key",
+						"scope": "source.beancount kv_key",
 						"settings": {
 							"foreground": "#B5CEA8"
 						}
 					},
 					{
-						"scope": "bool",
+						"scope": "source.beancount bool",
 						"settings": {
 							"foreground": "#569CD6"
 						}
 					},
 					{
-						"scope": "comment",
+						"scope": "source.beancount comment",
 						"settings": {
 							"foreground": "#6A9955"
 						}
 					},
 					{
-						"scope": "string",
+						"scope": "source.beancount string",
 						"settings": {
 							"foreground": "#CE9178"
 						}
 					},
 					{
-						"scope": "number",
+						"scope": "source.beancount number",
 						"settings": {
 							"foreground": "#B5CEA8"
 						}
@@ -256,6 +265,8 @@
 				"editorInlayHint.background": "#00000000"
 			},
 			"[beancount]": {
+				"editor.semanticHighlighting.enabled": true,
+				"editor.inlayHints.enabled": "on",
 				"editor.inlayHints.maximumLength": 0
 			}
 		},
