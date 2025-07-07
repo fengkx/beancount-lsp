@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.122
+
+- chore: bump lsp-client version to 0.0.122 ([a6a4ba0](https://github.com/fengkx/beancount-lsp/commit/a6a4ba0))
+- fix: token color customizations for Beancount in lsp-client package.json #89 ([2f7899a](https://github.com/fengkx/beancount-lsp/commit/2f7899a))
+
 ## v0.0.120
 
 - chore: bump lsp-client version to 0.0.120 ([7b116f3](https://github.com/fengkx/beancount-lsp/commit/7b116f3))
