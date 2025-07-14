@@ -27,7 +27,7 @@ catalogs:
     nano-staged: ^0.8.0
     simple-git-hooks: ^2.13.0
   prod:
-    zod: ^3.25.67
+    zod: ^3.25.76
 
 onlyBuiltDependencies:
   - '@fengkx/tree-sitter-beancount'
