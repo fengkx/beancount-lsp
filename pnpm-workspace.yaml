@@ -4,30 +4,30 @@ packages:
 catalogs:
   build:
     tsup: ^8.5.0
-    turbo: ^2.5.4
     tsx: ^4.20.3
+    turbo: ^2.5.4
+  dev:
+    nano-staged: ^0.8.0
+    simple-git-hooks: ^2.13.0
   lint:
-    dprint: ^0.50.1
-    eslint: ^9.30.1
     '@eslint/eslintrc': ^3.3.1
-    '@eslint/js': ^9.30.1
-    '@typescript-eslint/eslint-plugin': ^8.35.1
-    '@typescript-eslint/parser': ^8.35.1
+    '@eslint/js': ^9.31.0
+    '@typescript-eslint/eslint-plugin': ^8.37.0
+    '@typescript-eslint/parser': ^8.37.0
+    dprint: ^0.50.1
+    eslint: ^9.31.0
     eslint-import-resolver-typescript: ^4.4.4
     eslint-plugin-import-x: ^4.16.1
     eslint-plugin-turbo: ^2.5.4
     eslint-plugin-unused-imports: ^4.1.4
-  types:
-    '@types/node': ^24.0.10
-    '@fengkx/tsconfig': ^2.0.0
-    typescript: ^5.8.3
-    type-fest: ^4.41.0
-    globals: ^16.3.0
-  dev:
-    nano-staged: ^0.8.0
-    simple-git-hooks: ^2.13.0
   prod:
-    zod: ^3.25.67
+    zod: ^4.0.5
+  types:
+    '@fengkx/tsconfig': ^2.0.0
+    '@types/node': ^24.0.13
+    globals: ^16.3.0
+    type-fest: ^4.41.0
+    typescript: ^5.8.3
 
 onlyBuiltDependencies:
   - '@fengkx/tree-sitter-beancount'

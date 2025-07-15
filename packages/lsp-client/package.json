@@ -290,14 +290,7 @@
 					"finance"
 				],
 				"inputSchema": {
-					"type": "object",
-					"properties": {
-						"query": {
-							"type": "string",
-							"description": "optional query keyword to filter accounts, if not provided, all accounts will be returned"
-						}
-					},
-					"additionalProperties": false,
+					"type": "string",
 					"$schema": "http://json-schema.org/draft-07/schema#"
 				}
 			},
@@ -314,14 +307,7 @@
 					"finance"
 				],
 				"inputSchema": {
-					"type": "object",
-					"properties": {
-						"query": {
-							"type": "string",
-							"description": "optional query keyword to filter payees, if not provided, all payees will be returned"
-						}
-					},
-					"additionalProperties": false,
+					"type": "string",
 					"$schema": "http://json-schema.org/draft-07/schema#"
 				}
 			},
@@ -338,14 +324,7 @@
 					"finance"
 				],
 				"inputSchema": {
-					"type": "object",
-					"properties": {
-						"query": {
-							"type": "string",
-							"description": "optional query keyword to filter narrations, if not provided, all narrations will be returned"
-						}
-					},
-					"additionalProperties": false,
+					"type": "string",
 					"$schema": "http://json-schema.org/draft-07/schema#"
 				}
 			},
@@ -364,17 +343,7 @@
 					"sql"
 				],
 				"inputSchema": {
-					"type": "object",
-					"properties": {
-						"query": {
-							"type": "string",
-							"description": "The bean-query SQL query to execute. Available columns(Any columns not listed are INVALID! You can only pick column from the list):\n'account': str.\n'balance': Inventory.\n'change': Position.\n'cost_currency': str.\n'cost_date': date.\n'cost_label': str.\n'cost_number': Decimal.\n'currency': str.\n'date': date.\n'day': int.\n'description': str.\n'filename': str.\n'flag': str.\n'id': str.\n'lineno': int.\n'links': set.\n'location': str.\n'month': int.\n'narration': str.\n'number': Decimal.\n'other_accounts': set.\n'payee': str.\n'position': Position.\n'posting_flag': str.\n'price': Amount.\n'tags': set.\n'type': str.\n'weight': Amount.\n'year': int.\n \n\n Simple functions. Any function not listed is INVALID! The valid function arguments type and number of arguments is wrap in bracket:\n\n'ABS(Decimal|Inventory|Position)': Get length\n'ACCOUNT_SORTKEY(str)': Get sort key\n'ANY_META(str)': Get metadata\n'CLOSE_DATE(str)': Get close date\n'COALESCE(object,object)': First non-null\n'COMMODITY(Amount)': Get currency\n'COMMODITY_META(str)': Get metadata\n'CONVERT(Amount|Inventory|Position,str[,date])': Convert currency\n'COST(Inventory|Position)': Get cost\n'CURRENCY(Amount)': Get currency\n'CURRENCY_META(str)': Get metadata\n'DATE(int,int,int|str)': Create date\n'DATE_ADD(date,int)': Add days\n'DATE_DIFF(date,date)': Days diff\n'DAY(date)': Get day\n'ENTRY_META(str)': Get metadata\n'FILTER_CURRENCY(Inventory|Position,str)': Filter currency\n'FINDFIRST(str,set)': First match\n'GETITEM(dict,str)': Get value\n'GETPRICE(str,str[,date])': Get price\n'GREP(str,str)': Match string\n'GREPN(str,str,int)': Get subgroup\n'JOINSTR(set)': Join strings\n'LEAF(str)': Get leaf\n'LENGTH(list|set|str)': Get length\n'LOWER(str)': Lowercase\n'MAXWIDTH(str,int)': Truncate\n'META(str)': Get metadata\n'MONTH(date)': Get month\n'NEG(Amount|Decimal|Inventory|Position)': Negate\n'NUMBER(Amount)': Get number\n'ONLY(str,Inventory)': Get amount\n'OPEN_DATE(str)': Get open date\n'OPEN_META(str)': Get metadata\n'PARENT(str)': Get parent\n'POSSIGN(Amount|Decimal|Inventory|Position,str)': Fix sign\n'QUARTER(date)': Get quarter\n'ROOT(str,int)': Get root\n'SAFEDIV(Decimal,Decimal|int)': Safe divide\n'STR(object)': To string\n'SUBST(str,str,str)': Replace\n'TODAY()': Today\n'UNITS(Inventory|Position)': Get units\n'UPPER(str)': Uppercase\n'VALUE(Inventory|Position[,date])': Get value\n'WEEKDAY(date)': Get weekday\n'YEAR(date)': Get year\n'YMONTH(date)': Get year+month\n\nAggregate functions:\n'COUNT(object)': Count\n'FIRST(object)': First\n'LAST(object)': Last\n'MAX(object)': Max\n'MIN(object)': Min\n'SUM(Amount|Inventory|Position|int|float|Decimal)': Sum"
-						}
-					},
-					"required": [
-						"query"
-					],
-					"additionalProperties": false,
+					"type": "string",
 					"$schema": "http://json-schema.org/draft-07/schema#"
 				}
 			}
@@ -394,14 +363,14 @@
 		"generate-changelog": "node ../../scripts/generate-changelog.js"
 	},
 	"devDependencies": {
-		"@types/glob": "^8.1.0",
+		"@types/glob": "^9.0.0",
 		"@types/mocha": "^10.0.6",
-		"@types/node": "24.0.7",
+		"@types/node": "24.0.13",
 		"@types/vscode": "^1.86.0",
 		"@vscode/test-electron": "^2.5.2",
 		"@vscode/vsce": "^3.6.0",
 		"compose-regexp": "^0.7.1",
-		"dprint": "^0.50.0",
+		"dprint": "^0.50.1",
 		"esbuild-plugins-node-modules-polyfill": "^1.7.1",
 		"execa": "^9.6.0",
 		"glob": "^11.0.3",
