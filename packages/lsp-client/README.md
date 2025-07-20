@@ -121,6 +121,7 @@ git clone https://github.com/fengkx/beancount-lsp.git
 cd beancount-lsp
 
 # Install dependencies
+git submodule update --init
 pnpm install
 
 # Build all packages
