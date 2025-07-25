@@ -23,6 +23,10 @@ interface DiagnosticsConfig {
 	warnOnIncompleteTransaction: boolean;
 }
 
+function isFileUri(uri: string): boolean {
+	return URI.parse(uri).scheme === 'file';
+}
+
 export class DiagnosticsFeature implements Feature {
 	private logger = new Logger('DiagnosticsFeature');
 	private config: DiagnosticsConfig = {
@@ -103,15 +107,6 @@ export class DiagnosticsFeature implements Feature {
 		}
 	}
 
-	private uriForDiagnostics(uri: string): string {
-		if (!this.beanMgr) {
-			return uri;
-		}
-
-		// return as file uri for better integration with beancount diagnostics
-		return 'file://' + URI.parse(uri).fsPath;
-	}
-
 	private async validateAllDocuments(connection: Connection): Promise<void> {
 		await Promise.all(
 			this.documents.all().map(async doc => {
@@ -119,7 +114,7 @@ export class DiagnosticsFeature implements Feature {
 			}),
 		);
 
-		const documentsInStore = new Set(this.documents.keys().map(this.uriForDiagnostics, this));
+		const documentsInStore = new Set(this.documents.keys().filter(isFileUri));
 		await Promise.all(
 			Object.entries(this.diagnosticsFromBeancount).map(async ([uri, diagnostics]) => {
 				if (documentsInStore.has(uri)) {
@@ -177,14 +172,16 @@ export class DiagnosticsFeature implements Feature {
 	}
 
 	private async validateDocument(document: TextDocument, connection: Connection): Promise<void> {
-		try {
-			const diagnostics = await this.provideDiagnostics(document);
-			connection.sendDiagnostics({
-				uri: this.uriForDiagnostics(document.uri),
-				diagnostics,
-			});
-		} catch (err) {
-			this.logger.error(`Error validating document: ${err}`);
+		if (isFileUri(document.uri)) {
+			try {
+				const diagnostics = await this.provideDiagnostics(document);
+				connection.sendDiagnostics({
+					uri: document.uri,
+					diagnostics,
+				});
+			} catch (err) {
+				this.logger.error(`Error validating document: ${err}`);
+			}
 		}
 	}
 
@@ -269,7 +266,7 @@ export class DiagnosticsFeature implements Feature {
 			}
 		}
 
-		const beancountDiagnostics = this.diagnosticsFromBeancount[this.uriForDiagnostics(document.uri)];
+		const beancountDiagnostics = this.diagnosticsFromBeancount[document.uri];
 		if (!beancountDiagnostics) {
 			return diagnostics;
 		}
