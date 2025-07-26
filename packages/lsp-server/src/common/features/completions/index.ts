@@ -720,7 +720,7 @@ export class CompletionFeature implements Feature {
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
 		private readonly symbolIndex: SymbolIndex,
-	) { }
+	) {}
 
 	/**
 	 * Registers the completion provider with the language server
@@ -1208,12 +1208,14 @@ export class CompletionFeature implements Feature {
 						{
 							head4ValidTypes: ['date', P.union('balance', 'open', 'close', 'pad', 'document', 'note')],
 						},
-						{
-							head4ValidTypes: ['date', 'txn', 'narration'],
-						},
+						{ head4ValidTypes: ['date', 'txn', 'narration'] },
+						{ head4ValidTypes: ['date', 'txn', 'narration', 'tags_links'] },
 						{ head4ValidTypes: ['date', P.union('pad', 'balance'), P.union('account', 'identifier')] },
 						{ head4ValidTypes: ['date', 'pad', 'identifier', 'identifier'] },
-						{ head4ValidTypes: [P._, P._, P.union('atat', 'at'), 'number'], userInput: P.string.regex(/^[AEIL]+$/) },
+						{
+							head4ValidTypes: [P._, P._, P.union('atat', 'at'), 'number'],
+							userInput: P.string.regex(/^[AEIL]+$/),
+						},
 						async () => {
 							const initialCount = completionItems.length;
 							cnt = await addAccountCompletions(
