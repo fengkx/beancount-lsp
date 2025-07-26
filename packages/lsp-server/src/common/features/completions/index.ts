@@ -1210,6 +1210,7 @@ export class CompletionFeature implements Feature {
 						},
 						{ head4ValidTypes: ['date', 'txn', 'narration'] },
 						{ head4ValidTypes: ['date', 'txn', 'narration', 'tags_links'] },
+						{ head4ValidTypes: ['date', 'txn', 'narration', 'key_value'] },
 						{ head4ValidTypes: ['date', P.union('pad', 'balance'), P.union('account', 'identifier')] },
 						{ head4ValidTypes: ['date', 'pad', 'identifier', 'identifier'] },
 						{
