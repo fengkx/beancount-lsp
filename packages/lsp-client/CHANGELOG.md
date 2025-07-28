@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.123
+
+- chore: bump lsp-client version to 0.0.123 ([f224387](https://github.com/fengkx/beancount-lsp/commit/f224387))
+- Fix duplicate diagnostics (#95) ([2d7a4ff](https://github.com/fengkx/beancount-lsp/commit/2d7a4ff))
+- Make account completion work in transactions (#100) ([2dbe0b1](https://github.com/fengkx/beancount-lsp/commit/2dbe0b1))
+- chore: update submodule ([194f77a](https://github.com/fengkx/beancount-lsp/commit/194f77a))
+- chore: update dependencies and package versions across the project ([33b2a2e](https://github.com/fengkx/beancount-lsp/commit/33b2a2e))
+
 ## v0.0.122
 
 - chore: bump lsp-client version to 0.0.122 ([a6a4ba0](https://github.com/fengkx/beancount-lsp/commit/a6a4ba0))
