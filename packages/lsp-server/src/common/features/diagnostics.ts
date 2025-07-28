@@ -2,6 +2,7 @@ import { Logger } from '@bean-lsp/shared';
 import Big from 'big.js';
 import { Connection, Diagnostic, DiagnosticSeverity } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { URI } from 'vscode-uri';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
 import { findAllTransactions } from '../utils/ast-utils';
@@ -22,6 +23,10 @@ interface DiagnosticsConfig {
 	warnOnIncompleteTransaction: boolean;
 }
 
+function isNotGitUri(uri: string): boolean {
+	return URI.parse(uri).scheme !== 'git';
+}
+
 export class DiagnosticsFeature implements Feature {
 	private logger = new Logger('DiagnosticsFeature');
 	private config: DiagnosticsConfig = {
@@ -35,7 +40,7 @@ export class DiagnosticsFeature implements Feature {
 		private readonly trees: Trees,
 		private readonly optionsManager: BeancountOptionsManager,
 		private readonly beanMgr: RealBeancountManager | undefined,
-	) { }
+	) {}
 
 	async register(connection: Connection): Promise<void> {
 		this.logger.info('Registering diagnostics feature');
@@ -109,7 +114,7 @@ export class DiagnosticsFeature implements Feature {
 			}),
 		);
 
-		const documentsInStore = new Set(this.documents.keys());
+		const documentsInStore = new Set(this.documents.keys().filter(isNotGitUri));
 		await Promise.all(
 			Object.entries(this.diagnosticsFromBeancount).map(async ([uri, diagnostics]) => {
 				if (documentsInStore.has(uri)) {
@@ -167,14 +172,16 @@ export class DiagnosticsFeature implements Feature {
 	}
 
 	private async validateDocument(document: TextDocument, connection: Connection): Promise<void> {
-		try {
-			const diagnostics = await this.provideDiagnostics(document);
-			connection.sendDiagnostics({
-				uri: document.uri,
-				diagnostics,
-			});
-		} catch (err) {
-			this.logger.error(`Error validating document: ${err}`);
+		if (isNotGitUri(document.uri)) {
+			try {
+				const diagnostics = await this.provideDiagnostics(document);
+				connection.sendDiagnostics({
+					uri: document.uri,
+					diagnostics,
+				});
+			} catch (err) {
+				this.logger.error(`Error validating document: ${err}`);
+			}
 		}
 	}
 
@@ -185,6 +192,13 @@ export class DiagnosticsFeature implements Feature {
 		}
 
 		const diagnostics: Diagnostic[] = [];
+
+		const scheme = URI.parse(document.uri).scheme;
+
+		// We ignore git schemes because they lead to confusing diagnostics
+		if (scheme === 'git') {
+			return [];
+		}
 
 		// Find all transactions in the document
 		const transactions = findAllTransactions(tree.rootNode, document);
@@ -230,8 +244,8 @@ export class DiagnosticsFeature implements Feature {
 					const imbalanceMessages: string[] = [];
 
 					for (const imbalance of result.imbalances) {
-						const precision = imbalance.tolerance.toString().split('.')?.[1]?.length ??
-							Math.max(2, imbalance.difference.abs().toFixed().replace(/^0+\.?/, '').length);
+						const precision = imbalance.tolerance.toString().split('.')?.[1]?.length
+							?? Math.max(2, imbalance.difference.abs().toFixed().replace(/^0+\.?/, '').length);
 						const amount = imbalance.difference.toFixed(precision) || '0';
 						const currency = imbalance.currency || '';
 						imbalanceMessages.push(`${amount} ${currency}`);
@@ -322,12 +336,12 @@ export class DiagnosticsFeature implements Feature {
 	 * Infer default tolerances from postings
 	 * Implements Beancount's default tolerance algorithm: calculate tolerance for each currency separately
 	 * Tolerance = 0.5 * (10^(-precision))
-	 * 
+	 *
 	 * Note: For the purpose of inferring tolerance, price and cost amounts are ignored.
 	 * Only the base amounts of postings are considered.
 	 * All amounts (including integers) participate in precision comparison to find the coarsest precision.
 	 * If the coarsest precision is 0 (integer), no tolerance is inferred for that currency.
-	 * 
+	 *
 	 * @param postings All postings in the transaction
 	 * @returns Tolerance mapping for each currency
 	 */
@@ -367,7 +381,7 @@ export class DiagnosticsFeature implements Feature {
 
 	/**
 	 * Get the precision of a number string (number of digits after decimal point)
-	 * 
+	 *
 	 * @param numberStr Number string
 	 * @returns Precision (number of digits after decimal point)
 	 */
