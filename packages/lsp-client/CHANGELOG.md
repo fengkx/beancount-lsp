@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.0.124
+
+- chore: bump lsp-client version to 0.0.124 ([af3e980](https://github.com/fengkx/beancount-lsp/commit/af3e980))
+
 ## v0.0.123
 
 - chore: bump lsp-client version to 0.0.123 ([f224387](https://github.com/fengkx/beancount-lsp/commit/f224387))
