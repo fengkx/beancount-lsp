@@ -23,8 +23,8 @@ interface DiagnosticsConfig {
 	warnOnIncompleteTransaction: boolean;
 }
 
-function isFileUri(uri: string): boolean {
-	return URI.parse(uri).scheme === 'file';
+function isNotGitUri(uri: string): boolean {
+	return URI.parse(uri).scheme !== 'git';
 }
 
 export class DiagnosticsFeature implements Feature {
@@ -114,7 +114,7 @@ export class DiagnosticsFeature implements Feature {
 			}),
 		);
 
-		const documentsInStore = new Set(this.documents.keys().filter(isFileUri));
+		const documentsInStore = new Set(this.documents.keys().filter(isNotGitUri));
 		await Promise.all(
 			Object.entries(this.diagnosticsFromBeancount).map(async ([uri, diagnostics]) => {
 				if (documentsInStore.has(uri)) {
@@ -172,7 +172,7 @@ export class DiagnosticsFeature implements Feature {
 	}
 
 	private async validateDocument(document: TextDocument, connection: Connection): Promise<void> {
-		if (isFileUri(document.uri)) {
+		if (isNotGitUri(document.uri)) {
 			try {
 				const diagnostics = await this.provideDiagnostics(document);
 				connection.sendDiagnostics({
