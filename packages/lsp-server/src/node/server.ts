@@ -21,7 +21,9 @@ class DocumentStoreInNode extends DocumentStore {
 
 	protected override async fallbackFileRead(uri: string): Promise<ArrayBuffer> {
 		const buffer = await readFile(new URL(uri));
-		return new Uint8Array(buffer);
+		const ab = new ArrayBuffer(buffer.byteLength);
+		new Uint8Array(ab).set(buffer);
+		return ab;
 	}
 }
 
