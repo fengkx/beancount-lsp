@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.126
+
+- chore: bump lsp-client and lsp-server versions to 0.0.126 and 0.0.5 respectively ([3cc8838](https://github.com/fengkx/beancount-lsp/commit/3cc8838))
+- fix: precision tolerances align with beancount ([7812ebe](https://github.com/fengkx/beancount-lsp/commit/7812ebe))
+- chore: update dependencies and package versions to latest releases ([2b030f7](https://github.com/fengkx/beancount-lsp/commit/2b030f7))
+
 ## v0.0.124
 
 - chore: bump lsp-client version to 0.0.124 ([af3e980](https://github.com/fengkx/beancount-lsp/commit/af3e980))
