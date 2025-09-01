@@ -358,7 +358,12 @@ export class DiagnosticsFeature implements Feature {
 			if (posting.amount) {
 				const currency = posting.amount.currency;
 				const precision = this.getNumberPrecision(posting.amount.number);
-				currencyPrecisions[currency] = Math.max(currencyPrecisions[currency] || 0, precision);
+				if (!currencyPrecisions[currency]) {
+					currencyPrecisions[currency] = precision;
+				} else if (precision > 0) {
+					// https://beancount.github.io/docs/precision_tolerances.html#resolving-ambiguities
+					currencyPrecisions[currency] = Math.min(currencyPrecisions[currency], precision);
+				}
 			}
 		}
 
