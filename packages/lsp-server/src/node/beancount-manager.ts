@@ -78,16 +78,16 @@ class BeancountManager implements RealBeancountManager {
 
 		let tmpFile: string | undefined = undefined;
 		try {
-			if (os.platform() === 'win32') {
-				const fileName = `beancount-check-${Date.now()}.py`;
-				tmpFile = join(os.tmpdir(), fileName);
-				await writeFile(tmpFile, beanCheckPythonCode);
-				const { stdout } = await $`${python3Path} ${tmpFile} ${this.mainFile}`;
-				return stdout;
-			} else {
-				const { stdout } = await $`${python3Path} -c ${beanCheckPythonCode} ${this.mainFile}`;
-				return stdout;
-			}
+			// if (os.platform() === 'win32') {
+			const fileName = `beancount-check-${Date.now()}.py`;
+			tmpFile = join(os.tmpdir(), fileName);
+			await writeFile(tmpFile, beanCheckPythonCode);
+			const { stdout } = await $`${python3Path} ${tmpFile} ${this.mainFile}`;
+			return stdout;
+			// // } else {
+			// const { stdout } = await $`${python3Path} -c ${beanCheckPythonCode} ${this.mainFile}`;
+			// return stdout;
+			// // }
 		} catch (error) {
 			this.logger.error('Error running bean-check:', error);
 			return null;

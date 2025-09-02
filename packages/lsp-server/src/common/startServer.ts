@@ -1,4 +1,12 @@
-import { CustomMessages, Logger, LogLevel, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
+import {
+	CustomMessages,
+	Logger,
+	LogLevel,
+	logLevelToString,
+	mapTraceServerToLogLevel,
+	TOKEN_MODIFIERS,
+	TOKEN_TYPES,
+} from '@bean-lsp/shared';
 import {
 	Connection,
 	DidChangeConfigurationNotification,
@@ -72,6 +80,7 @@ export function startServer(
 	// connection configurations
 	let hasConfigurationCapability: boolean = false;
 	let hasWorkspaceFolderCapability: boolean = false;
+	let supportsDynamicConfigRegistration: boolean = false;
 
 	const features: Feature[] = [];
 
@@ -88,7 +97,10 @@ export function startServer(
 					resolveProvider: true,
 					triggerCharacters,
 				},
-				selectionRangeProvider: true,
+				selectionRangeProvider: {
+					documentSelector: ['beancount'],
+				},
+				foldingRangeProvider: true,
 				// Add definition provider capability
 				definitionProvider: true,
 				// Add references provider capability
@@ -109,6 +121,12 @@ export function startServer(
 				inlayHintProvider: {
 					resolveProvider: false, // We don't need to resolve hints further
 				},
+				// Add semantic tokens provider capability
+				semanticTokensProvider: {
+					legend: { tokenTypes: TOKEN_TYPES, tokenModifiers: TOKEN_MODIFIERS },
+					full: true,
+					range: false,
+				},
 				// Add document formatting capability
 				documentFormattingProvider: true,
 				// Add code lens provider capability
@@ -119,6 +137,9 @@ export function startServer(
 		}
 		if (params.capabilities.workspace?.workspaceFolders) {
 			hasWorkspaceFolderCapability = true;
+		}
+		if (params.capabilities.workspace?.didChangeConfiguration?.dynamicRegistration) {
+			supportsDynamicConfigRegistration = true;
 		}
 
 		// Extract webTreeSitterWasmPath from initialization options if available
@@ -222,8 +243,10 @@ export function startServer(
 		}
 
 		if (hasConfigurationCapability) {
-			// Register for all configuration changes.
-			connection.client.register(DidChangeConfigurationNotification.type, undefined);
+			// Register for configuration changes only when client supports dynamic registration
+			if (supportsDynamicConfigRegistration) {
+				connection.client.register(DidChangeConfigurationNotification.type, undefined);
+			}
 
 			// Get initial configuration for trace server setting
 			const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });

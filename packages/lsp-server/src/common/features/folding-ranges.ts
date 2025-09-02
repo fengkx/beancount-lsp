@@ -1,15 +1,9 @@
-import {
-	Connection,
-	FoldingRange,
-	FoldingRangeParams,
-	FoldingRangeRegistrationOptions,
-	FoldingRangeRequest,
-} from 'vscode-languageserver';
+import { Logger } from '@bean-lsp/shared';
+import { Connection, FoldingRange, FoldingRangeParams } from 'vscode-languageserver';
 import { DocumentStore } from '../document-store';
 import { TreeQuery } from '../language';
 import { Trees } from '../trees';
 import { Feature } from './types';
-import { Logger } from '@bean-lsp/shared';
 
 const logger = new Logger('FoldingRangeFeature');
 
@@ -17,10 +11,6 @@ export class FoldingRangeFeature implements Feature {
 	constructor(private readonly _documents: DocumentStore, private readonly _trees: Trees) {
 	}
 	register(connection: Connection): void {
-		const registerOptions: FoldingRangeRegistrationOptions = {
-			documentSelector: [{ language: 'beancount' }],
-		};
-		connection.client.register(FoldingRangeRequest.type, registerOptions);
 		connection.onFoldingRanges(this.provideFoldingRanges.bind(this));
 	}
 

@@ -1,14 +1,8 @@
-import { TOKEN_MODIFIERS, TOKEN_TYPES } from '@bean-lsp/shared';
+import { TOKEN_MODIFIERS } from '@bean-lsp/shared';
 import { DocumentStore } from 'src/common/document-store';
 import { TreeQuery } from 'src/common/language';
 import { Trees } from 'src/common/trees';
-import {
-	Connection,
-	SemanticTokens,
-	SemanticTokensParams,
-	SemanticTokensRegistrationOptions,
-	SemanticTokensRegistrationType,
-} from 'vscode-languageserver';
+import { Connection, SemanticTokens, SemanticTokensParams } from 'vscode-languageserver';
 import { Feature } from '../types';
 import { TokenBuilder } from './token-builder';
 
@@ -17,13 +11,6 @@ const DEFINITION_MODIFIER = 1 << TOKEN_MODIFIERS.indexOf('definition');
 export class SemanticTokenFeature implements Feature {
 	constructor(private readonly documents: DocumentStore, private readonly trees: Trees) {}
 	register(connection: Connection): void {
-		const semanticTokensRegistrationOptions: SemanticTokensRegistrationOptions = {
-			documentSelector: [{ language: 'beancount' }],
-			legend: { tokenModifiers: TOKEN_MODIFIERS, tokenTypes: TOKEN_TYPES },
-			full: true,
-			range: false,
-		};
-		connection.client.register(SemanticTokensRegistrationType.type, semanticTokensRegistrationOptions);
 		connection.languages.semanticTokens.on(this.provideSemanticToken.bind(this));
 	}
 
