@@ -5,13 +5,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import {
-	Connection,
-	SelectionRange,
-	SelectionRangeParams,
-	SelectionRangeRegistrationOptions,
-	SelectionRangeRequest,
-} from 'vscode-languageserver';
+import { Connection, SelectionRange, SelectionRangeParams } from 'vscode-languageserver';
 import type Parser from 'web-tree-sitter';
 import { asLspRange } from '../common';
 import { DocumentStore } from '../document-store';
@@ -22,10 +16,6 @@ export class SelectionRangesFeature implements Feature {
 	constructor(private _documents: DocumentStore, private _trees: Trees) {}
 
 	register(connection: Connection) {
-		const registerOptions: SelectionRangeRegistrationOptions = {
-			documentSelector: [{ language: 'beancount' }],
-		};
-		connection.client.register(SelectionRangeRequest.type, registerOptions);
 		connection.onSelectionRanges(this.provideSelectionRanges);
 	}
 
