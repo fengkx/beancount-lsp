@@ -156,7 +156,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 			return null;
 		}
 
-		if (workspace && !config.mainBeanFile) {
+		if (workspace && !config?.mainBeanFile) {
 			this._connection!.window.showWarningMessage(
 				`Using default 'main.bean' as manBeanFile, You should configure 'beanLsp.mainBeanFile'`,
 			);
