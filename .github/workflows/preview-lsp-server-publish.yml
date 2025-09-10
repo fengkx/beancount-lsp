@@ -1,0 +1,43 @@
+name: Preview publish lsp-server
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  publish-lsp-server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+    
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build packages
+        run: pnpm build
+
+      # 预构建以避免在 npm prepublishOnly 阶段因二进制不可见而失败
+      - name: Build lsp-server
+        working-directory: packages/lsp-server
+        run: pnpm run build:npm
+
+      - name: Publish lsp-server with pkg.pr.new
+        working-directory: packages/lsp-server
+        run: pnpm dlx pkg-pr-new publish
+
+
