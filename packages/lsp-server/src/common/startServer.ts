@@ -250,7 +250,7 @@ export function startServer(
 
 			// Get initial configuration for trace server setting
 			const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });
-			if (config.trace && config.trace.server) {
+			if (config && config.trace && config.trace.server) {
 				const logLevel = mapTraceServerToLogLevel(config.trace.server);
 				serverLogger.setLevel(logLevel);
 				serverLogger.info(
@@ -259,7 +259,7 @@ export function startServer(
 			}
 
 			// Apply main currency setting
-			if (config.mainCurrency) {
+			if (config?.mainCurrency) {
 				const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
 				if (featureWithPriceMap) {
 					featureWithPriceMap.setPriceMapMainCurrency(config.mainCurrency);
@@ -268,7 +268,7 @@ export function startServer(
 			}
 
 			// Set allowed currencies list
-			if (config.currencys !== undefined) {
+			if (config?.currencys !== undefined) {
 				const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
 				if (featureWithPriceMap) {
 					featureWithPriceMap.setPriceMapAllowedCurrencies(config.currencys || []);
@@ -285,18 +285,17 @@ export function startServer(
 				if (hasConfigurationCapability) {
 					globalEventBus.emit(GlobalEvents.ConfigurationChanged);
 					const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });
-					if (config.trace && config.trace.server) {
-						const logLevel = mapTraceServerToLogLevel(config.trace.server);
+					if (config?.trace && config.trace.server) {
+						const logLevel = mapTraceServerToLogLevel(config?.trace.server);
 						serverLogger.setLevel(logLevel);
 						serverLogger.info(
-							`Log level changed to ${
-								logLevelToString(logLevel)
+							`Log level changed to ${logLevelToString(logLevel)}
 							} (from trace.server: ${config.trace.server})`,
 						);
 					}
 
 					// Update main currency setting
-					if (config.mainCurrency !== undefined) {
+					if (config?.mainCurrency !== undefined) {
 						const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
 						if (featureWithPriceMap) {
 							featureWithPriceMap.setPriceMapMainCurrency(config.mainCurrency);
@@ -305,7 +304,7 @@ export function startServer(
 					}
 
 					// Update allowed currencies list
-					if (config.currencys !== undefined) {
+					if (config?.currencys !== undefined) {
 						const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
 						if (featureWithPriceMap) {
 							featureWithPriceMap.setPriceMapAllowedCurrencies(config.currencys || []);
