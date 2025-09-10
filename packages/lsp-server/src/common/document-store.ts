@@ -167,7 +167,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 			return null;
 		}
 
-		const mainAbsPath = UriUtils.joinPath(URI.parse(rootUri), config.mainBeanFile ?? 'main.bean');
+		const mainAbsPath = UriUtils.joinPath(URI.parse(rootUri), config?.mainBeanFile ?? 'main.bean');
 
 		return mainAbsPath.toString() as string;
 	}
