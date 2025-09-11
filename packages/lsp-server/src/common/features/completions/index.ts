@@ -263,7 +263,7 @@ function addCompletionItem(
 	}
 
 	let filterText: string | undefined = undefined;
-	if (/^[\w:]+$/.test(item.label)) {
+	if (/^[\w:\s]+$/.test(item.label)) {
 		filterText = item.label;
 		let matches = item.label.match(/:[^:]+/g);
 		if (matches && matches?.length > 0) {
