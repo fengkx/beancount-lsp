@@ -17,6 +17,7 @@ const CURRENCY_MIN_SPACING = 3; // Minimum spacing between account and currency 
 export class FormatterFeature implements Feature {
 	// Formatter configuration
 	private formatterEnabled = true;
+	private alignCurrency = false;
 	private readonly logger = new Logger('Formatter');
 
 	constructor(
@@ -62,7 +63,9 @@ export class FormatterFeature implements Feature {
 			if (config.formatter !== undefined) {
 				const formatterEnabled = config.formatter?.enabled !== false; // Default to true if not specified
 				this.setFormatterEnabled(formatterEnabled);
+				this.alignCurrency = config.formatter?.alignCurrency === true;
 				this.logger.info(`Formatter ${formatterEnabled ? 'enabled' : 'disabled'}`);
+				this.logger.info(`Formatter alignCurrency ${this.alignCurrency ? 'enabled' : 'disabled'}`);
 			}
 		} catch (error) {
 			this.logger.error('Error updating formatter configuration:', error);
@@ -93,6 +96,9 @@ export class FormatterFeature implements Feature {
 		// Format the document by processing each transaction separately
 		this.formatTransactions(document, tree, edits);
 
+		// Align balance directives
+		this.formatBalances(document, tree, edits);
+
 		// Format other directives (open, close, etc.)
 		this.formatDirectives(document, tree, edits);
 
@@ -103,23 +109,14 @@ export class FormatterFeature implements Feature {
 	 * Format transactions in the document
 	 */
 	private formatTransactions(document: TextDocument, tree: Parser.Tree, edits: TextEdit[]): void {
-		// Query to find all transactions
-		const transactionQuery = tree.rootNode.descendantsOfType('transaction');
+		// Global alignment across all postings in document
+		const postings = tree.rootNode.descendantsOfType('posting');
+		if (postings.length === 0) return;
 
-		for (const txnNode of transactionQuery) {
-			// Find all postings within this transaction
-			const postings = txnNode.descendantsOfType('posting');
+		const positions = this.calculateAlignmentPositions(document, postings);
 
-			// Skip if there are no postings to format
-			if (postings.length === 0) continue;
-
-			// Determine the positions for alignment
-			const positions = this.calculateAlignmentPositions(document, postings);
-
-			// Apply formatting to each posting
-			for (const posting of postings) {
-				this.formatPosting(document, posting, positions, edits);
-			}
+		for (const posting of postings) {
+			this.formatPosting(document, posting, positions, edits);
 		}
 	}
 
@@ -159,6 +156,194 @@ export class FormatterFeature implements Feature {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Format balance directives: align amount decimal points, currency and comments
+	 */
+	private formatBalances(document: TextDocument, tree: Parser.Tree, edits: TextEdit[]): void {
+		const balances = tree.rootNode.descendantsOfType('balance');
+		if (balances.length === 0) return;
+
+		const basePositions = this.calculateBalanceAlignmentPositions(document, balances);
+		const transactions = tree.rootNode.descendantsOfType('transaction');
+		const allPostings = tree.rootNode.descendantsOfType('posting');
+		const globalPostingPositions = allPostings.length > 0
+			? this.calculateAlignmentPositions(document, allPostings)
+			: undefined;
+
+		for (const bal of balances) {
+			let positions = basePositions;
+			// Prefer nearest transaction's alignment
+			if (transactions.length > 0) {
+				let nearestTxn: Parser.SyntaxNode | null = null;
+				let minDistance = Number.POSITIVE_INFINITY;
+				for (const txn of transactions) {
+					const dist = bal.startIndex >= txn.endIndex
+						? bal.startIndex - txn.endIndex
+						: txn.startIndex - bal.endIndex;
+					if (dist < minDistance) {
+						minDistance = dist;
+						nearestTxn = txn;
+					}
+				}
+				if (nearestTxn) {
+					const postings = nearestTxn.descendantsOfType('posting');
+					if (postings.length > 0) {
+						const txnPos = this.calculateAlignmentPositions(document, postings);
+						positions = {
+							decimalPointColumn: txnPos.decimalPointColumn,
+							commentColumn: txnPos.commentColumn,
+							currencyColumn: txnPos.currencyColumn,
+						};
+					}
+				}
+			} else if (globalPostingPositions) {
+				positions = {
+					decimalPointColumn: globalPostingPositions.decimalPointColumn,
+					commentColumn: globalPostingPositions.commentColumn,
+					currencyColumn: globalPostingPositions.currencyColumn,
+				};
+			}
+			const account = bal.childForFieldName('account');
+			const amount = bal.childForFieldName('amount');
+			const comment = bal.childForFieldName('comment');
+			if (!account || !amount) continue;
+
+			const accountStartPos = document.positionAt(account.startIndex);
+			const accountEndPos = document.positionAt(account.endIndex);
+			const accountText = account.text;
+			const accountVisualEndCol = accountStartPos.character + this.calculateStringWidth(accountText);
+
+			const amountStartPos = document.positionAt(amount.startIndex);
+			const amountEndPos = document.positionAt(amount.endIndex);
+			const amountText = document.getText({ start: amountStartPos, end: amountEndPos });
+
+			// Determine integer width for the first numeric part in amount
+			const parts = amountText.split('.');
+			let integerPart = parts[0]?.trim() || '';
+			if (parts.length === 1) {
+				const match = integerPart.match(/^-?[\d()+\-*/]+/);
+				if (match) {
+					integerPart = match[0];
+				} else {
+					const numberMatch = integerPart.match(/\d+/);
+					integerPart = numberMatch ? numberMatch[0] : '';
+				}
+			}
+			const integerWidth = this.calculateStringWidth(integerPart);
+
+			// Space between account and amount to align decimal point
+			const spaceRange = { start: accountEndPos, end: amountStartPos };
+			const spaceNeeded = positions.decimalPointColumn - accountVisualEndCol - integerWidth;
+			const whitespace = ' '.repeat(Math.max(1, spaceNeeded));
+			edits.push(TextEdit.replace(spaceRange, whitespace));
+
+			// Ensure exactly one space between amount and currency when not aligning currency
+			let currencyNode: Parser.SyntaxNode | null = null;
+			for (const child of amount.namedChildren) {
+				if (child.type === 'currency') {
+					currencyNode = child;
+					break;
+				}
+			}
+			if (currencyNode && !this.alignCurrency) {
+				const currencyStartPos = document.positionAt(currencyNode.startIndex);
+				const currencyPrev = amount.namedChildren[amount.namedChildren.indexOf(currencyNode) - 1];
+				const prevEndPos = currencyPrev ? document.positionAt(currencyPrev.endIndex) : amountStartPos;
+				if (currencyStartPos.character - prevEndPos.character !== 1) {
+					edits.push(TextEdit.replace({ start: prevEndPos, end: currencyStartPos }, ' '));
+				}
+			}
+
+			// Align comment (if exists)
+			if (comment) {
+				const commentStartPos = document.positionAt(comment.startIndex);
+				const lastEndPos = amountEndPos;
+				if (
+					commentStartPos.character < positions.commentColumn
+					&& commentStartPos.character - lastEndPos.character !== 1
+				) {
+					edits.push(
+						TextEdit.replace(
+							{ start: lastEndPos, end: commentStartPos },
+							' '.repeat(Math.max(1, positions.commentColumn - lastEndPos.character)),
+						),
+					);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Compute alignment positions across all balance directives
+	 */
+	private calculateBalanceAlignmentPositions(document: TextDocument, balances: Parser.SyntaxNode[]): {
+		decimalPointColumn: number;
+		commentColumn: number;
+		currencyColumn: number;
+	} {
+		let maxIntegerWidth = 0;
+		let maxDecimalWidth = 0;
+		let maxCurrencyWidth = 0;
+		let maxAccountEndCol = 0;
+
+		for (const bal of balances) {
+			const amount = bal.childForFieldName('amount');
+			if (!amount) continue;
+
+			const account = bal.childForFieldName('account');
+			if (account) {
+				const accountStartPos = document.positionAt(account.startIndex);
+				const accountEndCol = accountStartPos.character + this.calculateStringWidth(account.text);
+				maxAccountEndCol = Math.max(maxAccountEndCol, accountEndCol);
+			}
+
+			const amountText = document.getText({
+				start: document.positionAt(amount.startIndex),
+				end: document.positionAt(amount.endIndex),
+			});
+
+			const parts = amountText.split('.');
+			let integerPart = parts[0]?.trim() || '';
+			if (parts.length === 1) {
+				const match = integerPart.match(/^-?[\d()+\-*/]+/);
+				if (match) integerPart = match[0];
+			}
+			const integerWidth = this.calculateStringWidth(integerPart);
+			maxIntegerWidth = Math.max(maxIntegerWidth, integerWidth);
+
+			if (parts.length > 1) {
+				const decimalPart = parts[1]?.trim() || '';
+				const decimalWidth = this.calculateStringWidth(decimalPart);
+				maxDecimalWidth = Math.max(maxDecimalWidth, decimalWidth);
+			}
+
+			// Try to get currency width inside amount node
+			let currencyWidth = 0;
+			for (const child of amount.namedChildren) {
+				if (child.type === 'currency') {
+					currencyWidth = this.calculateStringWidth(child.text);
+					break;
+				}
+			}
+			if (currencyWidth === 0) {
+				const currencyMatch = amountText.match(/[A-Z][A-Z0-9_'.-]{0,22}[A-Z0-9]/);
+				if (currencyMatch) currencyWidth = this.calculateStringWidth(currencyMatch[0]);
+			}
+			maxCurrencyWidth = Math.max(maxCurrencyWidth, currencyWidth);
+		}
+
+		const amountColumn = Math.max(maxAccountEndCol + 3, AMOUNT_MIN_COLUMN);
+		const decimalPointColumn = amountColumn + maxIntegerWidth;
+		const currencyColumn = decimalPointColumn + Math.max(0, maxDecimalWidth) + 1; // currency starts one after decimal part
+		const oneSpaceBetweenNumberAndCurrency = 1;
+		const commentColumn = Math.max(
+			currencyColumn + oneSpaceBetweenNumberAndCurrency + maxCurrencyWidth + 2,
+			COMMENT_MIN_COLUMN,
+		);
+
+		return { decimalPointColumn, commentColumn, currencyColumn };
 	}
 
 	/**
@@ -326,29 +511,43 @@ export class FormatterFeature implements Feature {
 				end: amountStartPos,
 			};
 
-			// Implement decimal point alignment
-			const parts = amountText.split('.');
-			let integerPart = parts[0]?.trim() || '';
+			if (!this.alignCurrency) {
+				// Implement decimal point alignment
+				const parts = amountText.split('.');
+				let integerPart = parts[0]?.trim() || '';
 
-			// Clean integer part and calculate width
-			if (parts.length === 1) {
-				const match = integerPart.match(/^-?[\d()+\-*/]+/);
-				if (match) {
-					integerPart = match[0];
-				} else {
-					// Fallback: extract any number sequence for width calculation
-					const numberMatch = integerPart.match(/\d+/);
-					integerPart = numberMatch ? numberMatch[0] : '';
+				// Clean integer part and calculate width
+				if (parts.length === 1) {
+					const match = integerPart.match(/^-?[\d()+\-*/]+/);
+					if (match) {
+						integerPart = match[0];
+					} else {
+						// Fallback: extract any number sequence for width calculation
+						const numberMatch = integerPart.match(/\d+/);
+						integerPart = numberMatch ? numberMatch[0] : '';
+					}
 				}
+				const integerWidth = this.calculateStringWidth(integerPart);
+
+				// Calculate required spaces for decimal point alignment
+				const spaceNeeded = positions.decimalPointColumn - accountVisualEndCol - integerWidth;
+				const whitespaceLength = Math.max(1, spaceNeeded);
+
+				const whitespace = ' '.repeat(whitespaceLength);
+				edits.push(TextEdit.replace(spaceRange, whitespace));
+			} else {
+				// Align currency column with exactly one space between number and currency.
+				const amountWithoutCurrency = amount.namedChild(0);
+				const numberEndPos = amountWithoutCurrency
+					? document.positionAt(amountWithoutCurrency.endIndex)
+					: amountEndPos;
+				const numberText = document.getText({ start: amountStartPos, end: numberEndPos });
+				const numberWidth = this.calculateStringWidth(numberText.trim());
+				const desiredCurrencyCol = positions.currencyColumn;
+				let spacing = desiredCurrencyCol - (accountVisualEndCol + numberWidth + 1);
+				if (spacing < 1) spacing = 1;
+				edits.push(TextEdit.replace(spaceRange, ' '.repeat(spacing)));
 			}
-			const integerWidth = this.calculateStringWidth(integerPart);
-
-			// Calculate required spaces for decimal point alignment
-			const spaceNeeded = positions.decimalPointColumn - accountVisualEndCol - integerWidth;
-			const whitespaceLength = Math.max(1, spaceNeeded);
-
-			const whitespace = ' '.repeat(whitespaceLength);
-			edits.push(TextEdit.replace(spaceRange, whitespace));
 
 			// If we have cost_spec and/or price_annotation, align them too
 			let lastEndPos = amountEndPos;
@@ -396,7 +595,7 @@ export class FormatterFeature implements Feature {
 				}
 			}
 
-			// Check if there's a currency symbol directly after the amount
+			// Align or space currency depending on settings
 			const amountWithoutCurrency = amount.namedChild(0);
 			const amountWithoutCurrencyEndPos = amountWithoutCurrency
 				? document.positionAt(amountWithoutCurrency.endIndex)
@@ -405,11 +604,8 @@ export class FormatterFeature implements Feature {
 				start: amountWithoutCurrencyEndPos,
 				end: document.positionAt(posting.endIndex),
 			});
-
-			// Check for currency symbols that follow the amount
 			const currencyMatch = restOfLine.match(/\s+([A-Z][A-Z0-9_'.-]{0,22}[A-Z0-9])/);
 			if (currencyMatch && currencyMatch[1] && !priceAnnotation && !costSpec) {
-				// Found a currency symbol, ensure there's exactly one space
 				const currencyText = currencyMatch[1];
 				const matchIndex = restOfLine.indexOf(currencyText);
 				if (matchIndex >= 0) {
@@ -418,12 +614,8 @@ export class FormatterFeature implements Feature {
 						line: amountWithoutCurrencyEndPos.line,
 						character: currencyStart,
 					};
-
-					// Replace whitespace between amount and currency
-					edits.push(TextEdit.replace({
-						start: amountWithoutCurrencyEndPos,
-						end: currencyStartPos,
-					}, ' '));
+					// Ensure exactly one space between number and currency
+					edits.push(TextEdit.replace({ start: amountWithoutCurrencyEndPos, end: currencyStartPos }, ' '));
 				}
 			}
 		} else {

@@ -127,6 +127,11 @@
 					"default": true,
 					"description": "Enable or disable automatic formatting of Beancount files. The formatter aligns accounts, amounts (with decimal point alignment), currencies, and comments for improved readability."
 				},
+				"beanLsp.formatter.alignCurrency": {
+					"type": "boolean",
+					"default": false,
+					"description": "When true, align the currency column across postings and balance lines. When false, algin by decimal point."
+				},
 				"beanLsp.hover.includeSubaccountBalance": {
 					"type": "boolean",
 					"default": false,
