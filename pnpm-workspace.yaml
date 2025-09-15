@@ -21,7 +21,7 @@ catalogs:
     eslint-plugin-turbo: ^2.5.6
     eslint-plugin-unused-imports: ^4.2.0
   prod:
-    zod: ^4.0.17
+    zod: ^4.1.8
   types:
     '@fengkx/tsconfig': ^2.0.0
     '@types/node': ^24.3.0
