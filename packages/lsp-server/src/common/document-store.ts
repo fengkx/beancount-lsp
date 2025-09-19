@@ -156,7 +156,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 			return null;
 		}
 
-		if (workspace && !config.mainBeanFile) {
+		if (workspace && !config?.mainBeanFile) {
 			this._connection!.window.showWarningMessage(
 				`Using default 'main.bean' as manBeanFile, You should configure 'beanLsp.mainBeanFile'`,
 			);
@@ -167,7 +167,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 			return null;
 		}
 
-		const mainAbsPath = UriUtils.joinPath(URI.parse(rootUri), config.mainBeanFile ?? 'main.bean');
+		const mainAbsPath = UriUtils.joinPath(URI.parse(rootUri), config?.mainBeanFile ?? 'main.bean');
 
 		return mainAbsPath.toString() as string;
 	}

@@ -20,8 +20,6 @@ import {
 	CompletionItemKind,
 	CompletionList,
 	CompletionParams,
-	CompletionRegistrationOptions,
-	CompletionRequest,
 	CompletionTriggerKind,
 	Connection,
 	Position,
@@ -728,15 +726,7 @@ export class CompletionFeature implements Feature {
 	 * @param connection The language server connection
 	 */
 	register(connection: Connection): void {
-		const registerOptions: CompletionRegistrationOptions = {
-			documentSelector: [{ language: 'beancount' }],
-			triggerCharacters,
-		};
-
-		connection.client.register(CompletionRequest.type, registerOptions);
 		connection.onCompletion(this.provideCompletionItems);
-
-		// Register the completion item resolve handler
 		connection.onCompletionResolve(this.resolveCompletionItem);
 	}
 
