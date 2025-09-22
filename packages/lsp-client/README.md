@@ -56,6 +56,7 @@ The extension provides several configuration options to customize its behavior:
 - `beanLsp.currencys`: List of currencies that should participate in price conversions. Commodities not included in this list (like stocks) will be excluded from conversion calculations. If empty, all commodities will be considered for conversions.
 - `beanLsp.formatter.enabled`: Enable or disable automatic formatting of Beancount files. The formatter aligns accounts, amounts (with decimal point alignment), currencies, and comments for improved readability. Default is true.
 - `beanLsp.hover.includeSubaccountBalance`: Enable or disable the hover window including balances of subaccounts. By default, only show the balance of the hovered account. Default is false.
+- `beanLsp.formatter.alignCurrency`: When true, the formatter aligns lines by currency column. When false, the formatter aligns lines by decimal point.
 
 ### Example Configuration
 
@@ -69,6 +70,7 @@ The extension provides several configuration options to customize its behavior:
 	"beanLsp.mainCurrency": "USD",
 	"beanLsp.currencys": ["USD", "EUR", "GBP", "JPY"],
 	"beanLsp.formatter.enabled": true,
+	"beanLsp.formatter.alignCurrency": false,
 	"beanLsp.hover.includeSubaccountBalance": false,
 	"editor.semanticTokenColorCustomizations": {
 		"enabled": true,
