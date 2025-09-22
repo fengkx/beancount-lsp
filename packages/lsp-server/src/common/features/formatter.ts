@@ -233,11 +233,33 @@ export class FormatterFeature implements Feature {
 			}
 			const integerWidth = this.calculateStringWidth(integerPart);
 
-			// Space between account and amount to align decimal point
+			// Space between account and amount
 			const spaceRange = { start: accountEndPos, end: amountStartPos };
-			const spaceNeeded = positions.decimalPointColumn - accountVisualEndCol - integerWidth;
-			const whitespace = ' '.repeat(Math.max(1, spaceNeeded));
-			edits.push(TextEdit.replace(spaceRange, whitespace));
+			if (!this.alignCurrency) {
+				const spaceNeeded = positions.decimalPointColumn - accountVisualEndCol - integerWidth;
+				const whitespace = ' '.repeat(Math.max(1, spaceNeeded));
+				edits.push(TextEdit.replace(spaceRange, whitespace));
+			} else {
+				// Align currency: compute numeric/expression width up to the child before currency
+				let prevBeforeCurrency: Parser.SyntaxNode | null = null;
+				for (let i = 0; i < amount.namedChildren.length; i++) {
+					const child = amount.namedChildren[i]!;
+					if (child.type === 'currency') {
+						prevBeforeCurrency = i > 0 ? amount.namedChildren[i - 1]! : null;
+						break;
+					}
+				}
+				const numberEndPos = prevBeforeCurrency
+					? document.positionAt(prevBeforeCurrency.endIndex)
+					: (amount.namedChild(0)
+						? document.positionAt(amount.namedChild(0)!.endIndex)
+						: amountEndPos);
+				const numberText = document.getText({ start: amountStartPos, end: numberEndPos });
+				const numberWidth = this.calculateStringWidth(numberText.trim());
+				let spacing = positions.currencyColumn - (accountVisualEndCol + numberWidth + 1);
+				if (spacing < 1) spacing = 1;
+				edits.push(TextEdit.replace(spaceRange, ' '.repeat(spacing)));
+			}
 
 			// Ensure exactly one space between amount and currency when not aligning currency
 			let currencyNode: Parser.SyntaxNode | null = null;
@@ -247,9 +269,10 @@ export class FormatterFeature implements Feature {
 					break;
 				}
 			}
-			if (currencyNode && !this.alignCurrency) {
+			if (currencyNode) {
 				const currencyStartPos = document.positionAt(currencyNode.startIndex);
-				const currencyPrev = amount.namedChildren[amount.namedChildren.indexOf(currencyNode) - 1];
+				const currencyIndex = amount.namedChildren.indexOf(currencyNode);
+				const currencyPrev = currencyIndex > 0 ? amount.namedChildren[currencyIndex - 1] : null;
 				const prevEndPos = currencyPrev ? document.positionAt(currencyPrev.endIndex) : amountStartPos;
 				if (currencyStartPos.character - prevEndPos.character !== 1) {
 					edits.push(TextEdit.replace({ start: prevEndPos, end: currencyStartPos }, ' '));
