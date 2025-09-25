@@ -57,6 +57,49 @@
 				"path": "./snippets/beancount.jsonc"
 			}
 		],
+		"semanticTokenScopes": [
+			{
+				"language": "beancount",
+				"scopes": {
+					"account": [
+						"variable.other.account"
+					],
+					"currency": [
+						"entity.name.type.commodity"
+					],
+					"date": [
+						"constant.numeric"
+					],
+					"tag": [
+						"entity.name.tag"
+					],
+					"link": [
+						"markup.underline.link"
+					],
+					"kv_key": [
+						"entity.name.property"
+					],
+					"bool": [
+						"constant.language.boolean"
+					],
+					"keyword": [
+						"keyword.control"
+					],
+					"operator": [
+						"keyword.operator"
+					],
+					"string": [
+						"string"
+					],
+					"number": [
+						"constant.numeric"
+					],
+					"comment": [
+						"comment.line"
+					]
+				}
+			}
+		],
 		"configuration": {
 			"type": "object",
 			"title": "Beancount Language Server",
@@ -140,132 +183,6 @@
 			}
 		},
 		"configurationDefaults": {
-			"editor.semanticTokenColorCustomizations": {
-				"rules": {
-					"date": {
-						"foreground": "#569CD6",
-						"scope": "source.beancount",
-						"bold": true
-					},
-					"account": {
-						"foreground": "#4EC9B0",
-						"scope": "source.beancount"
-					},
-					"currency": {
-						"foreground": "#D7BA7D",
-						"scope": "source.beancount"
-					},
-					"keyword": {
-						"foreground": "#C586C0",
-						"scope": "source.beancount",
-						"bold": true
-					},
-					"link": {
-						"foreground": "#DCDCAA",
-						"scope": "source.beancount"
-					},
-					"tag": {
-						"foreground": "#9CDCFE",
-						"scope": "source.beancount"
-					},
-					"kv_key": {
-						"foreground": "#B5CEA8",
-						"scope": "source.beancount"
-					},
-					"bool": {
-						"foreground": "#569CD6",
-						"scope": "source.beancount"
-					},
-					"comment": {
-						"foreground": "#6A9955",
-						"scope": "source.beancount"
-					},
-					"string": {
-						"foreground": "#CE9178",
-						"scope": "source.beancount"
-					},
-					"number": {
-						"foreground": "#B5CEA8",
-						"scope": "source.beancount"
-					},
-					"*.definition": {
-						"bold": true,
-						"scope": "source.beancount"
-					}
-				}
-			},
-			"editor.tokenColorCustomizations": {
-				"textMateRules": [
-					{
-						"scope": "source.beancount date",
-						"settings": {
-							"foreground": "#569CD6",
-							"fontStyle": "bold"
-						}
-					},
-					{
-						"scope": "source.beancount account",
-						"settings": {
-							"foreground": "#4EC9B0"
-						}
-					},
-					{
-						"scope": "source.beancount currency",
-						"settings": {
-							"foreground": "#D7BA7D"
-						}
-					},
-					{
-						"scope": "source.beancount keyword",
-						"settings": {
-							"foreground": "#C586C0",
-							"fontStyle": "bold"
-						}
-					},
-					{
-						"scope": "source.beancount link",
-						"settings": {
-							"foreground": "#DCDCAA"
-						}
-					},
-					{
-						"scope": "source.beancount tag",
-						"settings": {
-							"foreground": "#9CDCFE"
-						}
-					},
-					{
-						"scope": "source.beancount kv_key",
-						"settings": {
-							"foreground": "#B5CEA8"
-						}
-					},
-					{
-						"scope": "source.beancount bool",
-						"settings": {
-							"foreground": "#569CD6"
-						}
-					},
-					{
-						"scope": "source.beancount comment",
-						"settings": {
-							"foreground": "#6A9955"
-						}
-					},
-					{
-						"scope": "source.beancount string",
-						"settings": {
-							"foreground": "#CE9178"
-						}
-					},
-					{
-						"scope": "source.beancount number",
-						"settings": {
-							"foreground": "#B5CEA8"
-						}
-					}
-				]
-			},
 			"workbench.colorCustomizations": {
 				"editorInlayHint.background": "#00000000"
 			},
