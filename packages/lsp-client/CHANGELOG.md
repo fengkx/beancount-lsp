@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.0.127
+
+- chore: bump lsp-client version to 0.0.127 ([a3a67e8](https://github.com/fengkx/beancount-lsp/commit/a3a67e8))
+- feat(client): Use semanticTokenScopes instead of hardcoding colors (#126) ([ea8bcd6](https://github.com/fengkx/beancount-lsp/commit/ea8bcd6))
+- feat: add support for aligning price and custom directives in formatter based on currency or decimal point settings ([f1ce863](https://github.com/fengkx/beancount-lsp/commit/f1ce863))
+- fix: improve whitespace handling for currency alignment in formatter ([177ee10](https://github.com/fengkx/beancount-lsp/commit/177ee10))
+- feat: enhance formatter to support currency alignment and balance formatting ([2a05529](https://github.com/fengkx/beancount-lsp/commit/2a05529))
+- fix: update regex for completion item label filtering ([9f12881](https://github.com/fengkx/beancount-lsp/commit/9f12881))
+- feat: pkg pr new ([975f3b8](https://github.com/fengkx/beancount-lsp/commit/975f3b8))
+
 ## v0.0.126
 
 - chore: bump lsp-client and lsp-server versions to 0.0.126 and 0.0.5 respectively ([3cc8838](https://github.com/fengkx/beancount-lsp/commit/3cc8838))
