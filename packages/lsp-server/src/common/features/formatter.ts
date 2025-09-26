@@ -99,6 +99,12 @@ export class FormatterFeature implements Feature {
 		// Align balance directives
 		this.formatBalances(document, tree, edits);
 
+		// Align price directives as well (currency or decimal point depending on setting)
+		this.formatPrices(document, tree, edits);
+
+		// Align custom directives that contain numbers/amounts
+		this.formatCustoms(document, tree, edits);
+
 		// Format other directives (open, close, etc.)
 		this.formatDirectives(document, tree, edits);
 
@@ -159,6 +165,159 @@ export class FormatterFeature implements Feature {
 	}
 
 	/**
+	 * Format price directives when alignCurrency is enabled.
+	 */
+	private formatPrices(document: TextDocument, tree: Parser.Tree, edits: TextEdit[]): void {
+		const prices = tree.rootNode.descendantsOfType('price');
+		if (prices.length === 0) return;
+
+		// Reuse global postings alignment to decide currency/comment columns
+		const postings = tree.rootNode.descendantsOfType('posting');
+		const pos = postings.length > 0
+			? this.calculateAlignmentPositions(document, postings)
+			: {
+				currencyColumn: CURRENCY_MIN_COLUMN,
+				commentColumn: COMMENT_MIN_COLUMN,
+				decimalPointColumn: AMOUNT_MIN_COLUMN,
+				accountColumn: 2,
+				amountColumn: AMOUNT_MIN_COLUMN,
+				maxIntegerWidth: 0,
+			};
+
+		for (const pr of prices) {
+			const amount = pr.childForFieldName('amount');
+			const baseCurrency = pr.childForFieldName('currency'); // the commodity being priced
+			if (!amount || !baseCurrency) continue;
+
+			const amountStart = document.positionAt(amount.startIndex);
+			const amountEnd = document.positionAt(amount.endIndex);
+			const baseCurrencyEnd = document.positionAt(baseCurrency.endIndex);
+
+			// Inside amount: ensure exactly one space between number/expression and its currency
+			let innerCurrency: Parser.SyntaxNode | null = null;
+			let prevNumberNode: Parser.SyntaxNode | null = null;
+			for (let i = 0; i < amount.namedChildren.length; i++) {
+				const ch = amount.namedChildren[i]!;
+				if (ch.type === 'currency') {
+					innerCurrency = ch;
+					prevNumberNode = i > 0 ? amount.namedChildren[i - 1]! : null;
+					break;
+				}
+			}
+			if (innerCurrency && prevNumberNode) {
+				const numEnd = document.positionAt(prevNumberNode.endIndex);
+				const curStart = document.positionAt(innerCurrency.startIndex);
+				if (curStart.character - numEnd.character !== 1) {
+					edits.push(TextEdit.replace({ start: numEnd, end: curStart }, ' '));
+				}
+			}
+
+			// Align column depending on setting
+			const lineStart = { line: amountStart.line, character: 0 };
+			const prefixText = document.getText({ start: lineStart, end: baseCurrencyEnd });
+			const prefixWidth = this.calculateStringWidth(prefixText);
+			let numberEndPos = amountStart;
+			if (prevNumberNode) numberEndPos = document.positionAt(prevNumberNode.endIndex);
+			else if (amount.namedChild(0)) numberEndPos = document.positionAt(amount.namedChild(0)!.endIndex);
+			else numberEndPos = amountEnd;
+			const numberText = document.getText({ start: amountStart, end: numberEndPos });
+			const numberWidth = this.calculateStringWidth(numberText.trim());
+
+			if (this.alignCurrency) {
+				let neededSpaces = pos.currencyColumn - (prefixWidth + numberWidth + 1);
+				if (neededSpaces < 1) neededSpaces = 1;
+				const spaceRange = { start: baseCurrencyEnd, end: amountStart };
+				edits.push(TextEdit.replace(spaceRange, ' '.repeat(neededSpaces)));
+			} else {
+				// Align decimal point: place the '.' of amount at pos.decimalPointColumn
+				const integerWidth = this.calculateStringWidth((numberText.split('.')[0] || '').trim());
+				let neededSpaces = pos.decimalPointColumn - (prefixWidth + integerWidth);
+				if (neededSpaces < 1) neededSpaces = 1;
+				const spaceRange = { start: baseCurrencyEnd, end: amountStart };
+				edits.push(TextEdit.replace(spaceRange, ' '.repeat(neededSpaces)));
+			}
+		}
+	}
+
+	/**
+	 * Format custom directives: align embedded amount in custom_value_list if present.
+	 */
+	private formatCustoms(document: TextDocument, tree: Parser.Tree, edits: TextEdit[]): void {
+		const customs = tree.rootNode.descendantsOfType('custom');
+		if (customs.length === 0) return;
+
+		const postings = tree.rootNode.descendantsOfType('posting');
+		const pos = postings.length > 0
+			? this.calculateAlignmentPositions(document, postings)
+			: {
+				currencyColumn: CURRENCY_MIN_COLUMN,
+				commentColumn: COMMENT_MIN_COLUMN,
+				decimalPointColumn: AMOUNT_MIN_COLUMN,
+				accountColumn: 2,
+				amountColumn: AMOUNT_MIN_COLUMN,
+				maxIntegerWidth: 0,
+			};
+
+		for (const cu of customs) {
+			// Find first amount within custom_value_list
+			let amountNode: Parser.SyntaxNode | null = null;
+			let innerCurrency: Parser.SyntaxNode | null = null;
+			let prevNumberNode: Parser.SyntaxNode | null = null;
+			for (const child of cu.namedChildren) {
+				if (child.type === 'custom_value') {
+					const amt = child.descendantsOfType('amount')[0];
+					if (amt) {
+						amountNode = amt;
+						for (let i = 0; i < amt.namedChildren.length; i++) {
+							const ch = amt.namedChildren[i]!;
+							if (ch.type === 'currency') {
+								innerCurrency = ch;
+								prevNumberNode = i > 0 ? amt.namedChildren[i - 1]! : null;
+								break;
+							}
+						}
+						break;
+					}
+				}
+			}
+			if (!amountNode) continue;
+
+			const amountStart = document.positionAt(amountNode.startIndex);
+			const amountEnd = document.positionAt(amountNode.endIndex);
+
+			// Ensure one space between number/expression and currency if present
+			if (innerCurrency && prevNumberNode) {
+				const numEnd = document.positionAt(prevNumberNode.endIndex);
+				const curStart = document.positionAt(innerCurrency.startIndex);
+				if (curStart.character - numEnd.character !== 1) {
+					edits.push(TextEdit.replace({ start: numEnd, end: curStart }, ' '));
+				}
+			}
+
+			// Align column relative to line start
+			const lineStart = { line: amountStart.line, character: 0 };
+			const prefixText = document.getText({ start: lineStart, end: amountStart });
+			const prefixWidth = this.calculateStringWidth(prefixText);
+			let numberEndPos = amountStart;
+			if (prevNumberNode) numberEndPos = document.positionAt(prevNumberNode.endIndex);
+			else if (amountNode.namedChild(0)) numberEndPos = document.positionAt(amountNode.namedChild(0)!.endIndex);
+			else numberEndPos = amountEnd;
+			const numberText = document.getText({ start: amountStart, end: numberEndPos });
+			const numberWidth = this.calculateStringWidth(numberText.trim());
+			if (this.alignCurrency) {
+				let neededSpaces = pos.currencyColumn - (prefixWidth + numberWidth + 1);
+				if (neededSpaces < 1) neededSpaces = 1;
+				edits.push(TextEdit.insert(amountStart, ' '.repeat(neededSpaces)));
+			} else {
+				const integerWidth = this.calculateStringWidth((numberText.split('.')[0] || '').trim());
+				let neededSpaces = pos.decimalPointColumn - (prefixWidth + integerWidth);
+				if (neededSpaces < 1) neededSpaces = 1;
+				edits.push(TextEdit.insert(amountStart, ' '.repeat(neededSpaces)));
+			}
+		}
+	}
+
+	/**
 	 * Format balance directives: align amount decimal points, currency and comments
 	 */
 	private formatBalances(document: TextDocument, tree: Parser.Tree, edits: TextEdit[]): void {
@@ -166,45 +325,20 @@ export class FormatterFeature implements Feature {
 		if (balances.length === 0) return;
 
 		const basePositions = this.calculateBalanceAlignmentPositions(document, balances);
-		const transactions = tree.rootNode.descendantsOfType('transaction');
 		const allPostings = tree.rootNode.descendantsOfType('posting');
 		const globalPostingPositions = allPostings.length > 0
 			? this.calculateAlignmentPositions(document, allPostings)
 			: undefined;
 
 		for (const bal of balances) {
-			let positions = basePositions;
-			// Prefer nearest transaction's alignment
-			if (transactions.length > 0) {
-				let nearestTxn: Parser.SyntaxNode | null = null;
-				let minDistance = Number.POSITIVE_INFINITY;
-				for (const txn of transactions) {
-					const dist = bal.startIndex >= txn.endIndex
-						? bal.startIndex - txn.endIndex
-						: txn.startIndex - bal.endIndex;
-					if (dist < minDistance) {
-						minDistance = dist;
-						nearestTxn = txn;
-					}
-				}
-				if (nearestTxn) {
-					const postings = nearestTxn.descendantsOfType('posting');
-					if (postings.length > 0) {
-						const txnPos = this.calculateAlignmentPositions(document, postings);
-						positions = {
-							decimalPointColumn: txnPos.decimalPointColumn,
-							commentColumn: txnPos.commentColumn,
-							currencyColumn: txnPos.currencyColumn,
-						};
-					}
-				}
-			} else if (globalPostingPositions) {
-				positions = {
+			// Always prefer global postings alignment if available; fallback to balance-based
+			const positions = globalPostingPositions
+				? {
 					decimalPointColumn: globalPostingPositions.decimalPointColumn,
 					commentColumn: globalPostingPositions.commentColumn,
 					currencyColumn: globalPostingPositions.currencyColumn,
-				};
-			}
+				}
+				: basePositions;
 			const account = bal.childForFieldName('account');
 			const amount = bal.childForFieldName('amount');
 			const comment = bal.childForFieldName('comment');
@@ -385,6 +519,7 @@ export class FormatterFeature implements Feature {
 		let maxIntegerWidth = 0;
 		let maxDecimalWidth = 0;
 		let maxAccountStartColumn = 0;
+		const accountStartColumns: number[] = [];
 		let maxCurrencyWidth = 0;
 
 		// First pass: find maximum widths
@@ -400,6 +535,7 @@ export class FormatterFeature implements Feature {
 			// Calculate starting column of account
 			const accountStartCol = this.calculateStringWidth(indentText);
 			maxAccountStartColumn = Math.max(maxAccountStartColumn, accountStartCol);
+			accountStartColumns.push(accountStartCol);
 
 			if (account) {
 				const accountText = document.getText(this.rangeFromNode(document, account));
@@ -447,7 +583,10 @@ export class FormatterFeature implements Feature {
 		}
 
 		// Calculate columns for alignment
-		const accountColumn = Math.max(maxAccountStartColumn, 2); // Minimum 2 spaces indent
+		// When alignCurrency=true, normalize indent to the mode (most frequent) width among postings
+		const accountColumn = (accountStartColumns.length > 0)
+			? (this.computeMostFrequent(accountStartColumns) ?? Math.max(maxAccountStartColumn, 2))
+			: Math.max(maxAccountStartColumn, 2);
 		const amountColumn = Math.max(accountColumn + maxAccountWidth + 3, AMOUNT_MIN_COLUMN);
 		const decimalPointColumn = amountColumn + maxIntegerWidth; // Decimal point position
 		const currencyColumn = decimalPointColumn + maxDecimalWidth + 1;
@@ -707,5 +846,22 @@ export class FormatterFeature implements Feature {
 			}
 		}
 		return width;
+	}
+
+	/**
+	 * Compute the most frequent number in an array. In case of a tie, returns the largest.
+	 */
+	private computeMostFrequent(values: number[]): number | undefined {
+		const counts = new Map<number, number>();
+		for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+		let bestValue: number | undefined = undefined;
+		let bestCount = -1;
+		for (const [v, c] of counts) {
+			if (c > bestCount || (c === bestCount && (bestValue === undefined || v > bestValue))) {
+				bestCount = c;
+				bestValue = v;
+			}
+		}
+		return bestValue;
 	}
 }
