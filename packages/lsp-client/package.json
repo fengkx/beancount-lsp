@@ -62,10 +62,17 @@
 				"language": "beancount",
 				"scopes": {
 					"account": [
-						"variable.other.account"
+						"variable.other.readwrite",
+						"entity.name.namespace",
+						"entity.name.class",
+						"entity.name.section",
+						"entity.name.type"
 					],
 					"currency": [
-						"entity.name.type.commodity"
+						"constant.other",
+						"support.constant",
+						"variable.other.constant",
+						"constant.other.symbol"
 					],
 					"date": [
 						"constant.numeric"
@@ -83,7 +90,8 @@
 						"constant.language.boolean"
 					],
 					"keyword": [
-						"keyword.control"
+						"keyword",
+						"storage.type"
 					],
 					"operator": [
 						"keyword.operator"
@@ -95,7 +103,11 @@
 						"constant.numeric"
 					],
 					"comment": [
-						"comment.line"
+						"comment"
+					],
+					"enum": [
+						"variable.other.enummember",
+						"constant.other.enum"
 					]
 				}
 			}

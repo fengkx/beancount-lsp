@@ -12,6 +12,7 @@
 		{ "include": "#tags" },
 		{ "include": "#links" },
 		{ "include": "#metadata" },
+		{ "include": "#operators" },
 		{ "include": "#booleans" }
 	],
 	"repository": {
@@ -25,11 +26,11 @@
 		},
 		"dates": {
 			"match": "\\d{4}[-/]\\d{2}[-/]\\d{2}",
-			"name": "date"
+			"name": "constant.numeric"
 		},
 		"accounts": {
 			"match": "\\b(Assets|Liabilities|Equity|Income|Expenses)(:[A-Z][A-Za-z0-9-_]+)+\\b",
-			"name": "account"
+			"name": "variable.other.readwrite"
 		},
 		"strings": {
 			"patterns": [
@@ -52,29 +53,40 @@
 		},
 		"currencies": {
 			"match": "\\b[A-Z][A-Z0-9_'.-]{0,22}[A-Z0-9]\\b",
-			"name": "currency"
+			"name": "constant.other"
 		},
 		"numbers": {
 			"match": "-?\\d+(\\.\\d+)?",
-			"name": "number"
+			"name": "constant.numeric"
 		},
 		"tags": {
 			"match": "#[A-Za-z0-9\\-_/.]+",
-			"name": "tag"
+			"name": "entity.name.tag"
 		},
 		"links": {
 			"match": "\\^[A-Za-z0-9\\-_/.]+",
-			"name": "link"
+			"name": "markup.underline.link"
 		},
 		"metadata": {
 			"match": "\\s+([a-z][a-zA-Z0-9\\-_]+):",
 			"captures": {
-				"1": { "name": "kv_key" }
+				"1": { "name": "variable.other.property" }
 			}
+		},
+		"operators": {
+			"patterns": [
+				{ "match": "@@", "name": "keyword.operator.atat.beancount" },
+				{ "match": "@", "name": "keyword.operator.at.beancount" },
+				{ "match": "\\{\\{", "name": "keyword.operator.brace.double.open.beancount" },
+				{ "match": "\\}\\}", "name": "keyword.operator.brace.double.close.beancount" },
+				{ "match": "\\{", "name": "keyword.operator.brace.open.beancount" },
+				{ "match": "\\}", "name": "keyword.operator.brace.close.beancount" },
+				{ "match": "[!&?%PSTCURM#\\*]", "name": "keyword.operator.flag.beancount" }
+			]
 		},
 		"booleans": {
 			"match": "\\b(TRUE|FALSE)\\b",
-			"name": "bool"
+			"name": "constant.language.boolean"
 		}
 	},
 	"scopeName": "source.beancount"
