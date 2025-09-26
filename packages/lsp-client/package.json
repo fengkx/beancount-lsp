@@ -77,7 +77,7 @@
 						"markup.underline.link"
 					],
 					"kv_key": [
-						"entity.name.property"
+						"variable.other.property"
 					],
 					"bool": [
 						"constant.language.boolean"
