@@ -60,7 +60,7 @@ export class FormatterFeature implements Feature {
 	private async updateFormatterConfig(connection: Connection): Promise<void> {
 		try {
 			const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });
-			if (config.formatter !== undefined) {
+			if (config?.formatter !== undefined) {
 				const formatterEnabled = config.formatter?.enabled !== false; // Default to true if not specified
 				this.setFormatterEnabled(formatterEnabled);
 				this.alignCurrency = config.formatter?.alignCurrency === true;
