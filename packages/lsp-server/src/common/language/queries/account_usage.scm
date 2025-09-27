@@ -1,3 +1,6 @@
 (posting (account ) @account_usage)
 (pad (account ) @account_usage)
 (balance (account ) @account_usage)
+(close (account ) @account_usage)
+(note (account ) @account_usage)
+(document (account ) @account_usage)

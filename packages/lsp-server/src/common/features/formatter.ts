@@ -207,9 +207,9 @@ export class FormatterFeature implements Feature {
 			if (innerCurrency && prevNumberNode) {
 				const numEnd = document.positionAt(prevNumberNode.endIndex);
 				const curStart = document.positionAt(innerCurrency.startIndex);
-				if (curStart.character - numEnd.character !== 1) {
-					edits.push(TextEdit.replace({ start: numEnd, end: curStart }, ' '));
-				}
+				// Preserve any non-whitespace (e.g., closing parenthesis) between number and currency,
+				// while normalizing whitespace to a single space
+				this.pushNormalizedSpaceEdit(document, numEnd, curStart, edits);
 			}
 
 			// Align column depending on setting
@@ -289,9 +289,9 @@ export class FormatterFeature implements Feature {
 			if (innerCurrency && prevNumberNode) {
 				const numEnd = document.positionAt(prevNumberNode.endIndex);
 				const curStart = document.positionAt(innerCurrency.startIndex);
-				if (curStart.character - numEnd.character !== 1) {
-					edits.push(TextEdit.replace({ start: numEnd, end: curStart }, ' '));
-				}
+				// Preserve any non-whitespace (e.g., closing parenthesis) between number and currency,
+				// while normalizing whitespace to a single space
+				this.pushNormalizedSpaceEdit(document, numEnd, curStart, edits);
 			}
 
 			// Align column relative to line start
@@ -408,9 +408,8 @@ export class FormatterFeature implements Feature {
 				const currencyIndex = amount.namedChildren.indexOf(currencyNode);
 				const currencyPrev = currencyIndex > 0 ? amount.namedChildren[currencyIndex - 1] : null;
 				const prevEndPos = currencyPrev ? document.positionAt(currencyPrev.endIndex) : amountStartPos;
-				if (currencyStartPos.character - prevEndPos.character !== 1) {
-					edits.push(TextEdit.replace({ start: prevEndPos, end: currencyStartPos }, ' '));
-				}
+				// Preserve any non-whitespace (e.g., closing parenthesis) between number/expression and currency
+				this.pushNormalizedSpaceEdit(document, prevEndPos, currencyStartPos, edits);
 			}
 
 			// Align comment (if exists)
@@ -776,8 +775,8 @@ export class FormatterFeature implements Feature {
 						line: amountWithoutCurrencyEndPos.line,
 						character: currencyStart,
 					};
-					// Ensure exactly one space between number and currency
-					edits.push(TextEdit.replace({ start: amountWithoutCurrencyEndPos, end: currencyStartPos }, ' '));
+					// Ensure exactly one space between number and currency while preserving any non-whitespace
+					this.pushNormalizedSpaceEdit(document, amountWithoutCurrencyEndPos, currencyStartPos, edits);
 				}
 			}
 		} else {
@@ -825,6 +824,29 @@ export class FormatterFeature implements Feature {
 			start: document.positionAt(node.startIndex),
 			end: document.positionAt(node.endIndex),
 		};
+	}
+
+	/**
+	 * Replace a whitespace/intermediate range with exactly one space while preserving
+	 * any non-whitespace characters inside that range (e.g., a closing parenthesis).
+	 */
+	private pushNormalizedSpaceEdit(
+		document: TextDocument,
+		start: { line: number; character: number },
+		end: { line: number; character: number },
+		edits: TextEdit[],
+	): void {
+		// Guard against invalid range
+		if (
+			start.line > end.line
+			|| (start.line === end.line && start.character >= end.character)
+		) {
+			return;
+		}
+		const betweenText = document.getText({ start, end });
+		const preserved = betweenText.replace(/\s+/g, '');
+		const replacement = (preserved.length > 0 ? preserved : '') + ' ';
+		edits.push(TextEdit.replace({ start, end }, replacement));
 	}
 
 	/**
