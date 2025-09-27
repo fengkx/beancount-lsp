@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.128
+
+- chore: bump lsp-client version to 0.0.128 ([cb58131](https://github.com/fengkx/beancount-lsp/commit/cb58131))
+- refactor(formatter): improve whitespace handling and add normalization for currency formatting ([2ba95ba](https://github.com/fengkx/beancount-lsp/commit/2ba95ba))
+- fix: account usage tags ([41bdbd6](https://github.com/fengkx/beancount-lsp/commit/41bdbd6))
+- chore: update dependencie ([b4156a8](https://github.com/fengkx/beancount-lsp/commit/b4156a8))
+
 ## v0.0.127
 
 - chore: bump lsp-client version to 0.0.127 ([a3a67e8](https://github.com/fengkx/beancount-lsp/commit/a3a67e8))
