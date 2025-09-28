@@ -6,7 +6,7 @@
 		"module": "commonjs",
 		"target": "ES2022",
 		"outDir": "out",
-		"lib": ["ES2020", "DOM"],
+		"lib": ["ES2022", "DOM"],
 		"baseUrl": ".",
 		"sourceMap": true,
 		"allowSyntheticDefaultImports": true,

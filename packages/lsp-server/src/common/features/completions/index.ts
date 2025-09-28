@@ -1156,91 +1156,100 @@ export class CompletionFeature implements Feature {
 			});
 		await p;
 
-		if (completionItems?.length <= 0 && current.type === 'ERROR') {
+		if (current.type === 'ERROR') {
 			let n = current.parent;
-			let childCount = n?.childCount ?? 0;
-			if (childCount === 1 && n!.child(0)?.type === 'ERROR') {
-				n = n!.previousNamedSibling;
-				childCount = n?.childCount ?? 0;
-			}
-			if (childCount > 0) {
-				const childrenType = n!.children.map(c => c.type);
-				const validTypes = childrenType.filter(t => t !== 'ERROR' && t.length > 1);
-				const pp = match(
-					{
-						validTypes,
-						head4ValidTypes: validTypes.slice(0, 4),
-						triggerCharacter: info.triggerCharacter,
-						userInput,
-					},
-				)
-					.with({ head4ValidTypes: ['account', 'binary_number_expr'] }, async () => {
-						const initialCount = completionItems.length;
-						cnt = await addCurrencyCompletions(
-							this.symbolIndex,
-							position,
-							set,
-							completionItems,
-							cnt,
+			while (completionItems.length <= 0 && n) {
+				let childCount = n?.childCount ?? 0;
+				if (childCount === 1 && n!.child(0)?.type === 'ERROR') {
+					n = n!.previousNamedSibling;
+					childCount = n?.childCount ?? 0;
+				}
+				if (childCount > 0) {
+					const childrenType = n!.children.map(c => c.type);
+					const validTypes = childrenType.filter(t => t !== 'ERROR' && t.length > 1);
+					const pp = match(
+						{
+							validTypes,
+							head4ValidTypes: validTypes.slice(0, 4),
+							triggerCharacter: info.triggerCharacter,
 							userInput,
-						);
-						logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
-					})
-					.with(
-						{
-							validTypes: [
-								'date',
-								'txn',
-								'payee',
-								'narration',
-								'posting',
-							],
 						},
-						{
-							head4ValidTypes: ['date', 'txn', 'payee', 'narration'],
-						},
-						{
-							head4ValidTypes: ['date', 'txn', 'payee', 'posting'],
-						},
-						{
-							head4ValidTypes: ['date', 'txn', 'narration', 'posting'],
-						},
-						{
-							head4ValidTypes: ['date', P.union('balance', 'open', 'close', 'pad', 'document', 'note')],
-						},
-						{ head4ValidTypes: ['date', 'txn', 'narration'] },
-						{ head4ValidTypes: ['date', 'txn', 'narration', 'tags_links'] },
-						{ head4ValidTypes: ['date', 'txn', 'narration', 'key_value'] },
-						{ head4ValidTypes: ['date', P.union('pad', 'balance'), P.union('account', 'identifier')] },
-						{ head4ValidTypes: ['date', 'pad', 'identifier', 'identifier'] },
-						{
-							head4ValidTypes: [P._, P._, P.union('atat', 'at'), 'number'],
-							userInput: P.string.regex(/^[AEIL]+$/),
-						},
-						async () => {
+					)
+						.with({ head4ValidTypes: ['account', 'binary_number_expr'] }, async () => {
 							const initialCount = completionItems.length;
-							cnt = await addAccountCompletions(
+							cnt = await addCurrencyCompletions(
 								this.symbolIndex,
 								position,
-								userInput ?? '',
 								set,
 								completionItems,
 								cnt,
 								userInput,
-								info.currentLine,
-								document,
 							);
-							logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
-						},
-					)
-					.otherwise(() => {
-						logger.info(`No matching branch found ${JSON.stringify(validTypes)}`);
-						if (cnt <= 0) {
-							// for inputing something includes trigger character in narration
-							completionItems.push(...this.lastCompletionItems);
-						}
-					});
-				await pp;
+							logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
+						})
+						.with(
+							{
+								validTypes: [
+									'date',
+									'txn',
+									'payee',
+									'narration',
+									'posting',
+								],
+							},
+							{
+								head4ValidTypes: ['date', 'txn', 'payee', 'narration'],
+							},
+							{
+								head4ValidTypes: ['date', 'txn', 'payee', 'posting'],
+							},
+							{
+								head4ValidTypes: ['date', 'txn', 'narration', 'posting'],
+							},
+							{
+								head4ValidTypes: [
+									'date',
+									P.union('balance', 'open', 'close', 'pad', 'document', 'note'),
+								],
+							},
+							{ head4ValidTypes: ['date', 'txn', 'narration'] },
+							{ head4ValidTypes: ['date', 'txn', 'narration', 'tags_links'] },
+							{ head4ValidTypes: ['date', 'txn', 'narration', 'key_value'] },
+							{ head4ValidTypes: ['date', P.union('pad', 'balance'), P.union('account', 'identifier')] },
+							{ head4ValidTypes: ['date', 'pad', 'identifier', 'identifier'] },
+							{
+								head4ValidTypes: [P._, P._, P.union('atat', 'at'), 'number'],
+								userInput: P.string.regex(/^[AEIL]+$/),
+							},
+							async () => {
+								const initialCount = completionItems.length;
+								cnt = await addAccountCompletions(
+									this.symbolIndex,
+									position,
+									userInput ?? '',
+									set,
+									completionItems,
+									cnt,
+									userInput,
+									info.currentLine,
+									document,
+								);
+								logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
+							},
+						)
+						.otherwise(() => {
+							logger.info(`No matching branch found ${JSON.stringify(validTypes)}`);
+							if (cnt <= 0) {
+								// for inputing something includes trigger character in narration
+								completionItems.push(...this.lastCompletionItems);
+							}
+						});
+					await pp;
+				}
+				if (completionItems.length > 0) {
+					break;
+				}
+				n = n?.children.filter(q => q.type !== 'ERROR')?.at?.(-1) ?? null;
 			}
 		}
 
