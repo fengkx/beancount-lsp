@@ -304,7 +304,7 @@
 		"@vscode/test-electron": "^2.5.2",
 		"@vscode/vsce": "^3.6.0",
 		"compose-regexp": "^0.7.1",
-		"dprint": "^0.50.1",
+		"dprint": "^0.50.2",
 		"esbuild-plugins-node-modules-polyfill": "^1.7.1",
 		"execa": "^9.6.0",
 		"glob": "^11.0.3",
