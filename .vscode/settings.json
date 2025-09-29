@@ -1,20 +1,30 @@
 // Place your settings in this file to overwrite default and user settings.
 {
-  "files.exclude": {
-    "**/*.tsbuildinfo": true,
-    "packages/lsp-client/out": true
-  },
-  "search.useIgnoreFile": true,
-  "search.exclude": {
-    "**/*.tsbuildinfo": true,
-    "packages/lsp-client/out": true
-  },
-  // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
-  "typescript.tsc.autoDetect": "off",
-  "cmake.configureOnOpen": true,
-  "cSpell.words": ["Asyncify", "Beancount", "dprint", "typecheck"],
-  "search.useIgnoreFiles": true,
-  "search.useParentIgnoreFiles": true,
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "dprint.path": "node_modules/.bin/dprint"
+	"files.exclude": {
+		"**/*.tsbuildinfo": true,
+		"packages/lsp-client/out": true
+	},
+	"search.useIgnoreFile": true,
+	"search.exclude": {
+		"**/*.tsbuildinfo": true,
+		"packages/lsp-client/out": true
+	},
+	// Turn off tsc task auto detection since we have the necessary tasks as npm scripts
+	"typescript.tsc.autoDetect": "off",
+	"cmake.configureOnOpen": true,
+	"cSpell.words": ["Asyncify", "Beancount", "dprint", "typecheck"],
+	"search.useIgnoreFiles": true,
+	"search.useParentIgnoreFiles": true,
+	"typescript.tsdk": "node_modules/typescript/lib",
+	"dprint.path": "node_modules/.bin/dprint",
+	"editor.defaultFormatter": "dprint.dprint",
+	"[json]": {
+		"editor.defaultFormatter": "dprint.dprint"
+	},
+	"[javascript]": {
+		"editor.defaultFormatter": "dprint.dprint"
+	},
+	"[typescript]": {
+		"editor.defaultFormatter": "dprint.dprint"
+	}
 }
