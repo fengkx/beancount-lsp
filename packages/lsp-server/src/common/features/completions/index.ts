@@ -20,9 +20,6 @@ import {
 	CompletionItemKind,
 	CompletionList,
 	CompletionParams,
-	CompletionRegistrationOptions,
-	CompletionRequest,
-	CompletionTriggerKind,
 	Connection,
 	Position,
 	TextEdit,
@@ -45,7 +42,7 @@ const Tuple = <T extends unknown[]>(xs: readonly [...T]): T => xs as T;
  * '"' - Payee/narration completions
  * '^' - Reserved
  */
-const triggerCharacters = Tuple(['2', '#', '"', '^'] as const);
+export const triggerCharacters = Tuple(['2', '#', '"', '^'] as const);
 type TriggerCharacter = (typeof triggerCharacters)[number];
 
 /**
@@ -715,7 +712,6 @@ const logger = new Logger('completions');
  */
 export class CompletionFeature implements Feature {
 	private lastCompletionItems: CompletionItem[] = [];
-	private lastCompletionParams: CompletionParams & { version: number } | null = null;
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
@@ -728,15 +724,7 @@ export class CompletionFeature implements Feature {
 	 * @param connection The language server connection
 	 */
 	register(connection: Connection): void {
-		const registerOptions: CompletionRegistrationOptions = {
-			documentSelector: [{ language: 'beancount' }],
-			triggerCharacters,
-		};
-
-		connection.client.register(CompletionRequest.type, registerOptions);
 		connection.onCompletion(this.provideCompletionItems);
-
-		// Register the completion item resolve handler
 		connection.onCompletionResolve(this.resolveCompletionItem);
 	}
 
@@ -768,18 +756,6 @@ export class CompletionFeature implements Feature {
 		params: CompletionParams,
 	): Promise<CompletionItem[] | CompletionList | null> => {
 		const document = await this.documents.retrieve(params.textDocument.uri);
-
-		if (
-			this.lastCompletionParams?.textDocument.uri === params.textDocument.uri
-			&& this.lastCompletionParams.position.line === params.position.line
-			&& this.lastCompletionParams.position.character === params.position.character
-			&& this.lastCompletionParams.context?.triggerKind === params.context?.triggerKind
-			&& this.lastCompletionParams.context?.triggerKind === CompletionTriggerKind.Invoked
-			&& this.lastCompletionParams.version === document.version
-		) {
-			return [];
-		}
-		this.lastCompletionParams = { ...params, version: document.version };
 		const tree = await this.trees.getParseTree(document);
 		if (!tree) {
 			return CompletionList.create([]);
@@ -1239,10 +1215,6 @@ export class CompletionFeature implements Feature {
 						)
 						.otherwise(() => {
 							logger.info(`No matching branch found ${JSON.stringify(validTypes)}`);
-							if (cnt <= 0) {
-								// for inputing something includes trigger character in narration
-								completionItems.push(...this.lastCompletionItems);
-							}
 						});
 					await pp;
 				}
@@ -1255,6 +1227,10 @@ export class CompletionFeature implements Feature {
 
 		logger.info(`Final completion items: ${completionItems.length}`);
 		this.lastCompletionItems = completionItems;
+		if (cnt <= 0) {
+			// for inputing something includes trigger character in narration
+			completionItems.push(...this.lastCompletionItems);
+		}
 		return completionItems;
 	}
 }

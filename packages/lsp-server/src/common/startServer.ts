@@ -8,7 +8,8 @@ import {
 	TextDocumentSyncKind,
 } from 'vscode-languageserver';
 import { DocumentStore } from './document-store';
-import { CompletionFeature } from './features/completions';
+import { CodeLensFeature } from './features/code-lens';
+import { CompletionFeature, triggerCharacters } from './features/completions';
 import { DefinitionFeature } from './features/definitions';
 import { DiagnosticsFeature } from './features/diagnostics';
 import { DocumentLinksFeature } from './features/document-links';
@@ -18,7 +19,6 @@ import { FormatterFeature } from './features/formatter';
 import { HoverFeature } from './features/hover';
 import { InlayHintFeature } from './features/inlay-hints';
 import { PriceMap } from './features/prices-index/price-map';
-import { CodeLensFeature } from './features/code-lens';
 import { ReferencesFeature } from './features/references';
 import { RenameFeature } from './features/rename';
 import { SelectionRangesFeature } from './features/selection-ranges';
@@ -86,6 +86,7 @@ export function startServer(
 				// Tell the client that this server supports code completion.
 				completionProvider: {
 					resolveProvider: true,
+					triggerCharacters,
 				},
 				selectionRangeProvider: true,
 				// Add definition provider capability
@@ -163,7 +164,6 @@ export function startServer(
 				resolveProvider: true,
 			};
 			features.push(new CodeLensFeature(documents, trees, beanMgr));
-
 		}
 		// Initialize all features
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
@@ -266,7 +266,8 @@ export function startServer(
 						const logLevel = mapTraceServerToLogLevel(config.trace.server);
 						serverLogger.setLevel(logLevel);
 						serverLogger.info(
-							`Log level changed to ${logLevelToString(logLevel)
+							`Log level changed to ${
+								logLevelToString(logLevel)
 							} (from trace.server: ${config.trace.server})`,
 						);
 					}
