@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.130
+
+- chore: bump lsp-client version to 0.0.130 ([5429bd6](https://github.com/fengkx/beancount-lsp/commit/5429bd6))
+- fix: update TypeScript configuration and improve completion logic ([0303696](https://github.com/fengkx/beancount-lsp/commit/0303696))
+
 ## v0.0.128
 
 - chore: bump lsp-client version to 0.0.128 ([cb58131](https://github.com/fengkx/beancount-lsp/commit/cb58131))
