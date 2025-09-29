@@ -1228,7 +1228,7 @@ export class CompletionFeature implements Feature {
 		logger.info(`Final completion items: ${completionItems.length}`);
 		this.lastCompletionItems = completionItems;
 		if (cnt <= 0) {
-			// for inputing something includes trigger character in narration
+			// for inputting something includes trigger character in narration
 			completionItems.push(...this.lastCompletionItems);
 		}
 		return completionItems;

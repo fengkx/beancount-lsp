@@ -1,0 +1,14 @@
+[default]
+extend-ignore-re = ["[a-f0-9]{6,7}"]
+[default.extend-identifiers]
+nin = "nin"
+
+    
+[files]
+extend-exclude = ["packages/tree-sitter-beancount/**/*", "packages/lsp-client/server/*"]
+ignore-hidden = true
+ignore-files = true
+ignore-dot = true
+ignore-vcs = true
+ignore-global = true
+ignore-parent = true

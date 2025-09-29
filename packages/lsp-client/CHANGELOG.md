@@ -16,7 +16,7 @@
 - chore: bump lsp-client version to 0.0.128 ([cb58131](https://github.com/fengkx/beancount-lsp/commit/cb58131))
 - refactor(formatter): improve whitespace handling and add normalization for currency formatting ([2ba95ba](https://github.com/fengkx/beancount-lsp/commit/2ba95ba))
 - fix: account usage tags ([41bdbd6](https://github.com/fengkx/beancount-lsp/commit/41bdbd6))
-- chore: update dependencie ([b4156a8](https://github.com/fengkx/beancount-lsp/commit/b4156a8))
+- chore: update dependencies ([b4156a8](https://github.com/fengkx/beancount-lsp/commit/b4156a8))
 
 ## v0.0.127
 
@@ -138,7 +138,7 @@
 ## v0.0.90
 
 - chore: bump lsp-client version to 0.0.90 ([0900721](https://github.com/fengkx/beancount-lsp/commit/0900721))
-- fix: absoulte path compatible with windows path ([aeaa4ab](https://github.com/fengkx/beancount-lsp/commit/aeaa4ab))
+- fix: absolute path compatible with windows path ([aeaa4ab](https://github.com/fengkx/beancount-lsp/commit/aeaa4ab))
 - chore: update dependencies ([9aeea40](https://github.com/fengkx/beancount-lsp/commit/9aeea40))
 - chore: bump lsp-client version to 0.0.88 ([30965ef](https://github.com/fengkx/beancount-lsp/commit/30965ef))
 - feat: add python3Path configuration option for Beancount ([1ec2cfd](https://github.com/fengkx/beancount-lsp/commit/1ec2cfd))
@@ -156,7 +156,7 @@
 - chore: bump lsp-client version to 0.0.84 ([0c23cb3](https://github.com/fengkx/beancount-lsp/commit/0c23cb3))
 - feat: add Beancount snippets and update package configuration ([a5097d5](https://github.com/fengkx/beancount-lsp/commit/a5097d5))
 - refactor: enhance build outputs and clean up code ([5501397](https://github.com/fengkx/beancount-lsp/commit/5501397))
-- refactor: update imports and make refernces directly to ts code ([db05553](https://github.com/fengkx/beancount-lsp/commit/db05553))
+- refactor: update imports and make references directly to ts code ([db05553](https://github.com/fengkx/beancount-lsp/commit/db05553))
 - feat: update package manager and implement indexing improvements ([e4cee84](https://github.com/fengkx/beancount-lsp/commit/e4cee84))
 
 ## v0.0.82
@@ -169,7 +169,7 @@
 - fix: update package reference and clean up storage code ([f38e0d1](https://github.com/fengkx/beancount-lsp/commit/f38e0d1))
 - feat: improving performance for building indexes ([6ed8c87](https://github.com/fengkx/beancount-lsp/commit/6ed8c87))
 - fix: add 'util' to browserConfig in tsup configuration ([6b504e0](https://github.com/fengkx/beancount-lsp/commit/6b504e0))
-- refactor: replace nedb with custom storage which is faster for heavy write wrokload ([f9a922c](https://github.com/fengkx/beancount-lsp/commit/f9a922c))
+- refactor: replace nedb with custom storage which is faster for heavy write workload ([f9a922c](https://github.com/fengkx/beancount-lsp/commit/f9a922c))
 
 ## v0.0.80
 
@@ -194,7 +194,7 @@
 - chore: bump lsp-client version to 0.0.76 ([842ff2b](https://github.com/fengkx/beancount-lsp/commit/842ff2b))
 - chore: update dependencies in pnpm-lock.yaml and package.json ([b20b575](https://github.com/fengkx/beancount-lsp/commit/b20b575))
 - refactor: simplify build process by removing npm package preparation script ([d5da460](https://github.com/fengkx/beancount-lsp/commit/d5da460))
-- feat: embeding python code to LSP server without external dep ([1a60761](https://github.com/fengkx/beancount-lsp/commit/1a60761))
+- feat: embedding python code to LSP server without external dep ([1a60761](https://github.com/fengkx/beancount-lsp/commit/1a60761))
 - refactor: update input schema modification logic in update-input-schema.spec.mts ([76b7675](https://github.com/fengkx/beancount-lsp/commit/76b7675))
 
 ## v0.0.74
@@ -242,7 +242,7 @@
 - refactor: clean up TypeScript configurations and improve type imports ([e9b62c3](https://github.com/fengkx/beancount-lsp/commit/e9b62c3))
 - refactor: enhance type definitions and improve code readability ([17b6c75](https://github.com/fengkx/beancount-lsp/commit/17b6c75))
 - chore: update dependencies in package.json files ([22985b4](https://github.com/fengkx/beancount-lsp/commit/22985b4))
-- docs: udpate readme ([42a17d6](https://github.com/fengkx/beancount-lsp/commit/42a17d6))
+- docs: update readme ([42a17d6](https://github.com/fengkx/beancount-lsp/commit/42a17d6))
 
 ## v0.0.64
 

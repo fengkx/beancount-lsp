@@ -334,7 +334,7 @@ export class SymbolIndex {
 
 			// Register discovered options in the options manager
 			for (const [key, value] of options.entries()) {
-				// @ts-expect-error intented set all options by only SupportedKeys can read
+				// @ts-expect-error intended set all options by only SupportedKeys can read
 				this._optionsManager.setOption(key, value, document.uri);
 			}
 

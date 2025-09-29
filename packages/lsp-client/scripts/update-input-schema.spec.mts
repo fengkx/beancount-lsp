@@ -13,7 +13,7 @@ async function updateInputSchema() {
     const keys = ['name', 'displayName', 'modelDescription', 'userDescription', 'canBeReferencedInPrompt', 'toolReferenceName', 'icon', 'tags', 'inputSchema'] as const;
     type Key = typeof keys[number];
 
-    const toolDeclartions = tools.map((tool) => {
+    const toolDeclarations = tools.map((tool) => {
         return keys.reduce((acc, key: Key) => {
             acc[key] = tool[key as keyof typeof tool];
             return acc;
@@ -22,7 +22,7 @@ async function updateInputSchema() {
     const packageJsonUri = new URL('../package.json', import.meta.url);
 
     const packageJson = await readFile(packageJsonUri, { encoding: 'utf-8' });
-    const edits = modify(packageJson, ['contributes', 'languageModelTools'], toolDeclartions, {
+    const edits = modify(packageJson, ['contributes', 'languageModelTools'], toolDeclarations, {
         formattingOptions: { keepLines: true },
     });
     const newText = applyEdits(packageJson, edits);

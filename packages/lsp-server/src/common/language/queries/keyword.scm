@@ -24,10 +24,10 @@ value: (string)
 )
 
 (balance
-"balance" @keyowrd
+"balance" @keyword
 )
 (query
-"query" @keyowrd
+"query" @keyoword
 )
 (note
 "note" @keyword

@@ -104,7 +104,7 @@ export function parseCostSpec(
 						number: perNode?.text,
 						currency: currencyNode?.text,
 						isTotalCost,
-						date: dateNode?.text
+						date: dateNode?.text,
 					};
 				} catch (e) {
 					logger.error(`Error parsing cost: ${e}`);
@@ -123,9 +123,9 @@ export function parsePriceAnnotation(
 	priceNode: Parser.SyntaxNode,
 	priceType: '@' | '@@',
 ): { type: '@' | '@@'; number: string; currency: string } | undefined {
-	const ammountNode = priceNode.namedChild(0);
-	if (ammountNode) {
-		const amount = parseAmount(ammountNode);
+	const amountNode = priceNode.namedChild(0);
+	if (amountNode) {
+		const amount = parseAmount(amountNode);
 		if (amount) {
 			return {
 				type: priceType,

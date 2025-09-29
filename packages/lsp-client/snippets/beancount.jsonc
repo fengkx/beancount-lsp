@@ -60,7 +60,7 @@ SOFTWARE.
 		"description": "Close an account."
 	},
 
-	"commoditiy directive": {
+	"commodity directive": {
 		"prefix": "commodity",
 		"body": [
 			"${1:$CURRENT_YEAR}-${2:$CURRENT_MONTH}-${3:$CURRENT_DATE} commodity ${4:ISO/Ticker}",
@@ -200,7 +200,7 @@ SOFTWARE.
 	"budget": {
 		"prefix": "budget",
 		"body": [
-			"${1:$CURRENT_YEAR}-${2:$CURRENT_MONTH}-${3:$CURRENT_DATE} custom \"budget\" ${5:Expenses:} \"${6|daily,weekly,monthly,quaterly,yearly|}\" ${7:Amount}",
+			"${1:$CURRENT_YEAR}-${2:$CURRENT_MONTH}-${3:$CURRENT_DATE} custom \"budget\" ${5:Expenses:} \"${6|daily,weekly,monthly,quarterly,yearly|}\" ${7:Amount}",
             "$0"
 		],
 		"description": "Add a Fava compatible budget directive."
