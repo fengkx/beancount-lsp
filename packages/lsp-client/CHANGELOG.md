@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.132
+
+- chore: update lsp-client version to 0.0.132 and configure default formatter in VSCode settings ([42bd658](https://github.com/fengkx/beancount-lsp/commit/42bd658))
+- fix: double response because of static and dyamic register at the same time ([cfc3f40](https://github.com/fengkx/beancount-lsp/commit/cfc3f40))
+- chore: update dependencies ([373e135](https://github.com/fengkx/beancount-lsp/commit/373e135))
+
 ## v0.0.130
 
 - chore: bump lsp-client version to 0.0.130 ([5429bd6](https://github.com/fengkx/beancount-lsp/commit/5429bd6))
