@@ -17,7 +17,6 @@ const commonConfig = {
 		'date-fns',
 		'micromatch',
 		'mnemonist',
-		'nominal-types',
 		'pinyin-pro',
 		'ts-pattern',
 		'vscode-languageserver',
