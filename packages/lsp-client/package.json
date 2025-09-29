@@ -302,7 +302,7 @@
 		"@types/node": "24.0.13",
 		"@types/vscode": "^1.86.0",
 		"@vscode/test-electron": "^2.5.2",
-		"@vscode/vsce": "^3.6.0",
+		"@vscode/vsce": "^3.6.2",
 		"compose-regexp": "^0.7.1",
 		"dprint": "^0.50.1",
 		"esbuild-plugins-node-modules-polyfill": "^1.7.1",
