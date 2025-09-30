@@ -11,7 +11,7 @@
  * with special handling for Chinese text using pinyin first letters.
  */
 
-import { Logger } from '@bean-lsp/shared';
+import { getParser, Logger } from '@bean-lsp/shared';
 import { add, formatDate, sub } from 'date-fns';
 import { pinyin } from 'pinyin-pro';
 import { match, P } from 'ts-pattern';
@@ -58,71 +58,184 @@ type TriggerInfo = {
 	currentLine: string;
 };
 
+// -----------------------------
+// Placeholder reparse utilities
+// -----------------------------
+
+/**
+ * Helper to find the nearest named ancestor of a given type
+ */
+function findNamedAncestor(node: Parser.SyntaxNode | null, type: string): Parser.SyntaxNode | null {
+	let cur: Parser.SyntaxNode | null = node;
+	while (cur) {
+		// Handle both method and property forms of isNamed
+		const isNamed = typeof (cur as any).isNamed === 'function'
+			? (cur as any).isNamed()
+			: (cur as any).isNamed;
+		if (isNamed && cur.type === type) return cur;
+		cur = cur.parent;
+	}
+	return null;
+}
+
+/**
+ * Context check result from placeholder reparse
+ */
+type ReparseContext = {
+	/** The placeholder node that was inserted */
+	placeholderNode: Parser.SyntaxNode;
+	/** Ancestor nodes found during the check */
+	ancestors: Map<string, Parser.SyntaxNode>;
+};
+
+/**
+ * Performs a placeholder reparse to detect syntax context
+ *
+ * @param document The text document
+ * @param position The cursor position
+ * @param placeholder The placeholder text to insert
+ * @param ancestorTypes Optional ancestor node types to look for. If provided, all must exist. If undefined, accepts any result.
+ * @returns Context information if successful (and all required ancestors found if specified), null otherwise
+ */
+async function reparseWithPlaceholder(
+	document: TextDocument,
+	position: Position,
+	placeholder: string,
+	ancestorTypes?: string[],
+): Promise<ReparseContext | null> {
+	let vt: Parser.Tree | null = null;
+	try {
+		const fullText = document.getText();
+		const offset = document.offsetAt(position);
+		const virtualText = fullText.slice(0, offset) + placeholder + fullText.slice(offset);
+		const parser = await getParser();
+		vt = parser.parse(virtualText);
+		if (vt.rootNode.hasError()) {
+			return null;
+		}
+		const phNode = vt.rootNode.descendantForIndex(offset, offset + placeholder.length);
+		if (!phNode) return null;
+
+		const ancestors = new Map<string, Parser.SyntaxNode>();
+
+		// If ancestorTypes specified, validate all exist
+		if (ancestorTypes && ancestorTypes.length > 0) {
+			for (const type of ancestorTypes) {
+				const ancestor = findNamedAncestor(phNode, type);
+				if (!ancestor) return null; // Required ancestor missing
+				ancestors.set(type, ancestor);
+			}
+		} else {
+			// If no specific ancestors required, collect all named ancestors for logging
+			let cur: Parser.SyntaxNode | null = phNode;
+			while (cur) {
+				const isNamed = typeof (cur as any).isNamed === 'function'
+					? (cur as any).isNamed()
+					: (cur as any).isNamed;
+				if (isNamed && cur.type) {
+					ancestors.set(cur.type, cur);
+				}
+				cur = cur.parent;
+			}
+		}
+
+		return {
+			placeholderNode: phNode,
+			ancestors,
+		};
+	} catch (e) {
+		logger.debug(`Placeholder reparse failed: ${e}`);
+		return null;
+	} finally {
+		// Clean up the temporary tree
+		if (vt) {
+			try {
+				vt.delete();
+			} catch {
+				// Ignore cleanup errors
+			}
+		}
+	}
+}
+
+/**
+ * Result of extracting user input
+ */
+type ExtractedUserInput = {
+	/** The text the user has typed (relevant portion for filtering) */
+	userInput: string;
+	/** The full current line text up to the cursor position */
+	currentLine: string;
+};
+
 /**
  * Extracts the user's input text at the current position
  *
  * @param document The text document
  * @param position The current cursor position
  * @param triggerCharacter The character that triggered completion
- * @returns The text the user has typed before the cursor
+ * @returns Object containing userInput and currentLine
  */
 function extractUserInput(
 	document: TextDocument,
 	position: Position,
 	triggerCharacter?: string,
-): string {
+): ExtractedUserInput {
 	// Get the text of the current line up to the cursor position
-	const line = document.getText({
+	const currentLine = document.getText({
 		start: { line: position.line, character: 0 },
 		end: position,
 	});
+
+	let userInput = '';
 
 	// Handle different trigger scenarios
 	if (triggerCharacter) {
 		// For account triggers (A, L, E, I), we only need what's after the trigger
 		if (['A', 'L', 'E', 'I'].includes(triggerCharacter)) {
 			// If the last character is the trigger, there's no actual input yet
-			if (line.endsWith(triggerCharacter)) {
-				return '';
+			if (currentLine.endsWith(triggerCharacter)) {
+				userInput = '';
+			} else {
+				// Find the last occurrence of the trigger character
+				const triggerIndex = currentLine.lastIndexOf(triggerCharacter);
+				if (triggerIndex >= 0) {
+					userInput = currentLine.substring(triggerIndex + 1);
+				}
 			}
-
-			// Find the last occurrence of the trigger character
-			const triggerIndex = line.lastIndexOf(triggerCharacter);
-			if (triggerIndex >= 0) {
-				return line.substring(triggerIndex + 1);
-			}
-		}
-
-		// For payee/narration triggers ("), extract what's inside the quotes
-		if (triggerCharacter === '"') {
-			const lastQuoteIndex = line.lastIndexOf('"');
+		} else if (triggerCharacter === '"') {
+			// For payee/narration triggers ("), extract what's inside the quotes
+			const lastQuoteIndex = currentLine.lastIndexOf('"');
 			if (lastQuoteIndex >= 0) {
-				return line.substring(lastQuoteIndex + 1);
+				userInput = currentLine.substring(lastQuoteIndex + 1);
 			}
-		}
-
-		// For tag triggers (#), extract what's after the #
-		if (triggerCharacter === '#') {
-			const lastHashIndex = line.lastIndexOf('#');
+		} else if (triggerCharacter === '#') {
+			// For tag triggers (#), extract what's after the #
+			const lastHashIndex = currentLine.lastIndexOf('#');
 			if (lastHashIndex >= 0) {
-				return line.substring(lastHashIndex + 1);
+				userInput = currentLine.substring(lastHashIndex + 1);
 			}
-		}
-
-		// For space triggers, extract the last word
-		if (triggerCharacter === ' ') {
-			const words = line.trim().split(/\s+/);
-			return words[words.length - 1] || '';
+		} else if (triggerCharacter === ' ') {
+			// For space triggers, extract the last word
+			const words = currentLine.trim().split(/\s+/);
+			userInput = words[words.length - 1] || '';
 		}
 	}
 
 	// Default case: take the last token after whitespace
-	const lastWhitespaceIndex = line.lastIndexOf(' ');
-	if (lastWhitespaceIndex >= 0) {
-		return line.substring(lastWhitespaceIndex + 1);
+	if (!userInput && !triggerCharacter) {
+		const lastWhitespaceIndex = currentLine.lastIndexOf(' ');
+		if (lastWhitespaceIndex >= 0) {
+			userInput = currentLine.substring(lastWhitespaceIndex + 1);
+		} else {
+			userInput = currentLine;
+		}
 	}
 
-	return line;
+	return {
+		userInput,
+		currentLine,
+	};
 }
 
 /**
@@ -416,6 +529,7 @@ async function addPayeesAndNarrations(
  * @param items The array of completion items to add to
  * @param cnt A counter for sorting when no userInput is provided
  * @param userInput Optional user input for better scoring and sorting
+ * @param currentLine Optional current line text for context
  * @returns Updated counter value
  */
 async function addTagCompletions(
@@ -425,16 +539,18 @@ async function addTagCompletions(
 	items: CompletionItem[],
 	cnt: number,
 	userInput?: string,
+	currentLine?: string,
 ): Promise<number> {
 	// Fetch tags from the index
 	const tags = await symbolIndex.getTags();
 
+	const shouldAddPrefix = currentLine && !currentLine.endsWith('#');
 	// Add each tag as a completion item
 	tags.forEach((tag: string) => {
 		cnt = addCompletionItem(
 			{ label: tag, kind: CompletionItemKind.Property, detail: '(tag)' },
 			position,
-			tag,
+			shouldAddPrefix ? `#${tag}` : tag,
 			set,
 			items,
 			cnt,
@@ -665,6 +781,7 @@ async function addAccountCompletions(
  * @param items The array of completion items to add to
  * @param cnt A counter for sorting when no userInput is provided
  * @param userInput Optional user input for better scoring and sorting
+ * @param currentLine Optional current line text for context
  * @returns Updated counter value
  */
 async function addLinkCompletions(
@@ -674,16 +791,18 @@ async function addLinkCompletions(
 	items: CompletionItem[],
 	cnt: number,
 	userInput?: string,
+	currentLine?: string,
 ): Promise<number> {
 	// Fetch links from the index
 	const links = await symbolIndex.getLinks();
 
+	const shouldAddPrefix = currentLine && !currentLine.endsWith('^');
 	// Add each link as a completion item
 	links.forEach((link: string) => {
 		cnt = addCompletionItem(
 			{ label: link, kind: CompletionItemKind.Reference, detail: '(link)' },
 			position,
-			link,
+			shouldAddPrefix ? `^${link}` : link,
 			set,
 			items,
 			cnt,
@@ -778,7 +897,7 @@ export class CompletionFeature implements Feature {
 		}
 
 		// Extract user input for better sorting
-		const userInput = extractUserInput(
+		const { userInput, currentLine } = extractUserInput(
 			document,
 			params.position,
 			params.context?.triggerCharacter as string,
@@ -786,11 +905,6 @@ export class CompletionFeature implements Feature {
 
 		// Analyze the token at the current position
 		const current = nodeAtPosition(tree.rootNode, params.position, true);
-
-		const currentLine = document.getText({
-			start: { line: params.position.line, character: 0 },
-			end: { line: params.position.line, character: params.position.character },
-		});
 
 		// Get completion items based on the context
 		const completionItems = await this.calcCompletionItems(
@@ -939,7 +1053,15 @@ export class CompletionFeature implements Feature {
 					// Tag completions when triggered by # character
 					logger.info('Branch: triggerCharacter #');
 					const initialCount = completionItems.length;
-					cnt = await addTagCompletions(this.symbolIndex, position, set, completionItems, cnt, userInput);
+					cnt = await addTagCompletions(
+						this.symbolIndex,
+						position,
+						set,
+						completionItems,
+						cnt,
+						userInput,
+						info.currentLine,
+					);
 					logger.info(`Tags added, items: ${completionItems.length - initialCount}`);
 				},
 			)
@@ -947,7 +1069,15 @@ export class CompletionFeature implements Feature {
 				// Link completions when triggered by ^ character
 				logger.info('Branch: triggerCharacter ^');
 				const initialCount = completionItems.length;
-				cnt = await addLinkCompletions(this.symbolIndex, position, set, completionItems, cnt, userInput);
+				cnt = await addLinkCompletions(
+					this.symbolIndex,
+					position,
+					set,
+					completionItems,
+					cnt,
+					userInput,
+					info.currentLine,
+				);
 				logger.info(`Links added, items: ${completionItems.length - initialCount}`);
 			})
 			.with(
@@ -1222,6 +1352,130 @@ export class CompletionFeature implements Feature {
 					break;
 				}
 				n = n?.children.filter(q => q.type !== 'ERROR')?.at?.(-1) ?? null;
+			}
+		}
+
+		// Fallback: placeholder reparse to detect various syntax contexts
+		// Try all possible placeholder types and let the syntax tree tell us what fits
+		if (completionItems.length === 0 && document) {
+			try {
+				const initial = completionItems.length;
+
+				// Define all possible completion scenarios to try
+				type CompletionScenario = {
+					placeholder: string;
+					ancestorTypes?: string[]; // If undefined, accept any result
+					onSuccess: (ctx: ReparseContext) => Promise<void>;
+					description: string;
+				};
+
+				const scenarios: CompletionScenario[] = [
+					// Account completions (works in many contexts: posting, directives, etc.)
+					{
+						placeholder: 'Assets:Bank',
+						onSuccess: async () => {
+							cnt = await addAccountCompletions(
+								this.symbolIndex,
+								position,
+								'',
+								set,
+								completionItems,
+								cnt,
+								userInput,
+								info.currentLine,
+								document,
+							);
+						},
+						description: 'account',
+					},
+					// Tag completions (works in tags_links, pushtag, poptag, etc.)
+					{
+						placeholder: '#tag',
+						onSuccess: async () => {
+							cnt = await addTagCompletions(
+								this.symbolIndex,
+								position,
+								set,
+								completionItems,
+								cnt,
+								userInput,
+								info.currentLine,
+							);
+						},
+						description: 'tag',
+					},
+					// Currency completions (works in price_annotation, amount, etc.)
+					{
+						placeholder: ' CNY',
+						onSuccess: async () => {
+							cnt = await addCurrencyCompletions(
+								this.symbolIndex,
+								position,
+								set,
+								completionItems,
+								cnt,
+								userInput,
+							);
+						},
+						description: 'currency',
+					},
+					// Link completions
+					{
+						placeholder: '^link',
+						onSuccess: async () => {
+							cnt = await addLinkCompletions(
+								this.symbolIndex,
+								position,
+								set,
+								completionItems,
+								cnt,
+								userInput,
+								info.currentLine,
+							);
+						},
+						description: 'link',
+					},
+					// Metadata key (for key_value contexts)
+					{
+						placeholder: 'somekey: "value"',
+						onSuccess: async () => {
+							// Could add metadata key completions here in the future
+							logger.info('Fallback: metadata key_value context detected');
+						},
+						description: 'metadata_key_value',
+					},
+				];
+
+				// Try each scenario until one succeeds
+				for (const scenario of scenarios) {
+					if (completionItems.length > initial) {
+						break; // Already found completions, stop
+					}
+
+					const ctx = await reparseWithPlaceholder(
+						document,
+						position,
+						scenario.placeholder[0] === info.triggerCharacter
+							? scenario.placeholder.slice(1)
+							: scenario.placeholder,
+						scenario.ancestorTypes,
+					);
+
+					if (ctx) {
+						await scenario.onSuccess(ctx);
+						if (completionItems.length > initial) {
+							const ancestorTypes = Array.from(ctx.ancestors.keys()).join(' > ');
+							logger.info(
+								`Fallback: ${scenario.description} (${ancestorTypes}), added ${
+									completionItems.length - initial
+								} items`,
+							);
+							break;
+						}
+					}
+				}
+			} catch (e) {
+				logger.info(`Fallback (placeholder reparse) failed: ${e}`);
 			}
 		}
 
