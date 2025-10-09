@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.133
+
+- chore: bump lsp-client version to 0.0.133 ([7f19e26](https://github.com/fengkx/beancount-lsp/commit/7f19e26))
+- feat: implement placeholder reparse for enhanced completion context detection (#131) ([e84d205](https://github.com/fengkx/beancount-lsp/commit/e84d205))
+- chore: remove nominal-types dependency from lsp-server ([6f2af64](https://github.com/fengkx/beancount-lsp/commit/6f2af64))
+- chore: add _typos.toml configuration file and fix typos in various files ([e44662e](https://github.com/fengkx/beancount-lsp/commit/e44662e))
+
 ## v0.0.132
 
 - chore: update lsp-client version to 0.0.132 and configure default formatter in VSCode settings ([42bd658](https://github.com/fengkx/beancount-lsp/commit/42bd658))
