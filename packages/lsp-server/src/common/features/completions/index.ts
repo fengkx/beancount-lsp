@@ -68,11 +68,7 @@ type TriggerInfo = {
 function findNamedAncestor(node: Parser.SyntaxNode | null, type: string): Parser.SyntaxNode | null {
 	let cur: Parser.SyntaxNode | null = node;
 	while (cur) {
-		// Handle both method and property forms of isNamed
-		const isNamed = typeof (cur as any).isNamed === 'function'
-			? (cur as any).isNamed()
-			: (cur as any).isNamed;
-		if (isNamed && cur.type === type) return cur;
+		if (cur.isNamed() && cur.type === type) return cur;
 		cur = cur.parent;
 	}
 	return null;
@@ -88,6 +84,83 @@ type ReparseContext = {
 	ancestors: Map<string, Parser.SyntaxNode>;
 };
 
+// Placeholder kind controls token scanning rules
+type PlaceholderKind = 'account' | 'tag' | 'link' | 'currency' | 'meta';
+
+// Compute left/right token range around the cursor according to kind
+function computeTokenRange(fullText: string, offset: number, kind: PlaceholderKind): { start: number; end: number } {
+	let start = offset;
+	let end = offset;
+
+	const isWhitespace = (ch: string) => /\s/.test(ch);
+	const stopChars = new Set(['#', '^', '@', '"', "'", '(', ')', '[', ']', '{', '}', ',', ';']);
+	const isStopChar = (ch: string) => stopChars.has(ch) || isWhitespace(ch);
+
+	const isAccountChar = (
+		ch: string,
+	) => (/[A-Za-z0-9]/.test(ch) || ch === ':' || ch === '_' || ch === '-' || ch === '/' || ch === '.');
+	const isTagLinkChar = (ch: string) => (/[A-Za-z0-9]/.test(ch) || ch === '_' || ch === '-');
+	const isCurrencyChar = (ch: string) => /[A-Za-z]/.test(ch);
+	const isMetaKeyChar = (ch: string) => (/[A-Za-z0-9]/.test(ch) || ch === '_' || ch === '-');
+
+	const isTokenChar = (ch: string) => {
+		switch (kind) {
+			case 'tag':
+			case 'link':
+				return isTagLinkChar(ch);
+			case 'currency':
+				return isCurrencyChar(ch);
+			case 'meta':
+				return isMetaKeyChar(ch);
+			default:
+				return isAccountChar(ch);
+		}
+	};
+
+	// Scan left
+	while (start > 0) {
+		const ch = fullText.charAt(start - 1);
+		// Do not cross stop chars
+		if (isStopChar(ch)) break;
+		// Do not swallow leading prefix markers for tag/link
+		if ((kind === 'tag' || kind === 'link') && (ch === '#' || ch === '^')) break;
+		if (!isTokenChar(ch)) break;
+		start--;
+	}
+
+	// Scan right (rarely needed but keeps symmetry and avoids partial merges)
+	while (end < fullText.length) {
+		const ch = fullText.charAt(end);
+		if (isStopChar(ch)) break;
+		if ((kind === 'meta') && (ch === ':' || ch === '"')) break; // don't cross into value
+		if (!isTokenChar(ch)) break;
+		end++;
+	}
+
+	// Special handling for currency: do not cross a leading space on the left
+	if (kind === 'currency' && start > 0 && isWhitespace(fullText.charAt(start - 1))) {
+		// keep start as-is; already stopped at whitespace
+	}
+
+	return { start, end };
+}
+
+function normalizePlaceholder(fullText: string, start: number, placeholder: string): string {
+	let text = placeholder;
+	// Adjacent marker dedup for # and ^
+	if (start > 0) {
+		const prev = fullText.charAt(start - 1);
+		if ((prev === '#' || prev === '^') && (text.startsWith(prev))) {
+			text = text.slice(1);
+		}
+	}
+	// Leading space coordination: avoid double space
+	if (text.startsWith(' ') && start > 0 && /\s/.test(fullText.charAt(start - 1))) {
+		text = text.slice(1);
+	}
+	return text;
+}
+
 /**
  * Performs a placeholder reparse to detect syntax context
  *
@@ -101,20 +174,35 @@ async function reparseWithPlaceholder(
 	document: TextDocument,
 	position: Position,
 	placeholder: string,
+	kind: PlaceholderKind,
 	ancestorTypes?: string[],
 ): Promise<ReparseContext | null> {
 	let vt: Parser.Tree | null = null;
 	try {
 		const fullText = document.getText();
 		const offset = document.offsetAt(position);
-		const virtualText = fullText.slice(0, offset) + placeholder + fullText.slice(offset);
+		const { start, end } = computeTokenRange(fullText, offset, kind);
+		const normalized = normalizePlaceholder(fullText, start, placeholder);
+		const virtualText = fullText.slice(0, start) + normalized + fullText.slice(end);
 		const parser = await getParser();
 		vt = parser.parse(virtualText);
-		if (vt.rootNode.hasError()) {
-			return null;
-		}
-		const phNode = vt.rootNode.descendantForIndex(offset, offset + placeholder.length);
+		const phNode = vt.rootNode.descendantForIndex(start, start + normalized.length);
 		if (!phNode) return null;
+
+		// Be tolerant to global parse errors: only reject when the error/missing
+		// is on the path of the placeholder (local context is broken)
+		if (vt.rootNode.hasError()) {
+			let cur: Parser.SyntaxNode | null = phNode;
+			while (cur) {
+				if (cur.type === 'ERROR') {
+					return null;
+				}
+				if (typeof cur.isMissing === 'function' && cur.isMissing()) {
+					return null;
+				}
+				cur = cur.parent;
+			}
+		}
 
 		const ancestors = new Map<string, Parser.SyntaxNode>();
 
@@ -129,10 +217,7 @@ async function reparseWithPlaceholder(
 			// If no specific ancestors required, collect all named ancestors for logging
 			let cur: Parser.SyntaxNode | null = phNode;
 			while (cur) {
-				const isNamed = typeof (cur as any).isNamed === 'function'
-					? (cur as any).isNamed()
-					: (cur as any).isNamed;
-				if (isNamed && cur.type) {
+				if (cur.isNamed() && cur.type) {
 					ancestors.set(cur.type, cur);
 				}
 				cur = cur.parent;
@@ -479,11 +564,13 @@ async function addPayeesAndNarrations(
 		symbolProvider.getNarrations(true, { waitTime: 100 }),
 	]);
 
+	// Precompute quote strings based on the chosen style
+	const quote = quotationStyle === 'both' ? '"' : quotationStyle === 'end' ? '"' : '';
+	const startQuote = quotationStyle === 'both' ? '"' : '';
+
 	// Add payees if requested
 	if (shouldIncludePayees) {
 		payees.forEach((payee: string) => {
-			const quote = quotationStyle === 'both' ? '"' : quotationStyle === 'end' ? '"' : '';
-			const startQuote = quotationStyle === 'both' ? '"' : '';
 			const updatedCount = addCompletionItem(
 				{ label: payee, kind: CompletionItemKind.Text, detail: '(payee)' },
 				position,
@@ -500,8 +587,6 @@ async function addPayeesAndNarrations(
 
 	// Add narrations
 	narrations.forEach((narration: string) => {
-		const quote = quotationStyle === 'both' ? '"' : quotationStyle === 'end' ? '"' : '';
-		const startQuote = quotationStyle === 'both' ? '"' : '';
 		const updatedCount = addCompletionItem(
 			{ label: narration, kind: CompletionItemKind.Text, detail: '(narration)' },
 			position,
@@ -725,6 +810,32 @@ async function addAccountCompletions(
 		return countB - countA; // Descending order
 	});
 
+	// Compute how many characters to delete from the left of the cursor once
+	let deleteCount = triggerChar.length;
+	// If we have a concrete userInput, prefer replacing exactly that
+	if (!deleteCount && userInput && userInput.length > 0) {
+		deleteCount = userInput.length;
+	}
+	// Otherwise, derive by scanning left for an account-like token
+	if (!deleteCount && document) {
+		try {
+			const lineText = document.getText({
+				start: { line: position.line, character: 0 },
+				end: { line: position.line, character: position.character },
+			});
+			let i = lineText.length - 1;
+			const isAccountCharLocal = (
+				ch: string,
+			) => (/[A-Za-z0-9]/.test(ch) || ch === ':' || ch === '_' || ch === '-' || ch === '/' || ch === '.');
+			while (i >= 0 && isAccountCharLocal(lineText.charAt(i))) {
+				deleteCount++;
+				i--;
+			}
+		} catch {
+			// ignore
+		}
+	}
+
 	// Add each filtered account as a completion item
 	filteredAccounts.forEach((account) => {
 		let detail = '';
@@ -753,7 +864,7 @@ async function addAccountCompletions(
 			position,
 			TextEdit.replace(
 				{
-					start: { line: position.line, character: position.character - triggerChar.length },
+					start: { line: position.line, character: position.character - deleteCount },
 					end: { line: position.line, character: position.character },
 				},
 				account + ' ',
@@ -1364,6 +1475,7 @@ export class CompletionFeature implements Feature {
 				// Define all possible completion scenarios to try
 				type CompletionScenario = {
 					placeholder: string;
+					kind?: PlaceholderKind;
 					ancestorTypes?: string[]; // If undefined, accept any result
 					onSuccess: (ctx: ReparseContext) => Promise<void>;
 					description: string;
@@ -1373,6 +1485,7 @@ export class CompletionFeature implements Feature {
 					// Account completions (works in many contexts: posting, directives, etc.)
 					{
 						placeholder: 'Assets:Bank',
+						kind: 'account',
 						onSuccess: async () => {
 							cnt = await addAccountCompletions(
 								this.symbolIndex,
@@ -1391,6 +1504,7 @@ export class CompletionFeature implements Feature {
 					// Tag completions (works in tags_links, pushtag, poptag, etc.)
 					{
 						placeholder: '#tag',
+						kind: 'tag',
 						onSuccess: async () => {
 							cnt = await addTagCompletions(
 								this.symbolIndex,
@@ -1407,6 +1521,7 @@ export class CompletionFeature implements Feature {
 					// Currency completions (works in price_annotation, amount, etc.)
 					{
 						placeholder: ' CNY',
+						kind: 'currency',
 						onSuccess: async () => {
 							cnt = await addCurrencyCompletions(
 								this.symbolIndex,
@@ -1422,6 +1537,7 @@ export class CompletionFeature implements Feature {
 					// Link completions
 					{
 						placeholder: '^link',
+						kind: 'link',
 						onSuccess: async () => {
 							cnt = await addLinkCompletions(
 								this.symbolIndex,
@@ -1438,6 +1554,7 @@ export class CompletionFeature implements Feature {
 					// Metadata key (for key_value contexts)
 					{
 						placeholder: 'somekey: "value"',
+						kind: 'meta',
 						onSuccess: async () => {
 							// Could add metadata key completions here in the future
 							logger.info('Fallback: metadata key_value context detected');
@@ -1458,6 +1575,7 @@ export class CompletionFeature implements Feature {
 						scenario.placeholder[0] === info.triggerCharacter
 							? scenario.placeholder.slice(1)
 							: scenario.placeholder,
+						scenario.kind!,
 						scenario.ancestorTypes,
 					);
 
