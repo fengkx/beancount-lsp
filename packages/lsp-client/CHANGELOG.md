@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.134
+
+- chore: bump lsp-client version to 0.0.134 ([52abb99](https://github.com/fengkx/beancount-lsp/commit/52abb99))
+- feat: implement debounced content change handling in startServer ([e53de5e](https://github.com/fengkx/beancount-lsp/commit/e53de5e))
+- feat: enhance completion context detection with new placeholder handling ([8d383a4](https://github.com/fengkx/beancount-lsp/commit/8d383a4))
+
 ## v0.0.133
 
 - chore: bump lsp-client version to 0.0.133 ([7f19e26](https://github.com/fengkx/beancount-lsp/commit/7f19e26))
