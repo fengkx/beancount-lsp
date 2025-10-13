@@ -24,7 +24,7 @@ catalogs:
     zod: ^4.1.11
   types:
     '@fengkx/tsconfig': ^2.0.0
-    '@types/node': ^24.5.2
+    '@types/node': ^24.7.2
     globals: ^16.4.0
     type-fest: ^5.0.1
     typescript: ^5.9.2
