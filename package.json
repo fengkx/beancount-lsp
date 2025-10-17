@@ -2,7 +2,7 @@
 	"name": "beancount-lsp",
 	"version": "0.0.0",
 	"description": "BeanCount language server",
-	"packageManager": "pnpm@10.17.1",
+	"packageManager": "pnpm@10.18.3",
 	"private": true,
 	"scripts": {
 		"build": "turbo run build",
@@ -35,7 +35,7 @@
 		"@types/node": "catalog:types",
 		"@typescript-eslint/eslint-plugin": "catalog:lint",
 		"@typescript-eslint/parser": "catalog:lint",
-		"cross-env": "^10.0.0",
+		"cross-env": "^10.1.0",
 		"dprint": "catalog:lint",
 		"eslint": "catalog:lint",
 		"eslint-import-resolver-typescript": "catalog:lint",
