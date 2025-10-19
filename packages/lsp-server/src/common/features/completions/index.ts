@@ -1367,13 +1367,12 @@ export class CompletionFeature implements Feature {
 					symbolProvider: this.symbolIndex,
 					position: position,
 					shouldIncludePayees: true,
-					quotationStyle: 'both',
+					quotationStyle: 'none',
 					existingCompletions: set,
 					completions: completionItems,
 					completionCount: cnt,
 					filterText: userInput,
-					addSpaceAfter: true,
-					characterAfterCursor: info.characterAfterCursor,
+					addSpaceAfter: false,
 				});
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
