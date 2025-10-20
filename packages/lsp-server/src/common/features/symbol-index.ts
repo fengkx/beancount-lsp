@@ -27,6 +27,7 @@ import { Logger } from '@bean-lsp/shared';
 import { URI, Utils as UriUtils } from 'vscode-uri';
 import { TreeQuery } from '../language';
 import { BeancountOptionsManager, SupportedOption } from '../utils/beancount-options';
+import { globalEventBus, GlobalEvents } from '../utils/event-bus';
 import { SwrCache, SwrOptions } from '../utils/swr';
 
 class Queue {
@@ -164,6 +165,11 @@ export class SymbolIndex {
 					Math.round(totalRetrieve)
 				}ms, indexing: ${Math.round(totalIndex)}ms) (files: ${uris.map(String).join(', ')})`,
 			);
+			globalEventBus.emit(GlobalEvents.IndexTimeConsumed, {
+				durationRetrieve: totalRetrieve,
+				durationIndex: totalIndex,
+				totalTime: totalIndex + totalRetrieve,
+			});
 		}
 	}
 

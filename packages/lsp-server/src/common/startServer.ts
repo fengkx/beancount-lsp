@@ -171,6 +171,11 @@ export function startServer(
 		documents.onDidOpen(event => symbolIndex.addSyncFile(event.document.uri));
 		// Debounced update to avoid frequent re-index during rapid typing
 		let debouncedUpdateTimer: NodeJS.Timeout | undefined;
+		let timeoutMs = 150;
+		globalEventBus.on(GlobalEvents.IndexTimeConsumed, (event: { totalTime: number }) => {
+			timeoutMs = Math.max(150, event.totalTime);
+			timeoutMs = timeoutMs << 1;
+		});
 		documents.onDidChangeContent(event => {
 			symbolIndex.addSyncFile(event.document.uri);
 			if (debouncedUpdateTimer) clearTimeout(debouncedUpdateTimer);
@@ -180,7 +185,7 @@ export function startServer(
 				} catch (e) {
 					serverLogger.debug(`debounced symbolIndex.update error: ${String(e)}`);
 				}
-			}, 150);
+			}, timeoutMs);
 		});
 
 		connection.onDidChangeWatchedFiles(e => {
