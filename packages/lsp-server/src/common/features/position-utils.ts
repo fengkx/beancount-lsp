@@ -7,6 +7,46 @@ import { Trees } from '../trees';
 // Create a logger for position utilities
 const logger = new Logger('position-utils');
 
+async function getNodeAtPosition(
+	trees: Trees,
+	document: TextDocument,
+	position: lsp.Position,
+): Promise<import('web-tree-sitter').SyntaxNode | null> {
+	const tree = await trees.getParseTree(document);
+	if (!tree) {
+		logger.warn(`Failed to get parse tree for document: ${document.uri}`);
+		return null;
+	}
+	const offset = document.offsetAt(position);
+	return tree.rootNode.descendantForIndex(offset);
+}
+
+function getNodeOrParentOfType(
+	node: import('web-tree-sitter').SyntaxNode | null,
+	type: string,
+): import('web-tree-sitter').SyntaxNode | null {
+	if (!node) return null;
+	if (node.type === type) return node;
+	if (node.parent && node.parent.type === type) return node.parent;
+	return null;
+}
+
+function stripPrefix(text: string, prefix: string): string {
+	return text.startsWith(prefix) ? text.substring(prefix.length) : text;
+}
+
+function stripSurroundingQuotes(text: string): string {
+	return text.replace(/^"|"$/g, '');
+}
+
+function isAccountLike(text: string): boolean {
+	return /^(Assets|Liabilities|Equity|Income|Expenses)(:[A-Z0-9][A-Za-z0-9-]*)*$/.test(text);
+}
+
+function isCurrencyLike(text: string): boolean {
+	return /^[A-Z]{2,5}$/.test(text);
+}
+
 /**
  * Gets the range of a node at a specific position
  */
@@ -35,7 +75,7 @@ export async function getRangeAtPosition(
 		};
 	}
 
-	// 使用asLspRange函数创建Range
+	// Create range using asLspRange
 	return asLspRange(node);
 }
 
@@ -47,32 +87,15 @@ export async function getAccountAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const tree = await trees.getParseTree(document);
-	if (!tree) {
-		logger.warn(`Failed to get parse tree for document: ${document.uri}`);
-		return null;
-	}
+	const node = await getNodeAtPosition(trees, document, position);
+	if (!node) return null;
 
-	// Get the node at the current position
-	const offset = document.offsetAt(position);
-	const node = tree.rootNode.descendantForIndex(offset);
-
-	if (!node) {
-		return null;
-	}
-
-	// Check if we're in an account node
-	if (
-		node.type === 'account'
-		|| node.text.match(/^(Assets|Liabilities|Equity|Income|Expenses)(:[A-Z0-9][A-Za-z0-9-]*)*$/)
-	) {
+	if (node.type === 'account' || isAccountLike(node.text)) {
 		return node.text;
 	}
 
-	// For parent nodes that might contain an account
-	if (node.parent && node.parent.type === 'account') {
-		return node.parent.text;
-	}
+	const parentAccount = getNodeOrParentOfType(node, 'account');
+	if (parentAccount) return parentAccount.text;
 
 	return null;
 }
@@ -85,35 +108,12 @@ export async function getCommodityAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const tree = await trees.getParseTree(document);
-	if (!tree) {
-		logger.warn(`Failed to get parse tree for document: ${document.uri}`);
-		return null;
-	}
+	const node = await getNodeAtPosition(trees, document, position);
+	if (!node) return null;
 
-	// Get the node at the current position
-	const offset = document.offsetAt(position);
-	const node = tree.rootNode.descendantForIndex(offset);
-
-	if (!node) {
-		return null;
-	}
-
-	// Check if we're in a currency node
-	if (node.type === 'currency') {
-		return node.text;
-	}
-
-	// For parent nodes that might contain a currency
-	if (node.parent && node.parent.type === 'currency') {
-		return node.parent.text;
-	}
-
-	// Check for text that looks like a currency (typically uppercase 2-5 letter codes)
-	if (node.text.match(/^[A-Z]{2,5}$/)) {
-		return node.text;
-	}
-
+	if (node.type === 'currency') return node.text;
+	if (node.parent && node.parent.type === 'currency') return node.parent.text;
+	if (isCurrencyLike(node.text)) return node.text;
 	return null;
 }
 
@@ -125,35 +125,12 @@ export async function getTagAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const tree = await trees.getParseTree(document);
-	if (!tree) {
-		logger.warn(`Failed to get parse tree for document: ${document.uri}`);
-		return null;
-	}
+	const node = await getNodeAtPosition(trees, document, position);
+	if (!node) return null;
 
-	// Get the node at the current position
-	const offset = document.offsetAt(position);
-	const node = tree.rootNode.descendantForIndex(offset);
-
-	if (!node) {
-		return null;
-	}
-
-	// Check if we're in a tag node
-	if (node.type === 'tag') {
-		return node.text.substring(1); // Remove the # prefix
-	}
-
-	// For parent nodes that might contain a tag
-	if (node.parent && node.parent.type === 'tag') {
-		return node.parent.text.substring(1); // Remove the # prefix
-	}
-
-	// Check for text that looks like a tag (starts with #)
-	if (node.text.startsWith('#')) {
-		return node.text.substring(1);
-	}
-
+	const tagNode = getNodeOrParentOfType(node, 'tag');
+	if (tagNode) return stripPrefix(tagNode.text, '#');
+	if (node.text.startsWith('#')) return stripPrefix(node.text, '#');
 	return null;
 }
 
@@ -165,30 +142,11 @@ export async function getPayeeAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const tree = await trees.getParseTree(document);
-	if (!tree) {
-		logger.warn(`Failed to get parse tree for document: ${document.uri}`);
-		return null;
-	}
+	const node = await getNodeAtPosition(trees, document, position);
+	if (!node) return null;
 
-	// Get the node at the current position
-	const offset = document.offsetAt(position);
-	const node = tree.rootNode.descendantForIndex(offset);
-
-	if (!node) {
-		return null;
-	}
-
-	// Check if we're in a payee node
-	if (node.type === 'payee') {
-		return node.text.replace(/^"|"$/g, ''); // Remove quotes
-	}
-
-	// For parent nodes that might contain a payee
-	if (node.parent && node.parent.type === 'payee') {
-		return node.parent.text.replace(/^"|"$/g, ''); // Remove quotes
-	}
-
+	const payeeNode = getNodeOrParentOfType(node, 'payee');
+	if (payeeNode) return stripSurroundingQuotes(payeeNode.text);
 	return null;
 }
 
@@ -200,30 +158,11 @@ export async function getNarrationAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const tree = await trees.getParseTree(document);
-	if (!tree) {
-		logger.warn(`Failed to get parse tree for document: ${document.uri}`);
-		return null;
-	}
+	const node = await getNodeAtPosition(trees, document, position);
+	if (!node) return null;
 
-	// Get the node at the current position
-	const offset = document.offsetAt(position);
-	const node = tree.rootNode.descendantForIndex(offset);
-
-	if (!node) {
-		return null;
-	}
-
-	// Check if we're in a narration node
-	if (node.type === 'narration') {
-		return node.text.replace(/^"|"$/g, ''); // Remove quotes
-	}
-
-	// For parent nodes that might contain a narration
-	if (node.parent && node.parent.type === 'narration') {
-		return node.parent.text.replace(/^"|"$/g, ''); // Remove quotes
-	}
-
+	const narrationNode = getNodeOrParentOfType(node, 'narration');
+	if (narrationNode) return stripSurroundingQuotes(narrationNode.text);
 	return null;
 }
 
@@ -235,39 +174,17 @@ export async function getPushTagAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const tree = await trees.getParseTree(document);
-	if (!tree) {
-		logger.warn(`Failed to get parse tree for document: ${document.uri}`);
-		return null;
-	}
+	const node = await getNodeAtPosition(trees, document, position);
+	if (!node) return null;
 
-	// Get the node at the current position
-	const offset = document.offsetAt(position);
-	const node = tree.rootNode.descendantForIndex(offset);
-
-	if (!node) {
-		return null;
-	}
-
-	// Check if we're in a pushtag directive
-	if (node.type === 'pushtag') {
-		// Find the tag node within the pushtag
-		const tagNode = node.child(1);
-		if (tagNode && tagNode.type === 'tag') {
-			return tagNode.text.substring(1); // Remove the # prefix
+	// Look on self or ancestors for a pushtag and extract its tag child
+	let current: import('web-tree-sitter').SyntaxNode | null = node;
+	while (current) {
+		if (current.type === 'pushtag') {
+			const tagNode = current.child(1);
+			if (tagNode && tagNode.type === 'tag') return stripPrefix(tagNode.text, '#');
 		}
-	}
-
-	// For nodes that are children of a pushtag
-	let parent = node.parent;
-	while (parent) {
-		if (parent.type === 'pushtag') {
-			const tagNode = parent.child(1);
-			if (tagNode && tagNode.type === 'tag') {
-				return tagNode.text.substring(1); // Remove the # prefix
-			}
-		}
-		parent = parent.parent;
+		current = current.parent;
 	}
 
 	return null;
@@ -281,39 +198,17 @@ export async function getPopTagAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const tree = await trees.getParseTree(document);
-	if (!tree) {
-		logger.warn(`Failed to get parse tree for document: ${document.uri}`);
-		return null;
-	}
+	const node = await getNodeAtPosition(trees, document, position);
+	if (!node) return null;
 
-	// Get the node at the current position
-	const offset = document.offsetAt(position);
-	const node = tree.rootNode.descendantForIndex(offset);
-
-	if (!node) {
-		return null;
-	}
-
-	// Check if we're in a poptag directive
-	if (node.type === 'poptag') {
-		// Find the tag node within the poptag
-		const tagNode = node.child(1);
-		if (tagNode && tagNode.type === 'tag') {
-			return tagNode.text.substring(1); // Remove the # prefix
+	// Look on self or ancestors for a poptag and extract its tag child
+	let current: import('web-tree-sitter').SyntaxNode | null = node;
+	while (current) {
+		if (current.type === 'poptag') {
+			const tagNode = current.child(1);
+			if (tagNode && tagNode.type === 'tag') return stripPrefix(tagNode.text, '#');
 		}
-	}
-
-	// For nodes that are children of a poptag
-	let parent = node.parent;
-	while (parent) {
-		if (parent.type === 'poptag') {
-			const tagNode = parent.child(1);
-			if (tagNode && tagNode.type === 'tag') {
-				return tagNode.text.substring(1); // Remove the # prefix
-			}
-		}
-		parent = parent.parent;
+		current = current.parent;
 	}
 
 	return null;
@@ -327,34 +222,11 @@ export async function getLinkAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const tree = await trees.getParseTree(document);
-	if (!tree) {
-		logger.warn(`Failed to get parse tree for document: ${document.uri}`);
-		return null;
-	}
+	const node = await getNodeAtPosition(trees, document, position);
+	if (!node) return null;
 
-	// Get the node at the current position
-	const offset = document.offsetAt(position);
-	const node = tree.rootNode.descendantForIndex(offset);
-
-	if (!node) {
-		return null;
-	}
-
-	// Check if we're in a link node
-	if (node.type === 'link') {
-		return node.text.substring(1); // Remove the ^ prefix
-	}
-
-	// For parent nodes that might contain a link
-	if (node.parent && node.parent.type === 'link') {
-		return node.parent.text.substring(1); // Remove the ^ prefix
-	}
-
-	// Check for text that looks like a link (starts with ^)
-	if (node.text.startsWith('^')) {
-		return node.text.substring(1);
-	}
-
+	const linkNode = getNodeOrParentOfType(node, 'link');
+	if (linkNode) return stripPrefix(linkNode.text, '^');
+	if (node.text.startsWith('^')) return stripPrefix(node.text, '^');
 	return null;
 }

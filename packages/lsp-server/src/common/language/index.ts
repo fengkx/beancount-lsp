@@ -1,6 +1,6 @@
 import { getParser } from '@bean-lsp/shared';
-import type * as Parser from 'web-tree-sitter';
 import { LRUCache } from 'mnemonist';
+import type * as Parser from 'web-tree-sitter';
 
 import account from './queries/account.scm';
 import balance from './queries/balance.scm';
@@ -80,7 +80,7 @@ const map = new Map<BeanTokenName, TreeQuery>();
 function createCapturesKey(
 	nodeId: number,
 	startPosition?: Parser.Point,
-	endPosition?: Parser.Point
+	endPosition?: Parser.Point,
 ): string {
 	const start = startPosition ? `${startPosition.row}:${startPosition.column}` : 'none';
 	const end = endPosition ? `${endPosition.row}:${endPosition.column}` : 'none';
