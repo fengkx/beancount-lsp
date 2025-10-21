@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.138
+
+- chore: bump lsp-client version to 0.0.138 ([7eca414](https://github.com/fengkx/beancount-lsp/commit/7eca414))
+- update submodule ([ef9da7f](https://github.com/fengkx/beancount-lsp/commit/ef9da7f))
+- feat: backport upstream tree sitter (#142) ([01d3181](https://github.com/fengkx/beancount-lsp/commit/01d3181))
+
 ## v0.0.136
 
 - chore(deps): bump eslint-plugin-unused-imports from 4.2.0 to 4.3.0 (#141) ([3993446](https://github.com/fengkx/beancount-lsp/commit/3993446))
