@@ -4,6 +4,7 @@ import { BQL_COLUMNS, BQL_FUNCTIONS } from './constraint/bean-query-doc';
 export const CustomMessages = {
 	FileRead: 'beanLspCustom/fileRead' as const,
 	ListBeanFile: 'beanLsPCustom/listBeanFile' as const,
+	FindFiles: 'beanLsPCustom/findFiles' as const,
 	QueueInit: 'beanLspCustom/queueInit' as const,
 	GetAccounts: 'beanLspCustom/getAccounts' as const,
 	GetPayees: 'beanLspCustom/getPayees' as const,

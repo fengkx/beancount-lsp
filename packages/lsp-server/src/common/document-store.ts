@@ -137,6 +137,20 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 		return new ArrayBuffer(0);
 	}
 
+	async findFiles(pattern: string): Promise<string[]> {
+		// Check if client supports FindFiles capability
+		// @ts-expect-error customMessage is not part of the protocol
+		if (!this._initializeParams?.capabilities?.customMessage?.[CustomMessages.FindFiles]) {
+			return this.fallbackFindFiles(pattern);
+		}
+		return this._connection.sendRequest<string[]>(CustomMessages.FindFiles, pattern);
+	}
+
+	protected async fallbackFindFiles(_pattern: string): Promise<string[]> {
+		this.logger.warn('Client does not support FindFiles capability');
+		return [];
+	}
+
 	removeFile(uri: string): boolean {
 		return this._documentsCache.delete(uri);
 	}

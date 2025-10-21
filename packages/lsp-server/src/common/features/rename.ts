@@ -6,6 +6,7 @@ import { DefinitionFeature } from './definitions';
 import * as positionUtils from './position-utils';
 import { ReferencesFeature } from './references';
 import { SymbolIndex } from './symbol-index';
+import { URI, Utils as UriUtils } from 'vscode-uri';
 
 // Create a logger for the rename module
 const logger = new Logger('rename');
@@ -194,17 +195,49 @@ export class RenameFeature {
 		});
 
 		// Convert the map to the LSP-required format
-		const changes: { [uri: string]: lsp.TextEdit[] } = {};
+		let documentChanges: (lsp.TextDocumentEdit | lsp.CreateFile | lsp.RenameFile | lsp.DeleteFile)[] = []
 		editsMap.forEach((edits, uri) => {
-			changes[uri] = edits;
+			documentChanges.push({
+				textDocument: { uri: uri, version: null },
+				edits: edits,
+			})
 		});
 
+		// If current position is account, rename also documents
+		const accountAtPosition = await positionUtils.getAccountAtPosition(this.trees, document, params.position);
+		if (accountAtPosition) {
+			// TODO: "documents" option is a list, can be specified multiple times
+			const documentsOption = this.symbolIndex.getOption("documents")
+			const mainBeanFile = await this.documents.getMainBeanFileUri()
+
+			if (mainBeanFile && documentsOption.source === mainBeanFile) {
+				let documentsDirectory = URI.file(documentsOption.asString())
+				// TODO: What about Windows?
+				if (!documentsOption.asString().startsWith("/")) {
+					// Relative paths are against mainBeanFile
+					documentsDirectory = UriUtils.joinPath(UriUtils.dirname(URI.parse(mainBeanFile)), documentsOption.asString())
+				}
+				const accountDocumentsDirectory = UriUtils.joinPath(documentsDirectory, ...accountAtPosition.split(":"))
+				logger.debug(`Searching documents for account ${accountAtPosition} in ${accountDocumentsDirectory}`);
+				const documents = await this.documents.findFiles(accountDocumentsDirectory.fsPath + "/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]?*")
+				documents.forEach(oldUri => {
+					const documentName = UriUtils.basename(URI.parse(oldUri))
+					const newUri = UriUtils.joinPath(documentsDirectory, ...params.newName.split(":"), documentName)
+					documentChanges.push({
+						kind: "rename",
+						oldUri: oldUri,
+						newUri: newUri.toString(),
+						options: { overwrite: false },
+					})
+				})
+			}
+		}
+
 		logger.debug(
-			`Rename will update ${
-				Object.keys(changes).length
+			`Rename will update ${documentChanges.length
 			} files and ${allLocations.length} occurrences (${references.length} references, ${definitions.length} definitions)`,
 		);
 
-		return { changes };
+		return { documentChanges };
 	}
 }
