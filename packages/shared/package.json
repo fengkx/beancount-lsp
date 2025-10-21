@@ -36,7 +36,7 @@
 	"dependencies": {
 		"proper-tags": "^2.0.2",
 		"tree-sitter-beancount": "workspace:@fengkx/tree-sitter-beancount@*",
-		"web-tree-sitter": "^0.20.8"
+		"web-tree-sitter": "^0.25.10"
 	},
 	"keywords": [],
 	"author": "",

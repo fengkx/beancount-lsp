@@ -63,6 +63,8 @@ const browserConfig = defineConfig({
 		nodeModulesPolyfillPlugin({
 			modules: {
 				fs: 'empty',
+				'fs/promises': 'empty',
+				'module': 'empty',
 				path: 'empty',
 				events: true,
 				util: true,

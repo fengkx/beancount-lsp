@@ -1,5 +1,5 @@
 import BeancountLang from 'tree-sitter-beancount/tree-sitter-beancount.wasm';
-import Parser from 'web-tree-sitter';
+import { Language, Parser } from 'web-tree-sitter';
 import TreeSitterWasm from 'web-tree-sitter/tree-sitter.wasm';
 
 let parser: Parser | undefined;
@@ -26,7 +26,7 @@ export const getParser = async (): Promise<Parser> => {
 	const _parser = new Parser();
 
 	// Load the beancount language (this uses tree-sitter-beancount.wasm which is separate)
-	const Beancount = await Parser.Language.load(BeancountLang);
+	const Beancount = await Language.load(BeancountLang);
 	_parser.setLanguage(Beancount);
 
 	parser = _parser;
