@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.136
+
+- chore(deps): bump eslint-plugin-unused-imports from 4.2.0 to 4.3.0 (#141) ([3993446](https://github.com/fengkx/beancount-lsp/commit/3993446))
+- chore: bump lsp-client version to 0.0.136 ([627ff4c](https://github.com/fengkx/beancount-lsp/commit/627ff4c))
+- feat: implement dynamic timeout adjustment for symbol indexing ([41f1c65](https://github.com/fengkx/beancount-lsp/commit/41f1c65))
+- feat: enhance document parsing and completion context detection ([208e250](https://github.com/fengkx/beancount-lsp/commit/208e250))
+- chore: update dependencies and package versions ([9cf3e56](https://github.com/fengkx/beancount-lsp/commit/9cf3e56))
+
 ## v0.0.134
 
 - chore: bump lsp-client version to 0.0.134 ([52abb99](https://github.com/fengkx/beancount-lsp/commit/52abb99))
