@@ -85,7 +85,7 @@ export class Trees {
 			console.error(
 				`[trees] Error parsing document: ${documentOrUri.uri} ${errorObj} ${errorObj.stack || ''}`,
 			);
-			console.error(`[trees] Error parsing text: ${documentOrUri.getText()}`);
+			console.debug(`[trees] Error parsing text: ${documentOrUri.getText()}`);
 			this._cache.delete(documentOrUri.uri);
 			return undefined;
 		}
