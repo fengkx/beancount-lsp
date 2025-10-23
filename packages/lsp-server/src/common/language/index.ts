@@ -93,6 +93,7 @@ function createCapturesKey(
 export class TreeQuery {
 	query: string | undefined;
 	private readonly _capturesCache = new LRUCache<string, Parser.QueryCapture[]>(50);
+	private readonly _matchesCache = new LRUCache<string, Parser.QueryMatch[]>(50);
 
 	constructor(public name: BeanTokenName) {
 		const r = map.get(name);
@@ -113,9 +114,23 @@ export class TreeQuery {
 		startPosition?: Parser.Point,
 		endPosition?: Parser.Point,
 	): Promise<Parser.QueryMatch[]> {
+		// Create cache key using node ID
+		const cacheKey = createCapturesKey(rootNode.id, startPosition, endPosition);
+
+		// Check cache first
+		const cached = this._matchesCache.get(cacheKey);
+		if (cached) {
+			return cached;
+		}
+
 		// Use the module-level WASM path
 		const parser = await getParser();
-		return parser.getLanguage().query(this.query!).matches(rootNode, startPosition, endPosition);
+		const result = parser.getLanguage().query(this.query!).matches(rootNode, startPosition, endPosition);
+
+		// Cache the result
+		this._matchesCache.set(cacheKey, result);
+
+		return result
 	}
 
 	async captures(
