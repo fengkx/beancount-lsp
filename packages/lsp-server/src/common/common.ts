@@ -75,6 +75,14 @@ export function rangeToCompact(range: lsp.Range): [number, number, number, numbe
 }
 
 /**
+ * Converts a Tree-sitter node range to a compact array representation [startLine, startChar, endLine, endChar]
+ * This saves memory when storing many ranges in a database
+ */
+export function nodeToCompact(node: Parser.SyntaxNode): [number, number, number, number] {
+	return [node.startPosition.row, node.startPosition.column, node.endPosition.row, node.endPosition.column];
+}
+
+/**
  * Converts a compact range representation back to an LSP Range object
  */
 export function compactToRange(compact: [number, number, number, number]): lsp.Range {

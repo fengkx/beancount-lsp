@@ -1,7 +1,7 @@
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import type { SyntaxNode } from 'web-tree-sitter';
-import { asLspRange, compactToRange, rangeToCompact } from '../common';
+import { asLspRange, compactToRange, nodeToCompact, rangeToCompact } from '../common';
 import { TreeQuery } from '../language';
 import { Trees } from '../trees';
 
@@ -92,6 +92,110 @@ function findDateFromNode(
 	}
 
 	return undefined;
+}
+
+function stripFirstChar(s: string): string {
+	return s.substring(1)
+}
+
+export async function getSymbols(textDocument: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
+	const tree = await trees.getParseTree(textDocument);
+	if (!tree) {
+		throw new Error(`Failed to get parse tree for document: ${textDocument.uri}`);
+	}
+	const query = TreeQuery.getQueryByTokenName('symbols');
+	const matches = await query.matches(tree.rootNode);
+	const result: SymbolInfo[] = [];
+	for (const match of matches) {
+		let nameFromCapture: string | undefined
+		let nameMod: ((name: string) => string) | undefined
+		let date: string | undefined
+		let symbolInfos: SymbolInfo[] = []
+		for (const capture of match.captures) {
+			let type: typeof SymbolType[keyof typeof SymbolType]
+			let name: string | undefined
+			let kind: lsp.SymbolKind
+			switch (capture.name) {
+				case "currency":
+					type = SymbolType.COMMODITY
+					kind = lsp.SymbolKind.Constant
+					break
+				case "account_usage":
+					type = SymbolType.ACCOUNT_USAGE
+					kind = lsp.SymbolKind.Struct
+					break
+				case "date":
+					date = capture.node.text
+					continue;
+				case "narration":
+					type = SymbolType.NARRATION
+					name = capture.node.text.slice(1, -1)
+					kind = lsp.SymbolKind.String
+					break
+				case "payee":
+					type = SymbolType.PAYEE
+					name = capture.node.text.slice(1, -1)
+					kind = lsp.SymbolKind.String
+					break
+				case "tag":
+					type = SymbolType.TAG
+					name = capture.node.text.substring(1)
+					kind = lsp.SymbolKind.Key
+					break
+				case "link":
+					type = SymbolType.LINK
+					name = capture.node.text.substring(1)
+					kind = lsp.SymbolKind.Key
+					break
+				case "price":
+					type = SymbolType.PRICE
+					kind = lsp.SymbolKind.Constant
+					break
+				case "account_definition":
+					type = SymbolType.ACCOUNT_DEFINITION
+					kind = lsp.SymbolKind.Struct
+					break
+				case "close":
+					type = SymbolType.ACCOUNT_CLOSE
+					kind = lsp.SymbolKind.Struct
+					break
+				case "currency_definition":
+					type = SymbolType.CURRENCY_DEFINITION
+					kind = lsp.SymbolKind.Constant
+					break
+				case "pushtag":
+					type = SymbolType.PUSHTAG
+					nameMod = stripFirstChar
+					kind = lsp.SymbolKind.Event
+					break
+				case "poptag":
+					type = SymbolType.POPTAG
+					nameMod = stripFirstChar
+					kind = lsp.SymbolKind.Event
+					break
+				case "name":
+					nameFromCapture = capture.node.text
+					continue;
+				default:
+					continue;
+			}
+			symbolInfos.push({
+				[SymbolKey.TYPE]: type,
+				_uri: textDocument.uri,
+				name: name ?? capture.node.text,
+				range: nodeToCompact(capture.node),
+				kind: kind,
+			})
+		}
+		for (const symbolInfo of symbolInfos) {
+			symbolInfo.date = date
+			if (nameFromCapture) {
+				symbolInfo.name = nameMod ? nameMod(nameFromCapture) : nameFromCapture
+			}
+			result.push(symbolInfo)
+		}
+	}
+	return result
 }
 
 export async function getAccountsUsage(textDocument: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
