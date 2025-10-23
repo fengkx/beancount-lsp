@@ -1,4 +1,3 @@
-import mm from 'micromatch';
 import { CancellationTokenSource } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { isInteresting, parallel, StopWatch } from '../common';
@@ -24,7 +23,6 @@ import {
 } from './symbol-extractors';
 
 import { Logger } from '@bean-lsp/shared';
-import { URI, Utils as UriUtils } from 'vscode-uri';
 import { TreeQuery } from '../language';
 import { BeancountOptionsManager, SupportedOption } from '../utils/beancount-options';
 import { globalEventBus, GlobalEvents } from '../utils/event-bus';
@@ -253,33 +251,6 @@ export class SymbolIndex {
 			this._symbolInfoStorage.insertAsync(pricesDeclarations),
 			this._symbolInfoStorage.insertAsync(links),
 		]);
-
-		await yieldToMain();
-		const tree = await this._trees.getParseTree(document);
-		if (tree) {
-			const captures = await TreeQuery.captures('(include (string) @path)', tree.rootNode);
-			const includePatterns = captures.map((c: { node: { text: string } }) => {
-				const text = c.node.text;
-				const stripedQuotationMark = text.replace(/^"/, '').replace(/"$/, '');
-				const u = UriUtils.joinPath(UriUtils.dirname(URI.parse(document.uri)), stripedQuotationMark);
-				return u.path;
-			});
-			let hasNew = false;
-			const beanFiles = this._documents.beanFiles;
-			this.logger.debug(`[index] Found ${beanFiles.length} bean files`);
-			includePatterns.forEach((pattern: string) => {
-				const list = beanFiles;
-				const matched = mm.match(list, pattern, { contains: true });
-				matched.map((p: string) => p).forEach((uri: string) => {
-					hasNew = true;
-					this.addAsyncFile(uri);
-				});
-			});
-			if (hasNew) {
-				await yieldToMain();
-				this.unleashFiles([]);
-			}
-		}
 
 		// Add currency definitions
 		const currencyDefinitions = await getCurrencyDefinitions(document, this._trees);
