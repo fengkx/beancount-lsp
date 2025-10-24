@@ -22,6 +22,7 @@ import {
 	CompletionParams,
 	Connection,
 	Position,
+	Range,
 	TextEdit,
 } from 'vscode-languageserver';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
@@ -56,6 +57,7 @@ type TriggerInfo = {
 	previousSiblingType: string | undefined;
 	previousPreviousSiblingType: string | undefined;
 	currentLine: string;
+	characterAfterCursor?: string;
 };
 
 // -----------------------------
@@ -251,6 +253,8 @@ type ExtractedUserInput = {
 	userInput: string;
 	/** The full current line text up to the cursor position */
 	currentLine: string;
+	/** Character after cursor position or empty string */
+	characterAfterCursor: string;
 };
 
 /**
@@ -271,6 +275,11 @@ function extractUserInput(
 		start: { line: position.line, character: 0 },
 		end: position,
 	});
+	// Get the character after cursor
+	const characterAfterCursor = document.getText({
+		start: position,
+		end: { line: position.line, character: position.character + 1 }
+	})
 
 	let userInput = '';
 
@@ -320,6 +329,7 @@ function extractUserInput(
 	return {
 		userInput,
 		currentLine,
+		characterAfterCursor,
 	};
 }
 
@@ -526,9 +536,10 @@ interface AddPayeesAndNarrationsParams {
 	completionCount: number;
 	/** Optional user input for better scoring and sorting */
 	filterText?: string | undefined;
-
 	/** Whether to add a space after the text edit */
 	addSpaceAfter: boolean;
+	/** Optional character after cursor position */
+	characterAfterCursor?: string;
 }
 
 /**
@@ -556,6 +567,7 @@ async function addPayeesAndNarrations(
 		completionCount,
 		filterText,
 		addSpaceAfter,
+		characterAfterCursor,
 	} = params;
 
 	// Fetch payees and narrations in parallel
@@ -568,6 +580,15 @@ async function addPayeesAndNarrations(
 	const quote = quotationStyle === 'both' ? '"' : quotationStyle === 'end' ? '"' : '';
 	const startQuote = quotationStyle === 'both' ? '"' : '';
 
+	function textEdit(text: string): string | TextEdit {
+		const newText = `${startQuote}${text}${quote}${addSpaceAfter ? ' ' : ''}`
+		return characterAfterCursor === '"' && quote === '"'
+			? TextEdit.replace(
+				Range.create(position, { line: position.line, character: position.character + 1 }),
+				newText)
+			: newText
+	}
+
 	// Add payees if requested
 	if (shouldIncludePayees) {
 		payees.forEach((payee: string) => {
@@ -575,7 +596,7 @@ async function addPayeesAndNarrations(
 				{ label: payee, kind: CompletionItemKind.Text, detail: '(payee)' },
 				position,
 				// Add space after to allow quick editing between payee and narration
-				`${startQuote}${payee}${quote}${addSpaceAfter ? ' ' : ''}`,
+				textEdit(payee),
 				existingCompletions,
 				completions,
 				completionCount,
@@ -590,7 +611,7 @@ async function addPayeesAndNarrations(
 		const updatedCount = addCompletionItem(
 			{ label: narration, kind: CompletionItemKind.Text, detail: '(narration)' },
 			position,
-			`${startQuote}${narration}${quote}${addSpaceAfter ? ' ' : ''}`,
+			textEdit(narration),
 			existingCompletions,
 			completions,
 			params.completionCount,
@@ -1008,7 +1029,7 @@ export class CompletionFeature implements Feature {
 		}
 
 		// Extract user input for better sorting
-		const { userInput, currentLine } = extractUserInput(
+		const { userInput, currentLine, characterAfterCursor } = extractUserInput(
 			document,
 			params.position,
 			params.context?.triggerCharacter as string,
@@ -1026,6 +1047,7 @@ export class CompletionFeature implements Feature {
 				previousSiblingType: current.previousSibling?.type,
 				previousPreviousSiblingType: current.previousSibling?.previousSibling?.type,
 				currentLine,
+				characterAfterCursor,
 			},
 			params.position,
 			current,
@@ -1246,6 +1268,7 @@ export class CompletionFeature implements Feature {
 						completionCount: cnt,
 						filterText: userInput,
 						addSpaceAfter: true,
+						characterAfterCursor: info.characterAfterCursor,
 					});
 					logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 				},
@@ -1267,6 +1290,7 @@ export class CompletionFeature implements Feature {
 						completionCount: cnt,
 						filterText: userInput,
 						addSpaceAfter: false,
+						characterAfterCursor: info.characterAfterCursor,
 					});
 					logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
 				},
@@ -1285,6 +1309,7 @@ export class CompletionFeature implements Feature {
 					completionCount: cnt,
 					filterText: userInput,
 					addSpaceAfter: false,
+					characterAfterCursor: info.characterAfterCursor,
 				});
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
@@ -1307,6 +1332,7 @@ export class CompletionFeature implements Feature {
 					completionCount: cnt,
 					filterText: userInput,
 					addSpaceAfter: false,
+					characterAfterCursor: info.characterAfterCursor,
 				});
 				logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
 			})
@@ -1329,6 +1355,7 @@ export class CompletionFeature implements Feature {
 					completionCount: cnt,
 					filterText: userInput,
 					addSpaceAfter: true,
+					characterAfterCursor: info.characterAfterCursor,
 				});
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
@@ -1340,12 +1367,12 @@ export class CompletionFeature implements Feature {
 					symbolProvider: this.symbolIndex,
 					position: position,
 					shouldIncludePayees: true,
-					quotationStyle: 'both',
+					quotationStyle: 'none',
 					existingCompletions: set,
 					completions: completionItems,
 					completionCount: cnt,
 					filterText: userInput,
-					addSpaceAfter: true,
+					addSpaceAfter: false,
 				});
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
 			})
