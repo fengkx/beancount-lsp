@@ -96,8 +96,8 @@ export class ReferencesFeature {
 		const narrationAtPosition = await positionUtils.getNarrationAtPosition(this.trees, document, params.position);
 		if (narrationAtPosition && references.length === 0) {
 			logger.debug(`Found narration at position: ${narrationAtPosition}`);
-			// We don't have references function for narrations yet,
-			// but could be added in the future
+			// Find all references to this narration
+			references = await this.findNarrationReferences(narrationAtPosition)
 		}
 
 		// Try to find a link at the position
@@ -205,6 +205,30 @@ export class ReferencesFeature {
 		});
 
 		logger.debug(`Found ${references.length} references to payee: ${payeeName}`);
+		return references;
+	}
+
+	/**
+	 * Find all references to a specific payee
+	 */
+	private async findNarrationReferences(narrationName: string): Promise<lsp.Location[]> {
+		// Find all narration usage locations
+		const narrationUsages = await this.symbolIndex.findAsync({
+			[SymbolKey.TYPE]: SymbolType.NARRATION,
+			name: narrationName,
+		}) as SymbolInfo[];
+
+		const references: lsp.Location[] = [];
+
+		// Convert to LSP Locations
+		narrationUsages.forEach(ref => {
+			references.push({
+				uri: ref._uri,
+				range: getRange(ref),
+			});
+		});
+
+		logger.debug(`Found ${references.length} references to narration: ${narrationName}`);
 		return references;
 	}
 
