@@ -88,6 +88,16 @@ export class RenameFeature {
 			};
 		}
 
+		// Check for link at position
+		const linkAtPosition = await positionUtils.getLinkAtPosition(this.trees, document, params.position);
+		if (linkAtPosition) {
+			logger.debug(`Found renamable link at position: ${linkAtPosition}`);
+			return {
+				range,
+				placeholder: textAtRange, // Use exact text from document
+			};
+		}
+
 		// Check for payee at position
 		const payeeAtPosition = await positionUtils.getPayeeAtPosition(this.trees, document, params.position);
 		if (payeeAtPosition) {
