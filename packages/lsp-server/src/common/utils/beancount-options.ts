@@ -7,7 +7,7 @@ import { parseExpression } from './expression-parser';
 // Create a logger for the options manager
 const logger = new Logger('BeancountOptions');
 
-export type SupportedOption = 'infer_tolerance_from_cost' | 'inferred_tolerance_multiplier';
+export type SupportedOption = 'infer_tolerance_from_cost' | 'inferred_tolerance_multiplier' | 'documents';
 type OptionKeys = LiteralUnion<SupportedOption, string>;
 
 /**
