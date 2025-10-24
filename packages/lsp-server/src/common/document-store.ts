@@ -6,6 +6,7 @@ import {
 	Event,
 	InitializeParams,
 	Range,
+	TextDocumentChangeEvent,
 	TextDocumentContentChangeEvent,
 	TextDocuments,
 	WorkspaceFolder,
@@ -21,6 +22,15 @@ export interface TextDocumentChange2 {
 		rangeLength: number;
 		text: string;
 	}[];
+}
+
+export interface AdaptiveDebounceOptions {
+	/** Minimum delay in milliseconds. Default: 150 */
+	minDelayMs?: number;
+	/** Maximum delay in milliseconds. Default: 15 * 1000 */
+	maxDelayMs?: number;
+	/** Multiplier applied to last handler duration to compute next delay. Default: 2 */
+	multiplier?: number;
 }
 
 // @ts-expect-error intentionally override the get method to private
@@ -65,6 +75,72 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 			},
 		});
 		this.listen(_connection);
+	}
+
+	/**
+	 * Create an adaptive debounced listener from a source Event.
+	 * The debounce delay dynamically adapts to the last handler execution time.
+	 */
+	private _createAdaptiveDebouncedListener<T>(
+		source: Event<T>,
+		listener: (e: T) => void | Promise<void>,
+		options?: AdaptiveDebounceOptions,
+	) {
+		const minDelay = options?.minDelayMs ?? 150;
+		const maxDelay = options?.maxDelayMs ?? 15 * 1000;
+		const multiplier = options?.multiplier ?? 2;
+
+		let lastDurationMs = minDelay;
+		let timer: NodeJS.Timeout | undefined;
+		let latestEvent: T | undefined;
+		let disposed = false;
+
+		const schedule = () => {
+			if (timer) clearTimeout(timer);
+			const delay = Math.max(minDelay, Math.min(maxDelay, lastDurationMs));
+			timer = setTimeout(async () => {
+				timer = undefined;
+				if (disposed || latestEvent === undefined) return;
+				const started = Date.now();
+				try {
+					await Promise.resolve(listener(latestEvent));
+				} catch (err) {
+					this.logger.debug(`adaptive debounced listener error: ${String(err)}`);
+				} finally {
+					const duration = Date.now() - started;
+					lastDurationMs = Math.max(minDelay, Math.min(maxDelay, Math.floor(duration * multiplier)));
+				}
+			}, delay);
+		};
+
+		const subscription = source(e => {
+			latestEvent = e;
+			schedule();
+		});
+
+		return {
+			dispose: () => {
+				disposed = true;
+				if (timer) clearTimeout(timer);
+				// subscription is a Disposable-like with dispose()
+				(subscription as unknown as { dispose: () => void }).dispose();
+			},
+		};
+	}
+
+	/**
+	 * Debounced content change listener using the base TextDocuments onDidChangeContent.
+	 * The debounce delay is adapted from the handler execution time.
+	 */
+	onDidChangeContentDebounced(
+		listener: (e: TextDocumentChangeEvent<TextDocument>) => void | Promise<void>,
+		options?: AdaptiveDebounceOptions,
+	) {
+		return this._createAdaptiveDebouncedListener(
+			this.onDidChangeContent as unknown as Event<TextDocumentChangeEvent<TextDocument>>,
+			listener,
+			options,
+		);
 	}
 
 	public setInitializeParams(initializeParams: InitializeParams) {

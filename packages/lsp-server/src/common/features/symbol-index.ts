@@ -5,18 +5,7 @@ import { DocumentStore } from '../document-store';
 import { StorageInstance } from '../startServer';
 import { Trees } from '../trees';
 import {
-	getAccountsClose,
-	getAccountsDefinition,
-	getAccountsUsage,
-	getCommodities,
-	getCurrencyDefinitions,
-	getLinks,
-	getNarrations,
-	getPayees,
-	getPopTags,
-	getPricesDeclarations,
-	getPushTags,
-	getTags,
+	getSymbols,
 	SymbolInfo,
 	SymbolKey,
 	SymbolType,
@@ -195,68 +184,12 @@ export class SymbolIndex {
 		// Process options directives in this document
 		await this._processOptionsDirectives(document);
 
-		const [
-			accountUsages,
-			accountDefinitions,
-			accountCloseDertives,
-			payees,
-			narrations,
-			commodities,
-			tags,
-			pushTags,
-			popTags,
-			pricesDeclarations,
-			links,
-		] = await Promise.all(
-			[
-				getAccountsUsage(document, this._trees),
-				getAccountsDefinition(document, this._trees),
-				getAccountsClose(document, this._trees),
-				getPayees(document, this._trees),
-				getNarrations(document, this._trees),
-				getCommodities(document, this._trees),
-				getTags(document, this._trees),
-				getPushTags(document, this._trees),
-				getPopTags(document, this._trees),
-				getPricesDeclarations(document, this._trees),
-				getLinks(document, this._trees),
-			],
-		);
+		const symbols = await getSymbols(document, this._trees)
 
-		this.logger.debug(`We Found symbols in ${document.uri}:
-			- Account usages: ${accountUsages.length}
-			- Account definitions: ${accountDefinitions.length}
-			- Account closures: ${accountCloseDertives.length}
-			- Payees: ${payees.length}
-			- Narrations: ${narrations.length}
-			- Commodities: ${commodities.length}
-			- Tags: ${tags.length}
-			- Push tags: ${pushTags.length}
-			- Pop tags: ${popTags.length}
-			- Prices declarations: ${pricesDeclarations.length}
-			- Links: ${links.length}
-		`);
+		this.logger.debug(`We Found ${symbols.length} symbols in ${document.uri}`);
 
 		this._symbolInfoStorage.removeSync({ _uri: document.uri });
-		await Promise.all([
-			this._symbolInfoStorage.insertAsync(accountUsages),
-			this._symbolInfoStorage.insertAsync(accountDefinitions),
-			this._symbolInfoStorage.insertAsync(accountCloseDertives),
-			this._symbolInfoStorage.insertAsync(payees),
-			this._symbolInfoStorage.insertAsync(narrations),
-			this._symbolInfoStorage.insertAsync(commodities),
-			this._symbolInfoStorage.insertAsync(tags),
-			this._symbolInfoStorage.insertAsync(pushTags),
-			this._symbolInfoStorage.insertAsync(popTags),
-			this._symbolInfoStorage.insertAsync(pricesDeclarations),
-			this._symbolInfoStorage.insertAsync(links),
-		]);
-
-		// Add currency definitions
-		const currencyDefinitions = await getCurrencyDefinitions(document, this._trees);
-		if (currencyDefinitions.length > 0) {
-			await this._symbolInfoStorage.insertAsync(currencyDefinitions);
-		}
+		await this._symbolInfoStorage.insertAsync(symbols)
 	}
 
 	/**
