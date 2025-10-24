@@ -191,6 +191,11 @@
 					"type": "boolean",
 					"default": false,
 					"description": "Enable or disable the hover window including balances of subaccounts. By default, only show the balance of the hovered account."
+				},
+				"beanLsp.completion.enableChinesePinyinFilter": {
+					"type": "boolean",
+					"default": false,
+					"description": "Chinese pinyin fuzzy filter in completions. When enabled, you can use pinyin first letters to filter Chinese characters (e.g., 'zs' to match '招商')."
 				}
 			}
 		},

@@ -57,6 +57,7 @@ The extension provides several configuration options to customize its behavior:
 - `beanLsp.formatter.enabled`: Enable or disable automatic formatting of Beancount files. The formatter aligns accounts, amounts (with decimal point alignment), currencies, and comments for improved readability. Default is true.
 - `beanLsp.hover.includeSubaccountBalance`: Enable or disable the hover window including balances of subaccounts. By default, only show the balance of the hovered account. Default is false.
 - `beanLsp.formatter.alignCurrency`: When true, the formatter aligns lines by currency column. When false, the formatter aligns lines by decimal point.
+- `beanLsp.completion.enableChinesePinyinFilter`: Enable or disable Chinese pinyin fuzzy filter in completions. When enabled, you can use pinyin first letters to filter Chinese characters (e.g., 'zs' to match '招商'). This feature is helpful for Chinese users but may slightly impact completion performance. Default is false.
 
 ### Example Configuration
 
@@ -72,6 +73,7 @@ The extension provides several configuration options to customize its behavior:
 	"beanLsp.formatter.enabled": true,
 	"beanLsp.formatter.alignCurrency": false,
 	"beanLsp.hover.includeSubaccountBalance": false,
+	"beanLsp.completion.enableChinesePinyinFilter": false,
 	"editor.semanticTokenColorCustomizations": {
 		"enabled": true,
 		"rules": {

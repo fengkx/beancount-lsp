@@ -353,13 +353,19 @@ function extractUserInput(
  * - First letters only: "zsyha"
  *
  * @param text The text to create filter strings for
+ * @param enablePinyin Whether to enable Chinese pinyin fuzzy filter
  * @returns Space-separated filter strings for the text
  */
-function createFilterString(text: string): string {
+function createFilterString(text: string, enablePinyin: boolean = true): string {
 	if (!text) return '';
 
 	// Original text in lowercase
 	const originalText = text.toLowerCase();
+
+	// If pinyin is disabled, only return the original text
+	if (!enablePinyin) {
+		return originalText;
+	}
 
 	// Full pinyin conversion with spaces between each character's pinyin
 	const fullPinyin = pinyin(text, { toneType: 'none', type: 'array' })
@@ -434,27 +440,17 @@ function createFilterString(text: string): string {
 /**
  * Adds a completion item to the list with proper filtering and sorting
  *
- * @param item The completion item to add (label, kind, detail)
- * @param position The position where the completion was triggered
- * @param textEdit The text to insert when the item is selected
- * @param set A set to track already added items and avoid duplicates
- * @param items The array of completion items to add to
- * @param cnt A counter for sorting items when no userInput is provided
- * @param userInput Optional user input text for better scoring and sorting
+ * @param params Parameters for adding the completion item
  * @returns Updated counter value
  */
 function addCompletionItem(
+	collector: CompletionCollector,
 	item: { label: string; kind?: CompletionItemKind; detail?: string },
-	position: Position,
 	textEdit: string | TextEdit,
-	set: Set<string>,
-	items: CompletionItem[],
-	cnt: number,
-	userInput?: string,
 	usageCount?: number,
-) {
-	if (set.has(item.label)) {
-		return cnt;
+): void {
+	if (collector.existingCompletions.has(item.label)) {
+		return;
 	}
 
 	let filterText: string | undefined = undefined;
@@ -473,12 +469,12 @@ function addCompletionItem(
 			});
 		}
 	} else {
-		filterText = createFilterString(item.label);
+		filterText = createFilterString(item.label, collector.enablePinyin);
 	}
 
 	// Calculate score for sorting if userInput is provided
 	let score = 0;
-	if (userInput) {
+	if (collector.userInput) {
 		// score = scoreMatch(item.label, filterText, userInput);
 
 		// Boost score based on usage count if provided
@@ -494,39 +490,49 @@ function addCompletionItem(
 		...item,
 		kind: item.kind || CompletionItemKind.Text,
 		filterText,
-		textEdit: typeof textEdit === 'string' ? TextEdit.insert(position, textEdit) : textEdit,
+		textEdit: typeof textEdit === 'string' ? TextEdit.insert(collector.position, textEdit) : textEdit,
 		// Add data for debugging if needed
-		data: userInput ? { score, usageCount } : undefined,
+		data: collector.userInput ? { score, usageCount } : undefined,
 	};
 	if (score > 0) {
 		completionItem.sortText = String(1000000 - Math.round(score)).padStart(7, '0');
 	}
-	items.push(completionItem);
-	set.add(item.label);
-	return cnt + 1;
+	collector.completions.push(completionItem);
+	collector.existingCompletions.add(item.label);
+}
+
+// no wrapper: callers should directly pass context fields to addCompletionItem
+
+/**
+ * Common context for completion functions
+ */
+interface CompletionCollector {
+	/** The symbol index to retrieve data from */
+	symbolIndex: SymbolIndex;
+	/** The position where the completion was triggered */
+	position: Position;
+	/** A set to track already added items */
+	existingCompletions: Set<string>;
+	/** The array of completion items to add to */
+	completions: CompletionItem[];
+	/** Optional user input for better scoring and sorting */
+	userInput?: string;
+	/** Optional current line text for context */
+	currentLine?: string;
+	/** Optional document for additional context */
+	document?: TextDocument;
+	/** Whether to enable Chinese pinyin fuzzy filter */
+	enablePinyin: boolean;
 }
 
 /**
  * Parameters for the addPayeesAndNarrations function
  */
 interface AddPayeesAndNarrationsParams {
-	/** The symbol index to retrieve payees/narrations from */
-	symbolProvider: SymbolIndex;
-	/** The position where the completion was triggered */
-	position: Position;
 	/** Whether to include payees or just narrations */
 	shouldIncludePayees: boolean;
 	/** The quote style to use ('none', 'end', 'both') */
 	quotationStyle: 'none' | 'end' | 'both';
-	/** A set to track already added items */
-	existingCompletions: Set<string>;
-	/** The array of completion items to add to */
-	completions: CompletionItem[];
-	/** A counter for sorting when no userInput is provided */
-	completionCount: number;
-	/** Optional user input for better scoring and sorting */
-	filterText?: string | undefined;
-
 	/** Whether to add a space after the text edit */
 	addSpaceAfter: boolean;
 }
@@ -544,24 +550,19 @@ interface AddPayeesAndNarrationsParams {
  * @returns Updated counter value
  */
 async function addPayeesAndNarrations(
+	collector: CompletionCollector,
 	params: AddPayeesAndNarrationsParams,
-): Promise<number> {
+): Promise<void> {
 	const {
-		symbolProvider,
-		position,
 		shouldIncludePayees,
 		quotationStyle,
-		existingCompletions,
-		completions,
-		completionCount,
-		filterText,
 		addSpaceAfter,
 	} = params;
 
 	// Fetch payees and narrations in parallel
 	const [payees, narrations] = await Promise.all([
-		shouldIncludePayees ? symbolProvider.getPayees(true, { waitTime: 100 }) : Promise.resolve([]),
-		symbolProvider.getNarrations(true, { waitTime: 100 }),
+		shouldIncludePayees ? collector.symbolIndex.getPayees(true, { waitTime: 100 }) : Promise.resolve([]),
+		collector.symbolIndex.getNarrations(true, { waitTime: 100 }),
 	]);
 
 	// Precompute quote strings based on the chosen style
@@ -571,35 +572,22 @@ async function addPayeesAndNarrations(
 	// Add payees if requested
 	if (shouldIncludePayees) {
 		payees.forEach((payee: string) => {
-			const updatedCount = addCompletionItem(
+			addCompletionItem(
+				collector,
 				{ label: payee, kind: CompletionItemKind.Text, detail: '(payee)' },
-				position,
-				// Add space after to allow quick editing between payee and narration
 				`${startQuote}${payee}${quote}${addSpaceAfter ? ' ' : ''}`,
-				existingCompletions,
-				completions,
-				completionCount,
-				filterText,
 			);
-			params.completionCount = updatedCount;
 		});
 	}
 
 	// Add narrations
 	narrations.forEach((narration: string) => {
-		const updatedCount = addCompletionItem(
+		addCompletionItem(
+			collector,
 			{ label: narration, kind: CompletionItemKind.Text, detail: '(narration)' },
-			position,
 			`${startQuote}${narration}${quote}${addSpaceAfter ? ' ' : ''}`,
-			existingCompletions,
-			completions,
-			params.completionCount,
-			filterText,
 		);
-		params.completionCount = updatedCount;
 	});
-
-	return params.completionCount;
 }
 
 /**
@@ -608,42 +596,22 @@ async function addPayeesAndNarrations(
  * This function retrieves tags from the symbol index and adds them
  * as completion items.
  *
- * @param symbolIndex The symbol index to retrieve tags from
- * @param position The position where the completion was triggered
- * @param set A set to track already added items
- * @param items The array of completion items to add to
- * @param cnt A counter for sorting when no userInput is provided
- * @param userInput Optional user input for better scoring and sorting
- * @param currentLine Optional current line text for context
- * @returns Updated counter value
+ * @param collector Completion context
  */
-async function addTagCompletions(
-	symbolIndex: SymbolIndex,
-	position: Position,
-	set: Set<string>,
-	items: CompletionItem[],
-	cnt: number,
-	userInput?: string,
-	currentLine?: string,
-): Promise<number> {
+async function addTagCompletions(collector: CompletionCollector): Promise<void> {
 	// Fetch tags from the index
-	const tags = await symbolIndex.getTags();
+	const tags = await collector.symbolIndex.getTags();
 
-	const shouldAddPrefix = currentLine && !currentLine.endsWith('#');
+	const shouldAddPrefix = collector.currentLine && !collector.currentLine.endsWith('#');
+
 	// Add each tag as a completion item
 	tags.forEach((tag: string) => {
-		cnt = addCompletionItem(
+		addCompletionItem(
+			collector,
 			{ label: tag, kind: CompletionItemKind.Property, detail: '(tag)' },
-			position,
 			shouldAddPrefix ? `#${tag}` : tag,
-			set,
-			items,
-			cnt,
-			userInput,
 		);
 	});
-
-	return cnt;
 }
 
 /**
@@ -652,24 +620,12 @@ async function addTagCompletions(
  * This function retrieves currencies/commodities from the symbol index
  * and adds them as completion items.
  *
- * @param symbolIndex The symbol index to retrieve currencies from
- * @param position The position where the completion was triggered
- * @param set A set to track already added items
- * @param items The array of completion items to add to
- * @param cnt A counter for sorting when no userInput is provided
- * @param userInput Optional user input for better scoring and sorting
- * @returns Updated counter value
+ * @param collector Completion context
  */
-async function addCurrencyCompletions(
-	symbolIndex: SymbolIndex,
-	position: Position,
-	set: Set<string>,
-	items: CompletionItem[],
-	cnt: number,
-	userInput = '',
-): Promise<number> {
+async function addCurrencyCompletions(collector: CompletionCollector): Promise<void> {
+	const userInput = collector.userInput ?? '';
 	// Fetch currencies/commodities from the index
-	const currencies = await symbolIndex.getCommodities();
+	const currencies = await collector.symbolIndex.getCommodities();
 
 	// Add each currency as a completion item
 	currencies.filter(c => {
@@ -681,24 +637,29 @@ async function addCurrencyCompletions(
 		}
 		return c.startsWith(userInput);
 	}).forEach((currency: string) => {
-		cnt = addCompletionItem(
+		addCompletionItem(
+			collector,
 			{ label: currency, kind: CompletionItemKind.Unit, detail: '(currency)' },
-			position,
 			TextEdit.replace(
 				{
-					start: { line: position.line, character: position.character - userInput.length },
-					end: { line: position.line, character: position.character },
+					start: {
+						line: collector.position.line,
+						character: collector.position.character - userInput.length,
+					},
+					end: { line: collector.position.line, character: collector.position.character },
 				},
 				currency,
 			),
-			set,
-			items,
-			cnt,
-			userInput,
 		);
 	});
+}
 
-	return cnt;
+/**
+ * Parameters for addAccountCompletions
+ */
+interface AddAccountCompletionsParams {
+	/** The trigger character or empty string */
+	triggerChar: string;
 }
 
 /**
@@ -715,43 +676,30 @@ async function addCurrencyCompletions(
  *
  * Closed accounts are excluded from completions to keep the suggestions relevant.
  *
- * @param symbolIndex The symbol index to retrieve accounts from
- * @param position The position where the completion was triggered
- * @param triggerChar The trigger character ('A', 'L', 'E', or 'I')
- * @param set A set to track already added items
- * @param items The array of completion items to add to
- * @param cnt A counter for sorting when no userInput is provided
- * @param userInput Optional user input for better scoring and sorting
- * @param currentLine The current line text from the document
- * @param node The current syntax node
- * @param document The text document for additional context
+ * @param params Account completion parameters
  * @returns Updated counter value
  */
 async function addAccountCompletions(
-	symbolIndex: SymbolIndex,
-	position: Position,
-	triggerChar: string,
-	set: Set<string>,
-	items: CompletionItem[],
-	cnt: number,
-	userInput?: string,
-	currentLine?: string,
-	document?: TextDocument,
-): Promise<number> {
+	collector: CompletionCollector,
+	params: AddAccountCompletionsParams,
+): Promise<void> {
+	const {
+		triggerChar,
+	} = params;
 	let accountsNames: string[] = [];
 	// Fetch all account definitions from the index
-	const accounts = await symbolIndex.getAccountDefinitions();
+	const accounts = await collector.symbolIndex.getAccountDefinitions();
 	// Get account usage counts for sorting
-	const accountUsageCounts = await symbolIndex.getAccountUsageCounts();
+	const accountUsageCounts = await collector.symbolIndex.getAccountUsageCounts();
 
 	// Get closed accounts with their closing dates
-	const closedAccounts = await symbolIndex.getClosedAccounts();
+	const closedAccounts = await collector.symbolIndex.getClosedAccounts();
 
 	// Extract current date from the current line if possible
 	let currentDate: string | undefined;
-	if (currentLine) {
+	if (collector.currentLine) {
 		// Try to match a date pattern in the current line
-		const dateMatch = currentLine.match(/(\d{4}[-/]\d{2}[-/]\d{2})/);
+		const dateMatch = collector.currentLine.match(/(\d{4}[-/]\d{2}[-/]\d{2})/);
 		if (dateMatch && dateMatch[1]) {
 			currentDate = dateMatch[1];
 		}
@@ -759,14 +707,14 @@ async function addAccountCompletions(
 
 	// If we still don't have a date and we have a document, try to find
 	// the closest date from previous lines
-	if (!currentDate && document && position) {
+	if (!currentDate && collector.document && collector.position) {
 		// Start searching from current line and work backwards
-		const startLine = Math.max(0, position.line - 20); // Look up to 20 lines back
-		const endLine = position.line;
+		const startLine = Math.max(0, collector.position.line - 20); // Look up to 20 lines back
+		const endLine = collector.position.line;
 
 		// Scan previous lines for dates
 		for (let lineNum = endLine; lineNum >= startLine; lineNum--) {
-			const lineText = document.getText({
+			const lineText = collector.document.getText({
 				start: { line: lineNum, character: 0 },
 				end: { line: lineNum, character: Number.MAX_SAFE_INTEGER },
 			});
@@ -813,15 +761,15 @@ async function addAccountCompletions(
 	// Compute how many characters to delete from the left of the cursor once
 	let deleteCount = triggerChar.length;
 	// If we have a concrete userInput, prefer replacing exactly that
-	if (!deleteCount && userInput && userInput.length > 0) {
-		deleteCount = userInput.length;
+	if (!deleteCount && collector.userInput && collector.userInput.length > 0) {
+		deleteCount = collector.userInput.length;
 	}
 	// Otherwise, derive by scanning left for an account-like token
-	if (!deleteCount && document) {
+	if (!deleteCount && collector.document) {
 		try {
-			const lineText = document.getText({
-				start: { line: position.line, character: 0 },
-				end: { line: position.line, character: position.character },
+			const lineText = collector.document.getText({
+				start: { line: collector.position.line, character: 0 },
+				end: { line: collector.position.line, character: collector.position.character },
 			});
 			let i = lineText.length - 1;
 			const isAccountCharLocal = (
@@ -855,29 +803,23 @@ async function addAccountCompletions(
 			}
 		}
 
-		cnt = addCompletionItem(
+		addCompletionItem(
+			collector,
 			{
 				label: account,
 				kind: CompletionItemKind.Field,
 				detail,
 			},
-			position,
 			TextEdit.replace(
 				{
-					start: { line: position.line, character: position.character - deleteCount },
-					end: { line: position.line, character: position.character },
+					start: { line: collector.position.line, character: collector.position.character - deleteCount },
+					end: { line: collector.position.line, character: collector.position.character },
 				},
 				account + ' ',
 			),
-			set,
-			items,
-			cnt,
-			userInput,
 			usageCount,
 		);
 	});
-
-	return cnt;
 }
 
 /**
@@ -886,42 +828,22 @@ async function addAccountCompletions(
  * This function retrieves links from the symbol index and adds them
  * as completion items.
  *
- * @param symbolIndex The symbol index to retrieve links from
- * @param position The position where the completion was triggered
- * @param set A set to track already added items
- * @param items The array of completion items to add to
- * @param cnt A counter for sorting when no userInput is provided
- * @param userInput Optional user input for better scoring and sorting
- * @param currentLine Optional current line text for context
- * @returns Updated counter value
+ * @param collector Completion context
  */
-async function addLinkCompletions(
-	symbolIndex: SymbolIndex,
-	position: Position,
-	set: Set<string>,
-	items: CompletionItem[],
-	cnt: number,
-	userInput?: string,
-	currentLine?: string,
-): Promise<number> {
+async function addLinkCompletions(collector: CompletionCollector): Promise<void> {
 	// Fetch links from the index
-	const links = await symbolIndex.getLinks();
+	const links = await collector.symbolIndex.getLinks();
 
-	const shouldAddPrefix = currentLine && !currentLine.endsWith('^');
+	const shouldAddPrefix = collector.currentLine && !collector.currentLine.endsWith('^');
+
 	// Add each link as a completion item
 	links.forEach((link: string) => {
-		cnt = addCompletionItem(
+		addCompletionItem(
+			collector,
 			{ label: link, kind: CompletionItemKind.Reference, detail: '(link)' },
-			position,
 			shouldAddPrefix ? `^${link}` : link,
-			set,
-			items,
-			cnt,
-			userInput,
 		);
 	});
-
-	return cnt;
 }
 
 // Create a logger for the completions module
@@ -942,6 +864,9 @@ const logger = new Logger('completions');
  */
 export class CompletionFeature implements Feature {
 	private lastCompletionItems: CompletionItem[] = [];
+	private connection: Connection | null = null;
+	private enablePinyin: boolean = false;
+	private hasFetchedCompletionConfig: boolean = false;
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
@@ -954,8 +879,38 @@ export class CompletionFeature implements Feature {
 	 * @param connection The language server connection
 	 */
 	register(connection: Connection): void {
+		this.connection = connection;
 		connection.onCompletion(this.provideCompletionItems);
 		connection.onCompletionResolve(this.resolveCompletionItem);
+		// Preload completion-related configuration once and listen for changes
+		void this.refreshCompletionConfig();
+		connection.onDidChangeConfiguration(() => {
+			void this.refreshCompletionConfig();
+		});
+	}
+
+	/**
+	 * Gets the configuration for Chinese pinyin fuzzy filter
+	 *
+	 * @returns Whether pinyin filter is enabled
+	 */
+	private async getEnablePinyinConfig(): Promise<boolean> {
+		if (!this.hasFetchedCompletionConfig) {
+			await this.refreshCompletionConfig();
+		}
+		return this.enablePinyin;
+	}
+
+	private async refreshCompletionConfig(): Promise<void> {
+		try {
+			const config = await this.connection!.workspace.getConfiguration({ section: 'beanLsp.completion' });
+			this.enablePinyin = config?.enableChinesePinyinFilter ?? false;
+			this.hasFetchedCompletionConfig = true;
+			logger.debug(`Completion config refreshed: enableChinesePinyinFilter=${this.enablePinyin}`);
+		} catch (e) {
+			logger.debug(`Failed to refresh completion config: ${e}`);
+			this.hasFetchedCompletionConfig = true; // avoid repeated fetch in error loop
+		}
 	}
 
 	/**
@@ -1054,25 +1009,37 @@ export class CompletionFeature implements Feature {
 		userInput?: string,
 		document?: TextDocument,
 	): Promise<CompletionItem[]> {
-		let cnt = 0;
-		const set = new Set<string>();
 		const completionItems: CompletionItem[] = [];
 
+		// Get pinyin configuration
+		const enablePinyin = await this.getEnablePinyinConfig();
+
+		// Create common completion context
+		const collector: CompletionCollector = {
+			symbolIndex: this.symbolIndex,
+			position,
+			existingCompletions: new Set<string>(),
+			completions: completionItems,
+			userInput,
+			currentLine: info.currentLine,
+			document,
+			enablePinyin,
+		};
+
 		// Helper function to add a single completion item
-		function addItem(item: CompletionItem) {
-			if (set.has(item.label as string)) {
+		const addItem = (item: CompletionItem) => {
+			if (collector.existingCompletions.has(item.label as string)) {
 				return;
 			}
 
 			// Generate filter text for the item
 			if (typeof item.label === 'string') {
-				item.filterText = createFilterString(item.label);
+				item.filterText = createFilterString(item.label, enablePinyin);
 			}
 
 			completionItems.push(item);
-			set.add(item.label as string);
-			cnt++;
-		}
+			collector.existingCompletions.add(item.label as string);
+		};
 
 		logger.info(`Starting completion with info: ${JSON.stringify(info)}`);
 		const p: Promise<void> = match({ ...info, userInput })
@@ -1164,15 +1131,7 @@ export class CompletionFeature implements Feature {
 					// Tag completions when triggered by # character
 					logger.info('Branch: triggerCharacter #');
 					const initialCount = completionItems.length;
-					cnt = await addTagCompletions(
-						this.symbolIndex,
-						position,
-						set,
-						completionItems,
-						cnt,
-						userInput,
-						info.currentLine,
-					);
+					await addTagCompletions(collector);
 					logger.info(`Tags added, items: ${completionItems.length - initialCount}`);
 				},
 			)
@@ -1180,15 +1139,7 @@ export class CompletionFeature implements Feature {
 				// Link completions when triggered by ^ character
 				logger.info('Branch: triggerCharacter ^');
 				const initialCount = completionItems.length;
-				cnt = await addLinkCompletions(
-					this.symbolIndex,
-					position,
-					set,
-					completionItems,
-					cnt,
-					userInput,
-					info.currentLine,
-				);
+				await addLinkCompletions(collector);
 				logger.info(`Links added, items: ${completionItems.length - initialCount}`);
 			})
 			.with(
@@ -1210,14 +1161,7 @@ export class CompletionFeature implements Feature {
 					// Currency completions after a number and space
 					logger.info('Branch: number in posting - currency context');
 					const initialCount = completionItems.length;
-					cnt = await addCurrencyCompletions(
-						this.symbolIndex,
-						position,
-						set,
-						completionItems,
-						cnt,
-						userInput,
-					);
+					await addCurrencyCompletions(collector);
 					logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
 				},
 			)
@@ -1236,15 +1180,9 @@ export class CompletionFeature implements Feature {
 					// Payee and narration completions after a transaction keyword
 					logger.info('Branch: triggerCharacter " with txn sibling');
 					const initialCount = completionItems.length;
-					cnt = await addPayeesAndNarrations({
-						symbolProvider: this.symbolIndex,
-						position: position,
+					await addPayeesAndNarrations(collector, {
 						shouldIncludePayees: true,
 						quotationStyle: 'end',
-						existingCompletions: set,
-						completions: completionItems,
-						completionCount: cnt,
-						filterText: userInput,
 						addSpaceAfter: true,
 					});
 					logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
@@ -1257,15 +1195,9 @@ export class CompletionFeature implements Feature {
 					// Narration completions only after a payee
 					logger.info('Branch: triggerCharacter " with payee sibling');
 					const initialCount = completionItems.length;
-					cnt = await addPayeesAndNarrations({
-						symbolProvider: this.symbolIndex,
-						position: position,
+					await addPayeesAndNarrations(collector, {
 						shouldIncludePayees: false,
 						quotationStyle: 'end',
-						existingCompletions: set,
-						completions: completionItems,
-						completionCount: cnt,
-						filterText: userInput,
 						addSpaceAfter: false,
 					});
 					logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
@@ -1275,15 +1207,9 @@ export class CompletionFeature implements Feature {
 				// Payee and narration completions when positioned at a narration
 				logger.info('Branch: triggerCharacter " with narration current');
 				const initialCount = completionItems.length;
-				cnt = await addPayeesAndNarrations({
-					symbolProvider: this.symbolIndex,
-					position: position,
+				await addPayeesAndNarrations(collector, {
 					shouldIncludePayees: true,
 					quotationStyle: 'both',
-					existingCompletions: set,
-					completions: completionItems,
-					completionCount: cnt,
-					filterText: userInput,
 					addSpaceAfter: false,
 				});
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
@@ -1297,15 +1223,9 @@ export class CompletionFeature implements Feature {
 				// Narration completions in error recovery mode after string and txn
 				logger.info('Branch: triggerCharacter " with ERROR current, string sibling, txn previous');
 				const initialCount = completionItems.length;
-				cnt = await addPayeesAndNarrations({
-					symbolProvider: this.symbolIndex,
-					position: position,
+				await addPayeesAndNarrations(collector, {
 					shouldIncludePayees: false,
 					quotationStyle: 'end',
-					existingCompletions: set,
-					completions: completionItems,
-					completionCount: cnt,
-					filterText: userInput,
 					addSpaceAfter: false,
 				});
 				logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
@@ -1319,15 +1239,9 @@ export class CompletionFeature implements Feature {
 				// Payee and narration completions in error recovery mode after txn and date
 				logger.info('Branch: triggerCharacter " with ERROR current, txn sibling, date previous');
 				const initialCount = completionItems.length;
-				cnt = await addPayeesAndNarrations({
-					symbolProvider: this.symbolIndex,
-					position: position,
+				await addPayeesAndNarrations(collector, {
 					shouldIncludePayees: true,
 					quotationStyle: 'end',
-					existingCompletions: set,
-					completions: completionItems,
-					completionCount: cnt,
-					filterText: userInput,
 					addSpaceAfter: true,
 				});
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
@@ -1336,15 +1250,9 @@ export class CompletionFeature implements Feature {
 				// Payee and narration completions when positioned at a narration outside quotes
 				logger.info('Branch: narration current');
 				const initialCount = completionItems.length;
-				cnt = await addPayeesAndNarrations({
-					symbolProvider: this.symbolIndex,
-					position: position,
+				await addPayeesAndNarrations(collector, {
 					shouldIncludePayees: true,
 					quotationStyle: 'both',
-					existingCompletions: set,
-					completions: completionItems,
-					completionCount: cnt,
-					filterText: userInput,
 					addSpaceAfter: true,
 				});
 				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
@@ -1353,17 +1261,9 @@ export class CompletionFeature implements Feature {
 				// Account completions after a posting
 				logger.info('Branch: account current, posting parent');
 				const initialCount = completionItems.length;
-				cnt = await addAccountCompletions(
-					this.symbolIndex,
-					position,
-					userInput ?? '',
-					set,
-					completionItems,
-					cnt,
-					userInput,
-					info.currentLine,
-					document,
-				);
+				await addAccountCompletions(collector, {
+					triggerChar: userInput ?? '',
+				});
 				logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
 			})
 			.otherwise(() => {
@@ -1394,14 +1294,7 @@ export class CompletionFeature implements Feature {
 					)
 						.with({ head4ValidTypes: ['account', 'binary_number_expr'] }, async () => {
 							const initialCount = completionItems.length;
-							cnt = await addCurrencyCompletions(
-								this.symbolIndex,
-								position,
-								set,
-								completionItems,
-								cnt,
-								userInput,
-							);
+							await addCurrencyCompletions(collector);
 							logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
 						})
 						.with(
@@ -1440,17 +1333,9 @@ export class CompletionFeature implements Feature {
 							},
 							async () => {
 								const initialCount = completionItems.length;
-								cnt = await addAccountCompletions(
-									this.symbolIndex,
-									position,
-									userInput ?? '',
-									set,
-									completionItems,
-									cnt,
-									userInput,
-									info.currentLine,
-									document,
-								);
+								await addAccountCompletions(collector, {
+									triggerChar: userInput ?? '',
+								});
 								logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
 							},
 						)
@@ -1487,17 +1372,9 @@ export class CompletionFeature implements Feature {
 						placeholder: 'Assets:Bank',
 						kind: 'account',
 						onSuccess: async () => {
-							cnt = await addAccountCompletions(
-								this.symbolIndex,
-								position,
-								'',
-								set,
-								completionItems,
-								cnt,
-								userInput,
-								info.currentLine,
-								document,
-							);
+							await addAccountCompletions(collector, {
+								triggerChar: '',
+							});
 						},
 						description: 'account',
 					},
@@ -1506,15 +1383,7 @@ export class CompletionFeature implements Feature {
 						placeholder: '#tag',
 						kind: 'tag',
 						onSuccess: async () => {
-							cnt = await addTagCompletions(
-								this.symbolIndex,
-								position,
-								set,
-								completionItems,
-								cnt,
-								userInput,
-								info.currentLine,
-							);
+							await addTagCompletions(collector);
 						},
 						description: 'tag',
 					},
@@ -1523,14 +1392,7 @@ export class CompletionFeature implements Feature {
 						placeholder: ' CNY',
 						kind: 'currency',
 						onSuccess: async () => {
-							cnt = await addCurrencyCompletions(
-								this.symbolIndex,
-								position,
-								set,
-								completionItems,
-								cnt,
-								userInput,
-							);
+							await addCurrencyCompletions(collector);
 						},
 						description: 'currency',
 					},
@@ -1539,15 +1401,7 @@ export class CompletionFeature implements Feature {
 						placeholder: '^link',
 						kind: 'link',
 						onSuccess: async () => {
-							cnt = await addLinkCompletions(
-								this.symbolIndex,
-								position,
-								set,
-								completionItems,
-								cnt,
-								userInput,
-								info.currentLine,
-							);
+							await addLinkCompletions(collector);
 						},
 						description: 'link',
 					},
@@ -1599,7 +1453,7 @@ export class CompletionFeature implements Feature {
 
 		logger.info(`Final completion items: ${completionItems.length}`);
 		this.lastCompletionItems = completionItems;
-		if (cnt <= 0) {
+		if (completionItems.length <= 0) {
 			// for inputting something includes trigger character in narration
 			completionItems.push(...this.lastCompletionItems);
 		}
