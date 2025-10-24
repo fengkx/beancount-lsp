@@ -98,8 +98,8 @@ export class DiagnosticsFeature implements Feature {
 			// Validate all open documents initially
 			await this.validateAllDocuments(connection);
 
-			// Listen for document changes and validate them
-			this.documents.onDidChangeContent(async change => {
+			// Listen for document changes and validate them (debounced, adaptive)
+			this.documents.onDidChangeContentDebounced(async change => {
 				await this.validateDocument(change.document, connection);
 			});
 		} catch (error) {
