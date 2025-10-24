@@ -230,13 +230,16 @@ export function startServer(
 		const mainBeanFile = await documents.getMainBeanFileUri();
 		serverLogger.info(`mainBeanFile ${mainBeanFile}`);
 		await documents.refetchBeanFiles();
-		await symbolIndex.initFiles(documents.beanFiles);
-		await symbolIndex.unleashFiles([]);
+		let initFiles = documents.beanFiles
 
 		if (mainBeanFile) {
 			await symbolIndex.initFiles([mainBeanFile]);
 			await beanMgr?.setMainFile?.(mainBeanFile);
+			initFiles = initFiles.filter(f => f !== mainBeanFile)
 		}
+
+		await symbolIndex.initFiles(initFiles);
+		await symbolIndex.unleashFiles([]);
 
 		if (hasConfigurationCapability) {
 			// Register for all configuration changes.
