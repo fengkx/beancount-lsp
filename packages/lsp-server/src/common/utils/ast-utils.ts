@@ -3,6 +3,7 @@ import { LRUCache } from 'mnemonist';
 import { Position, Range } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import type * as Parser from 'web-tree-sitter';
+import { TreeQuery } from '../language';
 import { Posting } from './balance-checker';
 
 // Create a logger for this module
@@ -140,52 +141,6 @@ export function parsePriceAnnotation(
 /**
  * Extract postings from a transaction node
  */
-export function extractPostings(txnNode: Parser.SyntaxNode): Posting[] {
-	const postings: Posting[] = [];
-
-	// Use queryNodes to find all posting nodes
-	const postingNodes = queryNodes(txnNode, 'posting');
-
-	for (const postingNode of postingNodes) {
-		// Extract account
-		const accountNode = postingNode.childForFieldName('account');
-		const account = accountNode ? accountNode.text : '';
-
-		// Parse amount if present
-		let amount: { number: string; currency: string } | undefined;
-		const amountNode = postingNode.childForFieldName('amount');
-		if (amountNode) {
-			amount = parseAmount(amountNode);
-		}
-
-		// Parse cost if present
-		let cost: ReturnType<typeof parseCostSpec>;
-		const costSpecNode = postingNode.childForFieldName('cost_spec');
-		if (costSpecNode) {
-			cost = parseCostSpec(costSpecNode);
-		}
-
-		// Parse price annotation if present
-		let price: { type: '@' | '@@'; number: string; currency: string } | undefined;
-		const priceNode = postingNode.childForFieldName('price_annotation');
-		if (priceNode) {
-			// Determine if @ or @@ price
-			const atNode = findChildByType(postingNode, 'at') || findChildByType(postingNode, 'atat');
-			const priceType = atNode && atNode.type === 'atat' ? '@@' : '@';
-			price = parsePriceAnnotation(priceNode, priceType);
-		}
-
-		postings.push({
-			node: postingNode,
-			account,
-			amount,
-			cost,
-			price,
-		});
-	}
-
-	return postings;
-}
 
 const lruCache = new LRUCache<string, Transaction[]>(100);
 
@@ -196,52 +151,118 @@ const lruCache = new LRUCache<string, Transaction[]>(100);
  * @param document The text document
  * @returns Array of transaction objects with their postings
  */
-export function findAllTransactions(rootNode: Parser.SyntaxNode, document: TextDocument): Transaction[] {
+export async function findAllTransactions(rootNode: Parser.SyntaxNode, document: TextDocument): Promise<Transaction[]> {
 	const key = 'txns:' + rootNode.id + ':' + document.version;
 	const cached = lruCache.get(key);
 	if (cached) {
 		return cached;
 	}
 
-	const transactions: Transaction[] = [];
+	// Aggregate using tree-sitter queries for performance
+	const transactionsMap = new Map<number, Transaction>();
 
-	// Find all transaction nodes in the tree
-	const transactionNodes = queryNodes(rootNode, 'transaction');
-
-	for (const node of transactionNodes) {
-		// Extract date
-		const dateNode = node.childForFieldName('date');
-		const date = dateNode ? dateNode.text : '';
-
-		// Extract flag (if present)
-		const flagNode = node.childForFieldName('txn');
-		const flag = flagNode ? flagNode.text : undefined;
-
-		// Determine the header range for optimized highlighting
-		// The header includes date, txn, payee, narration up to the first posting
+	// Helper to compute header range (keep existing behavior)
+	function computeHeaderRange(node: Parser.SyntaxNode): Range {
 		const headerEndRow = node.startPosition.row;
-		const headerRange = Range.create(
+		return Range.create(
 			Position.create(node.startPosition.row, node.startPosition.column),
 			Position.create(
 				headerEndRow,
 				document.positionAt(document.offsetAt(Position.create(headerEndRow + 1, 0)) - 1).character,
 			),
 		);
-
-		// Extract postings
-		const postings = extractPostings(node);
-
-		transactions.push({
-			node,
-			date,
-			flag,
-			headerRange,
-			postings,
-		});
 	}
 
-	lruCache.set(key, transactions);
-	return transactions;
+	function inferPriceTypeFromPosting(postingNode: Parser.SyntaxNode): '@' | '@@' {
+		const atNode = findChildByType(postingNode, 'atat') || findChildByType(postingNode, 'at');
+		return atNode && atNode.type === 'atat' ? '@@' : '@';
+	}
+
+	function getCaptureNode(match: Parser.QueryMatch, name: string): Parser.SyntaxNode | undefined {
+		for (const cap of match.captures) {
+			if (cap.name === name) return cap.node;
+		}
+		return undefined;
+	}
+
+	function getCaptureText(match: Parser.QueryMatch, name: string): string | undefined {
+		const n = getCaptureNode(match, name);
+		return n ? n.text : undefined;
+	}
+
+	// Run combined query that yields both header and posting matches
+	try {
+		const q = TreeQuery.getQueryByTokenName('transaction_detail');
+		const matches = await q.matches(rootNode);
+
+		for (const m of matches) {
+			const txnNode = getCaptureNode(m, 'transaction');
+			if (!txnNode) continue;
+			let txn = transactionsMap.get(txnNode.id);
+			if (!txn) {
+				// initialize entry when first seen (may be via posting or header)
+				txn = {
+					node: txnNode,
+					date: '',
+					flag: undefined,
+					headerRange: computeHeaderRange(txnNode),
+					postings: [],
+				};
+				transactionsMap.set(txnNode.id, txn);
+			}
+
+			// If this match includes header captures, set date/flag
+			const dateText = getCaptureText(m, 'date');
+			const flagText = getCaptureText(m, 'txn');
+			if (dateText !== undefined) txn.date = dateText;
+			if (flagText !== undefined) txn.flag = flagText;
+
+			// If this match includes a posting capture, build Posting
+			const postingNode = getCaptureNode(m, 'posting');
+			if (postingNode) {
+				const accountText = getCaptureText(m, 'account');
+				const amountNode = getCaptureNode(m, 'amount') || postingNode.childForFieldName('amount');
+				const costSpecNode = getCaptureNode(m, 'cost_spec') || postingNode.childForFieldName('cost_spec');
+				const priceAnnNode = getCaptureNode(m, 'price') || postingNode.childForFieldName('price_annotation');
+
+				let price: { type: '@' | '@@'; number: string; currency: string } | undefined;
+				if (priceAnnNode) {
+					price = parsePriceAnnotation(priceAnnNode, inferPriceTypeFromPosting(postingNode));
+				}
+
+				txn.postings.push({
+					node: postingNode,
+					account: accountText ?? postingNode.childForFieldName('account')?.text ?? '',
+					amount: amountNode ? parseAmount(amountNode) : undefined,
+					cost: costSpecNode ? parseCostSpec(costSpecNode) : undefined,
+					price,
+				});
+			}
+		}
+	} catch (e) {
+		logger.error(`findAllTransactions query error: ${e}`);
+	}
+
+	// Supplement header-only transactions using transaction query (no recursive traversal)
+	if (transactionsMap.size === 0) {
+		// Try to at least get transactions list
+		const txnQuery = TreeQuery.getQueryByTokenName('transaction');
+		const captures = await txnQuery.captures(rootNode);
+		for (const cap of captures) {
+			const node = cap.node;
+			if (node.type !== 'transaction') continue;
+			const dateNode = node.childForFieldName('date');
+			const date = dateNode ? dateNode.text : '';
+			const flagNode = node.childForFieldName('txn');
+			const flag = flagNode ? flagNode.text : undefined;
+			const headerRange = computeHeaderRange(node);
+			transactionsMap.set(node.id, { node, date, flag, headerRange, postings: [] });
+		}
+	}
+
+	const result = Array.from(transactionsMap.values());
+	lruCache.set(key, result);
+	return result;
 }
 
 /**

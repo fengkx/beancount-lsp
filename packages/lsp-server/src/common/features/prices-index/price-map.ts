@@ -319,7 +319,7 @@ export class PriceMap {
 					if (!tree) continue;
 
 					// Find all transactions and extract postings
-					const transactions = findAllTransactions(tree.rootNode, document);
+					const transactions = await findAllTransactions(tree.rootNode, document);
 
 					// Count currencies in each posting
 					for (const transaction of transactions) {

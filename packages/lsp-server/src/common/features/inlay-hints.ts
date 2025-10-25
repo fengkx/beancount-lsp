@@ -23,7 +23,7 @@ export class InlayHintFeature implements Feature {
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
-	) { }
+	) {}
 
 	register(connection: Connection): void {
 		// Register the inlay hint provider
@@ -69,7 +69,7 @@ export class InlayHintFeature implements Feature {
 		}
 
 		// Find all transactions in the document
-		const transactions = findAllTransactions(tree.rootNode, document);
+		const transactions = await findAllTransactions(tree.rootNode, document);
 
 		// Process each transaction
 		for (const transaction of transactions) {

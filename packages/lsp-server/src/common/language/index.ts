@@ -29,6 +29,7 @@ import query from './queries/query.scm';
 import string from './queries/string.scm';
 import tag from './queries/tag.scm';
 import transaction from './queries/transaction.scm';
+import transaction_detail from './queries/transaction_detail.scm';
 import txn from './queries/txn.scm';
 
 import folding from './queries/folding.scm';
@@ -37,7 +38,7 @@ import account_definition from './queries/account_definition.scm';
 import account_usage from './queries/account_usage.scm';
 import currency_definition from './queries/currency_definition.scm';
 
-import symbols from './queries/symbols.scm'
+import symbols from './queries/symbols.scm';
 
 const queryMap = {
 	account,
@@ -69,10 +70,11 @@ const queryMap = {
 	tag,
 	transaction,
 	txn,
+	transaction_detail,
 	account_definition,
 	account_usage,
 	currency_definition,
-	symbols
+	symbols,
 } as const;
 
 type BeanTokenName = keyof typeof queryMap;
@@ -130,7 +132,7 @@ export class TreeQuery {
 		// Cache the result
 		this._matchesCache.set(cacheKey, result);
 
-		return result
+		return result;
 	}
 
 	async captures(

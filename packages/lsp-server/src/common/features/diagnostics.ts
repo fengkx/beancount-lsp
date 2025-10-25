@@ -201,7 +201,7 @@ export class DiagnosticsFeature implements Feature {
 		}
 
 		// Find all transactions in the document
-		const transactions = findAllTransactions(tree.rootNode, document);
+		const transactions = await findAllTransactions(tree.rootNode, document);
 
 		// Check each transaction for balance - with chunking for performance
 		const CHUNK_SIZE = 50; // Process transactions in chunks to avoid blocking UI
