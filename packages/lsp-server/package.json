@@ -41,7 +41,7 @@
 		"micromatch": "^4.0.5",
 		"mnemonist": "^0.39.8",
 		"pinyin-pro": "^3.27.0",
-		"ts-pattern": "^5.8.0",
+		"ts-pattern": "^5.9.0",
 		"type-fest": "^5.1.0",
 		"vitest": "^3.2.4",
 		"vscode-languageserver": "^9.0.1",
