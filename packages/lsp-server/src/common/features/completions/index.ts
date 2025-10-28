@@ -188,10 +188,14 @@ async function reparseWithPlaceholder(
 		vt = parser.parse(virtualText);
 		const phNode = vt.rootNode.descendantForIndex(start, start + normalized.length);
 		if (!phNode) return null;
+		const hasError = vt.rootNode.hasError();
+		if (hasError && phNode.id === vt.rootNode.id) {
+			return null;
+		}
 
 		// Be tolerant to global parse errors: only reject when the error/missing
 		// is on the path of the placeholder (local context is broken)
-		if (vt.rootNode.hasError()) {
+		if (hasError) {
 			let cur: Parser.SyntaxNode | null = phNode;
 			while (cur) {
 				if (cur.type === 'ERROR') {
