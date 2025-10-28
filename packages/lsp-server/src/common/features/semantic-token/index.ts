@@ -37,66 +37,72 @@ export class SemanticTokenFeature implements Feature {
 
 		const tokenBuilder = new TokenBuilder();
 
-		// Strings (generic)
-		const stringMatches = await TreeQuery.getQueryByTokenName('string').matches(tree.rootNode);
-		tokenBuilder.buildSingleCaptureTokens(stringMatches, 'string');
+		// Single aggregated query for all semantic tokens
+		const matches = await TreeQuery.getQueryByTokenName('semantic_tokens').matches(tree.rootNode);
 
-		// Dates
-		const dateMatches = await TreeQuery.getQueryByTokenName('date').matches(tree.rootNode);
-		tokenBuilder.buildSingleCaptureTokens(dateMatches, 'date');
+		for (const match of matches) {
+			for (const capture of match.captures) {
+				const node = capture.node;
+				if (!node) continue;
+				let tokenType: Parameters<typeof tokenBuilder.push>[3] | undefined;
+				let tokenModifiers = 0;
+				switch (capture.name) {
+					case 'string':
+						tokenType = 'string';
+						break;
+					case 'date':
+						tokenType = 'date';
+						break;
+					case 'txn':
+						tokenType = 'operator';
+						break;
+					case 'narration':
+					case 'payee':
+						tokenType = 'string';
+						break;
+					case 'account':
+						tokenType = 'account';
+						break;
+					case 'account_definition':
+						tokenType = 'account';
+						tokenModifiers = DEFINITION_MODIFIER;
+						break;
+					case 'number':
+						tokenType = 'number';
+						break;
+					case 'currency':
+						tokenType = 'currency';
+						break;
+					case 'keyword':
+						tokenType = 'keyword';
+						break;
+					case 'tag':
+						tokenType = 'tag';
+						break;
+					case 'link':
+						tokenType = 'link';
+						break;
+					case 'kv_key':
+						tokenType = 'kv_key';
+						break;
+					case 'bool':
+						tokenType = 'bool';
+						break;
+					case 'comment':
+						tokenType = 'comment';
+						break;
+					default:
+						continue;
+				}
 
-		// Transaction operators
-		const txnMatches = await TreeQuery.getQueryByTokenName('txn').matches(tree.rootNode);
-		tokenBuilder.buildSingleCaptureTokens(txnMatches, 'operator');
-
-		// Narrations as strings
-		const narrationMatches = await TreeQuery.getQueryByTokenName('narration').matches(tree.rootNode);
-		tokenBuilder.buildSingleCaptureTokens(narrationMatches, 'string');
-
-		// Payees as strings
-		const payeeMatches = await TreeQuery.getQueryByTokenName('payee').matches(tree.rootNode);
-		tokenBuilder.buildSingleCaptureTokens(payeeMatches, 'string');
-
-		// Accounts (with definition modifier for account declarations)
-		const accountMatches = await TreeQuery.getQueryByTokenName('account').matches(tree.rootNode);
-		const accountDefMatches = await TreeQuery.getQueryByTokenName('account_definition').matches(tree.rootNode);
-		tokenBuilder.buildSingleCaptureTokens(accountMatches, 'account');
-		tokenBuilder.buildSingleCaptureTokens(accountDefMatches, 'account', DEFINITION_MODIFIER);
-
-		// Numbers
-		const numberMatches = await TreeQuery.getQueryByTokenName('number').matches(tree.rootNode);
-		tokenBuilder.buildSingleCaptureTokens(numberMatches, 'number');
-
-		// Currencies
-		const currencyMatches = await TreeQuery.getQueryByTokenName('currency').matches(tree.rootNode);
-		tokenBuilder.buildSingleCaptureTokens(currencyMatches, 'currency');
-
-		// Keywords
-		const keywordMatches = await TreeQuery.getQueryByTokenName('keyword').matches(tree.rootNode);
-		tokenBuilder.buildSingleCaptureTokens(keywordMatches, 'keyword');
-
-		// Tags
-		const tagMatches = await TreeQuery.getQueryByTokenName('tag').matches(tree.rootNode);
-		tokenBuilder.buildSingleCaptureTokens(tagMatches, 'tag');
-
-		// Links
-		const linkMatches = await TreeQuery.getQueryByTokenName('link').matches(tree.rootNode);
-		tokenBuilder.buildSingleCaptureTokens(linkMatches, 'link');
-
-		// Metadata keys
-		const kvKeyMatches = await TreeQuery.getQueryByTokenName('kv_key').matches(tree.rootNode);
-		tokenBuilder.buildSingleCaptureTokens(kvKeyMatches, 'kv_key');
-
-		// Boolean values
-		const boolMatches = await TreeQuery.getQueryByTokenName('bool').matches(tree.rootNode);
-		tokenBuilder.buildSingleCaptureTokens(boolMatches, 'bool');
-
-		// Comments
-		const commentMatches = await TreeQuery.getQueryByTokenName('comment').matches(tree.rootNode);
-		tokenBuilder.buildSingleCaptureTokens(commentMatches, 'comment');
+				const line = node.startPosition.row;
+				const startChar = node.startPosition.column;
+				const length = node.text.length;
+				tokenBuilder.push(line, startChar, length, tokenType, tokenModifiers);
+			}
+		}
 
 		const data = tokenBuilder.build();
-
 		return data;
 	}
 }

@@ -38,6 +38,7 @@ import account_definition from './queries/account_definition.scm';
 import account_usage from './queries/account_usage.scm';
 import currency_definition from './queries/currency_definition.scm';
 
+import semantic_tokens from './queries/semantic_tokens.scm';
 import symbols from './queries/symbols.scm';
 
 const queryMap = {
@@ -75,6 +76,7 @@ const queryMap = {
 	account_usage,
 	currency_definition,
 	symbols,
+	semantic_tokens,
 } as const;
 
 type BeanTokenName = keyof typeof queryMap;
