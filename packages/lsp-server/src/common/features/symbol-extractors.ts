@@ -1,7 +1,6 @@
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import type { SyntaxNode } from 'web-tree-sitter';
-import { asLspRange, compactToRange, nodeToCompact, rangeToCompact } from '../common';
+import { compactToRange, nodeToCompact } from '../common';
 import { TreeQuery } from '../language';
 import { Trees } from '../trees';
 
@@ -53,49 +52,8 @@ export function getRange(symbol: SymbolInfo): lsp.Range {
 	return compactToRange(symbol.range);
 }
 
-/**
- * Helper function to extract date from a node or its parent directives
- *
- * @param node The starting node to search from
- * @param directiveTypes Array of directive types to look for (defaults to common ones)
- * @returns Date string if found, undefined otherwise
- */
-function findDateFromNode(
-	node: SyntaxNode,
-	directiveTypes: string[] = ['transaction', 'balance', 'open', 'close', 'pad', 'price', 'commodity'],
-): string | undefined {
-	let currentNode = node;
-
-	// First, check if the node itself has a date field
-	const dateNode = currentNode.childForFieldName && currentNode.childForFieldName('date');
-	if (dateNode) {
-		return dateNode.text;
-	}
-	let parentDateNode: SyntaxNode | null = currentNode.parent;
-	// Otherwise, traverse up the parent chain
-	while (parentDateNode) {
-		currentNode = parentDateNode;
-
-		// Handle special case for tags_links
-		if (currentNode.type === 'tags_links') {
-			continue;
-		}
-
-		// Check if current node is one of the directive types we're looking for
-		if (directiveTypes.includes(currentNode.type)) {
-			const parentDateNode = currentNode.childForFieldName && currentNode.childForFieldName('date');
-			if (parentDateNode) {
-				return parentDateNode.text;
-			}
-		}
-		parentDateNode = currentNode.parent;
-	}
-
-	return undefined;
-}
-
 function stripFirstChar(s: string): string {
-	return s.substring(1)
+	return s.substring(1);
 }
 
 export async function getSymbols(textDocument: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
@@ -107,74 +65,74 @@ export async function getSymbols(textDocument: TextDocument, trees: Trees): Prom
 	const matches = await query.matches(tree.rootNode);
 	const result: SymbolInfo[] = [];
 	for (const match of matches) {
-		let nameFromCapture: string | undefined
-		let nameMod: ((name: string) => string) | undefined
-		let date: string | undefined
-		let symbolInfos: SymbolInfo[] = []
+		let nameFromCapture: string | undefined;
+		let nameMod: ((name: string) => string) | undefined;
+		let date: string | undefined;
+		let symbolInfos: SymbolInfo[] = [];
 		for (const capture of match.captures) {
-			let type: typeof SymbolType[keyof typeof SymbolType]
-			let name: string | undefined
-			let kind: lsp.SymbolKind
+			let type: typeof SymbolType[keyof typeof SymbolType];
+			let name: string | undefined;
+			let kind: lsp.SymbolKind;
 			switch (capture.name) {
-				case "currency":
-					type = SymbolType.COMMODITY
-					kind = lsp.SymbolKind.Constant
-					break
-				case "account_usage":
-					type = SymbolType.ACCOUNT_USAGE
-					kind = lsp.SymbolKind.Struct
-					break
-				case "date":
-					date = capture.node.text
+				case 'currency':
+					type = SymbolType.COMMODITY;
+					kind = lsp.SymbolKind.Constant;
+					break;
+				case 'account_usage':
+					type = SymbolType.ACCOUNT_USAGE;
+					kind = lsp.SymbolKind.Struct;
+					break;
+				case 'date':
+					date = capture.node.text;
 					continue;
-				case "narration":
-					type = SymbolType.NARRATION
-					name = capture.node.text.slice(1, -1)
-					kind = lsp.SymbolKind.String
-					break
-				case "payee":
-					type = SymbolType.PAYEE
-					name = capture.node.text.slice(1, -1)
-					kind = lsp.SymbolKind.String
-					break
-				case "tag":
-					type = SymbolType.TAG
-					name = capture.node.text.substring(1)
-					kind = lsp.SymbolKind.Key
-					break
-				case "link":
-					type = SymbolType.LINK
-					name = capture.node.text.substring(1)
-					kind = lsp.SymbolKind.Key
-					break
-				case "price":
-					type = SymbolType.PRICE
-					kind = lsp.SymbolKind.Constant
-					break
-				case "account_definition":
-					type = SymbolType.ACCOUNT_DEFINITION
-					kind = lsp.SymbolKind.Struct
-					break
-				case "close":
-					type = SymbolType.ACCOUNT_CLOSE
-					kind = lsp.SymbolKind.Struct
-					break
-				case "currency_definition":
-					type = SymbolType.CURRENCY_DEFINITION
-					kind = lsp.SymbolKind.Constant
-					break
-				case "pushtag":
-					type = SymbolType.PUSHTAG
-					nameMod = stripFirstChar
-					kind = lsp.SymbolKind.Event
-					break
-				case "poptag":
-					type = SymbolType.POPTAG
-					nameMod = stripFirstChar
-					kind = lsp.SymbolKind.Event
-					break
-				case "name":
-					nameFromCapture = capture.node.text
+				case 'narration':
+					type = SymbolType.NARRATION;
+					name = capture.node.text.slice(1, -1);
+					kind = lsp.SymbolKind.String;
+					break;
+				case 'payee':
+					type = SymbolType.PAYEE;
+					name = capture.node.text.slice(1, -1);
+					kind = lsp.SymbolKind.String;
+					break;
+				case 'tag':
+					type = SymbolType.TAG;
+					name = capture.node.text.substring(1);
+					kind = lsp.SymbolKind.Key;
+					break;
+				case 'link':
+					type = SymbolType.LINK;
+					name = capture.node.text.substring(1);
+					kind = lsp.SymbolKind.Key;
+					break;
+				case 'price':
+					type = SymbolType.PRICE;
+					kind = lsp.SymbolKind.Constant;
+					break;
+				case 'account_definition':
+					type = SymbolType.ACCOUNT_DEFINITION;
+					kind = lsp.SymbolKind.Struct;
+					break;
+				case 'close':
+					type = SymbolType.ACCOUNT_CLOSE;
+					kind = lsp.SymbolKind.Struct;
+					break;
+				case 'currency_definition':
+					type = SymbolType.CURRENCY_DEFINITION;
+					kind = lsp.SymbolKind.Constant;
+					break;
+				case 'pushtag':
+					type = SymbolType.PUSHTAG;
+					nameMod = stripFirstChar;
+					kind = lsp.SymbolKind.Event;
+					break;
+				case 'poptag':
+					type = SymbolType.POPTAG;
+					nameMod = stripFirstChar;
+					kind = lsp.SymbolKind.Event;
+					break;
+				case 'name':
+					nameFromCapture = capture.node.text;
 					continue;
 				default:
 					continue;
@@ -185,413 +143,14 @@ export async function getSymbols(textDocument: TextDocument, trees: Trees): Prom
 				name: name ?? capture.node.text,
 				range: nodeToCompact(capture.node),
 				kind: kind,
-			})
+			});
 		}
 		for (const symbolInfo of symbolInfos) {
-			symbolInfo.date = date
+			symbolInfo.date = date;
 			if (nameFromCapture) {
-				symbolInfo.name = nameMod ? nameMod(nameFromCapture) : nameFromCapture
+				symbolInfo.name = nameMod ? nameMod(nameFromCapture) : nameFromCapture;
 			}
-			result.push(symbolInfo)
-		}
-	}
-	return result
-}
-
-export async function getAccountsUsage(textDocument: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
-	const query = TreeQuery.getQueryByTokenName('account_usage');
-	const tree = await trees.getParseTree(textDocument);
-	if (!tree) {
-		throw new Error(`Failed to get parse tree for document: ${textDocument.uri}`);
-	}
-	const captures = await query.captures(tree.rootNode);
-	const result: SymbolInfo[] = [];
-	for (const capture of captures) {
-		const name = capture.node.text;
-		const range = asLspRange(capture.node);
-
-		// Find date using the helper function
-		const dateValue = findDateFromNode(capture.node);
-
-		const symbolInfo: SymbolInfo = {
-			[SymbolKey.TYPE]: SymbolType.ACCOUNT_USAGE,
-			_uri: textDocument.uri,
-			name,
-			range: rangeToCompact(range),
-			kind: lsp.SymbolKind.Struct,
-		};
-
-		if (dateValue) {
-			symbolInfo.date = dateValue;
-		}
-
-		result.push(symbolInfo);
-	}
-	return result;
-}
-
-export async function getAccountsDefinition(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
-	const tree = await trees.getParseTree(doc);
-	if (!tree) {
-		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
-	}
-	const query = TreeQuery.getQueryByTokenName('account_definition');
-	const captures = await query.captures(tree.rootNode);
-	const result: SymbolInfo[] = [];
-	for (const capture of captures) {
-		// console.info(`JSON: ${JSON.stringify({ text: capture.node.text, scm: capture.node.toString() })}`)
-		const name = capture.node.text;
-		const range = asLspRange(capture.node);
-
-		// Find date using the helper function, limiting to 'open' directive
-		const dateValue = findDateFromNode(capture.node, ['open']);
-
-		const symbolInfo: SymbolInfo = {
-			[SymbolKey.TYPE]: SymbolType.ACCOUNT_DEFINITION,
-			_uri: doc.uri,
-			name,
-			range: rangeToCompact(range),
-			kind: lsp.SymbolKind.Struct,
-		};
-
-		if (dateValue) {
-			symbolInfo.date = dateValue;
-		}
-
-		result.push(symbolInfo);
-	}
-	return result;
-}
-
-/**
- * Extracts account closure information from a document
- *
- * @param doc The text document to extract from
- * @param trees The Trees instance for accessing parse trees
- * @returns Array of SymbolInfo objects representing closed accounts
- */
-export async function getAccountsClose(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
-	const tree = await trees.getParseTree(doc);
-	if (!tree) {
-		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
-	}
-	// Use the 'close' query to find close directives
-	const query = TreeQuery.getQueryByTokenName('close');
-	const captures = await query.captures(tree.rootNode);
-	const result: SymbolInfo[] = [];
-
-	for (const capture of captures) {
-		// Only process the close node itself
-		if (capture.name !== 'close' || capture.node.type !== 'close') {
-			continue;
-		}
-
-		// Get the account information from the close directive
-		const closeNode = capture.node;
-		const accountNode = closeNode.childForFieldName('account');
-
-		// Find date using the helper function
-		const dateValue = findDateFromNode(closeNode);
-
-		if (accountNode) {
-			const name = accountNode.text;
-			const range = asLspRange(closeNode);
-
-			const symbolInfo: SymbolInfo = {
-				[SymbolKey.TYPE]: SymbolType.ACCOUNT_CLOSE,
-				_uri: doc.uri,
-				name,
-				range: rangeToCompact(range),
-				kind: lsp.SymbolKind.Struct,
-			};
-
-			if (dateValue) {
-				symbolInfo.date = dateValue;
-			}
-
 			result.push(symbolInfo);
-		}
-	}
-
-	return result;
-}
-
-export async function getPayees(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
-	const tree = await trees.getParseTree(doc);
-	if (!tree) {
-		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
-	}
-	const query = TreeQuery.getQueryByTokenName('payee');
-	const captures = await query.captures(tree.rootNode);
-	const result: SymbolInfo[] = [];
-	for (const capture of captures) {
-		const name = capture.node.text.replace(/^"|"$/g, ''); // Remove quotes
-		const range = asLspRange(capture.node);
-
-		// // Find date using the helper function, limiting to 'transaction' directive
-		// const dateValue = findDateFromNode(capture.node, ['transaction']);
-
-		const symbolInfo: SymbolInfo = {
-			s: SymbolType.PAYEE,
-			_uri: doc.uri,
-			name,
-			range: rangeToCompact(range),
-			kind: lsp.SymbolKind.String,
-		};
-
-		// if (dateValue) {
-		// 	symbolInfo.date = dateValue;
-		// }
-
-		result.push(symbolInfo);
-	}
-	return result;
-}
-
-export async function getNarrations(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
-	const tree = await trees.getParseTree(doc);
-	if (!tree) {
-		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
-	}
-	const query = TreeQuery.getQueryByTokenName('narration');
-	const captures = await query.captures(tree.rootNode);
-	const result: SymbolInfo[] = [];
-	for (const capture of captures) {
-		const name = capture.node.text.replace(/^"|"$/g, ''); // Remove quotes
-		const range = asLspRange(capture.node);
-
-		// // Find date using the helper function, limiting to 'transaction' directive
-		// const dateValue = findDateFromNode(capture.node, ['transaction']);
-
-		const symbolInfo: SymbolInfo = {
-			s: SymbolType.NARRATION,
-			_uri: doc.uri,
-			name,
-			range: rangeToCompact(range),
-			kind: lsp.SymbolKind.String,
-		};
-
-		// if (dateValue) {
-		// 	symbolInfo.date = dateValue;
-		// }
-
-		result.push(symbolInfo);
-	}
-	return result;
-}
-
-export async function getCommodities(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
-	const tree = await trees.getParseTree(doc);
-	if (!tree) {
-		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
-	}
-	const query = TreeQuery.getQueryByTokenName('currency');
-	const captures = await query.captures(tree.rootNode);
-	const result: SymbolInfo[] = [];
-	for (const capture of captures) {
-		const name = capture.node.text;
-		const range = asLspRange(capture.node);
-
-		// // Find date using the helper function
-		// const dateValue = findDateFromNode(capture.node, ['transaction', 'price', 'commodity']);
-
-		const symbolInfo: SymbolInfo = {
-			[SymbolKey.TYPE]: SymbolType.COMMODITY,
-			_uri: doc.uri,
-			name,
-			range: rangeToCompact(range),
-			kind: lsp.SymbolKind.Constant,
-		};
-
-		// if (dateValue) {
-		// 	symbolInfo.date = dateValue;
-		// }
-
-		result.push(symbolInfo);
-	}
-	return result;
-}
-
-export async function getCurrencyDefinitions(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
-	const tree = await trees.getParseTree(doc);
-	if (!tree) {
-		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
-	}
-	const query = TreeQuery.getQueryByTokenName('currency_definition');
-	const captures = await query.captures(tree.rootNode);
-	const result: SymbolInfo[] = [];
-	for (const capture of captures) {
-		const name = capture.node.text;
-		const range = asLspRange(capture.node);
-
-		// // Find date using the helper function, limiting to 'commodity' directive
-		// const dateValue = findDateFromNode(capture.node, ['commodity']);
-
-		const symbolInfo: SymbolInfo = {
-			[SymbolKey.TYPE]: SymbolType.CURRENCY_DEFINITION,
-			_uri: doc.uri,
-			name,
-			range: rangeToCompact(range),
-			kind: lsp.SymbolKind.Constant,
-		};
-
-		// if (dateValue) {
-		// 	symbolInfo.date = dateValue;
-		// }
-
-		result.push(symbolInfo);
-	}
-	return result;
-}
-
-export async function getTags(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
-	const tree = await trees.getParseTree(doc);
-	if (!tree) {
-		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
-	}
-
-	const query = TreeQuery.getQueryByTokenName('tag');
-	const captures = await query.captures(tree.rootNode);
-	const result: SymbolInfo[] = [];
-	for (const capture of captures) {
-		const name = capture.node.text.substring(1); // Remove the leading #
-		const range = asLspRange(capture.node);
-
-		// // Find date using the helper function
-		// const dateValue = findDateFromNode(capture.node);
-
-		const symbolInfo: SymbolInfo = {
-			s: SymbolType.TAG,
-			_uri: doc.uri,
-			name,
-			range: rangeToCompact(range),
-			kind: lsp.SymbolKind.Key,
-		};
-
-		// if (dateValue) {
-		// 	symbolInfo.date = dateValue;
-		// }
-
-		result.push(symbolInfo);
-	}
-	return result;
-}
-
-/**
- * Extracts all links from a document
- */
-export async function getLinks(document: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
-	const tree = await trees.getParseTree(document);
-	if (!tree) {
-		throw new Error(`Failed to get parse tree for document: ${document.uri}`);
-	}
-
-	const query = TreeQuery.getQueryByTokenName('link');
-	const captures = await query.captures(tree.rootNode);
-	const result: SymbolInfo[] = [];
-	for (const capture of captures) {
-		const name = capture.node.text.substring(1); // Remove the ^ prefix
-		const range = asLspRange(capture.node);
-
-		// // Find date using the helper function
-		// const dateValue = findDateFromNode(capture.node);
-
-		const symbolInfo: SymbolInfo = {
-			s: SymbolType.LINK,
-			_uri: document.uri,
-			name,
-			range: rangeToCompact(range),
-			kind: lsp.SymbolKind.Key,
-		};
-
-		// if (dateValue) {
-		// 	symbolInfo.date = dateValue;
-		// }
-
-		result.push(symbolInfo);
-	}
-	return result;
-}
-
-export async function getPricesDeclarations(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
-	const tree = await trees.getParseTree(doc);
-	if (!tree) {
-		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
-	}
-	const query = TreeQuery.getQueryByTokenName('price');
-	const captures = await query.captures(tree.rootNode);
-	const result: SymbolInfo[] = [];
-	for (const capture of captures) {
-		const name = capture.node.childForFieldName('currency')!.text;
-		const range = asLspRange(capture.node);
-
-		// Find date using the helper function
-		const dateValue = findDateFromNode(capture.node);
-
-		const symbolInfo: SymbolInfo = {
-			s: SymbolType.PRICE,
-			_uri: doc.uri,
-			name,
-			range: rangeToCompact(range),
-			kind: lsp.SymbolKind.Constant,
-		};
-
-		if (dateValue) {
-			symbolInfo.date = dateValue;
-		}
-
-		result.push(symbolInfo);
-	}
-	return result;
-}
-
-export async function getPushTags(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
-	const tree = await trees.getParseTree(doc);
-	if (!tree) {
-		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
-	}
-	const query = TreeQuery.getQueryByTokenName('pushtag');
-	const captures = await query.captures(tree.rootNode);
-	const result: SymbolInfo[] = [];
-	for (const capture of captures) {
-		// Get the tag node within the pushtag
-		const tagNode = capture.node.child(1);
-		if (tagNode && tagNode.type === 'tag') {
-			const name = tagNode.text.substring(1); // Remove the leading #
-			const range = asLspRange(capture.node);
-			result.push({
-				s: SymbolType.PUSHTAG,
-				_uri: doc.uri,
-				name,
-				range: rangeToCompact(range),
-				kind: lsp.SymbolKind.Event,
-			});
-		}
-	}
-	return result;
-}
-
-export async function getPopTags(doc: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
-	const tree = await trees.getParseTree(doc);
-	if (!tree) {
-		throw new Error(`Failed to get parse tree for document: ${doc.uri}`);
-	}
-	const query = TreeQuery.getQueryByTokenName('poptag');
-	const captures = await query.captures(tree.rootNode);
-	const result: SymbolInfo[] = [];
-	for (const capture of captures) {
-		// Get the tag node within the poptag
-		const tagNode = capture.node.child(1);
-		if (tagNode && tagNode.type === 'tag') {
-			const name = tagNode.text.substring(1); // Remove the leading #
-			const range = asLspRange(capture.node);
-			result.push({
-				s: SymbolType.POPTAG,
-				_uri: doc.uri,
-				name,
-				range: rangeToCompact(range),
-				kind: lsp.SymbolKind.Event,
-			});
 		}
 	}
 	return result;
