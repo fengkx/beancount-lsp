@@ -1,4 +1,12 @@
-import { CustomMessages, Logger, LogLevel, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
+import {
+	CustomMessages,
+	Logger,
+	LogLevel,
+	logLevelToString,
+	mapTraceServerToLogLevel,
+	TOKEN_MODIFIERS,
+	TOKEN_TYPES,
+} from '@bean-lsp/shared';
 import {
 	Connection,
 	DidChangeConfigurationNotification,
@@ -72,6 +80,7 @@ export function startServer(
 	// connection configurations
 	let hasConfigurationCapability: boolean = false;
 	let hasWorkspaceFolderCapability: boolean = false;
+	let supportsDynamicConfigRegistration: boolean = false;
 
 	const features: Feature[] = [];
 
@@ -88,7 +97,10 @@ export function startServer(
 					resolveProvider: true,
 					triggerCharacters,
 				},
-				selectionRangeProvider: true,
+				selectionRangeProvider: {
+					documentSelector: ['beancount'],
+				},
+				foldingRangeProvider: true,
 				// Add definition provider capability
 				definitionProvider: true,
 				// Add references provider capability
@@ -109,6 +121,12 @@ export function startServer(
 				inlayHintProvider: {
 					resolveProvider: false, // We don't need to resolve hints further
 				},
+				// Add semantic tokens provider capability
+				semanticTokensProvider: {
+					legend: { tokenTypes: TOKEN_TYPES, tokenModifiers: TOKEN_MODIFIERS },
+					full: true,
+					range: false,
+				},
 				// Add document formatting capability
 				documentFormattingProvider: true,
 				// Add code lens provider capability
@@ -119,6 +137,9 @@ export function startServer(
 		}
 		if (params.capabilities.workspace?.workspaceFolders) {
 			hasWorkspaceFolderCapability = true;
+		}
+		if (params.capabilities.workspace?.didChangeConfiguration?.dynamicRegistration) {
+			supportsDynamicConfigRegistration = true;
 		}
 
 		// Extract webTreeSitterWasmPath from initialization options if available
@@ -242,12 +263,14 @@ export function startServer(
 		await symbolIndex.unleashFiles([]);
 
 		if (hasConfigurationCapability) {
-			// Register for all configuration changes.
-			connection.client.register(DidChangeConfigurationNotification.type, undefined);
+			// Register for configuration changes only when client supports dynamic registration
+			if (supportsDynamicConfigRegistration) {
+				connection.client.register(DidChangeConfigurationNotification.type, undefined);
+			}
 
 			// Get initial configuration for trace server setting
 			const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });
-			if (config.trace && config.trace.server) {
+			if (config && config.trace && config.trace.server) {
 				const logLevel = mapTraceServerToLogLevel(config.trace.server);
 				serverLogger.setLevel(logLevel);
 				serverLogger.info(
@@ -256,7 +279,7 @@ export function startServer(
 			}
 
 			// Apply main currency setting
-			if (config.mainCurrency) {
+			if (config?.mainCurrency) {
 				const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
 				if (featureWithPriceMap) {
 					featureWithPriceMap.setPriceMapMainCurrency(config.mainCurrency);
@@ -265,7 +288,7 @@ export function startServer(
 			}
 
 			// Set allowed currencies list
-			if (config.currencys !== undefined) {
+			if (config?.currencys !== undefined) {
 				const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
 				if (featureWithPriceMap) {
 					featureWithPriceMap.setPriceMapAllowedCurrencies(config.currencys || []);
@@ -282,18 +305,17 @@ export function startServer(
 				if (hasConfigurationCapability) {
 					globalEventBus.emit(GlobalEvents.ConfigurationChanged);
 					const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });
-					if (config.trace && config.trace.server) {
-						const logLevel = mapTraceServerToLogLevel(config.trace.server);
+					if (config?.trace && config.trace.server) {
+						const logLevel = mapTraceServerToLogLevel(config?.trace.server);
 						serverLogger.setLevel(logLevel);
 						serverLogger.info(
-							`Log level changed to ${
-								logLevelToString(logLevel)
+							`Log level changed to ${logLevelToString(logLevel)}
 							} (from trace.server: ${config.trace.server})`,
 						);
 					}
 
 					// Update main currency setting
-					if (config.mainCurrency !== undefined) {
+					if (config?.mainCurrency !== undefined) {
 						const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
 						if (featureWithPriceMap) {
 							featureWithPriceMap.setPriceMapMainCurrency(config.mainCurrency);
@@ -302,7 +324,7 @@ export function startServer(
 					}
 
 					// Update allowed currencies list
-					if (config.currencys !== undefined) {
+					if (config?.currencys !== undefined) {
 						const featureWithPriceMap = features.find(f => f instanceof HoverFeature) as HoverFeature;
 						if (featureWithPriceMap) {
 							featureWithPriceMap.setPriceMapAllowedCurrencies(config.currencys || []);
