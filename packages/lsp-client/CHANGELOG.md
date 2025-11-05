@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.0.139
+
+- chore: update lsp-client version to 0.0.139 ([5826a38](https://github.com/fengkx/beancount-lsp/commit/5826a38))
+- refactor: clean up symbol-extractors by removing unused functions and optimizing imports ([dd4eda7](https://github.com/fengkx/beancount-lsp/commit/dd4eda7))
+- fix: enhance error handling in reparseWithPlaceholder function ([91d40a2](https://github.com/fengkx/beancount-lsp/commit/91d40a2))
+- feat: implement semantic token aggregation for improved token extraction ([a22a8d3](https://github.com/fengkx/beancount-lsp/commit/a22a8d3))
+- refactor: update findAllTransactions to be asynchronous and improve transaction extraction ([79b05dd](https://github.com/fengkx/beancount-lsp/commit/79b05dd))
+- fix: support renaming and finding references for narrations (#146) ([d5c890c](https://github.com/fengkx/beancount-lsp/commit/d5c890c))
+- feat: configurable pinyin fuzzy ([ef140ba](https://github.com/fengkx/beancount-lsp/commit/ef140ba))
+- perf: improve symbol-extractors performance (#148) ([0781347](https://github.com/fengkx/beancount-lsp/commit/0781347))
+- fix: add missing prepare rename for links (#144) ([1098316](https://github.com/fengkx/beancount-lsp/commit/1098316))
+- fix: skip initing mainBeanFile second time (#150) ([d3db1e6](https://github.com/fengkx/beancount-lsp/commit/d3db1e6))
+- perf: remove code that triggers indexing of included files (#149) ([58f46c3](https://github.com/fengkx/beancount-lsp/commit/58f46c3))
+- refactor: lower priority of a log message sending document text (#145) ([3566548](https://github.com/fengkx/beancount-lsp/commit/3566548))
+
 ## v0.0.138
 
 - chore: bump lsp-client version to 0.0.138 ([7eca414](https://github.com/fengkx/beancount-lsp/commit/7eca414))
