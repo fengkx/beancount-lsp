@@ -64,17 +64,16 @@ reverse_flag_map = {
 
 
 def get_flag_metadata(thing):
+    help = getattr(thing, "narration", "")
+    if help == "":
+        help = getattr(thing, "payee", getattr(thing, "account", r"¯\_(ツ)_/¯"))
     return {
         "file": thing.meta["filename"],
         "line": thing.meta["lineno"],
         "message": "{thing} has flag {flag} ({help})".format(
             thing=thing.__class__.__name__,
             flag=reverse_flag_map.get(thing.flag) or thing.flag,
-            help=getattr(
-                thing,
-                "narration",
-                getattr(thing, "payee", getattr(thing, "account", r"¯\_(ツ)_/¯")),
-            ),
+            help=help,
         ),
         "flag": thing.flag,
     }
@@ -121,9 +120,9 @@ for entry in entries:
                         posting.meta["lineno"], []
                     )
                     amounts.append(posting.units.to_string())
-                    automatics[posting.meta["filename"]][
-                        posting.meta["lineno"]
-                    ] = amounts
+                    automatics[posting.meta["filename"]][posting.meta["lineno"]] = (
+                        amounts
+                    )
         commodities.update(txn_commodities)
     elif isinstance(entry, Open):
         accounts[entry.account] = {
