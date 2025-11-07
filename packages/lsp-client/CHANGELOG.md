@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.141
+
+- chore: update lsp-client version to 0.0.141 ([75ca2a5](https://github.com/fengkx/beancount-lsp/commit/75ca2a5))
+- fix: cache across tree with node id cause memory out of bound ([67cbf53](https://github.com/fengkx/beancount-lsp/commit/67cbf53))
+- Ignore empty narration (#155) ([5d24b96](https://github.com/fengkx/beancount-lsp/commit/5d24b96))
+
 ## v0.0.139
 
 - chore: update lsp-client version to 0.0.139 ([5826a38](https://github.com/fengkx/beancount-lsp/commit/5826a38))
