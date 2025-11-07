@@ -1,3 +1,4 @@
+import { Logger } from '@bean-lsp/shared';
 import {
 	Connection,
 	FoldingRange,
@@ -9,7 +10,6 @@ import { DocumentStore } from '../document-store';
 import { TreeQuery } from '../language';
 import { Trees } from '../trees';
 import { Feature } from './types';
-import { Logger } from '@bean-lsp/shared';
 
 const logger = new Logger('FoldingRangeFeature');
 
@@ -31,7 +31,7 @@ export class FoldingRangeFeature implements Feature {
 			return [];
 		}
 		const result: FoldingRange[] = [];
-		const foldingMatches = await TreeQuery.getQueryByTokenName('folding').captures(tree.rootNode);
+		const foldingMatches = await TreeQuery.getQueryByTokenName('folding').captures(tree);
 		try {
 			foldingMatches.flat().forEach(capture => {
 				result.push(

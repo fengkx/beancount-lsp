@@ -1,5 +1,4 @@
 import { getParser } from '@bean-lsp/shared';
-import { LRUCache } from 'mnemonist';
 import type * as Parser from 'web-tree-sitter';
 
 import account from './queries/account.scm';
@@ -83,21 +82,11 @@ type BeanTokenName = keyof typeof queryMap;
 
 const map = new Map<BeanTokenName, TreeQuery>();
 
-// Helper function to create a cache key for captures
-function createCapturesKey(
-	nodeId: number,
-	startPosition?: Parser.Point,
-	endPosition?: Parser.Point,
-): string {
-	const start = startPosition ? `${startPosition.row}:${startPosition.column}` : 'none';
-	const end = endPosition ? `${endPosition.row}:${endPosition.column}` : 'none';
-	return `${nodeId}:${start}:${end}`;
-}
-
 export class TreeQuery {
 	query: string | undefined;
-	private readonly _capturesCache = new LRUCache<string, Parser.QueryCapture[]>(50);
-	private readonly _matchesCache = new LRUCache<string, Parser.QueryMatch[]>(50);
+	private _compiledQuery: Parser.Query | undefined;
+	private readonly _matchesCacheByTree = new WeakMap<Parser.Tree, Map<string, Parser.QueryMatch[]>>();
+	private readonly _capturesCacheByTree = new WeakMap<Parser.Tree, Map<string, Parser.QueryCapture[]>>();
 
 	constructor(public name: BeanTokenName) {
 		const r = map.get(name);
@@ -113,73 +102,80 @@ export class TreeQuery {
 		return new TreeQuery(name);
 	}
 
+	private async getCompiledQuery(): Promise<Parser.Query> {
+		if (this._compiledQuery) {
+			return this._compiledQuery;
+		}
+		const parser = await getParser();
+		this._compiledQuery = parser.getLanguage().query(this.query!);
+		return this._compiledQuery;
+	}
+
+	private static makeRangeKey(startPosition?: Parser.Point, endPosition?: Parser.Point): string {
+		const start = startPosition ? `${startPosition.row}:${startPosition.column}` : 'none';
+		const end = endPosition ? `${endPosition.row}:${endPosition.column}` : 'none';
+		return `${start}:${end}`;
+	}
+
 	async matches(
-		rootNode: Parser.SyntaxNode,
+		tree: Parser.Tree,
 		startPosition?: Parser.Point,
 		endPosition?: Parser.Point,
 	): Promise<Parser.QueryMatch[]> {
-		// Create cache key using node ID
-		const cacheKey = createCapturesKey(rootNode.id, startPosition, endPosition);
-
-		// Check cache first
-		const cached = this._matchesCache.get(cacheKey);
+		const key = TreeQuery.makeRangeKey(startPosition, endPosition);
+		let inner = this._matchesCacheByTree.get(tree);
+		if (!inner) {
+			inner = new Map();
+			this._matchesCacheByTree.set(tree, inner);
+		}
+		const cached = inner.get(key);
 		if (cached) {
 			return cached;
 		}
-
-		// Use the module-level WASM path
-		const parser = await getParser();
-		const result = parser.getLanguage().query(this.query!).matches(rootNode, startPosition, endPosition);
-
-		// Cache the result
-		this._matchesCache.set(cacheKey, result);
-
+		const q = await this.getCompiledQuery();
+		const result = q.matches(tree.rootNode, startPosition, endPosition);
+		inner.set(key, result);
 		return result;
 	}
 
 	async captures(
-		rootNode: Parser.SyntaxNode,
+		tree: Parser.Tree,
 		startPosition?: Parser.Point,
 		endPosition?: Parser.Point,
 	): Promise<Parser.QueryCapture[]> {
-		// Create cache key using node ID
-		const cacheKey = createCapturesKey(rootNode.id, startPosition, endPosition);
-
-		// Check cache first
-		const cached = this._capturesCache.get(cacheKey);
+		const key = TreeQuery.makeRangeKey(startPosition, endPosition);
+		let inner = this._capturesCacheByTree.get(tree);
+		if (!inner) {
+			inner = new Map();
+			this._capturesCacheByTree.set(tree, inner);
+		}
+		const cached = inner.get(key);
 		if (cached) {
 			return cached;
 		}
-
-		// Use the module-level WASM path
-		const parser = await getParser();
-		const result = parser.getLanguage().query(this.query!).captures(rootNode, startPosition, endPosition);
-
-		// Cache the result
-		this._capturesCache.set(cacheKey, result);
-
+		const q = await this.getCompiledQuery();
+		const result = q.captures(tree.rootNode, startPosition, endPosition);
+		inner.set(key, result);
 		return result;
 	}
 
 	static async matches(
 		query: string,
-		rootNode: Parser.SyntaxNode,
+		tree: Parser.Tree,
 		startPosition?: Parser.Point,
 		endPosition?: Parser.Point,
 	): Promise<Parser.QueryMatch[]> {
-		// Use the module-level WASM path
 		const parser = await getParser();
-		return parser.getLanguage().query(query).matches(rootNode, startPosition, endPosition);
+		return parser.getLanguage().query(query).matches(tree.rootNode, startPosition, endPosition);
 	}
 
 	static async captures(
 		query: string,
-		rootNode: Parser.SyntaxNode,
+		tree: Parser.Tree,
 		startPosition?: Parser.Point,
 		endPosition?: Parser.Point,
 	): Promise<Parser.QueryCapture[]> {
-		// Static method doesn't have instance cache, so we execute directly
 		const parser = await getParser();
-		return parser.getLanguage().query(query).captures(rootNode, startPosition, endPosition);
+		return parser.getLanguage().query(query).captures(tree.rootNode, startPosition, endPosition);
 	}
 }

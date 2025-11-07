@@ -38,7 +38,7 @@ export class SemanticTokenFeature implements Feature {
 		const tokenBuilder = new TokenBuilder();
 
 		// Single aggregated query for all semantic tokens
-		const matches = await TreeQuery.getQueryByTokenName('semantic_tokens').matches(tree.rootNode);
+		const matches = await TreeQuery.getQueryByTokenName('semantic_tokens').matches(tree);
 
 		for (const match of matches) {
 			for (const capture of match.captures) {

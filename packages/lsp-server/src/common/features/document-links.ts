@@ -75,7 +75,7 @@ export class DocumentLinksFeature {
 
 		try {
 			// Use the include query to find all include directives
-			const captures = await TreeQuery.captures('(include (string) @path)', tree.rootNode);
+			const captures = await TreeQuery.captures('(include (string) @path)', tree);
 
 			for (const capture of captures) {
 				// Extract the string content without quotes

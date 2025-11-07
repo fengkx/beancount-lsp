@@ -62,7 +62,7 @@ export async function getSymbols(textDocument: TextDocument, trees: Trees): Prom
 		throw new Error(`Failed to get parse tree for document: ${textDocument.uri}`);
 	}
 	const query = TreeQuery.getQueryByTokenName('symbols');
-	const matches = await query.matches(tree.rootNode);
+	const matches = await query.matches(tree);
 	const result: SymbolInfo[] = [];
 	for (const match of matches) {
 		let nameFromCapture: string | undefined;

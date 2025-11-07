@@ -69,7 +69,7 @@ export class InlayHintFeature implements Feature {
 		}
 
 		// Find all transactions in the document
-		const transactions = await findAllTransactions(tree.rootNode, document);
+		const transactions = await findAllTransactions(tree, document);
 
 		// Process each transaction
 		for (const transaction of transactions) {

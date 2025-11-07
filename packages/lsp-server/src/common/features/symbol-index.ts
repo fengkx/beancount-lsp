@@ -4,12 +4,7 @@ import { isInteresting, parallel, StopWatch } from '../common';
 import { DocumentStore } from '../document-store';
 import { StorageInstance } from '../startServer';
 import { Trees } from '../trees';
-import {
-	getSymbols,
-	SymbolInfo,
-	SymbolKey,
-	SymbolType,
-} from './symbol-extractors';
+import { getSymbols, SymbolInfo, SymbolKey, SymbolType } from './symbol-extractors';
 
 import { Logger } from '@bean-lsp/shared';
 import { TreeQuery } from '../language';
@@ -184,12 +179,12 @@ export class SymbolIndex {
 		// Process options directives in this document
 		await this._processOptionsDirectives(document);
 
-		const symbols = await getSymbols(document, this._trees)
+		const symbols = await getSymbols(document, this._trees);
 
 		this.logger.debug(`We Found ${symbols.length} symbols in ${document.uri}`);
 
 		this._symbolInfoStorage.removeSync({ _uri: document.uri });
-		await this._symbolInfoStorage.insertAsync(symbols)
+		await this._symbolInfoStorage.insertAsync(symbols);
 	}
 
 	/**
@@ -205,7 +200,7 @@ export class SymbolIndex {
 			}
 
 			const optionQuery = TreeQuery.getQueryByTokenName('option');
-			const optionCaptures = await optionQuery.captures(tree.rootNode);
+			const optionCaptures = await optionQuery.captures(tree);
 
 			const options = new Map<string, string>();
 

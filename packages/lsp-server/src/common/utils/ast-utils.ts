@@ -151,7 +151,11 @@ const lruCache = new LRUCache<string, Transaction[]>(100);
  * @param document The text document
  * @returns Array of transaction objects with their postings
  */
-export async function findAllTransactions(rootNode: Parser.SyntaxNode, document: TextDocument): Promise<Transaction[]> {
+export async function findAllTransactions(
+	tree: import('web-tree-sitter').Tree,
+	document: TextDocument,
+): Promise<Transaction[]> {
+	const rootNode: Parser.SyntaxNode = tree.rootNode;
 	const key = 'txns:' + rootNode.id + ':' + document.version;
 	const cached = lruCache.get(key);
 	if (cached) {
@@ -193,7 +197,7 @@ export async function findAllTransactions(rootNode: Parser.SyntaxNode, document:
 	// Run combined query that yields both header and posting matches
 	try {
 		const q = TreeQuery.getQueryByTokenName('transaction_detail');
-		const matches = await q.matches(rootNode);
+		const matches = await q.matches(tree);
 
 		for (const m of matches) {
 			const txnNode = getCaptureNode(m, 'transaction');
@@ -247,7 +251,7 @@ export async function findAllTransactions(rootNode: Parser.SyntaxNode, document:
 	if (transactionsMap.size === 0) {
 		// Try to at least get transactions list
 		const txnQuery = TreeQuery.getQueryByTokenName('transaction');
-		const captures = await txnQuery.captures(rootNode);
+		const captures = await txnQuery.captures(tree);
 		for (const cap of captures) {
 			const node = cap.node;
 			if (node.type !== 'transaction') continue;

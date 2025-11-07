@@ -69,7 +69,7 @@ export class DocumentSymbolsFeature {
 	private async getTransactionSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
 		const symbols: lsp.DocumentSymbol[] = [];
 		const transactionQuery = TreeQuery.getQueryByTokenName('transaction');
-		const transactionCaptures = await transactionQuery.captures(tree.rootNode);
+		const transactionCaptures = await transactionQuery.captures(tree);
 
 		for (const capture of transactionCaptures) {
 			const date = capture.node.childForFieldName('date');
@@ -135,7 +135,7 @@ export class DocumentSymbolsFeature {
 	private async getCommodityDefinitionSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
 		const symbols: lsp.DocumentSymbol[] = [];
 		const commodityDefinitionQuery = TreeQuery.getQueryByTokenName('currency_definition');
-		const commodityDefinitionCaptures = await commodityDefinitionQuery.captures(tree.rootNode);
+		const commodityDefinitionCaptures = await commodityDefinitionQuery.captures(tree);
 
 		for (const capture of commodityDefinitionCaptures) {
 			const commodity = capture.node.parent;
@@ -179,7 +179,7 @@ export class DocumentSymbolsFeature {
 	private async getAccountDefinitionSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
 		const symbols: lsp.DocumentSymbol[] = [];
 		const accountDefinitionQuery = TreeQuery.getQueryByTokenName('account_definition');
-		const accountDefinitionCaptures = await accountDefinitionQuery.captures(tree.rootNode);
+		const accountDefinitionCaptures = await accountDefinitionQuery.captures(tree);
 
 		for (const capture of accountDefinitionCaptures) {
 			const openDirective = capture.node.parent;
@@ -261,7 +261,7 @@ export class DocumentSymbolsFeature {
 	private async getPriceDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
 		const symbols: lsp.DocumentSymbol[] = [];
 		const priceDirectiveQuery = TreeQuery.getQueryByTokenName('price');
-		const priceDirectiveCaptures = await priceDirectiveQuery.captures(tree.rootNode);
+		const priceDirectiveCaptures = await priceDirectiveQuery.captures(tree);
 
 		for (const capture of priceDirectiveCaptures) {
 			const price = capture.node;
@@ -324,7 +324,7 @@ export class DocumentSymbolsFeature {
 	private async getBalanceDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
 		const symbols: lsp.DocumentSymbol[] = [];
 		const balanceQuery = TreeQuery.getQueryByTokenName('balance');
-		const balanceCaptures = await balanceQuery.captures(tree.rootNode);
+		const balanceCaptures = await balanceQuery.captures(tree);
 
 		for (const capture of balanceCaptures) {
 			const balance = capture.node;
@@ -378,7 +378,7 @@ export class DocumentSymbolsFeature {
 	private async getCloseDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
 		const symbols: lsp.DocumentSymbol[] = [];
 		const closeQuery = TreeQuery.getQueryByTokenName('close');
-		const closeCaptures = await closeQuery.captures(tree.rootNode);
+		const closeCaptures = await closeQuery.captures(tree);
 
 		for (const capture of closeCaptures) {
 			const close = capture.node;
@@ -422,7 +422,7 @@ export class DocumentSymbolsFeature {
 	private async getPadDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
 		const symbols: lsp.DocumentSymbol[] = [];
 		const padQuery = TreeQuery.getQueryByTokenName('pad');
-		const padCaptures = await padQuery.captures(tree.rootNode);
+		const padCaptures = await padQuery.captures(tree);
 
 		for (const capture of padCaptures) {
 			const pad = capture.node;
@@ -473,7 +473,7 @@ export class DocumentSymbolsFeature {
 	private async getDocumentDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
 		const symbols: lsp.DocumentSymbol[] = [];
 		const documentQuery = TreeQuery.getQueryByTokenName('document');
-		const documentCaptures = await documentQuery.captures(tree.rootNode);
+		const documentCaptures = await documentQuery.captures(tree);
 
 		for (const capture of documentCaptures) {
 			const doc = capture.node;
@@ -527,7 +527,7 @@ export class DocumentSymbolsFeature {
 	private async getNoteDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
 		const symbols: lsp.DocumentSymbol[] = [];
 		const noteQuery = TreeQuery.getQueryByTokenName('note');
-		const noteCaptures = await noteQuery.captures(tree.rootNode);
+		const noteCaptures = await noteQuery.captures(tree);
 
 		for (const capture of noteCaptures) {
 			const note = capture.node;
@@ -587,7 +587,7 @@ export class DocumentSymbolsFeature {
 	private async getEventDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
 		const symbols: lsp.DocumentSymbol[] = [];
 		const eventQuery = TreeQuery.getQueryByTokenName('event');
-		const eventCaptures = await eventQuery.captures(tree.rootNode);
+		const eventCaptures = await eventQuery.captures(tree);
 
 		for (const capture of eventCaptures) {
 			const event = capture.node;
@@ -648,7 +648,7 @@ export class DocumentSymbolsFeature {
 	private async getQueryDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
 		const symbols: lsp.DocumentSymbol[] = [];
 		const queryQuery = TreeQuery.getQueryByTokenName('query');
-		const queryCaptures = await queryQuery.captures(tree.rootNode);
+		const queryCaptures = await queryQuery.captures(tree);
 
 		for (const capture of queryCaptures) {
 			const queryNode = capture.node;
@@ -699,7 +699,7 @@ export class DocumentSymbolsFeature {
 	private async getCustomDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
 		const symbols: lsp.DocumentSymbol[] = [];
 		const customQuery = TreeQuery.getQueryByTokenName('custom');
-		const customCaptures = await customQuery.captures(tree.rootNode);
+		const customCaptures = await customQuery.captures(tree);
 
 		for (const capture of customCaptures) {
 			const custom = capture.node;
@@ -743,7 +743,7 @@ export class DocumentSymbolsFeature {
 	private async getIncludeDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
 		const symbols: lsp.DocumentSymbol[] = [];
 		const includeQuery = TreeQuery.getQueryByTokenName('include');
-		const includeCaptures = await includeQuery.captures(tree.rootNode);
+		const includeCaptures = await includeQuery.captures(tree);
 
 		for (const capture of includeCaptures) {
 			const include = capture.node;
