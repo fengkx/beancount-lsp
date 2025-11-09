@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.0.142
+
+- chore: update lsp-client version to 0.0.142 ([6e2cb1f](https://github.com/fengkx/beancount-lsp/commit/6e2cb1f))
+
 ## v0.0.141
 
 - chore: update lsp-client version to 0.0.141 ([75ca2a5](https://github.com/fengkx/beancount-lsp/commit/75ca2a5))
