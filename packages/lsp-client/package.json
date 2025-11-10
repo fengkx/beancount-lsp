@@ -304,19 +304,19 @@
 	"devDependencies": {
 		"@types/glob": "^9.0.0",
 		"@types/mocha": "^10.0.6",
-		"@types/node": "24.8.1",
+		"@types/node": "24.10.0",
 		"@types/vscode": "^1.86.0",
 		"@vscode/test-electron": "^2.5.2",
-		"@vscode/vsce": "^3.6.2",
+		"@vscode/vsce": "^3.7.0",
 		"compose-regexp": "^0.7.1",
 		"dprint": "^0.50.2",
 		"esbuild-plugins-node-modules-polyfill": "^1.7.1",
 		"execa": "^9.6.0",
 		"glob": "^11.0.3",
 		"jsonc-parser": "^3.3.1",
-		"mocha": "^11.7.4",
+		"mocha": "^11.7.5",
 		"regexpu-core": "^6.4.0",
-		"vitest": "^3.2.4",
+		"vitest": "^4.0.8",
 		"zod-to-json-schema": "^3.24.6"
 	},
 	"dependencies": {
