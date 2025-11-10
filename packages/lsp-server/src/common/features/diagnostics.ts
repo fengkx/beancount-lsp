@@ -265,6 +265,35 @@ export class DiagnosticsFeature implements Feature {
 				await new Promise(resolve => setTimeout(resolve, 0));
 			}
 		}
+		if (document.lineCount <= 10000 && tree.rootNode.hasError()) {
+			// Skip the diagnostics tip if the document is too large to avoid performance issues
+			// But there is still code action to fix the incomplete balance lines
+
+			// Detect incomplete balance directives to offer quick fixes with a visible squiggle
+			// Heuristic: a line starts with DATE, contains 'balance' and an account,
+			// but lacks a "<number> <CURRENCY>" pair after the account.
+			const text = document.getText();
+			const lines = text.split(/\r?\n/);
+			const numberCurrencyRe = /\s-?\d[\d,]*(?:\.\d+)?\s+[A-Z][A-Z0-9_'./-]*\b/;
+			const balanceHeadRe = /^\s*\d{4}-\d{2}-\d{2}\s+balance\b/;
+
+			for (let line = 0; line < lines.length; line++) {
+				const lineText = lines[line]!;
+				if (!balanceHeadRe.test(lineText)) continue;
+				if (numberCurrencyRe.test(lineText)) continue; // already has amount and currency
+
+				diagnostics.push({
+					severity: DiagnosticSeverity.Information,
+					range: {
+						start: { line, character: 0 },
+						end: { line, character: Math.max(0, lineText.length) },
+					},
+					message: 'Balance line incomplete: quick fix can complete current account balance',
+					source: 'beancount-lsp',
+					code: 'balance-missing-amount',
+				});
+			}
+		}
 
 		const beancountDiagnostics = this.diagnosticsFromBeancount[document.uri];
 		if (!beancountDiagnostics) {

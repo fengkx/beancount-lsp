@@ -214,6 +214,9 @@ export class RenameFeature {
 				Object.keys(changes).length
 			} files and ${allLocations.length} occurrences (${references.length} references, ${definitions.length} definitions)`,
 		);
+		Object.keys(changes).forEach(uri => {
+			this.symbolIndex.addAsyncFile(uri);
+		});
 
 		return { changes };
 	}

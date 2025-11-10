@@ -8,6 +8,7 @@ import {
 	TextDocumentSyncKind,
 } from 'vscode-languageserver';
 import { DocumentStore } from './document-store';
+import { CodeActionFeature } from './features/code-actions';
 import { CodeLensFeature } from './features/code-lens';
 import { CompletionFeature, triggerCharacters } from './features/completions';
 import { DefinitionFeature } from './features/definitions';
@@ -160,9 +161,14 @@ export function startServer(
 
 		// Add CodeLens feature only when beancount manager is available (node environment)
 		if (beanMgr) {
+			// CodeAction capability (only when bean manager available)
+			result.capabilities.codeActionProvider = {
+				codeActionKinds: ['quickfix'],
+			};
 			result.capabilities.codeLensProvider = {
 				resolveProvider: true,
 			};
+			features.push(new CodeActionFeature(documents, trees, beanMgr));
 			features.push(new CodeLensFeature(documents, trees, beanMgr));
 		}
 		// Initialize all features
