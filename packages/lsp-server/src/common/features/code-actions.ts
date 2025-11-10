@@ -11,7 +11,7 @@ export class CodeActionFeature implements Feature {
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
-		private readonly beanMgr: RealBeancountManager,
+		private readonly beanMgr?: RealBeancountManager,
 	) {}
 
 	register(connection: lsp.Connection): void {
@@ -37,54 +37,61 @@ export class CodeActionFeature implements Feature {
 
 		const actions: lsp.CodeAction[] = [];
 
-		// Fallback: handle incomplete balance lines like "DATE balance ACCOUNT ..."
-		for (let line = params.range.start.line; line <= params.range.end.line; line++) {
-			// if (processedLines.has(line)) continue;
-			const text = this.getLineText(document, line);
-			if (!this.looksLikeBalanceLine(text)) continue;
+		// Normalize localized numbers inside a transaction postings
+		const normalizeAction = await this.tryBuildNormalizeTransactionAction(tree, document, params.range);
+		if (normalizeAction) {
+			actions.push(normalizeAction);
+		}
 
-			const accountNode = this.findNodeOfTypeAtLine(tree, 'account', line);
-			const dateNode = this.findNodeOfTypeAtLine(tree, 'date', line);
-			if (!accountNode || !dateNode) continue;
-			const accountText = accountNode.text;
+		if (this.beanMgr) {
+			for (let line = params.range.start.line; line <= params.range.end.line; line++) {
+				// if (processedLines.has(line)) continue;
+				const text = this.getLineText(document, line);
+				if (!this.looksLikeBalanceLine(text)) continue;
 
-			let amounts: { number: string; currency: string }[] = [];
-			try {
-				amounts = this.beanMgr.getBalance(accountText, false);
-			} catch (e) {
-				logger.debug(`fallback getBalance failed for ${accountText}: ${String(e)}`);
-				continue;
-			}
-			if (!amounts || amounts.length === 0) continue;
+				const accountNode = this.findNodeOfTypeAtLine(tree, 'account', line);
+				const dateNode = this.findNodeOfTypeAtLine(tree, 'date', line);
+				if (!accountNode || !dateNode) continue;
+				const accountText = accountNode.text;
 
-			const diagsForLine = this.getDiagnosticsForLine(params, line);
+				let amounts: { number: string; currency: string }[] = [];
+				try {
+					amounts = this.beanMgr.getBalance(accountText, false);
+				} catch (e) {
+					logger.debug(`fallback getBalance failed for ${accountText}: ${String(e)}`);
+					continue;
+				}
+				if (!amounts || amounts.length === 0) continue;
 
-			for (const amt of amounts) {
-				actions.push(
-					this.buildSingleCurrencyActionForLine(
-						document,
-						text,
-						accountNode,
-						`${amt.number} ${amt.currency}`,
-						diagsForLine,
-					),
-				);
-			}
+				const diagsForLine = this.getDiagnosticsForLine(params, line);
 
-			if (amounts.length > 1) {
-				const indent = this.lineIndent(document, line);
-				const dateText = dateNode.text;
-				actions.push(
-					this.buildMultiCurrencyAction(
-						document,
-						line,
-						indent,
-						dateText,
-						accountText,
-						amounts,
-						diagsForLine,
-					),
-				);
+				for (const amt of amounts) {
+					actions.push(
+						this.buildSingleCurrencyActionForLine(
+							document,
+							text,
+							accountNode,
+							`${amt.number} ${amt.currency}`,
+							diagsForLine,
+						),
+					);
+				}
+
+				if (amounts.length > 1) {
+					const indent = this.lineIndent(document, line);
+					const dateText = dateNode.text;
+					actions.push(
+						this.buildMultiCurrencyAction(
+							document,
+							line,
+							indent,
+							dateText,
+							accountText,
+							amounts,
+							diagsForLine,
+						),
+					);
+				}
 			}
 		}
 
@@ -233,5 +240,192 @@ export class CodeActionFeature implements Feature {
 		return amounts
 			.map(a => `${indent}${dateText} balance ${accountText} ${a.number} ${a.currency}`)
 			.join('\n');
+	}
+
+	/**
+	 * Try to create a code action that normalizes postings' amount formatting within the transaction
+	 * intersecting the given range.
+	 */
+	private async tryBuildNormalizeTransactionAction(
+		tree: import('web-tree-sitter').Tree,
+		document: TextDocument,
+		range: lsp.Range,
+	): Promise<lsp.CodeAction | null> {
+		// Find the transaction that intersects the selection start
+		const txns = tree.rootNode.descendantsOfType(
+			'transaction',
+			{ row: range.start.line, column: range.start.character },
+			{ row: range.end.line, column: range.end.character },
+		);
+		const targetTxn = txns.find(t =>
+			t.startPosition.row <= range.end.line && t.endPosition.row >= range.start.line
+		);
+		if (!targetTxn) return null;
+
+		// Collect postings inside this transaction
+		const postings: import('web-tree-sitter').SyntaxNode[] = [];
+		for (let i = 0; i < targetTxn.namedChildCount; i++) {
+			const ch = targetTxn.namedChild(i);
+			if (ch && ch.type === 'posting') postings.push(ch);
+		}
+		if (postings.length === 0) return null;
+
+		// Determine common currency in this transaction (if unique)
+		const currencySet = new Set<string>();
+		for (const p of postings) {
+			const amountNode = p.childForFieldName('amount');
+			if (!amountNode) continue;
+			const curNode = amountNode.namedChildren.find(n => n.type === 'currency');
+			if (curNode) currencySet.add(curNode.text);
+		}
+		const commonCurrency = currencySet.size === 1 ? Array.from(currencySet)[0] : undefined;
+
+		// Determine target fraction digits: prefer explicit decimals; otherwise max among postings; fallback 2
+		let targetFractionDigits = 0;
+		const decCandidates: number[] = [];
+		for (const p of postings) {
+			const amountNode = p.childForFieldName('amount');
+			if (!amountNode) continue;
+			const numNode = amountNode.namedChildren.find(n =>
+				n.type === 'number' || n.type === 'unary_number_expr' || n.type === 'binary_number_expr'
+			);
+			if (!numNode) continue;
+			const frac = this.detectFractionDigits(numNode.text);
+			if (frac !== null) decCandidates.push(frac);
+		}
+		if (decCandidates.length > 0) {
+			targetFractionDigits = Math.max(...decCandidates);
+		} else {
+			targetFractionDigits = 2;
+		}
+
+		// Build edits
+		const edits: lsp.TextEdit[] = [];
+		let changed = false;
+		for (const p of postings) {
+			const amountNode = p.childForFieldName('amount');
+			if (!amountNode) continue;
+
+			// Extract numeric part and currency part (if any)
+			const numNode = amountNode.namedChildren.find(n =>
+				n.type === 'number' || n.type === 'unary_number_expr' || n.type === 'binary_number_expr'
+			);
+			const curNode = amountNode.namedChildren.find(n => n.type === 'currency');
+			if (!numNode) continue;
+
+			const rawNumberText = numNode.text;
+			const normalizedNumber = this.normalizeLocalizedNumber(rawNumberText, targetFractionDigits);
+
+			// Decide currency text for this posting
+			const currencyText = curNode ? curNode.text : (commonCurrency ?? '');
+
+			// Build replacement text for the amount node
+			const desired = currencyText ? `${normalizedNumber} ${currencyText}` : normalizedNumber;
+			const currentAmountText = amountNode.text.trim();
+			if (currentAmountText !== desired) {
+				edits.push(
+					lsp.TextEdit.replace(
+						{
+							start: document.positionAt(amountNode.startIndex),
+							end: document.positionAt(amountNode.endIndex),
+						},
+						desired,
+					),
+				);
+				changed = true;
+			}
+		}
+
+		if (!changed) return null;
+		const title = 'Normalize amounts in transaction';
+		return {
+			title,
+			kind: lsp.CodeActionKind.QuickFix,
+			edit: { changes: { [document.uri]: edits } },
+		};
+	}
+
+	/**
+	 * Detect fraction digits from a localized number string (heuristic).
+	 * Returns null if cannot determine.
+	 */
+	private detectFractionDigits(text: string): number | null {
+		const cleaned = text.replace(/\s/g, '');
+		const lastDot = cleaned.lastIndexOf('.');
+		const lastComma = cleaned.lastIndexOf(',');
+		const sepIndex = Math.max(lastDot, lastComma);
+		if (sepIndex === -1) return 0;
+		const frac = cleaned.slice(sepIndex + 1);
+		// If looks like thousands grouping (length 3 and nothing after), treat as 0
+		if (/^\d{3}$/.test(frac) && (cleaned.match(/[.,]/g)?.length ?? 0) > 1) return 0;
+		if (/^\d+$/.test(frac)) return frac.length;
+		return null;
+	}
+
+	/**
+	 * Normalize localized number string to canonical form:
+	 * - remove grouping separators (space, comma, dot used as thousands)
+	 * - use '.' as decimal separator
+	 * - keep sign
+	 * - format to targetFractionDigits (pad with zeros if needed)
+	 */
+	private normalizeLocalizedNumber(raw: string, targetFractionDigits: number): string {
+		let s = raw.trim();
+		// Remove spaces within digits
+		s = s.replace(/\s+/g, '');
+
+		// Determine decimal separator
+		const lastDot = s.lastIndexOf('.');
+		const lastComma = s.lastIndexOf(',');
+		let decimalSep = '';
+		if (lastDot === -1 && lastComma === -1) {
+			decimalSep = '';
+		} else if (lastDot === -1) {
+			decimalSep = ',';
+		} else if (lastComma === -1) {
+			decimalSep = '.';
+		} else {
+			decimalSep = lastDot > lastComma ? '.' : ',';
+		}
+
+		// Split sign
+		let sign = '';
+		if (s.startsWith('+') || s.startsWith('-')) {
+			sign = s[0]!;
+			s = s.slice(1);
+		}
+
+		let integerPart = s;
+		let fractionPart = '';
+		if (decimalSep) {
+			const idx = s.lastIndexOf(decimalSep);
+			integerPart = s.slice(0, idx);
+			fractionPart = s.slice(idx + 1);
+		}
+
+		// Remove grouping separators from integer part (commas/dots/apostrophes often used)
+		integerPart = integerPart.replace(/[.,' ]/g, '');
+
+		// If there were multiple separators and we mis-classified decimal as thousands, try to fix:
+		// If fraction has exactly 3 digits and there are still separators in integer part originally,
+		// but targetFractionDigits > 0, keep as fraction. Otherwise treat as no fraction.
+		if (decimalSep && !/^\d+$/.test(fractionPart)) {
+			// Non-digit garbage, drop fraction
+			fractionPart = '';
+		}
+
+		// Format fraction to targetFractionDigits
+		if (targetFractionDigits > 0) {
+			fractionPart = (fractionPart || '').replace(/[^0-9]/g, '');
+			if (fractionPart.length > targetFractionDigits) {
+				fractionPart = fractionPart.slice(0, targetFractionDigits);
+			} else {
+				while (fractionPart.length < targetFractionDigits) fractionPart += '0';
+			}
+		} else {
+			fractionPart = '';
+		}
+
+		return sign + integerPart + (targetFractionDigits > 0 ? '.' + fractionPart : '');
 	}
 }

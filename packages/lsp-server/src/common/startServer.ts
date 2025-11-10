@@ -112,7 +112,9 @@ export function startServer(
 				},
 				// Add document formatting capability
 				documentFormattingProvider: true,
-				// Add code lens provider capability
+				codeActionProvider: {
+					codeActionKinds: ['quickfix'],
+				},
 			},
 		};
 		if (params.capabilities.workspace?.configuration) {
@@ -151,6 +153,9 @@ export function startServer(
 		features.push(new DocumentSymbolsFeature(documents, trees));
 		features.push(new DocumentLinksFeature(documents, trees));
 		features.push(new FormatterFeature(documents, trees));
+		result.capabilities.codeActionProvider = {
+			codeActionKinds: ['quickfix'],
+		};
 
 		if (typeof beanMgrFactory === 'function') {
 			beanMgr = beanMgrFactory(connection);
@@ -158,17 +163,14 @@ export function startServer(
 		features.push(new DiagnosticsFeature(documents, trees, optionsManager, beanMgr));
 		features.push(new HoverFeature(documents, trees, priceMap, symbolIndex, beanMgr));
 		features.push(new InlayHintFeature(documents, trees));
+		features.push(new CodeActionFeature(documents, trees, beanMgr));
 
 		// Add CodeLens feature only when beancount manager is available (node environment)
 		if (beanMgr) {
 			// CodeAction capability (only when bean manager available)
-			result.capabilities.codeActionProvider = {
-				codeActionKinds: ['quickfix'],
-			};
 			result.capabilities.codeLensProvider = {
 				resolveProvider: true,
 			};
-			features.push(new CodeActionFeature(documents, trees, beanMgr));
 			features.push(new CodeLensFeature(documents, trees, beanMgr));
 		}
 		// Initialize all features
