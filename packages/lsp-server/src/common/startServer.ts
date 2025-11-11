@@ -19,6 +19,7 @@ import { FoldingRangeFeature } from './features/folding-ranges';
 import { FormatterFeature } from './features/formatter';
 import { HoverFeature } from './features/hover';
 import { InlayHintFeature } from './features/inlay-hints';
+import { LinkedEditingRangeFeature } from './features/linked-editing-ranges';
 import { PriceMap } from './features/prices-index/price-map';
 import { ReferencesFeature } from './features/references';
 import { RenameFeature } from './features/rename';
@@ -115,6 +116,8 @@ export function startServer(
 				codeActionProvider: {
 					codeActionKinds: ['quickfix'],
 				},
+				// Add linked editing range provider capability
+				linkedEditingRangeProvider: true,
 			},
 		};
 		if (params.capabilities.workspace?.configuration) {
@@ -153,6 +156,7 @@ export function startServer(
 		features.push(new DocumentSymbolsFeature(documents, trees));
 		features.push(new DocumentLinksFeature(documents, trees));
 		features.push(new FormatterFeature(documents, trees));
+		features.push(new LinkedEditingRangeFeature(documents, trees));
 		result.capabilities.codeActionProvider = {
 			codeActionKinds: ['quickfix'],
 		};
