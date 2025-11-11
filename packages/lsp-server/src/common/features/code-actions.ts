@@ -353,26 +353,22 @@ export class CodeActionFeature implements Feature {
 	}
 
 	/**
-	 * Detect fraction digits from a localized number string (heuristic).
+	 * Detect fraction digits from a number string.
 	 * Returns null if cannot determine.
 	 */
 	private detectFractionDigits(text: string): number | null {
 		const cleaned = text.replace(/\s/g, '');
 		const lastDot = cleaned.lastIndexOf('.');
-		const lastComma = cleaned.lastIndexOf(',');
-		const sepIndex = Math.max(lastDot, lastComma);
-		if (sepIndex === -1) return 0;
-		const frac = cleaned.slice(sepIndex + 1);
-		// If looks like thousands grouping (length 3 and nothing after), treat as 0
-		if (/^\d{3}$/.test(frac) && (cleaned.match(/[.,]/g)?.length ?? 0) > 1) return 0;
+		if (lastDot === -1) return 0;
+		const frac = cleaned.slice(lastDot + 1);
 		if (/^\d+$/.test(frac)) return frac.length;
 		return null;
 	}
 
 	/**
 	 * Normalize localized number string to canonical form:
-	 * - remove grouping separators (space, comma, dot used as thousands)
-	 * - use '.' as decimal separator
+	 * - remove grouping separators (space, comma, apostrophe used as thousands)
+	 * - use '.' as decimal separator (Beancount only supports '.' for decimals)
 	 * - keep sign
 	 * - format to targetFractionDigits (pad with zeros if needed)
 	 */
@@ -395,20 +391,6 @@ export class CodeActionFeature implements Feature {
 		// Remove spaces within digits
 		s = s.replace(/\s+/g, '');
 
-		// Determine decimal separator
-		const lastDot = s.lastIndexOf('.');
-		const lastComma = s.lastIndexOf(',');
-		let decimalSep = '';
-		if (lastDot === -1 && lastComma === -1) {
-			decimalSep = '';
-		} else if (lastDot === -1) {
-			decimalSep = ',';
-		} else if (lastComma === -1) {
-			decimalSep = '.';
-		} else {
-			decimalSep = lastDot > lastComma ? '.' : ',';
-		}
-
 		// Split sign
 		let sign = '';
 		if (s.startsWith('+') || s.startsWith('-')) {
@@ -416,21 +398,20 @@ export class CodeActionFeature implements Feature {
 			s = s.slice(1);
 		}
 
+		// Beancount only supports '.' as decimal separator
+		const lastDot = s.lastIndexOf('.');
 		let integerPart = s;
 		let fractionPart = '';
-		if (decimalSep) {
-			const idx = s.lastIndexOf(decimalSep);
-			integerPart = s.slice(0, idx);
-			fractionPart = s.slice(idx + 1);
+		if (lastDot !== -1) {
+			integerPart = s.slice(0, lastDot);
+			fractionPart = s.slice(lastDot + 1);
 		}
 
-		// Remove grouping separators from integer part (commas/dots/apostrophes often used)
-		integerPart = integerPart.replace(/[.,' ]/g, '');
+		// Remove grouping separators from integer part (commas, apostrophes, spaces used as thousands)
+		integerPart = integerPart.replace(/[,' ]/g, '');
 
-		// If there were multiple separators and we mis-classified decimal as thousands, try to fix:
-		// If fraction has exactly 3 digits and there are still separators in integer part originally,
-		// but targetFractionDigits > 0, keep as fraction. Otherwise treat as no fraction.
-		if (decimalSep && !/^\d+$/.test(fractionPart)) {
+		// Validate fraction part: if it contains non-digits, drop it
+		if (fractionPart && !/^\d+$/.test(fractionPart)) {
 			// Non-digit garbage, drop fraction
 			fractionPart = '';
 		}
