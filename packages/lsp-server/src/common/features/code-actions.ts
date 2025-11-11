@@ -1,8 +1,10 @@
 import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { asLspRange } from '../common';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
+import { parseExpression } from '../utils/expression-parser';
 import { Feature, RealBeancountManager } from './types';
 
 const logger = new Logger('CodeAction');
@@ -41,6 +43,11 @@ export class CodeActionFeature implements Feature {
 		const normalizeAction = await this.tryBuildNormalizeTransactionAction(tree, document, params.range);
 		if (normalizeAction) {
 			actions.push(normalizeAction);
+		}
+
+		const exprCalculationAction = await this.tryBuildExprCalculationAction(tree, document, params.range);
+		if (exprCalculationAction) {
+			actions.push(exprCalculationAction);
 		}
 
 		if (this.beanMgr) {
@@ -370,6 +377,20 @@ export class CodeActionFeature implements Feature {
 	 * - format to targetFractionDigits (pad with zeros if needed)
 	 */
 	private normalizeLocalizedNumber(raw: string, targetFractionDigits: number): string {
+		// If the number text represents an expression (e.g. (295+42), 295-42, 1+2*3),
+		// do NOT try to pad decimals or reformat it; just return as-is (trimmed).
+		// We treat a leading sign as part of a simple number, but any operator/parentheses
+		// or a minus not at the first position indicates an expression.
+		const trimmed = raw.trim();
+		// Detect operators or parentheses
+		if (
+			/[()+*/]/.test(trimmed)
+			// A '-' that is not the very first non-space char indicates an expression
+			|| (trimmed.indexOf('-') > 0)
+		) {
+			return trimmed;
+		}
+
 		let s = raw.trim();
 		// Remove spaces within digits
 		s = s.replace(/\s+/g, '');
@@ -427,5 +448,52 @@ export class CodeActionFeature implements Feature {
 		}
 
 		return sign + integerPart + (targetFractionDigits > 0 ? '.' + fractionPart : '');
+	}
+
+	private async tryBuildExprCalculationAction(
+		tree: import('web-tree-sitter').Tree,
+		document: TextDocument,
+		range: lsp.Range,
+	): Promise<lsp.CodeAction | null> {
+		let exprNodes = tree.rootNode.descendantsOfType(
+			'amount_tolerance',
+			{ row: range.start.line, column: range.start.character },
+			{ row: range.end.line, column: range.end.character },
+		);
+		if (exprNodes.length === 0) {
+			exprNodes = tree.rootNode.descendantsOfType(
+				'amount',
+				{ row: range.start.line, column: range.start.character },
+				{ row: range.end.line, column: range.end.character },
+			);
+		}
+		if (exprNodes.length === 0) {
+			exprNodes = tree.rootNode.descendantsOfType(
+				'incomplete_amount',
+				{ row: range.start.line, column: range.start.character },
+				{ row: range.end.line, column: range.end.character },
+			);
+		}
+		if (exprNodes.length === 0) return null;
+
+		const exprNode = exprNodes[0];
+		if (!exprNode) return null;
+		if (!['amount', 'amount_tolerance', 'incomplete_amount'].includes(exprNode.type)) {
+			return null;
+		}
+
+		const numberNode = exprNode.firstChild;
+		if (!numberNode) return null;
+		const exprText = numberNode?.text ?? '';
+		if (/^([0-9]+|[0-9][0-9,]+[0-9])(\.[0-9]*)?$/.test(exprText)) return null;
+		const result = parseExpression(exprText);
+		const replacement = result.toString();
+		if (replacement === exprText) return null;
+		const title = `Calculate expression: ${exprText} -> ${replacement}`;
+		return {
+			title,
+			kind: lsp.CodeActionKind.QuickFix,
+			edit: { changes: { [document.uri]: [lsp.TextEdit.replace(asLspRange(numberNode), replacement)] } },
+		};
 	}
 }
