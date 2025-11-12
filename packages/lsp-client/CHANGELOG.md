@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.146
+
+- chore: update lsp-client version to 0.0.146 ([e36fcfc](https://github.com/fengkx/beancount-lsp/commit/e36fcfc))
+- feat: enhance diagnostics feature with balance line validation ([1dce6fb](https://github.com/fengkx/beancount-lsp/commit/1dce6fb))
+
 ## v0.0.144
 
 - chore: update lsp-client version to 0.0.144 ([a3b508c](https://github.com/fengkx/beancount-lsp/commit/a3b508c))
