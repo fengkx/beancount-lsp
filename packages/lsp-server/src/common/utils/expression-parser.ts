@@ -427,20 +427,28 @@ export class Parser {
 	/**
 	 * Parse the entire input and return the AST
 	 */
+	private parseInternal(): ASTNode {
+		const node = this.expr();
+
+		if (this.currentToken.type !== TokenType.EOF) {
+			throw new Error(`Unexpected token at end: ${this.currentToken.value}`);
+		}
+
+		return node;
+	}
+
 	public parse(): ASTNode {
 		try {
-			const node = this.expr();
-
-			if (this.currentToken.type !== TokenType.EOF) {
-				logger.warn(`Unexpected token at end: ${this.currentToken.value}`);
-			}
-
-			return node;
+			return this.parseInternal();
 		} catch (e) {
 			logger.error(`Error parsing expression: ${e}`);
 			// Return a safe default value node
 			return new NumberNode('0');
 		}
+	}
+
+	public parseStrict(): ASTNode {
+		return this.parseInternal();
 	}
 }
 
@@ -478,5 +486,26 @@ export function parseExpression(expression?: string): Big {
 		logger.error(`Error evaluating expression "${expression}": ${e}`);
 		// Return 0 as fallback to avoid breaking the balance checker
 		return new Big(0);
+	}
+}
+
+/**
+ * Validates whether the given string is a syntactically correct numeric expression.
+ * @param expression Expression string to validate
+ * @returns true if the expression can be parsed successfully
+ */
+export function validateExpression(expression?: string): boolean {
+	if (!expression) return false;
+	const expr = expression.trim().replace(/,/g, '');
+	if (!expr) return false;
+
+	try {
+		const lexer = new Lexer(expr);
+		const parser = new Parser(lexer);
+		parser.parseStrict();
+		return true;
+	} catch (e) {
+		logger.debug(`Invalid expression "${expression}": ${e}`);
+		return false;
 	}
 }

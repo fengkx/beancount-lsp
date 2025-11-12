@@ -15,6 +15,7 @@ import {
 } from '../utils/balance-checker';
 import { BeancountOptionsManager } from '../utils/beancount-options';
 import { globalEventBus, GlobalEvents } from '../utils/event-bus';
+import { validateExpression } from '../utils/expression-parser';
 import { Feature, RealBeancountManager } from './types';
 
 // Configuration interface for diagnostics
@@ -274,13 +275,12 @@ export class DiagnosticsFeature implements Feature {
 			// but lacks a "<number> <CURRENCY>" pair after the account.
 			const text = document.getText();
 			const lines = text.split(/\r?\n/);
-			const numberCurrencyRe = /\s-?\d[\d,]*(?:\.\d+)?\s+[A-Z][A-Z0-9_'./-]*\b/;
 			const balanceHeadRe = /^\s*\d{4}-\d{2}-\d{2}\s+balance\b/;
 
 			for (let line = 0; line < lines.length; line++) {
 				const lineText = lines[line]!;
 				if (!balanceHeadRe.test(lineText)) continue;
-				if (numberCurrencyRe.test(lineText)) continue; // already has amount and currency
+				if (this.balanceLineHasAmountAndCurrency(lineText)) continue;
 
 				diagnostics.push({
 					severity: DiagnosticSeverity.Information,
@@ -305,6 +305,38 @@ export class DiagnosticsFeature implements Feature {
 		this.logger.info(mergedDiagnostics);
 
 		return mergedDiagnostics;
+	}
+
+	private balanceLineHasAmountAndCurrency(lineText: string): boolean {
+		// Strip inline comment
+		const commentIndex = lineText.indexOf(';');
+		const content = commentIndex >= 0 ? lineText.slice(0, commentIndex) : lineText;
+
+		// Match "<date> balance <account>" prefix (accounts cannot contain whitespace)
+		const prefixMatch = content.match(/^\s*\d{4}-\d{2}-\d{2}\s+balance\s+[^\s]+\s*/);
+		if (!prefixMatch) return false;
+
+		const remainder = content.slice(prefixMatch[0].length);
+		if (!remainder.trim()) return false;
+
+		const currencyMatch = remainder.match(/\s+[A-Z][A-Z0-9_'./-]*\b/);
+		if (!currencyMatch || currencyMatch.index === undefined) return false;
+
+		const expressionText = remainder.slice(0, currencyMatch.index).trim();
+		if (!expressionText) return false;
+
+		return this.isValidBalanceAmountExpression(expressionText, lineText);
+	}
+
+	private isValidBalanceAmountExpression(expression: string, originalLine: string): boolean {
+		if (!validateExpression(expression)) {
+			this.logger.debug(
+				`Failed to parse balance amount expression '${expression}' on line: ${originalLine.trim()}`,
+			);
+			return false;
+		}
+
+		return true;
 	}
 
 	private mergeAndDedupDiagnostics(preferred: Diagnostic[], if_missing: Diagnostic[]): Diagnostic[] {
