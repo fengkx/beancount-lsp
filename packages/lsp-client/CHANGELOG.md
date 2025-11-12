@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.0.144
+
+- chore: update lsp-client version to 0.0.144 ([a3b508c](https://github.com/fengkx/beancount-lsp/commit/a3b508c))
+- feat: add linked editing range feature to LSP server ([f34f3d7](https://github.com/fengkx/beancount-lsp/commit/f34f3d7))
+- refactor: improve number string handling in CodeActionFeature ([383ebf5](https://github.com/fengkx/beancount-lsp/commit/383ebf5))
+- feat: add expression calculation action to CodeAction feature ([d45d729](https://github.com/fengkx/beancount-lsp/commit/d45d729))
+- chore: update dependencies and package versions ([6f0b15f](https://github.com/fengkx/beancount-lsp/commit/6f0b15f))
+- refactor: use new vite api ([a35936a](https://github.com/fengkx/beancount-lsp/commit/a35936a))
+- feat: enhance CodeAction feature with normalization for transaction postings ([8d5834a](https://github.com/fengkx/beancount-lsp/commit/8d5834a))
+- feat: add CodeAction feature for incomplete balance lines ([9cf3d94](https://github.com/fengkx/beancount-lsp/commit/9cf3d94))
+
 ## v0.0.142
 
 - chore: update lsp-client version to 0.0.142 ([6e2cb1f](https://github.com/fengkx/beancount-lsp/commit/6e2cb1f))
