@@ -126,7 +126,9 @@ export class DocumentSymbolsFeature {
 				selectionRange: asLspRange(capture.node),
 				children,
 			};
-			symbols.push(symbol);
+			if (symbol.name) {
+				symbols.push(symbol);
+			}
 		}
 
 		return symbols;
