@@ -232,6 +232,7 @@ export function setupCustomMessageHandlers(ctx: ExtensionContext<'browser' | 'no
 		params.capabilities['customMessage'] = {
 			[CustomMessages.ListBeanFile]: true,
 			[CustomMessages.FileRead]: true,
+			[CustomMessages.FindFiles]: true,
 		};
 		return originalInitialize(connection, params);
 	};
@@ -243,6 +244,11 @@ export function setupCustomMessageHandlers(ctx: ExtensionContext<'browser' | 'no
 			return f.toString();
 		});
 		return uriStrings;
+	});
+
+	ctx.client.onRequest(CustomMessages.FindFiles, async (pattern: string) => {
+		const files = await vscode.workspace.findFiles(pattern);
+		return files.map(f => f.toString());
 	});
 
 	ctx.client.onRequest(CustomMessages.FileRead, async (raw: string): Promise<number[]> => {
