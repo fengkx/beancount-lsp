@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.148
+
+- chore: update lsp-client version to 0.0.148 ([eb91f6f](https://github.com/fengkx/beancount-lsp/commit/eb91f6f))
+- fix: document symbol error ([37201e8](https://github.com/fengkx/beancount-lsp/commit/37201e8))
+
 ## v0.0.146
 
 - chore: update lsp-client version to 0.0.146 ([e36fcfc](https://github.com/fengkx/beancount-lsp/commit/e36fcfc))
