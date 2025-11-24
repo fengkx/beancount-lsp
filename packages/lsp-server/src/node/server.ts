@@ -25,6 +25,11 @@ class DocumentStoreInNode extends DocumentStore {
 		new Uint8Array(ab).set(buffer);
 		return ab;
 	}
+
+	protected override async fallbackFindFiles(pattern: string): Promise<string[]> {
+		const files = await glob(pattern, { absolute: true })
+		return files.map((p) => pathToFileURL(p).toString());
+	}
 }
 
 // Create a connection for the server, using Node's IPC as a transport.
