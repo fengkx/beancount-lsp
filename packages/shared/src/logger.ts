@@ -47,6 +47,24 @@ export function mapTraceServerToLogLevel(traceServer: string): LogLevel {
 	}
 }
 
+// Global log level that affects all Logger instances
+let globalLogLevel: LogLevel | null = null;
+
+/**
+ * Set global log level for all Logger instances
+ * This overrides individual logger levels
+ */
+export function setGlobalLogLevel(level: LogLevel): void {
+	globalLogLevel = level;
+}
+
+/**
+ * Get global log level
+ */
+export function getGlobalLogLevel(): LogLevel | null {
+	return globalLogLevel;
+}
+
 export class Logger implements ILogger {
 	private level: LogLevel = LogLevel.INFO;
 	private prefix: string = '';
@@ -60,35 +78,40 @@ export class Logger implements ILogger {
 	}
 
 	getLevel(): LogLevel {
-		return this.level;
+		// Global level takes precedence if set
+		return globalLogLevel !== null ? globalLogLevel : this.level;
+	}
+
+	private getEffectiveLevel(): LogLevel {
+		return globalLogLevel !== null ? globalLogLevel : this.level;
 	}
 
 	error(...args: unknown[]): void {
-		if (this.level >= LogLevel.ERROR) {
+		if (this.getEffectiveLevel() >= LogLevel.ERROR) {
 			console.error(this.formatMessage(...args));
 		}
 	}
 
 	warn(...args: unknown[]): void {
-		if (this.level >= LogLevel.WARN) {
+		if (this.getEffectiveLevel() >= LogLevel.WARN) {
 			console.warn(this.formatMessage(...args));
 		}
 	}
 
 	info(...args: unknown[]): void {
-		if (this.level >= LogLevel.INFO) {
+		if (this.getEffectiveLevel() >= LogLevel.INFO) {
 			console.info(this.formatMessage(...args));
 		}
 	}
 
 	debug(...args: unknown[]): void {
-		if (this.level >= LogLevel.DEBUG) {
+		if (this.getEffectiveLevel() >= LogLevel.DEBUG) {
 			console.log(this.formatMessage(...args));
 		}
 	}
 
 	trace(...args: unknown[]): void {
-		if (this.level >= LogLevel.TRACE) {
+		if (this.getEffectiveLevel() >= LogLevel.TRACE) {
 			console.log(this.formatMessage(...args));
 		}
 	}

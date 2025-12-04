@@ -20,6 +20,9 @@
 	],
 	"browser": "./dist/browser/extension.js",
 	"main": "./dist/node/extension.js",
+	"bin": {
+		"beancount-lsp": "./dist/node/cli.js"
+	},
 	"capabilities": {
 		"untrustedWorkspaces": {
 			"supported": true
@@ -322,6 +325,7 @@
 	"dependencies": {
 		"@bean-lsp/shared": "workspace:*",
 		"beancount-lsp-server": "workspace:*",
+		"cac": "^6.7.14",
 		"vscode-languageclient": "^9.0.1",
 		"vscode-uri": "^3.0.8"
 	}

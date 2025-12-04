@@ -77,4 +77,20 @@ const browserConfig = defineConfig({
 	],
 });
 
-export default [nodeConfig, browserConfig];
+// CLI entry - exports createCLIContext for direct usage without LSP
+const cliConfig = defineConfig({
+	...commonConfig,
+	platform: 'node',
+	entry: ['src/cli/index.ts'],
+	outDir: 'dist/cli',
+	clean: false, // Don't clean - nodeConfig already cleans
+	target: 'node20',
+	format: ['cjs', 'esm'],
+	dts: true,
+	noExternal: [
+		...commonConfig.noExternal,
+		'fast-glob',
+	],
+});
+
+export default [nodeConfig, cliConfig, browserConfig];

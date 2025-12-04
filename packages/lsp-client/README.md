@@ -99,6 +99,129 @@ The extension provides several configuration options to customize its behavior:
 }
 ```
 
+## CLI Usage
+
+The extension also provides a command-line interface for querying your beancount data. This is useful for scripting, testing, or quick lookups.
+
+### Installation
+
+After building the project, you can use the CLI directly:
+
+```bash
+# From the project root
+pnpm build
+
+# Run CLI directly
+node packages/lsp-client/dist/node/cli.js --help
+
+# Or link it globally
+cd packages/lsp-client
+pnpm link --global
+beancount-lsp --help
+```
+
+### Commands
+
+```bash
+# Get all accounts
+beancount-lsp accounts --workspace /path/to/ledger
+
+# Get accounts matching a filter
+beancount-lsp accounts Bank --workspace /path/to/ledger
+
+# Get all payees
+beancount-lsp payees --workspace /path/to/ledger
+
+# Get payees matching a filter
+beancount-lsp payees Amazon --workspace /path/to/ledger
+
+# Get narrations
+beancount-lsp narrations --workspace /path/to/ledger
+
+# Get tags
+beancount-lsp tags --workspace /path/to/ledger
+
+# Get links
+beancount-lsp links --workspace /path/to/ledger
+
+# Get commodities/currencies
+beancount-lsp commodities --workspace /path/to/ledger
+```
+
+#### Interactive REPL Mode (Default)
+
+Start an interactive session to explore your beancount files:
+
+```bash
+beancount-lsp --workspace /path/to/ledger
+
+# Or just run in current directory
+beancount-lsp
+```
+
+REPL commands:
+
+- `help` - Show available commands
+- `exit` / `quit` - Exit the REPL
+- `status` - Show workspace status
+- `accounts [filter]` - Get accounts (optional filter)
+- `payees [filter]` - Get payees (optional filter)
+- `narrations [filter]` - Get narrations (optional filter)
+- `tags [filter]` - Get tags (optional filter)
+- `links [filter]` - Get links (optional filter)
+- `commodities [filter]` - Get commodities/currencies (optional filter)
+
+### Configuration
+
+The CLI supports configuration through:
+
+1. **Command-line options:**
+   - `-w, --workspace <path>` - Path to workspace directory (default: current directory)
+   - `-c, --config <path>` - Path to config file
+   - `--verbose` - Enable verbose logging (show indexing progress)
+   - `--log-level <level>` - Log level (off, error, warn, info, debug). Default is `off` for clean output
+   - `--main-bean-file <file>` - Main beancount file path
+
+2. **Configuration file:** Create `.beanlsp.json` in your workspace root:
+
+```json
+{
+	"mainBeanFile": "main.bean",
+	"trace": {
+		"server": "messages"
+	},
+	"diagnostics": {
+		"tolerance": 0.005,
+		"warnOnIncompleteTransaction": true
+	},
+	"formatter": {
+		"enabled": true,
+		"alignCurrency": false
+	}
+}
+```
+
+Configuration priority: CLI Args > Config File > Defaults
+
+### Examples
+
+```bash
+# Get all income accounts (quiet mode, only results)
+beancount-lsp accounts Income -w ~/ledger
+
+# Get payees containing "Amazon"
+beancount-lsp payees amazon -w ~/ledger
+
+# Show indexing progress with --verbose
+beancount-lsp accounts -w ~/ledger --verbose
+
+# Start interactive REPL
+beancount-lsp --workspace ~/ledger
+
+# Use custom config file
+beancount-lsp accounts --workspace ~/ledger --config ~/ledger/my-config.json
+```
+
 ## Support
 
 If you find this extension helpful, please consider:

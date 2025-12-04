@@ -25,6 +25,21 @@ const nodeConfig = defineConfig({
 	clean: true,
 });
 
+const cliConfig = defineConfig({
+	...commonConfig,
+	entry: {
+		'node/cli': 'src/cli/index.ts',
+	},
+	platform: 'node',
+	clean: false, // Don't clean - nodeConfig already cleans
+	format: ['cjs'],
+	banner: {
+		js: '#!/usr/bin/env node',
+	},
+	external: ['vscode'], // Keep vscode external even though CLI doesn't use it
+	noExternal: ['@bean-lsp/shared', 'vscode-uri', 'beancount-lsp-server', 'cac'],
+});
+
 const browserConfig = defineConfig({
 	...commonConfig,
 	entry: {
@@ -42,4 +57,4 @@ const browserConfig = defineConfig({
 	)],
 });
 
-export default [nodeConfig, browserConfig] as const;
+export default [nodeConfig, cliConfig, browserConfig] as const;

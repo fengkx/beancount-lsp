@@ -4,6 +4,16 @@
 	"description": "Language server for Beancount files with customizable tree-sitter WASM file path",
 	"main": "dist/node/server.js",
 	"browser": "dist/browser/server.js",
+	"exports": {
+		".": {
+			"import": "./dist/node/server.js",
+			"require": "./dist/node/server.js"
+		},
+		"./cli": {
+			"import": "./dist/cli/index.js",
+			"require": "./dist/cli/index.cjs"
+		}
+	},
 	"bin": {
 		"beancount-lsp-server": "./dist/node/server.js"
 	},
