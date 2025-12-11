@@ -15,7 +15,7 @@ export abstract class ToolImpl<T> implements LanguageModelTool<T> {
 		return this.constructor.name;
 	}
 
-	public static get inputZodSchema(): z.ZodSchema {
+	public static get inputZodSchema(): z.ZodType {
 		throw new Error(`${this.name} must implement inputZodSchema`);
 	}
 
@@ -52,6 +52,7 @@ export abstract class ToolImpl<T> implements LanguageModelTool<T> {
 	}
 
 	public static get inputSchema(): Record<string, unknown> {
+		// @ts-expect-error bypass
 		return zodToJsonSchema(this.inputZodSchema);
 	}
 

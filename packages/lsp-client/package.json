@@ -229,7 +229,6 @@
 					"finance"
 				],
 				"inputSchema": {
-					"type": "string",
 					"$schema": "http://json-schema.org/draft-07/schema#"
 				}
 			},
@@ -246,7 +245,6 @@
 					"finance"
 				],
 				"inputSchema": {
-					"type": "string",
 					"$schema": "http://json-schema.org/draft-07/schema#"
 				}
 			},
@@ -263,7 +261,6 @@
 					"finance"
 				],
 				"inputSchema": {
-					"type": "string",
 					"$schema": "http://json-schema.org/draft-07/schema#"
 				}
 			},
@@ -282,7 +279,6 @@
 					"sql"
 				],
 				"inputSchema": {
-					"type": "string",
 					"$schema": "http://json-schema.org/draft-07/schema#"
 				}
 			}
@@ -304,20 +300,20 @@
 	"devDependencies": {
 		"@types/glob": "^9.0.0",
 		"@types/mocha": "^10.0.6",
-		"@types/node": "24.10.0",
+		"@types/node": "25.0.0",
 		"@types/vscode": "^1.86.0",
 		"@vscode/test-electron": "^2.5.2",
-		"@vscode/vsce": "^3.7.0",
+		"@vscode/vsce": "^3.7.1",
 		"compose-regexp": "^0.7.1",
 		"dprint": "^0.50.2",
 		"esbuild-plugins-node-modules-polyfill": "^1.7.1",
-		"execa": "^9.6.0",
-		"glob": "^11.0.3",
+		"execa": "^9.6.1",
+		"glob": "^13.0.0",
 		"jsonc-parser": "^3.3.1",
 		"mocha": "^11.7.5",
 		"regexpu-core": "^6.4.0",
-		"vitest": "^4.0.8",
-		"zod-to-json-schema": "^3.24.6"
+		"vitest": "^4.0.15",
+		"zod-to-json-schema": "^3.25.0"
 	},
 	"dependencies": {
 		"@bean-lsp/shared": "workspace:*",
