@@ -7,10 +7,12 @@ import { Trees } from '../trees';
 import { getSymbols, SymbolInfo, SymbolKey, SymbolType } from './symbol-extractors';
 
 import { Logger } from '@bean-lsp/shared';
+import { LRUMapWithDelete as LRUMap } from 'mnemonist';
 import { TreeQuery } from '../language';
 import { BeancountOptionsManager, SupportedOption } from '../utils/beancount-options';
 import { globalEventBus, GlobalEvents } from '../utils/event-bus';
 import { SwrCache, SwrOptions } from '../utils/swr';
+import { createAsciiFilterText, createFilterString } from './filter-text-utils';
 
 class Queue {
 	private readonly _queue = new Set<string>();
@@ -67,6 +69,12 @@ export class SymbolIndex {
 	private readonly _payeesCache: SwrCache<string[]>;
 	private readonly _narrationsCache: SwrCache<string[]>;
 
+	// Pinyin filter configuration
+	private _enablePinyin: boolean = true;
+
+	// LRU cache for text to filter text mapping
+	private readonly _filterTextCache = new LRUMap<string, string>(1000);
+
 	addSyncFile(uri: string): void {
 		this._syncQueue.enqueue(uri);
 	}
@@ -79,6 +87,20 @@ export class SymbolIndex {
 		this._syncQueue.dequeue(uri);
 		this._asyncQueue.dequeue(uri);
 		this._symbolInfoStorage.removeSync({ _uri: uri });
+	}
+
+	/**
+	 * Sets whether Chinese pinyin fuzzy filter is enabled for completions.
+	 * This affects precomputed filter text for symbols.
+	 * @param enablePinyin Whether to enable pinyin filtering
+	 */
+	setEnablePinyin(enablePinyin: boolean): void {
+		if (this._enablePinyin !== enablePinyin) {
+			this._enablePinyin = enablePinyin;
+			// Clear the filter text cache when configuration changes
+			this._filterTextCache.clear();
+			this.logger.debug(`Pinyin filter setting changed to: ${enablePinyin}, cache cleared`);
+		}
 	}
 
 	async consume(): Promise<void> {
@@ -431,6 +453,38 @@ export class SymbolIndex {
 	 */
 	public getOption(name: SupportedOption) {
 		return this._optionsManager.getOption(name);
+	}
+
+	/**
+	 * Gets filter text for a given text string.
+	 * Uses LRU caching to avoid repeated computation.
+	 * The filter text is computed based on the current pinyin filter setting.
+	 *
+	 * @param text The text to get filter text for
+	 * @returns Filter text string for completion matching
+	 */
+	public getFilterText(text: string): string {
+		// Check cache first
+		const cached = this._filterTextCache.get(text);
+		if (cached !== undefined) {
+			return cached;
+		}
+
+		// Compute filter text based on current pinyin setting
+		let filterText: string;
+		if (this._enablePinyin) {
+			// When pinyin is enabled, compute both ASCII and pinyin filter text
+			const asciiFilterText = createAsciiFilterText(text);
+			const pinyinFilterText = createFilterString(text, true);
+			filterText = `${asciiFilterText} ${pinyinFilterText}`;
+		} else {
+			// When pinyin is disabled, only compute ASCII filter text
+			filterText = createAsciiFilterText(text);
+		}
+
+		// Cache the result
+		this._filterTextCache.set(text, filterText);
+		return filterText;
 	}
 }
 

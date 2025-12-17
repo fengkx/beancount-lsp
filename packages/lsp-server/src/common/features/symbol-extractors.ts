@@ -56,7 +56,10 @@ function stripFirstChar(s: string): string {
 	return s.substring(1);
 }
 
-export async function getSymbols(textDocument: TextDocument, trees: Trees): Promise<SymbolInfo[]> {
+export async function getSymbols(
+	textDocument: TextDocument,
+	trees: Trees,
+): Promise<SymbolInfo[]> {
 	const tree = await trees.getParseTree(textDocument);
 	if (!tree) {
 		throw new Error(`Failed to get parse tree for document: ${textDocument.uri}`);
