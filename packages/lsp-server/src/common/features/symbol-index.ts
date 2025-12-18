@@ -242,14 +242,8 @@ export class SymbolIndex {
 				}
 
 				// Extract the key and value from the nodes (remove quotes)
-				let key = document.getText({
-					start: document.positionAt(keyNode.startIndex),
-					end: document.positionAt(keyNode.endIndex),
-				});
-				let value = document.getText({
-					start: document.positionAt(valueNode.startIndex),
-					end: document.positionAt(valueNode.endIndex),
-				});
+				let key = keyNode.text;
+				let value = valueNode.text;
 
 				// Remove surrounding quotes from key and value
 				key = key.replace(/^"(.*)"$/, '$1');

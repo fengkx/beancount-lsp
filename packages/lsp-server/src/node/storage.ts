@@ -8,6 +8,7 @@ export const factory: IStorageFactory<unknown> = {
 
 		db.ensureIndexAsync('_uri');
 		db.ensureIndexAsync(SymbolKey.TYPE);
+		db.ensureIndexAsync('name');
 
 		return db;
 	},
