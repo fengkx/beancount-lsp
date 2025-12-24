@@ -25,7 +25,6 @@ export class ReferencesFeature {
 	 */
 	register(connection: lsp.Connection): void {
 		connection.onReferences((params) => this.onReferences(params));
-		console.log('ReferencesFeature registered');
 	}
 
 	/**
@@ -97,7 +96,7 @@ export class ReferencesFeature {
 		if (narrationAtPosition && references.length === 0) {
 			logger.debug(`Found narration at position: ${narrationAtPosition}`);
 			// Find all references to this narration
-			references = await this.findNarrationReferences(narrationAtPosition)
+			references = await this.findNarrationReferences(narrationAtPosition);
 		}
 
 		// Try to find a link at the position

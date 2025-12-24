@@ -182,13 +182,24 @@ export function startServer(
 
 		documents.onDidOpen(event => symbolIndex.addSyncFile(event.document.uri));
 		// Debounced update to avoid frequent re-index during rapid typing
+		// Uses exponential backoff: timeout = max(150ms, lastIndexTime) * 2
+		// But caps at lastIndexTime * 10 to prevent unbounded growth
 		let debouncedUpdateTimer: NodeJS.Timeout | undefined;
-		let timeoutMs = 150;
-		globalEventBus.on(GlobalEvents.IndexTimeConsumed, (event: { totalTime: number }) => {
-			timeoutMs = Math.max(150, event.totalTime);
-			timeoutMs = timeoutMs << 1;
-		});
-		documents.onDidChangeContent(event => {
+		const MIN_DEBOUNCE_TIMEOUT_MS = 150;
+		let timeoutMs = MIN_DEBOUNCE_TIMEOUT_MS;
+		let lastIndexTime = 0;
+
+		const indexTimeConsumedUnsubscribe = globalEventBus.on(
+			GlobalEvents.IndexTimeConsumed,
+			(event: { totalTime: number }) => {
+				lastIndexTime = event.totalTime;
+				// Exponential backoff: timeout = max(min, indexTime) * 2
+				// But limit to indexTime * 10 to prevent unbounded growth
+				timeoutMs = Math.max(MIN_DEBOUNCE_TIMEOUT_MS, lastIndexTime);
+				timeoutMs = Math.min(timeoutMs * 2, lastIndexTime * 10);
+			},
+		);
+		const documentChangeUnsubscribe = documents.onDidChangeContent(event => {
 			symbolIndex.addSyncFile(event.document.uri);
 			if (debouncedUpdateTimer) clearTimeout(debouncedUpdateTimer);
 			debouncedUpdateTimer = setTimeout(() => {
@@ -198,6 +209,16 @@ export function startServer(
 					serverLogger.debug(`debounced symbolIndex.update error: ${String(e)}`);
 				}
 			}, timeoutMs);
+		});
+
+		// Clean up resources on exit
+		connection.onExit(() => {
+			if (debouncedUpdateTimer) {
+				clearTimeout(debouncedUpdateTimer);
+				debouncedUpdateTimer = undefined;
+			}
+			indexTimeConsumedUnsubscribe();
+			documentChangeUnsubscribe.dispose();
 		});
 
 		connection.onDidChangeWatchedFiles(e => {

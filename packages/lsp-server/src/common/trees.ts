@@ -1,9 +1,12 @@
-import { getParser } from '@bean-lsp/shared';
+import { getParser, Logger } from '@bean-lsp/shared';
 import { LRUMapWithDelete as LRUMap } from 'mnemonist';
 import { Disposable, Position } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from 'web-tree-sitter';
 import { DocumentStore, TextDocumentChange2 } from './document-store';
+
+// Create a logger for the trees module
+const logger = new Logger('trees');
 
 class Entry {
 	constructor(
@@ -82,10 +85,10 @@ export class Trees {
 			return info.tree;
 		} catch (e) {
 			const errorObj = e as Error;
-			console.error(
-				`[trees] Error parsing document: ${documentOrUri.uri} ${errorObj} ${errorObj.stack || ''}`,
+			logger.error(
+				`Error parsing document: ${documentOrUri.uri} ${errorObj} ${errorObj.stack || ''}`,
 			);
-			console.debug(`[trees] Error parsing text: ${documentOrUri.getText()}`);
+			logger.debug(`Error parsing text: ${documentOrUri.getText()}`);
 			this._cache.delete(documentOrUri.uri);
 			return undefined;
 		}
