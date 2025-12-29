@@ -759,8 +759,6 @@ export class CompletionFeature implements Feature {
 		this.connection = connection;
 		connection.onCompletion(this.provideCompletionItems);
 		connection.onCompletionResolve(this.resolveCompletionItem);
-		// Preload completion-related configuration once and listen for changes
-		void this.refreshCompletionConfig();
 		connection.onDidChangeConfiguration(() => {
 			void this.refreshCompletionConfig();
 		});
