@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.150
+
+- chore: update lsp-client version to 0.0.150 ([60afb60](https://github.com/fengkx/beancount-lsp/commit/60afb60))
+- fix: config fetch ([7906d97](https://github.com/fengkx/beancount-lsp/commit/7906d97))
+- feat: optimize performance ([49b72c2](https://github.com/fengkx/beancount-lsp/commit/49b72c2))
+- feat: optimize filter text calculation (#157) ([b71e374](https://github.com/fengkx/beancount-lsp/commit/b71e374))
+- chore: update dependencies and versions in pnpm-lock.yaml and package.json files ([47fbb3f](https://github.com/fengkx/beancount-lsp/commit/47fbb3f))
+
 ## v0.0.148
 
 - chore: update lsp-client version to 0.0.148 ([eb91f6f](https://github.com/fengkx/beancount-lsp/commit/eb91f6f))
