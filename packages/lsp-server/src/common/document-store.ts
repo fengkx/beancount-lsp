@@ -234,7 +234,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 
 		if (workspace && !config.mainBeanFile) {
 			this._connection!.window.showWarningMessage(
-				`Using default 'main.bean' as manBeanFile, You should configure 'beanLsp.mainBeanFile'`,
+				`Using default 'main.bean' as mainBeanFile, You should configure 'beanLsp.mainBeanFile'`,
 			);
 		}
 		const rootUri = workspace[0]?.uri;

@@ -166,17 +166,23 @@ export class RenameFeature {
 		}
 
 		// Step 3: Combine references and definitions, ensuring no duplicates
+		// Helper function to generate a unique key for a location
+		const getLocationKey = (loc: lsp.Location): string => {
+			return `${loc.uri}:${loc.range.start.line}:${loc.range.start.character}:${loc.range.end.line}:${loc.range.end.character}`;
+		};
+
 		const allLocations: lsp.Location[] = [...references];
+		// Create a Set to track existing locations for O(1) lookup
+		const locationKeys = new Set<string>();
+		for (const ref of references) {
+			locationKeys.add(getLocationKey(ref));
+		}
 
 		// Add definitions that aren't already in the references
 		for (const def of definitions) {
-			const isDuplicate = allLocations.some(ref =>
-				ref.uri === def.uri
-				&& ref.range.start.line === def.range.start.line
-				&& ref.range.start.character === def.range.start.character
-			);
-
-			if (!isDuplicate) {
+			const key = getLocationKey(def);
+			if (!locationKeys.has(key)) {
+				locationKeys.add(key);
 				allLocations.push(def);
 			}
 		}

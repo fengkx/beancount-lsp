@@ -119,13 +119,30 @@ export class EventBus<Events extends string> {
 	clear(eventName?: Events): void {
 		if (eventName) {
 			if (this.emitters.has(eventName)) {
+				// Dispose the existing emitter to clean up all listeners
+				const emitter = this.emitters.get(eventName);
+				if (emitter) {
+					emitter.dispose();
+				}
 				// Create a new emitter (effectively clearing all listeners)
 				this.emitters.set(eventName, new Emitter());
 			}
 		} else {
+			// Dispose all emitters before clearing
+			for (const emitter of this.emitters.values()) {
+				emitter.dispose();
+			}
 			// Clear all emitters
 			this.emitters.clear();
 		}
+	}
+
+	/**
+	 * Dispose all resources and clean up all event listeners
+	 * This method should be called when the EventBus is no longer needed
+	 */
+	dispose(): void {
+		this.clear();
 	}
 }
 
