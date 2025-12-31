@@ -195,8 +195,10 @@ export function startServer(
 				lastIndexTime = event.totalTime;
 				// Exponential backoff: timeout = max(min, indexTime) * 2
 				// But limit to indexTime * 10 to prevent unbounded growth
+				// Ensure minimum is MIN_DEBOUNCE_TIMEOUT_MS * 2 to prevent excessive updates
 				timeoutMs = Math.max(MIN_DEBOUNCE_TIMEOUT_MS, lastIndexTime);
 				timeoutMs = Math.min(timeoutMs * 2, lastIndexTime * 10);
+				timeoutMs = Math.max(timeoutMs, MIN_DEBOUNCE_TIMEOUT_MS * 2);
 			},
 		);
 		const documentChangeUnsubscribe = documents.onDidChangeContent(event => {
