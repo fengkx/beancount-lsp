@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.151
+
+- chore: update lsp-client version to 0.0.151 ([1e80c4f](https://github.com/fengkx/beancount-lsp/commit/1e80c4f))
+- feat: improve tree sitter error recover ([b198f62](https://github.com/fengkx/beancount-lsp/commit/b198f62))
+- fix: minor tweaks (#158) ([1902c86](https://github.com/fengkx/beancount-lsp/commit/1902c86))
+
 ## v0.0.150
 
 - chore: update lsp-client version to 0.0.150 ([60afb60](https://github.com/fengkx/beancount-lsp/commit/60afb60))
