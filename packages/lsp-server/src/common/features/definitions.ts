@@ -189,8 +189,7 @@ export class DefinitionFeature {
 
 	private async findCommodityDefinition(commodityName: string): Promise<lsp.Location[] | null> {
 		// Get commodity definitions from index
-		const definitionsResult = await this.symbolIndex.getCommodityDefinitions();
-		const definitions = definitionsResult as unknown as SymbolInfo[];
+		const definitions = await this.symbolIndex.getCommodityDefinitions();
 
 		// Filter definitions to find the ones for this commodity
 		const matchingDefinitions = definitions.filter(def => def.name === commodityName);

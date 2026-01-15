@@ -483,5 +483,5 @@ export class SymbolIndex {
 }
 
 async function yieldToMain() {
-	await (globalThis as any)?.scheduler?.yield?.();
+	await (globalThis as unknown as { scheduler?: { yield?: () => Promise<void> } })?.scheduler?.yield?.();
 }

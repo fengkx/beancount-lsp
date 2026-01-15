@@ -20,17 +20,17 @@ type ComparisonOperator<T> = {
 	$nin?: T[];
 };
 
-type QueryValue<T = any> = T | ComparisonOperator<T>;
+type QueryValue = unknown | ComparisonOperator<unknown>;
 
-type Query<T = any> =
+type Query<T> =
 	& {
-		[K in keyof T]?: QueryValue<T[K]>;
+		[K in keyof T]?: QueryValue;
 	}
 	& {
 		[key: string]: QueryValue;
 	};
 
-class DataStore<Schema = Record<string, any>> {
+class DataStore<Schema> {
 	private data = new Map<string, Document<Schema>>();
 	// Change to use the new Index class
 	private indices: Map<string, Index<Schema>> = new Map();
@@ -115,7 +115,7 @@ class DataStore<Schema = Record<string, any>> {
 			// Update indices
 			for (const [field, index] of this.indices.entries()) {
 				const value = doc[field as keyof Schema];
-				index.remove(id, value);
+				index.remove(id, value as IndexableValue);
 			}
 		}
 	}
@@ -147,39 +147,54 @@ class DataStore<Schema = Record<string, any>> {
 	 * @param docValue Document field value
 	 * @param queryValue Query value or operator
 	 */
-	private matchesValue(docValue: any, queryValue: QueryValue): boolean {
-		// Direct comparison for non-operator values
+	private matchesValue(docValue: unknown, queryValue: QueryValue): boolean {
 		if (queryValue === null || typeof queryValue !== 'object' || Array.isArray(queryValue)) {
 			return docValue === queryValue;
 		}
 
-		// Handle comparison operators
-		for (const [op, opValue] of Object.entries(queryValue as Record<string, any>)) {
+		const opValueEntries = Object.entries(queryValue as Record<string, unknown>);
+		for (const [op, opValue] of opValueEntries) {
 			switch (op) {
-				case '$gt':
-					if (!(docValue > opValue)) return false;
+				case '$gt': {
+					const a = docValue as string & number & bigint;
+					const b = opValue as string & number & bigint;
+					if (!(a > b)) return false;
 					break;
-				case '$gte':
-					if (!(docValue >= opValue)) return false;
+				}
+				case '$gte': {
+					const a = docValue as string & number & bigint;
+					const b = opValue as string & number & bigint;
+					if (!(a >= b)) return false;
 					break;
-				case '$lt':
-					if (!(docValue < opValue)) return false;
+				}
+				case '$lt': {
+					const a = docValue as string & number & bigint;
+					const b = opValue as string & number & bigint;
+					if (!(a < b)) return false;
 					break;
-				case '$lte':
-					if (!(docValue <= opValue)) return false;
+				}
+				case '$lte': {
+					const a = docValue as string & number & bigint;
+					const b = opValue as string & number & bigint;
+					if (!(a <= b)) return false;
 					break;
-				case '$ne':
+				}
+				case '$ne': {
 					if (docValue === opValue) return false;
 					break;
-				case '$in':
+				}
+				case '$in': {
 					if (!Array.isArray(opValue) || !opValue.includes(docValue)) return false;
 					break;
-				case '$nin':
+				}
+				case '$nin': {
 					if (!Array.isArray(opValue) || opValue.includes(docValue)) return false;
 					break;
-				default:
-					// For fields that are not operators, treat as regular field comparison
-					if (op[0] !== '$' && docValue?.[op] !== opValue) return false;
+				}
+				default: {
+					const docObj = docValue as Record<string, unknown>;
+					if (op[0] !== '$' && docObj?.[op] !== opValue) return false;
+				}
 			}
 		}
 

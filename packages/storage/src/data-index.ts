@@ -30,7 +30,7 @@ export class Index<Schema> {
 	 * @param id Document ID
 	 * @param value Field value to remove from index
 	 */
-	remove(id: string, value: any): void {
+	remove(id: string, value: IndexableValue): void {
 		if (!this.isIndexable(value)) return;
 
 		this.indexMap.get(value)?.delete(id);
@@ -59,7 +59,7 @@ export class Index<Schema> {
 	/**
 	 * Check if a value can be used as an index key
 	 */
-	isIndexable(value: any): value is IndexableValue {
+	isIndexable(value: unknown): value is IndexableValue {
 		return value === null
 			|| typeof value === 'string'
 			|| typeof value === 'number'
