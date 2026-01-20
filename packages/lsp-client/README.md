@@ -52,6 +52,7 @@ The extension provides several configuration options to customize its behavior:
 - `beancount.diagnostics.tolerance`: Tolerance value for transaction balancing. Set to 0 for exact matching. Default is 0.005.
 - `beancount.diagnostics.warnOnIncompleteTransaction`: Show warnings for incomplete transactions (marked with '!' flag). These are transactions that are considered unconfirmed in Beancount. Default is true.
 - `beanLsp.inlayHints.enable`: Enable or disable inlay hints showing calculated amounts for auto-balanced transactions. Default is true.
+- `beanLsp.codeLens.enable`: Enable or disable code lens for open directives showing account balances. Default is true.
 - `beanLsp.mainCurrency`: Main currency for price conversions. If empty, the most frequently used currency will be automatically determined.
 - `beanLsp.currencys`: List of currencies that should participate in price conversions. Commodities not included in this list (like stocks) will be excluded from conversion calculations. If empty, all commodities will be considered for conversions.
 - `beanLsp.formatter.enabled`: Enable or disable automatic formatting of Beancount files. The formatter aligns accounts, amounts (with decimal point alignment), currencies, and comments for improved readability. Default is true.
@@ -73,6 +74,8 @@ The extension provides several configuration options to customize its behavior:
 	"beanLsp.formatter.enabled": true,
 	"beanLsp.formatter.alignCurrency": false,
 	"beanLsp.hover.includeSubaccountBalance": false,
+	"beanLsp.inlayHints.enable": true,
+	"beanLsp.codeLens.enable": true,
 	"beanLsp.completion.enableChinesePinyinFilter": false,
 	"editor.semanticTokenColorCustomizations": {
 		"enabled": true,

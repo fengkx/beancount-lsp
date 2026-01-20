@@ -12,6 +12,7 @@ const logger = new Logger('CodeLens');
 
 export class CodeLensFeature implements Feature {
 	private codeLensEnabled: boolean | null = null;
+	private connection: lsp.Connection | null = null;
 
 	constructor(
 		private readonly documents: DocumentStore,
@@ -20,6 +21,7 @@ export class CodeLensFeature implements Feature {
 	) {}
 
 	register(connection: lsp.Connection): void {
+		this.connection = connection;
 		connection.onCodeLens(async (params) => {
 			try {
 				if (!this.beanMgr) {
@@ -42,6 +44,10 @@ export class CodeLensFeature implements Feature {
 			}
 		});
 
+		connection.onDidChangeConfiguration(() => {
+			this.codeLensEnabled = null; // Reset cache to force re-read on next request
+		});
+
 		logger.info('CodeLens feature registered');
 	}
 
@@ -55,8 +61,12 @@ export class CodeLensFeature implements Feature {
 
 		// Check if code lens is enabled
 		if (this.codeLensEnabled === null) {
-			// We'll assume enabled by default, but this could be configurable
-			this.codeLensEnabled = true;
+			if (this.connection) {
+				const config = await this.connection.workspace.getConfiguration({ section: 'beanLsp.codeLens' });
+				this.codeLensEnabled = config?.enable ?? true;
+			} else {
+				this.codeLensEnabled = true; // Default to enabled if connection not available
+			}
 		}
 
 		if (!this.codeLensEnabled) {

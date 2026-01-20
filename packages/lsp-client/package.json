@@ -164,6 +164,11 @@
 					"default": true,
 					"description": "Enable inlay hints for Beancount files."
 				},
+				"beanLsp.codeLens.enable": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable or disable code lens for open directives showing account balances."
+				},
 				"beanLsp.mainCurrency": {
 					"type": "string",
 					"default": "",
