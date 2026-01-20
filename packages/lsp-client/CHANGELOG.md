@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.152
+
+- chore: update lsp-client version to 0.0.152 ([940f6c1](https://github.com/fengkx/beancount-lsp/commit/940f6c1))
+- feat: add code lens configuration option ([85ca6ed](https://github.com/fengkx/beancount-lsp/commit/85ca6ed))
+- refactor: improve type safety by replacing any with unknown ([a33f536](https://github.com/fengkx/beancount-lsp/commit/a33f536))
+- feat: keep plan ([a5fae05](https://github.com/fengkx/beancount-lsp/commit/a5fae05))
+- chore(deps): update dependencies ([59063c1](https://github.com/fengkx/beancount-lsp/commit/59063c1))
+
 ## v0.0.151
 
 - chore: update lsp-client version to 0.0.151 ([1e80c4f](https://github.com/fengkx/beancount-lsp/commit/1e80c4f))
