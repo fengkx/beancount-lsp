@@ -7,7 +7,14 @@ import { parseExpression } from './expression-parser';
 // Create a logger for the options manager
 const logger = new Logger('BeancountOptions');
 
-export type SupportedOption = 'infer_tolerance_from_cost' | 'inferred_tolerance_multiplier';
+export type SupportedOption = 
+	| 'infer_tolerance_from_cost' 
+	| 'inferred_tolerance_multiplier'
+	| 'name_assets'
+	| 'name_liabilities'
+	| 'name_equity'
+	| 'name_income'
+	| 'name_expenses';
 type OptionKeys = LiteralUnion<SupportedOption, string>;
 
 /**
@@ -88,6 +95,11 @@ export class BeancountOptionsManager {
 		'plugin_processing_mode': 'default',
 		'render_commas': 'FALSE',
 		'operating_currency': '',
+		'name_assets': 'Assets',
+		'name_liabilities': 'Liabilities',
+		'name_equity': 'Equity',
+		'name_income': 'Income',
+		'name_expenses': 'Expenses',
 	};
 
 	/**
@@ -138,5 +150,19 @@ export class BeancountOptionsManager {
 		});
 
 		logger.info(`Beancount option "${name}" set to "${value}"`);
+	}
+
+	/**
+	 * Get the set of valid root account names based on current options
+	 * @returns Set of valid root account names
+	 */
+	public getValidRootAccounts(): Set<string> {
+		return new Set([
+			this.getOption('name_assets').asString(),
+			this.getOption('name_liabilities').asString(),
+			this.getOption('name_equity').asString(),
+			this.getOption('name_income').asString(),
+			this.getOption('name_expenses').asString(),
+		]);
 	}
 }

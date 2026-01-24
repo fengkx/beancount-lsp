@@ -3,7 +3,9 @@ import Big from 'big.js';
 import { Connection, Diagnostic, DiagnosticSeverity } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { URI } from 'vscode-uri';
+import { asLspRange } from '../common';
 import { DocumentStore } from '../document-store';
+import { TreeQuery } from '../language';
 import { Trees } from '../trees';
 import { findAllTransactions } from '../utils/ast-utils';
 import {
@@ -295,6 +297,9 @@ export class DiagnosticsFeature implements Feature {
 			}
 		}
 
+		// Validate account root names
+		await this.validateAccountRoots(tree, document, diagnostics);
+
 		const beancountDiagnostics = this.diagnosticsFromBeancount[document.uri];
 		if (!beancountDiagnostics) {
 			return diagnostics;
@@ -467,5 +472,52 @@ export class DiagnosticsFeature implements Feature {
 
 		// Calculate digits after decimal point
 		return cleanStr.length - dotIndex - 1;
+	}
+
+	/**
+	 * Validate that all account root names match the configured root account names
+	 * @param tree The parse tree
+	 * @param document The text document
+	 * @param diagnostics Array to add diagnostics to
+	 */
+	private async validateAccountRoots(
+		tree: import('web-tree-sitter').Tree,
+		document: TextDocument,
+		diagnostics: Diagnostic[],
+	): Promise<void> {
+		const validRoots = this.optionsManager.getValidRootAccounts();
+		
+		// Query all account nodes
+		const accountQuery = TreeQuery.getQueryByTokenName('account');
+		const accountCaptures = await accountQuery.captures(tree);
+		
+		// Track seen accounts to avoid duplicate diagnostics
+		const seenAccounts = new Set<string>();
+		
+		for (const capture of accountCaptures) {
+			const accountNode = capture.node;
+			const accountName = accountNode.text;
+			
+			// Skip if we've already validated this account
+			if (seenAccounts.has(accountName)) {
+				continue;
+			}
+			seenAccounts.add(accountName);
+			
+			// Extract root account name (part before first colon)
+			const root = accountName.split(':')[0];
+			
+			// Check if root is valid
+			if (!validRoots.has(root)) {
+				const validRootsList = Array.from(validRoots).sort().join(', ');
+				diagnostics.push({
+					severity: DiagnosticSeverity.Error,
+					range: asLspRange(accountNode),
+					message: `无效的根账户名称 "${root}"。有效的根账户名称: ${validRootsList}`,
+					source: 'beancount-lsp',
+					code: 'invalid-root-account',
+				});
+			}
+		}
 	}
 }

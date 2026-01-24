@@ -3,6 +3,7 @@ import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { asLspRange } from '../common';
 import { Trees } from '../trees';
+import { BeancountOptionsManager } from '../utils/beancount-options';
 
 // Create a logger for position utilities
 const logger = new Logger('position-utils');
@@ -40,7 +41,49 @@ function stripSurroundingQuotes(text: string): string {
 }
 
 function isAccountLike(text: string): boolean {
-	return /^(Assets|Liabilities|Equity|Income|Expenses)(:[A-Z0-9][A-Za-z0-9-]*)*$/.test(text);
+	// Get valid root accounts from options manager
+	const optionsManager = BeancountOptionsManager.getInstance();
+	const validRoots = optionsManager.getValidRootAccounts();
+	
+	// Split account name by colon
+	const parts = text.split(':');
+	if (parts.length < 2) {
+		return false;
+	}
+	
+	const root = parts[0];
+	if (!root) {
+		return false;
+	}
+	
+	// Check if root is in valid root accounts
+	if (!validRoots.has(root)) {
+		return false;
+	}
+	
+	// Validate sub-account format (must start with uppercase letter or number)
+	// Allow CJK characters and other Unicode characters as well
+	for (let i = 1; i < parts.length; i++) {
+		const part = parts[i];
+		if (!part || part.length === 0) {
+			return false;
+		}
+		// First character must be uppercase letter, number, or CJK character
+		const firstChar = part[0];
+		if (!firstChar || !(
+			(firstChar >= 'A' && firstChar <= 'Z') ||
+			(firstChar >= '0' && firstChar <= '9') ||
+			(firstChar >= '\u4E00' && firstChar <= '\u9FFF') // CJK Unified Ideographs
+		)) {
+			return false;
+		}
+		// Rest can be letters, numbers, dash, or CJK characters
+		if (!/^[\p{L}\p{N}\u{4E00}-\u{9FFF}-]*$/u.test(part)) {
+			return false;
+		}
+	}
+	
+	return true;
 }
 
 function isCurrencyLike(text: string): boolean {
