@@ -298,7 +298,7 @@ export class DiagnosticsFeature implements Feature {
 		}
 
 		// Validate account root names
-		await this.validateAccountRoots(tree, document, diagnostics);
+		await this.validateAccountRoots(tree, diagnostics);
 
 		const beancountDiagnostics = this.diagnosticsFromBeancount[document.uri];
 		if (!beancountDiagnostics) {
@@ -477,12 +477,10 @@ export class DiagnosticsFeature implements Feature {
 	/**
 	 * Validate that all account root names match the configured root account names
 	 * @param tree The parse tree
-	 * @param document The text document
 	 * @param diagnostics Array to add diagnostics to
 	 */
 	private async validateAccountRoots(
 		tree: import('web-tree-sitter').Tree,
-		document: TextDocument,
 		diagnostics: Diagnostic[],
 	): Promise<void> {
 		const validRoots = this.optionsManager.getValidRootAccounts();
@@ -507,8 +505,8 @@ export class DiagnosticsFeature implements Feature {
 			// Extract root account name (part before first colon)
 			const root = accountName.split(':')[0];
 			
-			// Check if root is valid
-			if (!validRoots.has(root)) {
+			// Check if root is valid (root should always exist, but check for safety)
+			if (root && !validRoots.has(root)) {
 				const validRootsList = Array.from(validRoots).sort().join(', ');
 				diagnostics.push({
 					severity: DiagnosticSeverity.Error,
