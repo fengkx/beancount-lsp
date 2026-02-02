@@ -1,7 +1,7 @@
 import { Logger } from '@bean-lsp/shared';
 import { $, execa } from 'execa';
 import os from 'os';
-import { isAbsolute, join } from 'path';
+import { isAbsolute, join, normalize } from 'path';
 import { Connection, DidSaveTextDocumentParams } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 import {
@@ -29,6 +29,7 @@ interface AccountDetails {
 interface BeancheckOutput {
 	errors: BeancountError[];
 	flags: BeancountFlag[];
+	pads?: Record<string, Record<string, Amount[]>>;
 	general?: {
 		accounts: Record<string, AccountDetails>;
 		commodities: string[];
@@ -163,6 +164,22 @@ class BeancountManager implements RealBeancountManager {
 		}
 
 		return subaccounts;
+	}
+
+	getPadAmounts(filePath: string, line: number): Amount[] {
+		const pads = this.result?.pads;
+		if (!pads) {
+			return [];
+		}
+
+		const normalizedPath = normalize(filePath);
+		const filePads = pads[normalizedPath];
+		if (!filePads) {
+			return [];
+		}
+
+		const lineKey = String(line + 1);
+		return filePads[lineKey] ?? [];
 	}
 
 	getErrors(): BeancountError[] {

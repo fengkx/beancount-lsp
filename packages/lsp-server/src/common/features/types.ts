@@ -28,6 +28,7 @@ export interface BeancountFlag {
 export interface RealBeancountManager {
 	getBalance(account: string, includeSubaccountBalance: boolean): Amount[];
 	getSubaccountBalances(account: string): Map<string, Amount[]>;
+	getPadAmounts(filePath: string, line: number): Amount[];
 	getErrors(): BeancountError[];
 	getFlagged(): BeancountFlag[];
 	setMainFile(mainFile: string): Promise<void>;

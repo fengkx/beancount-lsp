@@ -31,10 +31,12 @@ SOFTWARE.
 """ load beancount file and print errors
 """
 from collections import defaultdict
+from decimal import Decimal
+import os
 from sys import argv
 from beancount import loader
 from beancount.core import convert, flags
-from beancount.core.data import Transaction, Open, Close
+from beancount.core.data import Transaction, Open, Close, Pad
 from beancount.core.display_context import Align
 from beancount.core.realization import (
     compute_balance,
@@ -90,6 +92,8 @@ error_list = [
 general = {}
 accounts = {}
 automatics = defaultdict(dict)
+pad_entries = {}
+pad_amounts = defaultdict(lambda: defaultdict(dict))
 commodities = set()
 payees = set()
 narrations = set()
@@ -98,6 +102,12 @@ links = set()
 flagged_entries = []
 
 for entry in entries:
+    if isinstance(entry, Pad):
+        meta = entry.meta or {}
+        filename = meta.get("filename")
+        lineno = meta.get("lineno")
+        if filename and lineno:
+            pad_entries[(os.path.normpath(filename), lineno)] = entry
     if hasattr(entry, "flag") and entry.flag == "!":
         flagged_entries.append(get_flag_metadata(entry))
     if isinstance(entry, Transaction):
@@ -137,6 +147,51 @@ for entry in entries:
             accounts[entry.account]["close"] = entry.date.__str__()
         except:
             continue
+
+
+def _pad_ref_from_meta(meta):
+    if not meta:
+        return None, None
+    pad_meta = meta.get("__pad__")
+    if isinstance(pad_meta, dict):
+        filename = pad_meta.get("filename")
+        lineno = pad_meta.get("lineno")
+        if filename and lineno:
+            return filename, lineno
+    filename = meta.get("filename")
+    lineno = meta.get("lineno")
+    if filename and lineno:
+        return filename, lineno
+    return None, None
+
+
+for entry in entries:
+    if not isinstance(entry, Transaction):
+        continue
+    if not entry.narration.startswith("(Padding inserted"):
+        continue
+    filename, lineno = _pad_ref_from_meta(entry.meta or {})
+    if not filename or not lineno:
+        for posting in entry.postings:
+            filename, lineno = _pad_ref_from_meta(posting.meta or {})
+            if filename and lineno:
+                break
+    if not filename or not lineno:
+        continue
+    filename = os.path.normpath(filename)
+    pad_entry = pad_entries.get((filename, lineno))
+    target_account = pad_entry.account if pad_entry else None
+    totals = pad_amounts[filename][lineno]
+    for posting in entry.postings:
+        if posting.units is None:
+            continue
+        if target_account and posting.account != target_account:
+            continue
+        currency = posting.units.currency
+        number = posting.units.number
+        if number is None:
+            continue
+        totals[currency] = totals.get(currency, Decimal(0)) + number
 
 f = io.StringIO("")
 realized_entries = realize(entries)
@@ -184,5 +239,17 @@ output = {}
 output["errors"] = error_list
 output["general"] = general
 output["flags"] = flagged_entries
+pad_output = {}
+for filename, line_map in pad_amounts.items():
+    pad_output[filename] = {}
+    for lineno, currency_map in line_map.items():
+        amounts = []
+        for currency, number in currency_map.items():
+            if number == 0:
+                continue
+            amounts.append({"number": str(number), "currency": currency})
+        if amounts:
+            pad_output[filename][str(lineno)] = amounts
+output["pads"] = pad_output
 
 print(json.dumps(output))
