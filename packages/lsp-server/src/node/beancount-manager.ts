@@ -1,7 +1,7 @@
 import { Logger } from '@bean-lsp/shared';
 import { $, execa } from 'execa';
 import os from 'os';
-import { isAbsolute, join, normalize } from 'path';
+import { basename, isAbsolute, join, normalize } from 'path';
 import { Connection, DidSaveTextDocumentParams } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 import {
@@ -43,6 +43,7 @@ interface BeancheckOutput {
 class BeancountManager implements RealBeancountManager {
 	private mainFile: string | null = null;
 	private result: BeancheckOutput | null = null;
+	private padFileCache = new Map<string, Record<string, Amount[]> | null>();
 	private logger = new Logger('BeancountManager');
 
 	constructor(private connection: Connection) {
@@ -110,6 +111,7 @@ class BeancountManager implements RealBeancountManager {
 
 		this.logger.debug(r);
 		this.result = JSON.parse(r) as BeancheckOutput;
+		this.padFileCache.clear();
 		globalEventBus.emit(GlobalEvents.BeancountUpdate);
 	}
 
@@ -167,7 +169,13 @@ class BeancountManager implements RealBeancountManager {
 		}
 
 		const normalizedPath = normalize(filePath);
-		const filePads = pads[normalizedPath];
+		let filePads: Record<string, Amount[]> | null;
+		if (this.padFileCache.has(normalizedPath)) {
+			filePads = this.padFileCache.get(normalizedPath) ?? null;
+		} else {
+			filePads = pads[normalizedPath] ?? pads[filePath] ?? pads[basename(normalizedPath)] ?? null;
+			this.padFileCache.set(normalizedPath, filePads);
+		}
 		if (!filePads) {
 			return [];
 		}

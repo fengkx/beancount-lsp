@@ -83,6 +83,7 @@ def get_flag_metadata(thing):
 
 entries, errors, options = loader.load_file(args.file)
 completePayeeNarration = args.payeeNarration
+ZERO = Decimal(0)
 
 error_list = [
     {"file": e.source["filename"], "line": e.source["lineno"], "message": e.message}
@@ -100,6 +101,10 @@ narrations = set()
 tags = set()
 links = set()
 flagged_entries = []
+
+def _account_score(item):
+    values = item[1].values()
+    return sum(abs(v) for v in values)
 
 for entry in entries:
     if isinstance(entry, Pad):
@@ -197,19 +202,15 @@ for entry in entries:
         if target_account:
             if posting.account != target_account:
                 continue
-            totals[currency] = totals.get(currency, Decimal(0)) + number
+            totals[currency] = totals.get(currency, ZERO) + number
         else:
             account_totals = per_account_totals[posting.account]
-            account_totals[currency] = account_totals.get(currency, Decimal(0)) + number
+            account_totals[currency] = account_totals.get(currency, ZERO) + number
 
     if not target_account and per_account_totals:
-        def _account_score(item):
-            values = item[1].values()
-            return sum(abs(v) for v in values)
-
         _, chosen_totals = max(per_account_totals.items(), key=_account_score)
         for currency, number in chosen_totals.items():
-            totals[currency] = totals.get(currency, Decimal(0)) + number
+            totals[currency] = totals.get(currency, ZERO) + number
 
 f = io.StringIO("")
 realized_entries = realize(entries)

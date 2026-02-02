@@ -125,6 +125,7 @@ export class CodeLensFeature implements Feature {
 		const codeLenses: lsp.CodeLens[] = [];
 		const padQuery = TreeQuery.getQueryByTokenName('pad');
 		const padCaptures = await padQuery.captures(tree);
+		const filePath = URI.parse(document.uri).fsPath;
 
 		for (const capture of padCaptures) {
 			const pad = capture.node;
@@ -137,6 +138,7 @@ export class CodeLensFeature implements Feature {
 			const codeLens = this.createCodeLensAtEnd(range, {
 				kind: 'pad',
 				uri: document.uri,
+				filePath,
 				line: range.start.line,
 			});
 
@@ -155,11 +157,12 @@ export class CodeLensFeature implements Feature {
 			kind?: 'accountBalance' | 'pad';
 			accountName?: string;
 			uri?: string;
+			filePath?: string;
 			line?: number;
 		};
 
 		if (data.kind === 'pad' && data.uri && typeof data.line === 'number') {
-			const filePath = URI.parse(data.uri).fsPath;
+			const filePath = data.filePath ?? URI.parse(data.uri).fsPath;
 			const amounts = this.beanMgr.getPadAmounts(filePath, data.line);
 
 			if (amounts.length === 0) {
