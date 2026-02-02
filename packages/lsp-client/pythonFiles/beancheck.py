@@ -107,7 +107,9 @@ for entry in entries:
         filename = meta.get("filename")
         lineno = meta.get("lineno")
         if filename and lineno:
-            pad_entries[(os.path.normpath(filename), lineno)] = entry
+            normalized = os.path.normpath(filename)
+            pad_entries[(normalized, lineno)] = entry
+            pad_entries[(os.path.basename(normalized), lineno)] = entry
     if hasattr(entry, "flag") and entry.flag == "!":
         flagged_entries.append(get_flag_metadata(entry))
     if isinstance(entry, Transaction):
@@ -180,18 +182,34 @@ for entry in entries:
         continue
     filename = os.path.normpath(filename)
     pad_entry = pad_entries.get((filename, lineno))
+    if not pad_entry:
+        pad_entry = pad_entries.get((os.path.basename(filename), lineno))
     target_account = pad_entry.account if pad_entry else None
     totals = pad_amounts[filename][lineno]
+    per_account_totals = defaultdict(dict) if not target_account else None
     for posting in entry.postings:
         if posting.units is None:
-            continue
-        if target_account and posting.account != target_account:
             continue
         currency = posting.units.currency
         number = posting.units.number
         if number is None:
             continue
-        totals[currency] = totals.get(currency, Decimal(0)) + number
+        if target_account:
+            if posting.account != target_account:
+                continue
+            totals[currency] = totals.get(currency, Decimal(0)) + number
+        else:
+            account_totals = per_account_totals[posting.account]
+            account_totals[currency] = account_totals.get(currency, Decimal(0)) + number
+
+    if not target_account and per_account_totals:
+        def _account_score(item):
+            values = item[1].values()
+            return sum(abs(v) for v in values)
+
+        _, chosen_totals = max(per_account_totals.items(), key=_account_score)
+        for currency, number in chosen_totals.items():
+            totals[currency] = totals.get(currency, Decimal(0)) + number
 
 f = io.StringIO("")
 realized_entries = realize(entries)
