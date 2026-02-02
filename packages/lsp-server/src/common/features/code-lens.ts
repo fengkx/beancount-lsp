@@ -104,22 +104,13 @@ export class CodeLensFeature implements Feature {
 
 			const accountName = accountNode.text;
 
-			// Create code lens at the end of the line
-			const range = asLspRange(openDirective);
-			const codeLensRange: lsp.Range = {
-				start: range.end,
-				end: range.end,
-			};
-
 			// Create unresolved code lens with account name as data
-			const codeLens: lsp.CodeLens = {
-				range: codeLensRange,
-				data: {
-					kind: 'accountBalance',
-					accountName,
-					uri: document.uri,
-				},
-			};
+			const range = asLspRange(openDirective);
+			const codeLens = this.createCodeLensAtEnd(range, {
+				kind: 'accountBalance',
+				accountName,
+				uri: document.uri,
+			});
 
 			codeLenses.push(codeLens);
 		}
@@ -143,19 +134,11 @@ export class CodeLensFeature implements Feature {
 
 			const fromAccount = pad.childForFieldName('from_account');
 			const range = asLspRange(fromAccount ?? pad);
-			const codeLensRange: lsp.Range = {
-				start: range.end,
-				end: range.end,
-			};
-
-			const codeLens: lsp.CodeLens = {
-				range: codeLensRange,
-				data: {
-					kind: 'pad',
-					uri: document.uri,
-					line: range.start.line,
-				},
-			};
+			const codeLens = this.createCodeLensAtEnd(range, {
+				kind: 'pad',
+				uri: document.uri,
+				line: range.start.line,
+			});
 
 			codeLenses.push(codeLens);
 		}
@@ -214,19 +197,7 @@ export class CodeLensFeature implements Feature {
 
 			// Format balance display with account name for clarity
 			const shortAccountName = this.getShortAccountName(accountName);
-			let balanceText = '';
-
-			if (balances.length === 1) {
-				const balance = balances[0]!;
-				const formattedNumber = this.formatNumber(balance.number);
-				balanceText = `💰 ${shortAccountName}: ${formattedNumber} ${balance.currency}`;
-			} else {
-				// Multiple currencies
-				const formattedBalances = balances
-					.map(b => `${this.formatNumber(b.number)} ${b.currency}`)
-					.join(', ');
-				balanceText = `💰 ${shortAccountName}: ${formattedBalances}`;
-			}
+			let balanceText = `💰 ${shortAccountName}: ${this.formatAmounts(balances)}`;
 
 			// Get subaccount count for additional info
 			const subaccountBalances = this.beanMgr.getSubaccountBalances(accountName);
@@ -260,6 +231,16 @@ export class CodeLensFeature implements Feature {
 		return amounts
 			.map(amount => `${this.formatNumber(amount.number)} ${amount.currency}`)
 			.join(', ');
+	}
+
+	private createCodeLensAtEnd(range: lsp.Range, data: lsp.CodeLens['data']): lsp.CodeLens {
+		return {
+			range: {
+				start: range.end,
+				end: range.end,
+			},
+			data,
+		};
 	}
 
 	/**

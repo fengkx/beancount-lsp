@@ -133,10 +133,7 @@ class BeancountManager implements RealBeancountManager {
 
 		const balances = includeSubaccountBalance ? accountDetails.balance_incl_subaccounts : accountDetails.balance;
 
-		return balances.map((balance_str) => {
-			const [number, currency] = balance_str.trim().split(/\s+/) as [string, string];
-			return { number, currency };
-		});
+		return balances.map(balanceStr => this.parseAmountString(balanceStr));
 	}
 
 	getSubaccountBalances(account: string): Map<string, Amount[]> {
@@ -156,10 +153,7 @@ class BeancountManager implements RealBeancountManager {
 			}
 
 			const details = value as AccountDetails;
-			const balances = details.balance.map((balance_str) => {
-				const [number, currency] = balance_str.trim().split(/\s+/) as [string, string];
-				return { number, currency };
-			});
+			const balances = details.balance.map(balanceStr => this.parseAmountString(balanceStr));
 			subaccounts.set(candidateAccount, balances);
 		}
 
@@ -180,6 +174,11 @@ class BeancountManager implements RealBeancountManager {
 
 		const lineKey = String(line + 1);
 		return filePads[lineKey] ?? [];
+	}
+
+	private parseAmountString(balanceStr: string): Amount {
+		const [number, currency] = balanceStr.trim().split(/\s+/) as [string, string];
+		return { number, currency };
 	}
 
 	getErrors(): BeancountError[] {
