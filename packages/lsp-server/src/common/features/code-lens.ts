@@ -12,7 +12,7 @@ import { Feature, RealBeancountManager } from './types';
 const logger = new Logger('CodeLens');
 
 export class CodeLensFeature implements Feature {
-	private codeLensEnabled: boolean | null = null;
+	private codeLensConfig: { enable: boolean; accountBalance: boolean; pad: boolean } | null = null;
 	private connection: lsp.Connection | null = null;
 
 	constructor(
@@ -46,7 +46,7 @@ export class CodeLensFeature implements Feature {
 		});
 
 		connection.onDidChangeConfiguration(() => {
-			this.codeLensEnabled = null; // Reset cache to force re-read on next request
+			this.codeLensConfig = null; // Reset cache to force re-read on next request
 		});
 
 		logger.info('CodeLens feature registered');
@@ -61,16 +61,24 @@ export class CodeLensFeature implements Feature {
 		}
 
 		// Check if code lens is enabled
-		if (this.codeLensEnabled === null) {
+		if (this.codeLensConfig === null) {
 			if (this.connection) {
 				const config = await this.connection.workspace.getConfiguration({ section: 'beanLsp.codeLens' });
-				this.codeLensEnabled = config?.enable ?? true;
+				this.codeLensConfig = {
+					enable: config?.enable ?? true,
+					accountBalance: config?.accountBalance?.enable ?? true,
+					pad: config?.pad?.enable ?? true,
+				};
 			} else {
-				this.codeLensEnabled = true; // Default to enabled if connection not available
+				this.codeLensConfig = {
+					enable: true,
+					accountBalance: true,
+					pad: true,
+				};
 			}
 		}
 
-		if (!this.codeLensEnabled) {
+		if (!this.codeLensConfig.enable) {
 			return [];
 		}
 
@@ -79,9 +87,14 @@ export class CodeLensFeature implements Feature {
 			return [];
 		}
 
-		const accountLenses = await this.getAccountDefinitionCodeLenses(tree, document);
-		const padLenses = await this.getPadDirectiveCodeLenses(tree, document);
-		return accountLenses.concat(padLenses);
+		const codeLenses: lsp.CodeLens[] = [];
+		if (this.codeLensConfig.accountBalance) {
+			codeLenses.push(...await this.getAccountDefinitionCodeLenses(tree, document));
+		}
+		if (this.codeLensConfig.pad) {
+			codeLenses.push(...await this.getPadDirectiveCodeLenses(tree, document));
+		}
+		return codeLenses;
 	}
 
 	private async getAccountDefinitionCodeLenses(

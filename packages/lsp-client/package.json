@@ -167,7 +167,17 @@
 				"beanLsp.codeLens.enable": {
 					"type": "boolean",
 					"default": true,
+					"description": "Master switch to enable or disable all code lens."
+				},
+				"beanLsp.codeLens.accountBalance.enable": {
+					"type": "boolean",
+					"default": true,
 					"description": "Enable or disable code lens for open directives showing account balances."
+				},
+				"beanLsp.codeLens.pad.enable": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable or disable code lens for pad directives showing pad amounts."
 				},
 				"beanLsp.mainCurrency": {
 					"type": "string",
