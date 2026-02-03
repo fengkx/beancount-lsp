@@ -226,11 +226,6 @@ export class CodeLensFeature implements Feature {
 	}
 
 	private formatAmounts(amounts: { number: string; currency: string }[]): string {
-		if (amounts.length === 1) {
-			const amount = amounts[0]!;
-			return `${this.formatNumber(amount.number)} ${amount.currency}`;
-		}
-
 		return amounts
 			.map(amount => `${this.formatNumber(amount.number)} ${amount.currency}`)
 			.join(', ');
