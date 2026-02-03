@@ -1,6 +1,7 @@
 import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { URI } from 'vscode-uri';
 import { Tree } from 'web-tree-sitter';
 import { asLspRange } from '../common';
 import { DocumentStore } from '../document-store';
@@ -78,7 +79,9 @@ export class CodeLensFeature implements Feature {
 			return [];
 		}
 
-		return this.getAccountDefinitionCodeLenses(tree, document);
+		const accountLenses = await this.getAccountDefinitionCodeLenses(tree, document);
+		const padLenses = await this.getPadDirectiveCodeLenses(tree, document);
+		return accountLenses.concat(padLenses);
 	}
 
 	private async getAccountDefinitionCodeLenses(
@@ -101,21 +104,43 @@ export class CodeLensFeature implements Feature {
 
 			const accountName = accountNode.text;
 
-			// Create code lens at the end of the line
-			const range = asLspRange(openDirective);
-			const codeLensRange: lsp.Range = {
-				start: range.end,
-				end: range.end,
-			};
-
 			// Create unresolved code lens with account name as data
-			const codeLens: lsp.CodeLens = {
-				range: codeLensRange,
-				data: {
-					accountName,
-					uri: document.uri,
-				},
-			};
+			const range = asLspRange(openDirective);
+			const codeLens = this.createCodeLensAtEnd(range, {
+				kind: 'accountBalance',
+				accountName,
+				uri: document.uri,
+			});
+
+			codeLenses.push(codeLens);
+		}
+
+		return codeLenses;
+	}
+
+	private async getPadDirectiveCodeLenses(
+		tree: Tree,
+		document: TextDocument,
+	): Promise<lsp.CodeLens[]> {
+		const codeLenses: lsp.CodeLens[] = [];
+		const padQuery = TreeQuery.getQueryByTokenName('pad');
+		const padCaptures = await padQuery.captures(tree);
+		const filePath = URI.parse(document.uri).fsPath;
+
+		for (const capture of padCaptures) {
+			const pad = capture.node;
+			if (!pad || pad.type !== 'pad') {
+				continue;
+			}
+
+			const fromAccount = pad.childForFieldName('from_account');
+			const range = asLspRange(fromAccount ?? pad);
+			const codeLens = this.createCodeLensAtEnd(range, {
+				kind: 'pad',
+				uri: document.uri,
+				filePath,
+				line: range.start.line,
+			});
 
 			codeLenses.push(codeLens);
 		}
@@ -128,7 +153,38 @@ export class CodeLensFeature implements Feature {
 			return codeLens;
 		}
 
-		const { accountName } = codeLens.data;
+		const data = codeLens.data as {
+			kind?: 'accountBalance' | 'pad';
+			accountName?: string;
+			uri?: string;
+			filePath?: string;
+			line?: number;
+		};
+
+		if (data.kind === 'pad' && data.uri && typeof data.line === 'number') {
+			const filePath = data.filePath ?? URI.parse(data.uri).fsPath;
+			const amounts = this.beanMgr.getPadAmounts(filePath, data.line);
+
+			if (amounts.length === 0) {
+				codeLens.command = {
+					title: '🧮 No padding',
+					command: '',
+				};
+				return codeLens;
+			}
+
+			const formatted = this.formatAmounts(amounts);
+			codeLens.command = {
+				title: `🧮 Pad: ${formatted}`,
+				command: '',
+			};
+			return codeLens;
+		}
+
+		const accountName = data.accountName;
+		if (!accountName) {
+			return codeLens;
+		}
 
 		try {
 			// Get balance including subaccounts for a more complete view
@@ -144,19 +200,7 @@ export class CodeLensFeature implements Feature {
 
 			// Format balance display with account name for clarity
 			const shortAccountName = this.getShortAccountName(accountName);
-			let balanceText = '';
-
-			if (balances.length === 1) {
-				const balance = balances[0]!;
-				const formattedNumber = this.formatNumber(balance.number);
-				balanceText = `💰 ${shortAccountName}: ${formattedNumber} ${balance.currency}`;
-			} else {
-				// Multiple currencies
-				const formattedBalances = balances
-					.map(b => `${this.formatNumber(b.number)} ${b.currency}`)
-					.join(', ');
-				balanceText = `💰 ${shortAccountName}: ${formattedBalances}`;
-			}
+			let balanceText = `💰 ${shortAccountName}: ${this.formatAmounts(balances)}`;
 
 			// Get subaccount count for additional info
 			const subaccountBalances = this.beanMgr.getSubaccountBalances(accountName);
@@ -179,6 +223,22 @@ export class CodeLensFeature implements Feature {
 		}
 
 		return codeLens;
+	}
+
+	private formatAmounts(amounts: { number: string; currency: string }[]): string {
+		return amounts
+			.map(amount => `${this.formatNumber(amount.number)} ${amount.currency}`)
+			.join(', ');
+	}
+
+	private createCodeLensAtEnd(range: lsp.Range, data: lsp.CodeLens['data']): lsp.CodeLens {
+		return {
+			range: {
+				start: range.end,
+				end: range.end,
+			},
+			data,
+		};
 	}
 
 	/**

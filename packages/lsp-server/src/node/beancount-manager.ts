@@ -1,7 +1,7 @@
 import { Logger } from '@bean-lsp/shared';
 import { $, execa } from 'execa';
 import os from 'os';
-import { isAbsolute, join } from 'path';
+import { basename, isAbsolute, join, normalize } from 'path';
 import { Connection, DidSaveTextDocumentParams } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 import {
@@ -29,6 +29,7 @@ interface AccountDetails {
 interface BeancheckOutput {
 	errors: BeancountError[];
 	flags: BeancountFlag[];
+	pads?: Record<string, Record<string, Amount[]>>;
 	general?: {
 		accounts: Record<string, AccountDetails>;
 		commodities: string[];
@@ -42,6 +43,7 @@ interface BeancheckOutput {
 class BeancountManager implements RealBeancountManager {
 	private mainFile: string | null = null;
 	private result: BeancheckOutput | null = null;
+	private padFileCache = new Map<string, Record<string, Amount[]> | null>();
 	private logger = new Logger('BeancountManager');
 
 	constructor(private connection: Connection) {
@@ -109,6 +111,7 @@ class BeancountManager implements RealBeancountManager {
 
 		this.logger.debug(r);
 		this.result = JSON.parse(r) as BeancheckOutput;
+		this.padFileCache.clear();
 		globalEventBus.emit(GlobalEvents.BeancountUpdate);
 	}
 
@@ -132,10 +135,7 @@ class BeancountManager implements RealBeancountManager {
 
 		const balances = includeSubaccountBalance ? accountDetails.balance_incl_subaccounts : accountDetails.balance;
 
-		return balances.map((balance_str) => {
-			const [number, currency] = balance_str.trim().split(/\s+/) as [string, string];
-			return { number, currency };
-		});
+		return balances.map(balanceStr => this.parseAmountString(balanceStr));
 	}
 
 	getSubaccountBalances(account: string): Map<string, Amount[]> {
@@ -155,14 +155,38 @@ class BeancountManager implements RealBeancountManager {
 			}
 
 			const details = value as AccountDetails;
-			const balances = details.balance.map((balance_str) => {
-				const [number, currency] = balance_str.trim().split(/\s+/) as [string, string];
-				return { number, currency };
-			});
+			const balances = details.balance.map(balanceStr => this.parseAmountString(balanceStr));
 			subaccounts.set(candidateAccount, balances);
 		}
 
 		return subaccounts;
+	}
+
+	getPadAmounts(filePath: string, line: number): Amount[] {
+		const pads = this.result?.pads;
+		if (!pads) {
+			return [];
+		}
+
+		const normalizedPath = normalize(filePath);
+		let filePads: Record<string, Amount[]> | null;
+		if (this.padFileCache.has(normalizedPath)) {
+			filePads = this.padFileCache.get(normalizedPath) ?? null;
+		} else {
+			filePads = pads[normalizedPath] ?? pads[filePath] ?? pads[basename(normalizedPath)] ?? null;
+			this.padFileCache.set(normalizedPath, filePads);
+		}
+		if (!filePads) {
+			return [];
+		}
+
+		const lineKey = String(line + 1);
+		return filePads[lineKey] ?? [];
+	}
+
+	private parseAmountString(balanceStr: string): Amount {
+		const [number, currency] = balanceStr.trim().split(/\s+/) as [string, string];
+		return { number, currency };
 	}
 
 	getErrors(): BeancountError[] {
