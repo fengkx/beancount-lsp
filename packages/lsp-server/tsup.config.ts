@@ -4,6 +4,7 @@ import { defineConfig, Options } from 'tsup';
 const commonConfig = {
 	sourcemap: true,
 	clean: true,
+	splitting: false,
 	loader: {
 		'.wasm': 'binary',
 		'.scm': 'text',

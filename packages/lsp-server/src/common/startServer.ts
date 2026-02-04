@@ -44,6 +44,7 @@ export interface IStorageFactory<T> {
 export interface ServerOptions {
 	webTreeSitterWasmPath?: string;
 	logLevel?: LogLevel;
+	beancountWorkerUrl?: string;
 
 	isBrowser: boolean;
 }
@@ -130,6 +131,9 @@ export function startServer(
 		// Extract webTreeSitterWasmPath from initialization options if available
 		if (params.initializationOptions?.webTreeSitterWasmPath) {
 			options.webTreeSitterWasmPath = params.initializationOptions.webTreeSitterWasmPath;
+		}
+		if (params.initializationOptions?.beancountWorkerUrl) {
+			options.beancountWorkerUrl = params.initializationOptions.beancountWorkerUrl;
 		}
 
 		const symbolStorage = await factory.create<SymbolInfo>(

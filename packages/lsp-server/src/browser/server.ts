@@ -23,13 +23,63 @@ const serverOptions: ServerOptions = {
 };
 
 const documents = new DocumentStore(connection);
-const workerUrl = new URL('./beancount-worker.js', self.location.href).toString();
+let workerUrlLogged = false;
+
+function describeLocation(): { base?: string; display: string } {
+	try {
+		const loc = typeof self !== 'undefined' && 'location' in self ? self.location : undefined;
+		if (!loc) {
+			return { display: 'none' };
+		}
+		const href = (loc as Location).href;
+		if (href) {
+			return { base: href, display: href };
+		}
+		return { display: String(loc) };
+	} catch (err) {
+		return { display: `error: ${String(err)}` };
+	}
+}
+
+function resolveWorkerUrl(): string {
+	const relative = './beancount-worker.js';
+	const { base, display } = describeLocation();
+
+	if (base) {
+		try {
+			return new URL(relative, base).toString();
+		} catch (err) {
+			if (!workerUrlLogged) {
+				connection.console.warn(
+					`[beanlsp] invalid worker base (${display}): ${String(err)}; using relative path`,
+				);
+				workerUrlLogged = true;
+			}
+			// Fall through to relative URL below.
+		}
+	}
+
+	// Let the Worker constructor resolve relative URL against the current worker location.
+	if (!workerUrlLogged) {
+		connection.console.warn(`[beanlsp] worker base unavailable (${display}); using relative path`);
+		workerUrlLogged = true;
+	}
+	return relative;
+}
+
+function getWorkerUrl(): string {
+	if (serverOptions.beancountWorkerUrl) {
+		return serverOptions.beancountWorkerUrl;
+	}
+	return resolveWorkerUrl();
+}
+
 // Start the server with the options
 startServer(
 	connection,
 	factory,
 	documents,
-	createBrowserBeancountManager(connection, documents, workerUrl),
+	createBrowserBeancountManager(connection, documents, getWorkerUrl),
 	serverOptions,
 );
 

@@ -343,7 +343,12 @@ class BeancountBrowserManager implements RealBeancountManager {
 export const createBrowserBeancountManager = (
 	connection: Connection,
 	documents: DocumentStore,
-	workerUrl: string,
+	workerUrl: string | (() => string),
 ): BeancountManagerFactory => {
-	return () => new BeancountBrowserManager(connection, documents, workerUrl);
+	return () =>
+		new BeancountBrowserManager(
+			connection,
+			documents,
+			typeof workerUrl === 'function' ? workerUrl() : workerUrl,
+		);
 };

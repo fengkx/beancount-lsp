@@ -196,6 +196,9 @@ export function createClientOptions(options: ClientOptions): LanguageClientOptio
 			webTreeSitterWasmPath: options.webTreeSitterWasmPath,
 			globalStorageUri: options.globalStorageUri?.toString(),
 			extensionUri: options.extensionUri?.toString(),
+			beancountWorkerUrl: options.extensionUri
+				? vscode.Uri.joinPath(options.extensionUri, 'server', 'beancount-worker.js').toString()
+				: undefined,
 		},
 	};
 }
