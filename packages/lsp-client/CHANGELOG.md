@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.0.153
+
+- chore: update lsp-client version to 0.0.153 ([5007ef0](https://github.com/fengkx/beancount-lsp/commit/5007ef0))
+- feat: wasm beancount in browser ([006b69d](https://github.com/fengkx/beancount-lsp/commit/006b69d))
+- feat: enhance CodeLens configuration options ([70dff4d](https://github.com/fengkx/beancount-lsp/commit/70dff4d))
+- feat: implement pad directive handling in CodeLens feature (#161) ([d8172cc](https://github.com/fengkx/beancount-lsp/commit/d8172cc))
+- refactor: simplify account root validation logic ([2c47ab6](https://github.com/fengkx/beancount-lsp/commit/2c47ab6))
+- fix: update test case ([28e5dce](https://github.com/fengkx/beancount-lsp/commit/28e5dce))
+- feat: add account root validation and options management ([86a7d78](https://github.com/fengkx/beancount-lsp/commit/86a7d78))
+
 ## v0.0.152
 
 - chore: update lsp-client version to 0.0.152 ([940f6c1](https://github.com/fengkx/beancount-lsp/commit/940f6c1))
