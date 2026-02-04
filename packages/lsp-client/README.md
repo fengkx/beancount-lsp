@@ -49,6 +49,7 @@ The extension provides several configuration options to customize its behavior:
   - `verbose`: Shows all log messages (most verbose)
 - `beanLsp.mainBeanFile`: Specifies the main Beancount file to use for analysis. This should be relative to the workspace root. Default is "main.bean".
 - `beanLsp.python3Path`: Path to Python 3 executable. If empty, the system default Python 3 will be used. This Python installation should have the beancount package installed. Default is empty (uses system default).
+- `beanLsp.enableBrowserWasmBeancount`: Enable browser-side Beancount WASM diagnostics (beancheck). Values: `off` (disable), `v2` (Beancount v2), `v3` (Beancount v3). Default is `off`.
 - `beancount.diagnostics.tolerance`: Tolerance value for transaction balancing. Set to 0 for exact matching. Default is 0.005.
 - `beancount.diagnostics.warnOnIncompleteTransaction`: Show warnings for incomplete transactions (marked with '!' flag). These are transactions that are considered unconfirmed in Beancount. Default is true.
 - `beanLsp.inlayHints.enable`: Enable or disable inlay hints showing calculated amounts for auto-balanced transactions. Default is true.
@@ -69,6 +70,7 @@ The extension provides several configuration options to customize its behavior:
 	"beanLsp.mainBeanFile": "main.bean",
 	"beanLsp.python3Path": "/usr/local/bin/python3",
 	"beanLsp.trace.server": "debug",
+	"beanLsp.enableBrowserWasmBeancount": "off",
 	"beancount.diagnostics.tolerance": 0.005,
 	"beancount.diagnostics.warnOnIncompleteTransaction": true,
 	"beanLsp.mainCurrency": "USD",

@@ -147,6 +147,17 @@
 					"default": "",
 					"description": "Path to Python 3 executable. If empty, the system default Python 3 will be used. This Python installation should have the beancount package installed."
 				},
+				"beanLsp.enableBrowserWasmBeancount": {
+					"scope": "resource",
+					"type": "string",
+					"enum": [
+						"off",
+						"v2",
+						"v3"
+					],
+					"default": "off",
+					"description": "Controls whether the browser-side Beancount WASM runtime runs beancheck diagnostics. Use off to disable, v2 for Beancount v2, or v3 for Beancount v3."
+				},
 				"beancount.diagnostics.tolerance": {
 					"scope": "resource",
 					"type": "number",

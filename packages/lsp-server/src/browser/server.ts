@@ -7,6 +7,7 @@ import {
 
 import { DocumentStore } from 'src/common/document-store';
 import { ServerOptions, startServer } from '../common/startServer';
+import { createBrowserBeancountManager } from './beancount-manager';
 import { factory } from './storage';
 
 // Create a connection for the browser using the WebWorker message reader/writer
@@ -22,8 +23,15 @@ const serverOptions: ServerOptions = {
 };
 
 const documents = new DocumentStore(connection);
+const workerUrl = new URL('./beancount-worker.js', import.meta.url).toString();
 // Start the server with the options
-startServer(connection, factory, documents, undefined, serverOptions);
+startServer(
+	connection,
+	factory,
+	documents,
+	createBrowserBeancountManager(connection, documents, workerUrl),
+	serverOptions,
+);
 
 // Listen on the connection
 connection.listen();

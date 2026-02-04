@@ -214,11 +214,12 @@ export function startServer(
 		});
 
 		// Clean up resources on exit
-		connection.onExit(() => {
-			if (debouncedUpdateTimer) {
-				clearTimeout(debouncedUpdateTimer);
-				debouncedUpdateTimer = undefined;
-			}
+	connection.onExit(() => {
+		beanMgr?.dispose?.();
+		if (debouncedUpdateTimer) {
+			clearTimeout(debouncedUpdateTimer);
+			debouncedUpdateTimer = undefined;
+		}
 			indexTimeConsumedUnsubscribe();
 			documentChangeUnsubscribe.dispose();
 		});
