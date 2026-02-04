@@ -12,6 +12,7 @@ const commonConfig = {
 	external: ['vscode'],
 	noExternal: [
 		'async-call-rpc',
+		'beancount-wasm',
 		'big.js',
 		'@bean-lsp/shared',
 		'@bean-lsp/storage',
@@ -53,6 +54,7 @@ const browserConfig = defineConfig({
 	outDir: 'dist/browser',
 	platform: 'browser',
 	target: 'es2022',
+	splitting: false,
 	// Add browser-specific configuration
 	define: {
 		'process.env.NODE_ENV': JSON.stringify('production'),
