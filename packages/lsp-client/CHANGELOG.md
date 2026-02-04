@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.157
+
+- chore: update lsp-client version to 0.0.157 ([acd562e](https://github.com/fengkx/beancount-lsp/commit/acd562e))
+- feat: enhance beancount worker integration ([5fb000f](https://github.com/fengkx/beancount-lsp/commit/5fb000f))
+
 ## v0.0.155
 
 - chore: update lsp-client version to 0.0.155 ([6f52a3d](https://github.com/fengkx/beancount-lsp/commit/6f52a3d))
