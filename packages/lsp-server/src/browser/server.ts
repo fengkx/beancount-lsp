@@ -23,7 +23,7 @@ const serverOptions: ServerOptions = {
 };
 
 const documents = new DocumentStore(connection);
-const workerUrl = new URL('./beancount-worker.js', import.meta.url).toString();
+const workerUrl = new URL('./beancount-worker.js', self.location.href).toString();
 // Start the server with the options
 startServer(
 	connection,

@@ -83,9 +83,14 @@ function prepareNodeServerAsset() {
 function prepareBrowserServerAsset() {
 	try {
 		const serverJsPath = path.join(__dirname, '../dist/browser/server.js');
+		const browserWorkerPath = path.join(__dirname, '../dist/browser/beancount-worker.js');
 		const clientServerPath = path.join(
 			__dirname,
 			'../../lsp-client/server/browser.js',
+		);
+		const clientWorkerPath = path.join(
+			__dirname,
+			'../../lsp-client/server/beancount-worker.js',
 		);
 
 		// Check if the server.js file exists
@@ -95,7 +100,15 @@ function prepareBrowserServerAsset() {
 
 		// Copy the server.js file to the lsp-client/server/browser.js
 		fs.copyFileSync(serverJsPath, clientServerPath);
+		// Copy the browser worker alongside the server entry (required by browser server)
+		if (!fs.existsSync(browserWorkerPath)) {
+			throw new Error(
+				`browser beancount-worker.js not found at ${browserWorkerPath}`,
+			);
+		}
+		fs.copyFileSync(browserWorkerPath, clientWorkerPath);
 		console.log(`✅ Browser server asset prepared: ${clientServerPath}`);
+		console.log(`✅ Browser worker asset prepared: ${clientWorkerPath}`);
 		return true;
 	} catch (error) {
 		console.error(

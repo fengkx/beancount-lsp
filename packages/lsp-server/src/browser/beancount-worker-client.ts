@@ -25,16 +25,14 @@ export class BeancountWorkerClient {
 
 	constructor(workerUrl: string, onStatus?: (message: string) => void) {
 		this.worker = new Worker(workerUrl, { type: 'module' });
-		this.api = AsyncCall<WorkerApi, ClientApi>(
-			{
-				reportStatus: (message: string) => {
-					onStatus?.(message);
-				},
+		const clientApi: ClientApi = {
+			reportStatus: (message: string) => {
+				onStatus?.(message);
 			},
-			{
-				channel: new WorkerChannel(this.worker),
-			},
-		);
+		};
+		this.api = AsyncCall<WorkerApi>(clientApi, {
+			channel: new WorkerChannel(this.worker),
+		});
 	}
 
 	init(version: BeancountVersion): Promise<void> {

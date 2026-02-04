@@ -13,7 +13,7 @@
 	"scripts": {
 		"build": "cross-env LSP_CLIENT_TYPE=vscode tsup && node scripts/prepare-client-assets.js",
 		"build:npm": "tsup",
-		"watch": "tsup --watch",
+		"watch": "tsup --watch --onSuccess \"node scripts/prepare-client-assets.js\"",
 		"typecheck": "tsc --noEmit true",
 		"test": "vitest run",
 		"test:watch": "vitest",

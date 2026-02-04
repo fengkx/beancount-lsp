@@ -182,12 +182,23 @@ class BeancountBrowserManager implements RealBeancountManager {
 		const relativeBase = this.mainFile ? URI.parse(this.mainFile) : null;
 		if (relativeBase) {
 			const rootUri = UriUtils.dirname(relativeBase);
-			const relative = UriUtils.relativePath(rootUri, parsed);
+			const relative = this.relativePath(rootUri, parsed);
 			if (relative) {
 				return relative;
 			}
 		}
 		return parsed.path.replace(/^\//, '');
+	}
+
+	private relativePath(from: URI, to: URI): string | null {
+		if (from.scheme !== to.scheme || from.authority !== to.authority) {
+			return null;
+		}
+		const fromPath = from.path.endsWith('/') ? from.path : `${from.path}/`;
+		if (!to.path.startsWith(fromPath)) {
+			return null;
+		}
+		return to.path.slice(fromPath.length);
 	}
 
 	private async runBeanCheck(): Promise<string | null> {

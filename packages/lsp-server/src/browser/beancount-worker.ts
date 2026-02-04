@@ -122,14 +122,13 @@ async function beancheck(entryFile: string): Promise<string> {
 	return result as string;
 }
 
-const mainApi = AsyncCall<ClientApi, WorkerApi>(
-	{
-		init,
-		sync,
-		reset,
-		beancheck,
-	},
-	{
-		channel: new WorkerChannel(),
-	},
-);
+const workerApi: WorkerApi = {
+	init,
+	sync,
+	reset,
+	beancheck,
+};
+
+const mainApi = AsyncCall<ClientApi>(workerApi, {
+	channel: new WorkerChannel(),
+});
