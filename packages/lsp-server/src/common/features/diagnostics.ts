@@ -152,7 +152,7 @@ export class DiagnosticsFeature implements Feature {
 				source: 'beancount-lsp',
 			} as Diagnostic;
 
-			let uri = `file://${file}`;
+			const uri = file.includes('://') ? file : `file://${file}`;
 
 			if (diagnosticsFromBeancount[uri] === undefined) {
 				diagnosticsFromBeancount[uri] = [];

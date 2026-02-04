@@ -11,6 +11,7 @@ const commonConfig = {
 	},
 	external: ['vscode'],
 	noExternal: [
+		'async-call-rpc',
 		'big.js',
 		'@bean-lsp/shared',
 		'@bean-lsp/storage',
@@ -48,7 +49,7 @@ const nodeConfig = defineConfig({
 
 const browserConfig = defineConfig({
 	...commonConfig,
-	entry: ['src/browser/server.ts'],
+	entry: ['src/browser/server.ts', 'src/browser/beancount-worker.ts'],
 	outDir: 'dist/browser',
 	platform: 'browser',
 	target: 'es2022',
