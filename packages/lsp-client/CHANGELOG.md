@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.159
+
+- chore: update lsp-client version to 0.0.159 ([1a515c5](https://github.com/fengkx/beancount-lsp/commit/1a515c5))
+- refactor: improve BeancountWorkerClient initialization and error handling ([e64cb0f](https://github.com/fengkx/beancount-lsp/commit/e64cb0f))
+
 ## v0.0.157
 
 - chore: update lsp-client version to 0.0.157 ([acd562e](https://github.com/fengkx/beancount-lsp/commit/acd562e))
