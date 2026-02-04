@@ -57,6 +57,8 @@ stdout.getvalue()
 
 let runtimeState: RuntimeState | null = null;
 let runtimePromise: Promise<RuntimeState> | null = null;
+/** Version currently being loaded; only set while runtimePromise is active. */
+let loadingVersion: BeancountVersion | null = null;
 
 function postStatus(message: string) {
 	void mainApi.reportStatus(message);
@@ -66,10 +68,15 @@ async function loadRuntime(version: BeancountVersion): Promise<RuntimeState> {
 	if (runtimeState?.version === version) {
 		return runtimeState;
 	}
-	if (runtimePromise) {
+	if (runtimePromise && loadingVersion === version) {
 		return runtimePromise;
 	}
+	if (runtimePromise && loadingVersion !== version) {
+		await runtimePromise;
+		return loadRuntime(version);
+	}
 
+	loadingVersion = version;
 	runtimePromise = (async () => {
 		postStatus(`Loading Beancount ${version} runtime...`);
 		const { pyodide } = await createBeancountRuntime({
@@ -91,6 +98,7 @@ async function loadRuntime(version: BeancountVersion): Promise<RuntimeState> {
 		return await runtimePromise;
 	} finally {
 		runtimePromise = null;
+		loadingVersion = null;
 	}
 }
 
