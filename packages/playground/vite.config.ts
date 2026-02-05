@@ -1,8 +1,9 @@
 import importMetaUrlPlugin from '@codingame/esbuild-import-meta-url-plugin';
 import vsixPlugin from '@codingame/monaco-vscode-rollup-vsix-plugin';
-import type { UserConfig } from 'vite';
+import { defineConfig } from 'vite';
 
-const config = {
+const config = defineConfig({
+	base: process.env['PUBLIC_URL'] || '/',
 	optimizeDeps: {
 		esbuildOptions: {
 			plugins: [importMetaUrlPlugin],
@@ -14,6 +15,6 @@ const config = {
 	plugins: [
 		vsixPlugin(),
 	],
-} satisfies UserConfig;
+})
 
 export default config;
