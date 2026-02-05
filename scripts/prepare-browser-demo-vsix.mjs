@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const lspClientDir = path.join(repoRoot, 'packages', 'lsp-client');
-const browserDemoDir = path.join(repoRoot, 'packages', 'browser-demo');
+const browserDemoDir = path.join(repoRoot, 'packages', 'playground');
 
 function run(cmd, args, cwd) {
 	const result = spawnSync(cmd, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' });

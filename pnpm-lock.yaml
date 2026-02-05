@@ -146,64 +146,6 @@ importers:
         specifier: catalog:types
         version: 5.9.3
 
-  packages/browser-demo:
-    dependencies:
-      '@codingame/esbuild-import-meta-url-plugin':
-        specifier: ^1.0.3
-        version: 1.0.3
-      '@codingame/monaco-editor-wrapper':
-        specifier: ^23.0.1
-        version: 23.0.1(@xterm/xterm@6.1.0-beta.97)
-      '@codingame/monaco-vscode-api':
-        specifier: ^25.1.2
-        version: 25.1.2
-      '@codingame/monaco-vscode-base-service-override':
-        specifier: ^25.1.2
-        version: 25.1.2
-      '@codingame/monaco-vscode-files-service-override':
-        specifier: ^25.1.2
-        version: 25.1.2
-      '@codingame/monaco-vscode-json-default-extension':
-        specifier: ^25.1.2
-        version: 25.1.2
-      '@codingame/monaco-vscode-languages-service-override':
-        specifier: ^25.1.2
-        version: 25.1.2
-      '@codingame/monaco-vscode-textmate-service-override':
-        specifier: ^25.1.2
-        version: 25.1.2
-      '@codingame/monaco-vscode-theme-defaults-default-extension':
-        specifier: ^25.1.2
-        version: 25.1.2
-      '@codingame/monaco-vscode-theme-service-override':
-        specifier: ^25.1.2
-        version: 25.1.2
-      monaco-editor:
-        specifier: npm:@codingame/monaco-vscode-editor-api@^25.1.2
-        version: '@codingame/monaco-vscode-editor-api@25.1.2'
-      pako:
-        specifier: ^2.1.0
-        version: 2.1.0
-      vscode:
-        specifier: npm:@codingame/monaco-vscode-extension-api@^25.1.2
-        version: '@codingame/monaco-vscode-extension-api@25.1.2'
-    devDependencies:
-      '@codingame/monaco-vscode-rollup-vsix-plugin':
-        specifier: ^25.1.2
-        version: 25.1.2(rollup@4.53.3)(tslib@2.8.1)
-      '@types/pako':
-        specifier: ^2.0.4
-        version: 2.0.4
-      '@types/vscode':
-        specifier: ^1.99.1
-        version: 1.99.1
-      typescript:
-        specifier: ~5.9.3
-        version: 5.9.3
-      vite:
-        specifier: ^7.2.4
-        version: 7.2.7(@types/node@25.0.8)(tsx@4.21.0)
-
   packages/lsp-client:
     dependencies:
       '@bean-lsp/shared':
@@ -343,6 +285,64 @@ importers:
       web-tree-sitter:
         specifier: ^0.20.8
         version: 0.20.8
+
+  packages/playground:
+    dependencies:
+      '@codingame/esbuild-import-meta-url-plugin':
+        specifier: ^1.0.3
+        version: 1.0.3
+      '@codingame/monaco-editor-wrapper':
+        specifier: ^23.0.1
+        version: 23.0.1(@xterm/xterm@6.1.0-beta.97)
+      '@codingame/monaco-vscode-api':
+        specifier: ^25.1.2
+        version: 25.1.2
+      '@codingame/monaco-vscode-base-service-override':
+        specifier: ^25.1.2
+        version: 25.1.2
+      '@codingame/monaco-vscode-files-service-override':
+        specifier: ^25.1.2
+        version: 25.1.2
+      '@codingame/monaco-vscode-json-default-extension':
+        specifier: ^25.1.2
+        version: 25.1.2
+      '@codingame/monaco-vscode-languages-service-override':
+        specifier: ^25.1.2
+        version: 25.1.2
+      '@codingame/monaco-vscode-textmate-service-override':
+        specifier: ^25.1.2
+        version: 25.1.2
+      '@codingame/monaco-vscode-theme-defaults-default-extension':
+        specifier: ^25.1.2
+        version: 25.1.2
+      '@codingame/monaco-vscode-theme-service-override':
+        specifier: ^25.1.2
+        version: 25.1.2
+      monaco-editor:
+        specifier: npm:@codingame/monaco-vscode-editor-api@^25.1.2
+        version: '@codingame/monaco-vscode-editor-api@25.1.2'
+      pako:
+        specifier: ^2.1.0
+        version: 2.1.0
+      vscode:
+        specifier: npm:@codingame/monaco-vscode-extension-api@^25.1.2
+        version: '@codingame/monaco-vscode-extension-api@25.1.2'
+    devDependencies:
+      '@codingame/monaco-vscode-rollup-vsix-plugin':
+        specifier: ^25.1.2
+        version: 25.1.2(rollup@4.53.3)(tslib@2.8.1)
+      '@types/pako':
+        specifier: ^2.0.4
+        version: 2.0.4
+      '@types/vscode':
+        specifier: ^1.99.1
+        version: 1.99.1
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^7.2.4
+        version: 7.2.7(@types/node@25.0.8)(tsx@4.21.0)
 
   packages/shared:
     dependencies:
