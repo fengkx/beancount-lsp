@@ -1,0 +1,19 @@
+{
+  "beanLsp.maxNumberOfProblems": 2000,
+  "beanLsp.trace.server": "verbose",
+  "beanLsp.mainBeanFile": "main.bean",
+  "beanLsp.browserWasmBeancount.enabled": "v2",
+  "beanLsp.browserWasmBeancount.extraPythonPackages": ["fava-plugins"],
+  "beancount.diagnostics.tolerance": 0.005,
+  "beancount.diagnostics.warnOnIncompleteTransaction": true,
+  "beanLsp.inlayHints.enable": true,
+  "beanLsp.codeLens.enable": true,
+  "beanLsp.codeLens.accountBalance.enable": true,
+  "beanLsp.codeLens.pad.enable": true,
+  "beanLsp.mainCurrency": "CNY",
+  "beanLsp.currencys": ["CNY", "USD", "EUR", "HKD", "JPY"],
+  "beanLsp.formatter.enabled": true,
+  "beanLsp.formatter.alignCurrency": true,
+  "beanLsp.hover.includeSubaccountBalance": true,
+  "beanLsp.completion.enableChinesePinyinFilter": true
+}

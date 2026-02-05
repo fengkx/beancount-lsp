@@ -43,6 +43,10 @@
 				"Cargo*",
 				"binding.gyp"
 			]
+		},
+		"@fengkx/beancount-playground#build": {
+			"dependsOn": ["^build"],
+			"outputs": ["dist/**"]
 		}
 	},
 	"globalDependencies": [".env"]

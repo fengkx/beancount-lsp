@@ -8,6 +8,9 @@ const config = {
 			plugins: [importMetaUrlPlugin],
 		},
 	},
+	worker: {
+		format: 'es',
+	},
 	plugins: [
 		vsixPlugin(),
 	],
