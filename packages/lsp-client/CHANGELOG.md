@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.0.165
+
+- chore: update lsp-client version to 0.0.165 ([7113cbe](https://github.com/fengkx/beancount-lsp/commit/7113cbe))
+- fix: clarify description for extra Python packages in WASM runtime ([ff3e4a5](https://github.com/fengkx/beancount-lsp/commit/ff3e4a5))
+- fix: diagnostics for loading plugins ([3e583a9](https://github.com/fengkx/beancount-lsp/commit/3e583a9))
+- fix: playground time order ([aac0db1](https://github.com/fengkx/beancount-lsp/commit/aac0db1))
+- feat: add GitHub Actions workflow for deploying playground to gh-pages ([56661ee](https://github.com/fengkx/beancount-lsp/commit/56661ee))
+- feat: add playground package with initial setup and demo files ([8d32595](https://github.com/fengkx/beancount-lsp/commit/8d32595))
+- tmp ([3cc24d0](https://github.com/fengkx/beancount-lsp/commit/3cc24d0))
+
 ## v0.0.163
 
 - chore: update lsp-client version to 0.0.163 ([4ef7491](https://github.com/fengkx/beancount-lsp/commit/4ef7491))
