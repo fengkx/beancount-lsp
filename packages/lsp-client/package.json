@@ -165,7 +165,7 @@
 						"type": "string"
 					},
 					"default": ["fava-plugins"],
-					"description": "Extra Python packages to install in the browser-side Beancount WASM runtime via micropip (in addition to the built-in fava-plugins). Useful when your ledger uses custom plugin modules."
+					"description": "Python packages to install in the browser-side Beancount WASM runtime via micropip (e.g. fava-plugins for plugin support). Useful when your ledger uses custom plugin modules."
 				},
 				"beancount.diagnostics.tolerance": {
 					"scope": "resource",
