@@ -123,6 +123,9 @@ export class DiagnosticsFeature implements Feature {
 				if (documentsInStore.has(uri)) {
 					return;
 				}
+				if(uri.startsWith('file://') && uri.endsWith('<load>')) {
+					uri = await this.documents.getMainBeanFileUri() ?? uri;
+				}
 
 				await connection.sendDiagnostics({ uri, diagnostics });
 			}),
