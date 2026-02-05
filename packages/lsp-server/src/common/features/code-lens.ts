@@ -25,9 +25,9 @@ export class CodeLensFeature implements Feature {
 		this.connection = connection;
 		connection.onCodeLens(async (params) => {
 			try {
-				if (!this.beanMgr) {
-					logger.info('CodeLens feature disabled: no beancount manager available');
-					return;
+				if (!this.beanMgr?.isEnabled()) {
+					logger.info('CodeLens feature disabled: beancount manager is disabled');
+					return [];
 				}
 				return await this.provideCodeLenses(params);
 			} catch (error) {
@@ -162,7 +162,7 @@ export class CodeLensFeature implements Feature {
 	}
 
 	private async resolveCodeLens(codeLens: lsp.CodeLens): Promise<lsp.CodeLens> {
-		if (!this.beanMgr || !codeLens.data) {
+		if (!this.beanMgr?.isEnabled() || !codeLens.data) {
 			return codeLens;
 		}
 

@@ -130,7 +130,8 @@ export class DiagnosticsFeature implements Feature {
 	}
 
 	private updateDiagnosticsFromBeancount() {
-		if (!this.beanMgr) {
+		if (!this.beanMgr || !this.beanMgr.isEnabled()) {
+			this.diagnosticsFromBeancount = {};
 			return;
 		}
 

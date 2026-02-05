@@ -26,6 +26,7 @@ export interface BeancountFlag {
  * Get information from the REAL beancount executable. Only available in the node extension.
  */
 export interface RealBeancountManager {
+	isEnabled(): boolean;
 	getBalance(account: string, includeSubaccountBalance: boolean): Amount[];
 	getSubaccountBalances(account: string): Map<string, Amount[]>;
 	getPadAmounts(filePath: string, line: number): Amount[];

@@ -84,11 +84,11 @@ export function registerCustomMessageHandlers(
 		async (params: z.infer<typeof CustomMessagesSchema.RunBeanQuery.request>) => {
 			logger.info(`Received request to run bean-query: ${params.query}`);
 
-			if (!beanMgr) {
-				logger.error('Beancount manager is not available');
+			if (!beanMgr?.isEnabled()) {
+				logger.error('Beancount manager is not enabled');
 				return {
 					success: false,
-					error: 'Beancount manager is not available',
+					error: 'Beancount manager is not enabled',
 				};
 			}
 

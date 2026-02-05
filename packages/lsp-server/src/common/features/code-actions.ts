@@ -50,7 +50,7 @@ export class CodeActionFeature implements Feature {
 			actions.push(exprCalculationAction);
 		}
 
-		if (this.beanMgr) {
+		if (this.beanMgr?.isEnabled()) {
 			for (let line = params.range.start.line; line <= params.range.end.line; line++) {
 				// if (processedLines.has(line)) continue;
 				const text = this.getLineText(document, line);

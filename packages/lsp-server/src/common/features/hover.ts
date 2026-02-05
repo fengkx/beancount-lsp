@@ -589,8 +589,8 @@ export class HoverFeature implements Feature {
 			// Add the horizontal stats line with adequate spacing
 			result += `${stats.join('  ·  ')}\n\n\n`;
 
-			// Add account balance information if beanMgr is available
-			if (this.beanMgr) {
+			// Add account balance information if beanMgr is available and enabled
+			if (this.beanMgr?.isEnabled()) {
 				result += this.getAccountBalance(account);
 			}
 

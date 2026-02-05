@@ -173,14 +173,11 @@ export function startServer(
 		features.push(new InlayHintFeature(documents, trees));
 		features.push(new CodeActionFeature(documents, trees, beanMgr));
 
-		// Add CodeLens feature only when beancount manager is available (node environment)
-		if (beanMgr) {
-			// CodeAction capability (only when bean manager available)
-			result.capabilities.codeLensProvider = {
-				resolveProvider: true,
-			};
-			features.push(new CodeLensFeature(documents, trees, beanMgr));
-		}
+		// CodeLens feature is gated by beancount manager enablement at runtime.
+		result.capabilities.codeLensProvider = {
+			resolveProvider: true,
+		};
+		features.push(new CodeLensFeature(documents, trees, beanMgr));
 		// Initialize all features
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
 

@@ -50,6 +50,10 @@ class BeancountManager implements RealBeancountManager {
 		connection.onDidSaveTextDocument(this.onDocumentSaved.bind(this));
 	}
 
+	isEnabled(): boolean {
+		return true;
+	}
+
 	async setMainFile(mainFileUri: string): Promise<void> {
 		this.mainFile = URI.parse(mainFileUri).fsPath;
 		await this.revalidateBeanCheck();

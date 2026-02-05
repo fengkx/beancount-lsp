@@ -68,6 +68,10 @@ class BeancountBrowserManager implements RealBeancountManager {
 		});
 	}
 
+	isEnabled(): boolean {
+		return this.enabledMode !== 'off';
+	}
+
 	async setMainFile(mainFileUri: string): Promise<void> {
 		this.mainFile = mainFileUri;
 		await this.refreshConfiguration();
