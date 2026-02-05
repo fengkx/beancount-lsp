@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.163
+
+- chore: update lsp-client version to 0.0.163 ([4ef7491](https://github.com/fengkx/beancount-lsp/commit/4ef7491))
+- feat: update beancount-wasm to version 0.2.0 and enhance browser-side configuration ([3c36c0b](https://github.com/fengkx/beancount-lsp/commit/3c36c0b))
+- feat: add CodeLens refresh support to CodeLensFeature ([c96eea4](https://github.com/fengkx/beancount-lsp/commit/c96eea4))
+
 ## v0.0.161
 
 - chore: update lsp-client version to 0.0.161 ([9a4baf0](https://github.com/fengkx/beancount-lsp/commit/9a4baf0))
