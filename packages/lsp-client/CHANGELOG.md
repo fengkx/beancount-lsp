@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.161
+
+- chore: update lsp-client version to 0.0.161 ([9a4baf0](https://github.com/fengkx/beancount-lsp/commit/9a4baf0))
+- feat: implement isEnabled method for BeancountManager and update feature checks ([8a4a398](https://github.com/fengkx/beancount-lsp/commit/8a4a398))
+- feat: AGENTS.md ([27f99aa](https://github.com/fengkx/beancount-lsp/commit/27f99aa))
+
 ## v0.0.159
 
 - chore: update lsp-client version to 0.0.159 ([1a515c5](https://github.com/fengkx/beancount-lsp/commit/1a515c5))
