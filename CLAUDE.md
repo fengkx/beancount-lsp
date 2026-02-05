@@ -199,3 +199,8 @@ The extension provides extensive VSCode configuration options (see README.md for
 - **Official syntax documentation**: https://beancount.github.io/docs/beancount_language_syntax.html
 - **Precision & tolerances**: https://beancount.github.io/docs/precision_tolerances.html
 - **Language Server Protocol spec**: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification
+
+## GitHub.dev CSP Notes
+- GitHub.dev blocks creating web workers from remote extension assets. Example: creating a worker from `https://*.vscode-unpkg.net/.../server/beancount-worker.js` is blocked by CSP because `child-src` allows only `self`, `data:`, and `blob:`.
+- `worker-src` is not explicitly set in the GitHub.dev CSP, so `child-src` is the fallback for workers.
+- Mitigation: create workers from `blob:` URLs (e.g., fetch the script text, wrap in `Blob`, then `URL.createObjectURL`), or use in-extension `self`/`blob` URLs. Remote HTTPS worker URLs will be blocked.
