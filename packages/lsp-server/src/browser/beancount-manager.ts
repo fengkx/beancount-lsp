@@ -49,6 +49,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 	private logger = new Logger('BeancountBrowserManager');
 	private workerClient: BeancountWorkerClient | null = null;
 	private enabledMode: BrowserBeancountMode = 'off';
+	private extraPythonPackages: string[] = [];
 	private lastFileSnapshot = new Map<string, string>();
 
 	constructor(
@@ -81,11 +82,14 @@ class BeancountBrowserManager implements RealBeancountManager {
 
 	private async refreshConfiguration(): Promise<void> {
 		const config = await this.connection.workspace.getConfiguration({ section: 'beanLsp' });
-		const requested = (config?.enableBrowserWasmBeancount ?? 'off') as BrowserBeancountMode;
+		const browserWasm = config?.browserWasmBeancount ?? {};
+		const requested = (browserWasm.enabled ?? 'off') as BrowserBeancountMode;
+		const extraPackages = this.normalizeExtraPackages(browserWasm.extraPythonPackages);
 		if (requested === this.enabledMode) {
 			return;
 		}
 		this.enabledMode = requested;
+		this.extraPythonPackages = extraPackages;
 		if (this.enabledMode === 'off') {
 			this.logger.info('Browser Beancount WASM diagnostics disabled.');
 			this.workerClient?.dispose();
@@ -96,9 +100,21 @@ class BeancountBrowserManager implements RealBeancountManager {
 			return;
 		}
 		await this.ensureWorker();
-		await this.workerClient?.init(this.enabledMode);
+		await this.workerClient?.init(this.enabledMode, {
+			extraPythonPackages: this.extraPythonPackages,
+		});
 		await this.refreshFileTree();
 		await this.revalidateBeanCheck();
+	}
+
+	private normalizeExtraPackages(value: unknown): string[] {
+		if (!Array.isArray(value)) {
+			return [];
+		}
+		const normalized = value
+			.map(pkg => (typeof pkg === 'string' ? pkg.trim() : ''))
+			.filter(Boolean);
+		return Array.from(new Set(normalized));
 	}
 
 	private async ensureWorker(): Promise<void> {

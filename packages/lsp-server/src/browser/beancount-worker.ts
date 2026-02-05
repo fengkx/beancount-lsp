@@ -26,12 +26,18 @@ interface PyodideRuntime {
 
 interface RuntimeState {
 	version: BeancountVersion;
+	extraPythonPackages: string[];
 	pyodide: PyodideRuntime;
 	fileTree: FileTree;
 }
 
 interface WorkerApi {
-	init: (version: BeancountVersion) => Promise<void>;
+	init: (
+		version: BeancountVersion,
+		options?: {
+			extraPythonPackages?: string[];
+		},
+	) => Promise<void>;
 	sync: (updates: FileUpdate[], removed: string[]) => Promise<void>;
 	reset: (files: FileUpdate[]) => Promise<void>;
 	beancheck: (entryFile: string) => Promise<string>;
@@ -59,35 +65,72 @@ let runtimeState: RuntimeState | null = null;
 let runtimePromise: Promise<RuntimeState> | null = null;
 /** Version currently being loaded; only set while runtimePromise is active. */
 let loadingVersion: BeancountVersion | null = null;
+let loadingExtraPackages: string[] | null = null;
 
 function postStatus(message: string) {
 	void mainApi.reportStatus(message);
 }
 
-async function loadRuntime(version: BeancountVersion): Promise<RuntimeState> {
-	if (runtimeState?.version === version) {
+function normalizePackages(packages?: string[]): string[] {
+	if (!packages) {
+		return [];
+	}
+	const normalized = packages
+		.map(pkg => (typeof pkg === 'string' ? pkg.trim() : ''))
+		.filter(Boolean);
+	return Array.from(new Set(normalized));
+}
+
+function samePackages(left: string[], right: string[]): boolean {
+	if (left.length !== right.length) {
+		return false;
+	}
+	for (let i = 0; i < left.length; i++) {
+		if (left[i] !== right[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+async function loadRuntime(
+	version: BeancountVersion,
+	extraPythonPackages?: string[],
+): Promise<RuntimeState> {
+	const normalizedPackages = normalizePackages(extraPythonPackages);
+	if (
+		runtimeState?.version === version
+		&& samePackages(runtimeState.extraPythonPackages, normalizedPackages)
+	) {
 		return runtimeState;
 	}
-	if (runtimePromise && loadingVersion === version) {
+	if (
+		runtimePromise
+		&& loadingVersion === version
+		&& samePackages(loadingExtraPackages ?? [], normalizedPackages)
+	) {
 		return runtimePromise;
 	}
-	if (runtimePromise && loadingVersion !== version) {
+	if (runtimePromise && (loadingVersion !== version || !samePackages(loadingExtraPackages ?? [], normalizedPackages))) {
 		await runtimePromise;
-		return loadRuntime(version);
+		return loadRuntime(version, normalizedPackages);
 	}
 
 	loadingVersion = version;
+	loadingExtraPackages = normalizedPackages;
 	runtimePromise = (async () => {
 		postStatus(`Loading Beancount ${version} runtime...`);
 		const { pyodide } = await createBeancountRuntime({
 			version,
 			inline: 'auto',
 			onStatus: postStatus,
+			pythonPackages: ['fava-plugins', ...normalizedPackages],
 		});
 
 		const fileTree = createFileTree(pyodide, { root: WORK_ROOT });
 		runtimeState = {
 			version,
+			extraPythonPackages: normalizedPackages,
 			pyodide,
 			fileTree,
 		};
@@ -100,15 +143,21 @@ async function loadRuntime(version: BeancountVersion): Promise<RuntimeState> {
 	} finally {
 		runtimePromise = null;
 		loadingVersion = null;
+		loadingExtraPackages = null;
 	}
 }
 
-async function init(version: BeancountVersion): Promise<void> {
-	await loadRuntime(version);
+async function init(
+	version: BeancountVersion,
+	options?: {
+		extraPythonPackages?: string[];
+	},
+): Promise<void> {
+	await loadRuntime(version, options?.extraPythonPackages);
 }
 
 async function sync(updates: FileUpdate[], removed: string[]): Promise<void> {
-	const runtime = await loadRuntime(runtimeState?.version ?? 'v3');
+	const runtime = await loadRuntime(runtimeState?.version ?? 'v3', runtimeState?.extraPythonPackages);
 	if (updates.length > 0) {
 		runtime.fileTree.update(updates);
 	}
@@ -118,12 +167,12 @@ async function sync(updates: FileUpdate[], removed: string[]): Promise<void> {
 }
 
 async function reset(files: FileUpdate[]): Promise<void> {
-	const runtime = await loadRuntime(runtimeState?.version ?? 'v3');
+	const runtime = await loadRuntime(runtimeState?.version ?? 'v3', runtimeState?.extraPythonPackages);
 	runtime.fileTree.reset(files);
 }
 
 async function beancheck(entryFile: string): Promise<string> {
-	const runtime = await loadRuntime(runtimeState?.version ?? 'v3');
+	const runtime = await loadRuntime(runtimeState?.version ?? 'v3', runtimeState?.extraPythonPackages);
 	const entryPath = `${WORK_ROOT}/${entryFile}`;
 	runtime.pyodide.globals.set('entry_path', entryPath);
 	runtime.pyodide.globals.set('beancheck_code', beanCheckPythonCode);

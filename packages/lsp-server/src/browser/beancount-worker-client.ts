@@ -9,7 +9,12 @@ interface FileUpdate {
 }
 
 interface WorkerApi {
-	init: (version: BeancountVersion) => Promise<void>;
+	init: (
+		version: BeancountVersion,
+		options?: {
+			extraPythonPackages?: string[];
+		},
+	) => Promise<void>;
 	sync: (updates: FileUpdate[], removed: string[]) => Promise<void>;
 	reset: (files: FileUpdate[]) => Promise<void>;
 	beancheck: (entryFile: string) => Promise<string>;
@@ -103,9 +108,14 @@ export class BeancountWorkerClient {
 		}
 	}
 
-	async init(version: BeancountVersion): Promise<void> {
+	async init(
+		version: BeancountVersion,
+		options?: {
+			extraPythonPackages?: string[];
+		},
+	): Promise<void> {
 		await this.ensureReady();
-		return this.api!.init(version);
+		return this.api!.init(version, options);
 	}
 
 	async sync(updates: FileUpdate[], removed: string[]): Promise<void> {

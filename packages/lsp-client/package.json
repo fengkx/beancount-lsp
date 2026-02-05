@@ -147,7 +147,7 @@
 					"default": "",
 					"description": "Path to Python 3 executable. If empty, the system default Python 3 will be used. This Python installation should have the beancount package installed."
 				},
-				"beanLsp.enableBrowserWasmBeancount": {
+				"beanLsp.browserWasmBeancount.enabled": {
 					"scope": "resource",
 					"type": "string",
 					"enum": [
@@ -157,6 +157,15 @@
 					],
 					"default": "off",
 					"description": "Controls whether the browser-side Beancount WASM runtime runs beancheck diagnostics. Use off to disable, v2 for Beancount v2, or v3 for Beancount v3."
+				},
+				"beanLsp.browserWasmBeancount.extraPythonPackages": {
+					"scope": "resource",
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"default": ["fava-plugins"],
+					"description": "Extra Python packages to install in the browser-side Beancount WASM runtime via micropip (in addition to the built-in fava-plugins). Useful when your ledger uses custom plugin modules."
 				},
 				"beancount.diagnostics.tolerance": {
 					"scope": "resource",
