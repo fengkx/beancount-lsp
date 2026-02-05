@@ -124,7 +124,7 @@ async function loadRuntime(
 			version,
 			inline: 'auto',
 			onStatus: postStatus,
-			pythonPackages: ['fava-plugins', ...normalizedPackages],
+			pythonPackages: normalizedPackages,
 		});
 
 		const fileTree = createFileTree(pyodide, { root: WORK_ROOT });
