@@ -1,0 +1,31 @@
+{
+	"name": "browser-demo",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc && vite build",
+		"preview": "vite preview"
+	},
+	"devDependencies": {
+		"@codingame/monaco-vscode-rollup-vsix-plugin": "^25.1.2",
+		"@types/vscode": "^1.99.1",
+		"typescript": "~5.9.3",
+		"vite": "^7.2.4"
+	},
+	"dependencies": {
+		"@codingame/esbuild-import-meta-url-plugin": "^1.0.3",
+		"@codingame/monaco-editor-wrapper": "^23.0.1",
+		"@codingame/monaco-vscode-api": "^25.1.2",
+		"@codingame/monaco-vscode-base-service-override": "^25.1.2",
+		"@codingame/monaco-vscode-files-service-override": "^25.1.2",
+		"@codingame/monaco-vscode-json-default-extension": "^25.1.2",
+		"@codingame/monaco-vscode-languages-service-override": "^25.1.2",
+		"@codingame/monaco-vscode-textmate-service-override": "^25.1.2",
+		"@codingame/monaco-vscode-theme-defaults-default-extension": "^25.1.2",
+		"@codingame/monaco-vscode-theme-service-override": "^25.1.2",
+		"monaco-editor": "npm:@codingame/monaco-vscode-editor-api@^25.1.2",
+		"vscode": "npm:@codingame/monaco-vscode-extension-api@^25.1.2"
+	}
+}
