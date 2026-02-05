@@ -17,10 +17,88 @@ import { getBuiltinExtensions } from '@codingame/monaco-vscode-api/extensions';
 import { URI } from '@codingame/monaco-vscode-api/vscode/vs/base/common/uri';
 import { RegisteredMemoryFile } from '@codingame/monaco-vscode-files-service-override';
 import { ExtensionIdentifier } from '@codingame/monaco-vscode-api/vscode/vs/platform/extensions/common/extensions';
-import { commands, extensions, StatusBarAlignment, Uri, window, workspace } from 'vscode';
+import { commands, ConfigurationTarget, extensions, StatusBarAlignment, Uri, window, workspace } from 'vscode';
 import * as pako from 'pako';
 import defaultFiles from './demo-files.json';
 import defaultUserConfig from './demo-user-config.json';
+
+const DEBUG =
+	new URLSearchParams(globalThis.location.search).has('debug')
+	|| globalThis.localStorage.getItem('bclsp:debug') === '1';
+
+function debugLog(...args: unknown[]) {
+	if (!DEBUG) {
+		return;
+	}
+	// eslint-disable-next-line no-console
+	console.log('[playground]', ...args);
+}
+
+function readConfigValue(key: string): unknown {
+	try {
+		// workspace.getConfiguration().get supports "section" and "section.key" forms.
+		return workspace.getConfiguration().get(key);
+	} catch (error) {
+		return { error: String(error) };
+	}
+}
+
+function logConfigSnapshot(label: string) {
+	if (!DEBUG) {
+		return;
+	}
+	const focusKeys = [
+		'editor.codeLens',
+		'workbench.statusBar.visible',
+		'beanLsp.codeLens.enable',
+		'beanLsp.codeLens.accountBalance.enable',
+		'beanLsp.codeLens.pad.enable',
+		'beanLsp.mainBeanFile',
+		'beanLsp.browserWasmBeancount.enabled',
+		'beanLsp.trace.server',
+	];
+	const snapshot: Record<string, unknown> = {};
+	for (const key of focusKeys) {
+		snapshot[key] = readConfigValue(key);
+	}
+	debugLog(label, snapshot);
+}
+
+async function applyConfigHard(
+	label: string,
+	nextConfig: Record<string, unknown>,
+): Promise<void> {
+	updateUserConfiguration(JSON.stringify(nextConfig));
+	logConfigSnapshot(`${label} (after updateUserConfiguration)`);
+
+	// If the wrapper-based update doesn't stick (prod builds can re-register default overrides),
+	// force the values via workspace configuration updates.
+	const cfg = workspace.getConfiguration();
+	const diffs: Array<{ key: string; expected: unknown; actual: unknown }> = [];
+	for (const [key, expected] of Object.entries(nextConfig)) {
+		const actual = cfg.get(key);
+		if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+			diffs.push({ key, expected, actual });
+		}
+	}
+	if (diffs.length === 0) {
+		debugLog(`${label} applied ok`);
+		return;
+	}
+
+	debugLog(`${label} mismatch -> forcing via workspace.update`, { diffCount: diffs.length, diffs: diffs.slice(0, 10) });
+	for (const { key, expected } of diffs) {
+		try {
+			// Store as a user-level setting in this web sandbox so it overrides defaults.
+			// This is still "reproducible" because our source of truth is the hash.
+			// eslint-disable-next-line no-await-in-loop
+			await cfg.update(key, expected as never, ConfigurationTarget.Global);
+		} catch (error) {
+			debugLog('workspace.update failed', { key, error: String(error) });
+		}
+	}
+	logConfigSnapshot(`${label} (after workspace.update)`);
+}
 
 type DemoFile = { path: string; content: string };
 type ShareStateV1 = {
@@ -126,6 +204,7 @@ async function decodeShareState(payload: string): Promise<ShareStateV1 | null> {
 
 async function tryLoadShareStateFromHash(): Promise<ShareStateV1 | null> {
 	const hash = globalThis.location.hash || '';
+	debugLog('init hash', { len: hash.length, prefix: hash.slice(0, 32) });
 	if (!hash.startsWith('#' + SHARE_HASH_KEY)) {
 		return null;
 	}
@@ -140,14 +219,30 @@ async function tryLoadShareStateFromHash(): Promise<ShareStateV1 | null> {
 	if (parsed.v !== 1 || !Array.isArray(parsed.files) || typeof parsed.config !== 'object' || parsed.config == null) {
 		return null;
 	}
+	debugLog('init hash decoded', {
+		files: parsed.files.length,
+		configKeys: Object.keys(parsed.config).length,
+		activeFile: parsed.activeFile,
+	});
 	return parsed;
 }
 
 async function setShareHash(state: ShareStateV1) {
-	const encoded = await encodeShareState(state);
-	const nextHash = `#${SHARE_HASH_KEY}${encoded}`;
-	const nextUrl = `${globalThis.location.pathname}${globalThis.location.search}${nextHash}`;
-	globalThis.history.replaceState(null, '', nextUrl);
+	try {
+		const encoded = await encodeShareState(state);
+		const nextHash = `#${SHARE_HASH_KEY}${encoded}`;
+		debugLog('hash writing', { encodedLen: encoded.length });
+		try {
+			const nextUrl = `${globalThis.location.pathname}${globalThis.location.search}${nextHash}`;
+			globalThis.history.replaceState(null, '', nextUrl);
+		} catch (error) {
+			debugLog('history.replaceState failed, fallback to location.hash', { error: String(error) });
+			globalThis.location.hash = nextHash;
+		}
+		debugLog('hash updated', { hashLen: globalThis.location.hash.length });
+	} catch (error) {
+		debugLog('hash update failed', { error: String(error) });
+	}
 }
 
 const baseConfig = {
@@ -158,20 +253,29 @@ const baseConfig = {
 };
 
 const shareFromHash = await tryLoadShareStateFromHash();
+debugLog('init config source', { fromHash: Boolean(shareFromHash) });
 const initialFiles: DemoFile[] = shareFromHash?.files ?? (defaultFiles as DemoFile[]);
 const initialConfig: Record<string, unknown> = shareFromHash
 	? { ...baseConfig, ...(shareFromHash.config ?? {}) }
 	: { ...baseConfig, ...(defaultUserConfig as Record<string, unknown>) };
-let activeFile: string | undefined = shareFromHash?.activeFile ?? '/tmp/project/main.bean';
+	let activeFile: string | undefined = shareFromHash?.activeFile ?? '/tmp/project/main.bean';
+	debugLog('initialConfig', initialConfig);
 
-const stateFiles = new Map<string, string>(initialFiles.map((f) => [f.path, f.content]));
-let stateConfig: Record<string, unknown> = { ...initialConfig };
+	const stateFiles = new Map<string, string>(initialFiles.map((f) => [f.path, f.content]));
+	let stateConfig: Record<string, unknown> = { ...initialConfig };
 
-for (const file of initialFiles) {
-	registerFile(new RegisteredMemoryFile(URI.file(file.path), file.content));
-}
+	// Apply config as early as possible (before initialize / extension host startup),
+	// so the Beancount extension reads the intended settings during activation.
+	debugLog('pre-initialize updateUserConfiguration', { keys: Object.keys(stateConfig).length });
+	updateUserConfiguration(JSON.stringify(stateConfig));
 
-await initialize(
+	for (const file of initialFiles) {
+		registerFile(new RegisteredMemoryFile(URI.file(file.path), file.content));
+	}
+
+debugLog('before initialize');
+let initResolved = false;
+const initPromise = initialize(
 	{
 		productConfiguration: {
 			extensionsGallery: {
@@ -183,8 +287,40 @@ await initialize(
 		},
 	},
 	{ container: document.getElementById('workbench')! },
-);
-updateUserConfiguration(JSON.stringify(stateConfig));
+)
+		.then(() => {
+			initResolved = true;
+			debugLog('initialize resolved');
+		})
+		.catch((error: unknown) => {
+			console.error('[playground] initialize failed', error);
+		});
+
+	// In production builds, initialize() can appear "stuck" even though the workbench partially works.
+	// Don't block config/hash on that; continue after a short timeout and apply config anyway.
+	let initTimedOut = false;
+	await Promise.race([
+		initPromise,
+		new Promise<void>((resolve) => {
+			setTimeout(() => {
+				initTimedOut = true;
+				debugLog('initialize timed out (continuing anyway)');
+				resolve();
+			}, 3000);
+		}),
+	]);
+	debugLog('after initialize race', { initResolved, initTimedOut });
+
+debugLog('applied initial stateConfig', { keys: Object.keys(stateConfig).length });
+await applyConfigHard('init apply', stateConfig);
+setTimeout(() => {
+	logConfigSnapshot('init apply (next tick)');
+}, 0);
+
+// If initialize resolves later, re-apply once more to defeat late default overrides.
+void initPromise.then(async () => {
+	await applyConfigHard('init apply (post-initialize)', stateConfig);
+});
 
 let shareHashTimer: ReturnType<typeof setTimeout> | undefined;
 function updateShareHashSoon() {
@@ -197,6 +333,7 @@ function updateShareHashSoon() {
 }
 
 async function updateShareHashNow() {
+	debugLog('updateShareHashNow start');
 	const files = Array.from(stateFiles.entries())
 		.filter(([path]) => path.startsWith('/tmp/project/'))
 		.sort(([a], [b]) => a.localeCompare(b))
@@ -208,16 +345,26 @@ async function updateShareHashNow() {
 		activeFile,
 	};
 	await setShareHash(state);
+	debugLog('updateShareHashNow done', { files: files.length, activeFile });
 }
 
 function refreshTrackedConfig() {
 	const cfg = workspace.getConfiguration();
 	const next: Record<string, unknown> = {};
+	const diffs: Array<{ key: string; expected: unknown; actual: unknown }> = [];
 	for (const key of Object.keys(stateConfig)) {
-		next[key] = cfg.get(key);
+		const actual = cfg.get(key);
+		next[key] = actual;
+		const expected = stateConfig[key];
+		// Shallow-ish compare for logging only.
+		if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+			diffs.push({ key, expected, actual });
+		}
 	}
 	// Keep config stable by preserving insertion order of stateConfig keys
 	stateConfig = { ...stateConfig, ...next };
+	debugLog('refreshTrackedConfig', { diffs: diffs.slice(0, 10), diffCount: diffs.length });
+	logConfigSnapshot('refreshTrackedConfig snapshot');
 }
 
 workspace.onDidChangeTextDocument((e) => {
@@ -257,6 +404,7 @@ window.onDidChangeActiveTextEditor((editor) => {
 });
 
 workspace.onDidChangeConfiguration(() => {
+	debugLog('onDidChangeConfiguration');
 	refreshTrackedConfig();
 	updateShareHashSoon();
 });
@@ -278,18 +426,6 @@ commands.registerCommand('demo.resetDemo', () => {
 	globalThis.location.reload();
 });
 
-const shareItem = window.createStatusBarItem(StatusBarAlignment.Right, 200);
-shareItem.text = '$(link-external) Share';
-shareItem.tooltip = 'Copy a fully reproducible URL (includes files + config)';
-shareItem.command = 'demo.copyShareUrl';
-shareItem.show();
-
-const resetItem = window.createStatusBarItem(StatusBarAlignment.Right, 199);
-resetItem.text = '$(refresh) Reset';
-resetItem.tooltip = 'Reset demo to defaults';
-resetItem.command = 'demo.resetDemo';
-resetItem.show();
-
 refreshTrackedConfig();
 updateShareHashSoon();
 
@@ -298,18 +434,45 @@ try {
 } catch (error) {
 	console.error('[lspClient] ready failed', error);
 }
-console.info('[extensions] builtin', getBuiltinExtensions().map((ext) => ext.identifier.id));
+logConfigSnapshot('after lspClientReady (before re-apply)');
+
+// Some bundled contributions register configuration defaults late in production builds
+// (e.g. editor.codeLens=false). Re-apply our desired config after the VSIX is ready.
+await applyConfigHard('post-vsix apply', stateConfig);
+setTimeout(() => {
+	logConfigSnapshot('post-vsix apply (next tick)');
+}, 0);
+
+const shareItem = window.createStatusBarItem(StatusBarAlignment.Right, 200);
+shareItem.text = 'Share';
+shareItem.tooltip = 'Copy a fully reproducible URL (includes files + config)';
+shareItem.command = 'demo.copyShareUrl';
+shareItem.show();
+
+const resetItem = window.createStatusBarItem(StatusBarAlignment.Right, 199);
+resetItem.text = 'Reset';
+resetItem.tooltip = 'Reset demo to defaults';
+resetItem.command = 'demo.resetDemo';
+resetItem.show();
+	if (DEBUG) {
+		console.log('[extensions] builtin', getBuiltinExtensions().map((ext) => ext.identifier.id));
+	}
 
 const targetExtensionId = 'fengkx.beancount-lsp-client';
 const extensionService = await getService(IExtensionService);
 await extensionService.whenInstalledExtensionsRegistered();
 const extensionsWorkbenchService = await getService(IExtensionsWorkbenchService);
 await extensionsWorkbenchService.whenInitialized;
-console.info('[extensions] workbench local', extensionsWorkbenchService.local.map((ext) => ext.identifier.id));
-console.info(
-	'[extensions] workbench installed',
-	extensionsWorkbenchService.installed.map((ext) => ext.identifier.id),
-);
+	if (DEBUG) {
+		console.log(
+			'[extensions] workbench local',
+			extensionsWorkbenchService.local.map((ext) => ext.identifier.id),
+		);
+		console.log(
+			'[extensions] workbench installed',
+			extensionsWorkbenchService.installed.map((ext) => ext.identifier.id),
+		);
+	}
 await extensionsWorkbenchService.openSearch('@builtin');
 try {
 	await extensionService.activateById(new ExtensionIdentifier(targetExtensionId), {
@@ -317,25 +480,35 @@ try {
 		extensionId: new ExtensionIdentifier(targetExtensionId),
 		activationEvent: 'onDemand',
 	});
-	console.info('[extensions] activated by service', targetExtensionId);
+		if (DEBUG) {
+			console.log('[extensions] activated by service', targetExtensionId);
+		}
 } catch (error) {
 	console.error('[extensions] service activate failed', error);
 }
 
 const extension = extensions.getExtension(targetExtensionId);
-console.info('[extensions] total', extensions.all.length);
-console.info('[extensions] target', targetExtensionId, extension);
-if (!extension) {
-	console.warn('[extensions] target not found');
-} else {
-	console.info('[extensions] isActive before', extension.isActive);
-	try {
-		await extension.activate();
-		console.info('[extensions] isActive after', extension.isActive);
-	} catch (error) {
-		console.error('[extensions] activate failed', error);
+	if (DEBUG) {
+		console.log('[extensions] total', extensions.all.length);
+		console.log('[extensions] target', targetExtensionId, extension);
 	}
-}
+	if (!extension) {
+		if (DEBUG) {
+			console.warn('[extensions] target not found');
+		}
+	} else {
+		if (DEBUG) {
+			console.log('[extensions] isActive before', extension.isActive);
+		}
+		try {
+			await extension.activate();
+			if (DEBUG) {
+				console.log('[extensions] isActive after', extension.isActive);
+			}
+		} catch (error) {
+			console.error('[extensions] activate failed', error);
+		}
+	}
 
 if (activeFile && activeFile.startsWith('/tmp/project/') && stateFiles.has(activeFile)) {
 	await commands.executeCommand('vscode.open', Uri.file(activeFile));
