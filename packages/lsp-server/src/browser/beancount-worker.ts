@@ -84,6 +84,7 @@ async function loadRuntime(version: BeancountVersion): Promise<RuntimeState> {
 			inline: 'auto',
 			onStatus: postStatus,
 		});
+
 		const fileTree = createFileTree(pyodide, { root: WORK_ROOT });
 		runtimeState = {
 			version,

@@ -7,6 +7,7 @@ import { asLspRange } from '../common';
 import { DocumentStore } from '../document-store';
 import { TreeQuery } from '../language';
 import { Trees } from '../trees';
+import { globalEventBus, GlobalEvents } from '../utils/event-bus';
 import { Feature, RealBeancountManager } from './types';
 
 const logger = new Logger('CodeLens');
@@ -14,11 +15,13 @@ const logger = new Logger('CodeLens');
 export class CodeLensFeature implements Feature {
 	private codeLensConfig: { enable: boolean; accountBalance: boolean; pad: boolean } | null = null;
 	private connection: lsp.Connection | null = null;
+	private refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
 		private readonly beanMgr?: RealBeancountManager,
+		private readonly refreshSupport = false,
 	) {}
 
 	register(connection: lsp.Connection): void {
@@ -49,7 +52,48 @@ export class CodeLensFeature implements Feature {
 			this.codeLensConfig = null; // Reset cache to force re-read on next request
 		});
 
+		const unsubscribe = globalEventBus.on(GlobalEvents.BeancountUpdate, () => {
+			this.scheduleRefresh();
+		});
+		connection.onExit(() => {
+			unsubscribe();
+			this.clearRefreshTimer();
+		});
+
 		logger.info('CodeLens feature registered');
+	}
+
+	private scheduleRefresh(): void {
+		if (!this.connection || !this.beanMgr?.isEnabled()) {
+			return;
+		}
+		if (!this.refreshSupport) {
+			return;
+		}
+		if (this.codeLensConfig && !this.codeLensConfig.enable) {
+			return;
+		}
+		if (this.refreshTimer) {
+			return;
+		}
+		this.refreshTimer = setTimeout(() => {
+			this.refreshTimer = null;
+			if (!this.connection || !this.beanMgr?.isEnabled()) {
+				return;
+			}
+			void this.connection
+				.sendRequest(lsp.CodeLensRefreshRequest.type)
+				.catch(err => {
+					logger.debug(`CodeLens refresh failed: ${String(err)}`);
+				});
+		}, 150);
+	}
+
+	private clearRefreshTimer(): void {
+		if (this.refreshTimer) {
+			clearTimeout(this.refreshTimer);
+			this.refreshTimer = null;
+		}
 	}
 
 	private async provideCodeLenses(

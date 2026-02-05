@@ -173,11 +173,12 @@ export function startServer(
 		features.push(new InlayHintFeature(documents, trees));
 		features.push(new CodeActionFeature(documents, trees, beanMgr));
 
+		const codeLensRefreshSupport = !!params.capabilities.workspace?.codeLens?.refreshSupport;
 		// CodeLens feature is gated by beancount manager enablement at runtime.
 		result.capabilities.codeLensProvider = {
 			resolveProvider: true,
 		};
-		features.push(new CodeLensFeature(documents, trees, beanMgr));
+		features.push(new CodeLensFeature(documents, trees, beanMgr, codeLensRefreshSupport));
 		// Initialize all features
 		symbolIndex.initFiles(documents.all().map(doc => doc.uri));
 
