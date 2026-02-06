@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.169
+
+- chore(lsp): bump version to 0.0.169 in package.json ([19e87f2](https://github.com/fengkx/beancount-lsp/commit/19e87f2))
+- feat(lsp): implement swr result handling for non-diagnostic data ([08c80fe](https://github.com/fengkx/beancount-lsp/commit/08c80fe))
+- fix: pads codelens display status of loading and not found ([6cde793](https://github.com/fengkx/beancount-lsp/commit/6cde793))
+- fix: demo syntax ([8ebcafd](https://github.com/fengkx/beancount-lsp/commit/8ebcafd))
+- fix(lsp): update status bar labels for clarity ([afdaec4](https://github.com/fengkx/beancount-lsp/commit/afdaec4))
+
 ## v0.0.167
 
 - style: format code ([1c9dd29](https://github.com/fengkx/beancount-lsp/commit/1c9dd29))
