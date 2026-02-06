@@ -1,8 +1,13 @@
 import { Logger } from '@bean-lsp/shared';
 import { $, execa } from 'execa';
-import os from 'os';
-import { basename, isAbsolute, join, normalize } from 'path';
-import { Connection, DidSaveTextDocumentParams } from 'vscode-languageserver';
+import { ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
+import { basename, isAbsolute, normalize } from 'path';
+import {
+	CancellationToken,
+	CancellationTokenSource,
+	Connection,
+	DidSaveTextDocumentParams,
+} from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 import {
 	Amount,
@@ -13,8 +18,6 @@ import {
 } from '../common/features/types';
 import { globalEventBus, GlobalEvents } from '../common/utils/event-bus';
 
-import { existsSync } from 'fs';
-import { unlink, writeFile } from 'fs/promises';
 // eslint-disable-next-line import-x/no-relative-packages
 import beanCheckPythonCode from './beancheck.py';
 
@@ -40,11 +43,312 @@ interface BeancheckOutput {
 	};
 }
 
+interface PendingRpcRequest {
+	resolve: (value: unknown) => void;
+	reject: (error: Error) => void;
+}
+
+function asError(error: unknown): Error {
+	return error instanceof Error ? error : new Error(String(error));
+}
+
+function createCancellationError(): Error {
+	const error = new Error('beancheck request cancelled');
+	error.name = 'CancellationError';
+	return error;
+}
+
+class BeancheckRpcClient {
+	private process: ChildProcessWithoutNullStreams | null = null;
+	private stdoutBuffer = Buffer.alloc(0);
+	private nextRequestId = 1;
+	private readonly pendingRequests = new Map<number, PendingRpcRequest>();
+	private startPromise: Promise<void> | null = null;
+	private disposed = false;
+
+	constructor(private readonly python3Path: string, private readonly logger: Logger) {}
+
+	async runBeancheck(filePath: string, token: CancellationToken): Promise<BeancheckOutput> {
+		await this.ensureProcess();
+		if (token.isCancellationRequested) {
+			throw createCancellationError();
+		}
+		return this.sendRequest<BeancheckOutput>('beancheck/run', {
+			file: filePath,
+		}, token);
+	}
+
+	dispose(): void {
+		if (this.disposed) {
+			return;
+		}
+		this.disposed = true;
+		this.failAllPending(new Error('beancheck rpc client disposed'));
+		const process = this.process;
+		this.process = null;
+		this.stdoutBuffer = Buffer.alloc(0);
+		if (process && process.exitCode === null && !process.killed) {
+			process.kill();
+		}
+	}
+
+	private async ensureProcess(): Promise<void> {
+		if (this.disposed) {
+			throw new Error('beancheck rpc client disposed');
+		}
+		if (this.process && this.process.exitCode === null && !this.process.killed) {
+			return;
+		}
+		if (!this.startPromise) {
+			this.startPromise = this.startProcess()
+				.finally(() => {
+					this.startPromise = null;
+				});
+		}
+		await this.startPromise;
+	}
+
+	private async startProcess(): Promise<void> {
+		const child = spawn(
+			this.python3Path,
+			['-u', '-c', beanCheckPythonCode, '--rpc-stdio'],
+			{ stdio: ['pipe', 'pipe', 'pipe'] },
+		);
+		this.process = child;
+		this.stdoutBuffer = Buffer.alloc(0);
+
+		child.stdout.on('data', chunk => {
+			const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+			this.handleStdoutData(data);
+		});
+
+		child.stderr.on('data', chunk => {
+			const text = chunk.toString().trim();
+			if (text.length > 0) {
+				this.logger.warn(`[beancheck-rpc stderr] ${text}`);
+			}
+		});
+
+		child.on('error', error => {
+			const err = asError(error);
+			this.logger.error(`beancheck rpc process error: ${err.message}`);
+			this.failAllPending(err);
+			if (this.process === child) {
+				this.process = null;
+			}
+		});
+
+		child.on('exit', (code, signal) => {
+			if (!this.disposed && (code !== 0 || signal !== null)) {
+				this.logger.warn(
+					`beancheck rpc process exited unexpectedly (code=${String(code)}, signal=${String(signal)})`,
+				);
+			}
+			if (this.process === child) {
+				this.process = null;
+			}
+			if (!this.disposed) {
+				this.failAllPending(
+					new Error(`beancheck rpc process exited (code=${String(code)}, signal=${String(signal)})`),
+				);
+			}
+		});
+	}
+
+	private sendRequest<T>(
+		method: string,
+		params: Record<string, unknown>,
+		token: CancellationToken,
+	): Promise<T> {
+		const requestId = this.nextRequestId++;
+		return new Promise<T>((resolve, reject) => {
+			let cancelSubscription: { dispose: () => void } | null = null;
+			const cleanup = () => {
+				cancelSubscription?.dispose();
+				cancelSubscription = null;
+				this.pendingRequests.delete(requestId);
+			};
+			const rejectWith = (error: Error) => {
+				cleanup();
+				reject(error);
+			};
+			const resolveWith = (value: unknown) => {
+				cleanup();
+				resolve(value as T);
+			};
+
+			this.pendingRequests.set(requestId, {
+				resolve: resolveWith,
+				reject: rejectWith,
+			});
+
+			if (token.isCancellationRequested) {
+				this.sendCancelRequest(requestId);
+				rejectWith(createCancellationError());
+				return;
+			}
+
+			cancelSubscription = token.onCancellationRequested(() => {
+				this.sendCancelRequest(requestId);
+			});
+
+			try {
+				this.writeMessage({
+					jsonrpc: '2.0',
+					id: requestId,
+					method,
+					params,
+				});
+			} catch (error) {
+				rejectWith(asError(error));
+			}
+		});
+	}
+
+	private sendCancelRequest(requestId: number): void {
+		try {
+			this.writeMessage({
+				jsonrpc: '2.0',
+				method: '$/cancelRequest',
+				params: {
+					id: requestId,
+				},
+			});
+		} catch {
+			// Ignore cancellation delivery failures.
+		}
+	}
+
+	private writeMessage(payload: unknown): void {
+		const child = this.process;
+		if (!child || child.exitCode !== null || child.killed) {
+			throw new Error('beancheck rpc process is not running');
+		}
+		const body = Buffer.from(JSON.stringify(payload), 'utf-8');
+		const header = Buffer.from(`Content-Length: ${body.length}\r\n\r\n`, 'ascii');
+		child.stdin.write(header);
+		child.stdin.write(body);
+	}
+
+	private handleStdoutData(chunk: Buffer): void {
+		this.stdoutBuffer = Buffer.concat([this.stdoutBuffer, chunk]);
+		while (true) {
+			const headerEnd = this.stdoutBuffer.indexOf('\r\n\r\n');
+			if (headerEnd < 0) {
+				return;
+			}
+			const headerText = this.stdoutBuffer.subarray(0, headerEnd).toString('ascii');
+			let contentLength: number | null = null;
+			for (const line of headerText.split('\r\n')) {
+				const separator = line.indexOf(':');
+				if (separator < 0) {
+					continue;
+				}
+				const key = line.slice(0, separator).trim().toLowerCase();
+				const value = line.slice(separator + 1).trim();
+				if (key === 'content-length') {
+					const parsed = Number.parseInt(value, 10);
+					if (Number.isFinite(parsed) && parsed >= 0) {
+						contentLength = parsed;
+					}
+				}
+			}
+
+			if (contentLength === null) {
+				this.logger.error('Invalid RPC message from beancheck process: missing Content-Length');
+				this.stdoutBuffer = this.stdoutBuffer.subarray(headerEnd + 4);
+				continue;
+			}
+
+			const messageEnd = headerEnd + 4 + contentLength;
+			if (this.stdoutBuffer.length < messageEnd) {
+				return;
+			}
+
+			const body = this.stdoutBuffer.subarray(headerEnd + 4, messageEnd);
+			this.stdoutBuffer = this.stdoutBuffer.subarray(messageEnd);
+
+			let payload: unknown;
+			try {
+				payload = JSON.parse(body.toString('utf-8'));
+			} catch (error) {
+				this.logger.error(`Invalid JSON from beancheck process: ${String(error)}`);
+				continue;
+			}
+			this.handleRpcPayload(payload);
+		}
+	}
+
+	private handleRpcPayload(payload: unknown): void {
+		if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+			return;
+		}
+		const message = payload as Record<string, unknown>;
+		if (message['jsonrpc'] !== '2.0') {
+			return;
+		}
+		const requestId = message['id'];
+		if (typeof requestId !== 'number') {
+			return;
+		}
+		const pending = this.pendingRequests.get(requestId);
+		if (!pending) {
+			return;
+		}
+		if (message['error']) {
+			const errorPayload = message['error'];
+			let code: number | undefined;
+			let errorMessage = 'beancheck rpc error';
+			let data: unknown;
+			if (errorPayload && typeof errorPayload === 'object') {
+				const rpcError = errorPayload as Record<string, unknown>;
+				if (typeof rpcError['code'] === 'number') {
+					code = rpcError['code'];
+				}
+				if (typeof rpcError['message'] === 'string') {
+					errorMessage = rpcError['message'];
+				}
+				data = rpcError['data'];
+			}
+			const error = new Error(errorMessage) as Error & { code?: number; data?: unknown };
+			if (code !== undefined) {
+				error.code = code;
+			}
+			if (data !== undefined) {
+				error.data = data;
+			}
+			if (code === -32800) {
+				error.name = 'CancellationError';
+			}
+			pending.reject(error);
+			return;
+		}
+		pending.resolve(message['result']);
+	}
+
+	private failAllPending(error: Error): void {
+		const requests = Array.from(this.pendingRequests.values());
+		this.pendingRequests.clear();
+		for (const request of requests) {
+			request.reject(error);
+		}
+	}
+}
+
 class BeancountManager implements RealBeancountManager {
 	private mainFile: string | null = null;
 	private result: BeancheckOutput | null = null;
 	private padFileCache = new Map<string, Record<string, Amount[]> | null>();
 	private logger = new Logger('BeancountManager');
+	private inputGeneration = 0;
+	private queuedBeancheckGeneration = 0;
+	private appliedBeancheckGeneration = 0;
+	private hasPendingBeancheckRun = false;
+	private beancheckQueuePromise: Promise<void> | null = null;
+	private activeBeancheckTokenSource: CancellationTokenSource | null = null;
+	private activeBeancheckRunGeneration = 0;
+	private beancheckRpcClient: BeancheckRpcClient | null = null;
+	private beancheckRpcPythonPath: string | null = null;
 
 	constructor(private connection: Connection) {
 		connection.onDidSaveTextDocument(this.onDocumentSaved.bind(this));
@@ -56,7 +360,8 @@ class BeancountManager implements RealBeancountManager {
 
 	async setMainFile(mainFileUri: string): Promise<void> {
 		this.mainFile = URI.parse(mainFileUri).fsPath;
-		await this.revalidateBeanCheck();
+		this.markBeancheckInputChanged('main-file-updated');
+		await this.scheduleBeancheckRevalidate();
 	}
 
 	async getPython3Path(): Promise<string> {
@@ -75,47 +380,153 @@ class BeancountManager implements RealBeancountManager {
 		return python3Path;
 	}
 
-	private async runBeanCheck(): Promise<string | null> {
+	private async runBeanCheck(token: CancellationToken): Promise<BeancheckOutput | null> {
 		if (!this.mainFile) {
+			return null;
+		}
+		if (token.isCancellationRequested) {
 			return null;
 		}
 
 		const python3Path = await this.getPython3Path();
-
-		let tmpFile: string | undefined = undefined;
-		try {
-			if (os.platform() === 'win32') {
-				const fileName = `beancount-check-${Date.now()}.py`;
-				tmpFile = join(os.tmpdir(), fileName);
-				await writeFile(tmpFile, beanCheckPythonCode);
-				const { stdout } = await $`${python3Path} ${tmpFile} ${this.mainFile}`;
-				return stdout;
-			} else {
-				const { stdout } = await $`${python3Path} -c ${beanCheckPythonCode} ${this.mainFile}`;
-				return stdout;
-			}
-		} catch (error) {
-			this.logger.error('Error running bean-check:', error);
+		if (token.isCancellationRequested) {
 			return null;
-		} finally {
-			if (os.platform() === 'win32' && tmpFile && existsSync(tmpFile)) {
-				unlink(tmpFile);
+		}
+
+		try {
+			const client = await this.ensureBeancheckRpcClient(python3Path);
+			if (token.isCancellationRequested) {
+				return null;
+			}
+			const result = await client.runBeancheck(this.mainFile, token);
+			if (token.isCancellationRequested) {
+				return null;
+			}
+			return result;
+		} catch (error) {
+			if (this.isCancellationError(error)) {
+				return null;
+			}
+			this.logger.error('Error running bean-check via rpc:', error);
+			this.disposeBeancheckRpcClient();
+			return null;
+		}
+	}
+
+	private async ensureBeancheckRpcClient(python3Path: string): Promise<BeancheckRpcClient> {
+		if (
+			this.beancheckRpcClient
+			&& this.beancheckRpcPythonPath === python3Path
+		) {
+			return this.beancheckRpcClient;
+		}
+		this.disposeBeancheckRpcClient();
+		this.beancheckRpcClient = new BeancheckRpcClient(python3Path, this.logger);
+		this.beancheckRpcPythonPath = python3Path;
+		return this.beancheckRpcClient;
+	}
+
+	private disposeBeancheckRpcClient(): void {
+		this.beancheckRpcClient?.dispose();
+		this.beancheckRpcClient = null;
+		this.beancheckRpcPythonPath = null;
+	}
+
+	private isCancellationError(error: unknown): boolean {
+		return error instanceof Error && error.name === 'CancellationError';
+	}
+
+	private markBeancheckInputChanged(reason: string): void {
+		this.inputGeneration += 1;
+
+		// Previous beancheck diagnostics no longer match the current on-disk snapshot.
+		if (this.result && this.appliedBeancheckGeneration < this.inputGeneration) {
+			this.result = null;
+			this.padFileCache.clear();
+			globalEventBus.emit(GlobalEvents.BeancountUpdate);
+		}
+
+		if (
+			this.activeBeancheckTokenSource
+			&& this.activeBeancheckRunGeneration < this.inputGeneration
+		) {
+			this.logger.debug(
+				`cancelling beancheck generation ${this.activeBeancheckRunGeneration} due to ${reason} (generation=${this.inputGeneration})`,
+			);
+			this.activeBeancheckTokenSource.cancel();
+		}
+	}
+
+	private async scheduleBeancheckRevalidate(targetGeneration = this.inputGeneration): Promise<void> {
+		if (!this.mainFile) {
+			return;
+		}
+
+		this.queuedBeancheckGeneration = Math.max(this.queuedBeancheckGeneration, targetGeneration);
+		this.hasPendingBeancheckRun = true;
+
+		if (
+			this.activeBeancheckTokenSource
+			&& this.activeBeancheckRunGeneration < this.queuedBeancheckGeneration
+		) {
+			this.activeBeancheckTokenSource.cancel();
+		}
+
+		if (!this.beancheckQueuePromise) {
+			this.beancheckQueuePromise = this.processBeancheckQueue()
+				.finally(() => {
+					this.beancheckQueuePromise = null;
+				});
+		}
+
+		await this.beancheckQueuePromise;
+	}
+
+	private async processBeancheckQueue(): Promise<void> {
+		while (this.hasPendingBeancheckRun) {
+			this.hasPendingBeancheckRun = false;
+			const targetGeneration = this.queuedBeancheckGeneration;
+			const tokenSource = new CancellationTokenSource();
+			this.activeBeancheckTokenSource = tokenSource;
+			this.activeBeancheckRunGeneration = targetGeneration;
+			try {
+				await this.revalidateBeanCheck(targetGeneration, tokenSource.token);
+			} finally {
+				if (this.activeBeancheckTokenSource === tokenSource) {
+					this.activeBeancheckTokenSource = null;
+					this.activeBeancheckRunGeneration = 0;
+				}
+				tokenSource.dispose();
 			}
 		}
 	}
 
-	private async revalidateBeanCheck(): Promise<void> {
-		this.logger.info('running beancheck');
-		const r = await this.runBeanCheck();
-		this.logger.info('received response for beancheck');
-
-		if (!r) {
+	private async revalidateBeanCheck(targetGeneration: number, token: CancellationToken): Promise<void> {
+		if (token.isCancellationRequested || targetGeneration !== this.inputGeneration) {
 			return;
 		}
 
-		this.logger.debug(r);
-		this.result = JSON.parse(r) as BeancheckOutput;
+		this.logger.info(`running beancheck generation=${targetGeneration}`);
+		const result = await this.runBeanCheck(token);
+		this.logger.info('received response for beancheck');
+
+		if (!result) {
+			return;
+		}
+		if (token.isCancellationRequested || targetGeneration !== this.inputGeneration) {
+			this.logger.info(
+				`discarding stale beancheck result generation=${targetGeneration}; latest generation=${this.inputGeneration}`,
+			);
+			return;
+		}
+
+		if (token.isCancellationRequested || targetGeneration !== this.inputGeneration) {
+			return;
+		}
+
+		this.result = result;
 		this.padFileCache.clear();
+		this.appliedBeancheckGeneration = targetGeneration;
 		globalEventBus.emit(GlobalEvents.BeancountUpdate);
 	}
 
@@ -128,7 +539,8 @@ class BeancountManager implements RealBeancountManager {
 			return;
 		}
 
-		this.revalidateBeanCheck();
+		this.markBeancheckInputChanged('document-saved');
+		void this.scheduleBeancheckRevalidate();
 	}
 
 	getBalance(account: string, includeSubaccountBalance: boolean): Amount[] {
@@ -218,6 +630,14 @@ class BeancountManager implements RealBeancountManager {
 			},
 		})`bean-query ${this.mainFile} ${query}`;
 		return stdout;
+	}
+
+	dispose(): void {
+		this.activeBeancheckTokenSource?.cancel();
+		this.activeBeancheckTokenSource?.dispose();
+		this.activeBeancheckTokenSource = null;
+		this.activeBeancheckRunGeneration = 0;
+		this.disposeBeancheckRpcClient();
 	}
 }
 

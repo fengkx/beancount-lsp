@@ -29,6 +29,7 @@ interface RuntimeState {
 	extraPythonPackages: string[];
 	pyodide: PyodideRuntime;
 	fileTree: FileTree;
+	beancheckLoaded: boolean;
 }
 
 interface WorkerApi {
@@ -49,16 +50,18 @@ interface ClientApi {
 
 const WORK_ROOT = '/work';
 
-const BEANCHECK_WRAPPER = String.raw`
-import sys
-import io
-from contextlib import redirect_stdout
+const BEANCHECK_LOAD_SCRIPT = String.raw`
+if "beancheck_namespace" not in globals():
+    beancheck_namespace = {"__name__": "beancheck_module"}
+    exec(beancheck_code, beancheck_namespace)
 
-sys.argv = ["beancheck.py", entry_path]
-stdout = io.StringIO()
-with redirect_stdout(stdout):
-    exec(beancheck_code, {})
-stdout.getvalue()
+if "run_beancheck" not in beancheck_namespace:
+    raise RuntimeError("run_beancheck() is not defined in beancheck.py")
+`;
+
+const BEANCHECK_RUN_WRAPPER = String.raw`
+import json
+json.dumps(beancheck_namespace["run_beancheck"](entry_path))
 `;
 
 let runtimeState: RuntimeState | null = null;
@@ -133,6 +136,7 @@ async function loadRuntime(
 			extraPythonPackages: normalizedPackages,
 			pyodide,
 			fileTree,
+			beancheckLoaded: false,
 		};
 		postStatus(`Runtime ready (${version}).`);
 		return runtimeState;
@@ -173,10 +177,14 @@ async function reset(files: FileUpdate[]): Promise<void> {
 
 async function beancheck(entryFile: string): Promise<string> {
 	const runtime = await loadRuntime(runtimeState?.version ?? 'v3', runtimeState?.extraPythonPackages);
+	if (!runtime.beancheckLoaded) {
+		runtime.pyodide.globals.set('beancheck_code', beanCheckPythonCode);
+		await runtime.pyodide.runPythonAsync(BEANCHECK_LOAD_SCRIPT);
+		runtime.beancheckLoaded = true;
+	}
 	const entryPath = `${WORK_ROOT}/${entryFile}`;
 	runtime.pyodide.globals.set('entry_path', entryPath);
-	runtime.pyodide.globals.set('beancheck_code', beanCheckPythonCode);
-	const result = await runtime.pyodide.runPythonAsync(BEANCHECK_WRAPPER);
+	const result = await runtime.pyodide.runPythonAsync(BEANCHECK_RUN_WRAPPER);
 	return result as string;
 }
 
