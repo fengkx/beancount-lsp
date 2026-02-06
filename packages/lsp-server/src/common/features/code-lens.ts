@@ -48,7 +48,7 @@ export class CodeLensFeature implements Feature {
 			}
 		});
 
-		connection.onDidChangeConfiguration(() => {
+		globalEventBus.on(GlobalEvents.ConfigurationChanged, () => {
 			this.codeLensConfig = null; // Reset cache to force re-read on next request
 		});
 
@@ -107,7 +107,10 @@ export class CodeLensFeature implements Feature {
 		// Check if code lens is enabled
 		if (this.codeLensConfig === null) {
 			if (this.connection) {
-				const config = await this.connection.workspace.getConfiguration({ section: 'beanLsp.codeLens' });
+				const config = await this.connection.workspace.getConfiguration({ 
+					scopeUri: document.uri, 
+					section: 'beanLsp.codeLens' 
+				});
 				this.codeLensConfig = {
 					enable: config?.enable ?? true,
 					accountBalance: config?.accountBalance?.enable ?? true,

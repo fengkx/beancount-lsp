@@ -40,7 +40,10 @@ export class InlayHintFeature implements Feature {
 				}
 
 				if (this.inlayHintsEnabled === null) {
-					const beanLspSettings = await connection.workspace.getConfiguration({ section: 'beanLsp' });
+					const beanLspSettings = await connection.workspace.getConfiguration({ 
+						scopeUri: params.textDocument.uri, 
+						section: 'beanLsp' 
+					});
 					this.inlayHintsEnabled = beanLspSettings?.inlayHints?.enable;
 				}
 

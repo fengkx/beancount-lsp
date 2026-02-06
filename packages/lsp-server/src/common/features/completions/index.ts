@@ -30,6 +30,7 @@ import { DocumentStore } from '../../document-store';
 import { Trees } from '../../trees';
 import { SymbolIndex } from '../symbol-index';
 import { Feature } from '../types';
+import { globalEventBus, GlobalEvents } from 'src/common/utils/event-bus';
 
 const Tuple = <T extends unknown[]>(xs: readonly [...T]): T => xs as T;
 
@@ -759,7 +760,7 @@ export class CompletionFeature implements Feature {
 		this.connection = connection;
 		connection.onCompletion(this.provideCompletionItems);
 		connection.onCompletionResolve(this.resolveCompletionItem);
-		connection.onDidChangeConfiguration(() => {
+		globalEventBus.on(GlobalEvents.ConfigurationChanged, () => {
 			void this.refreshCompletionConfig();
 		});
 	}
@@ -767,18 +768,22 @@ export class CompletionFeature implements Feature {
 	/**
 	 * Gets the configuration for Chinese pinyin fuzzy filter
 	 *
+	 * @param scopeUri Optional URI to use as scope for configuration
 	 * @returns Whether pinyin filter is enabled
 	 */
-	private async getEnablePinyinConfig(): Promise<boolean> {
+	private async getEnablePinyinConfig(scopeUri?: string): Promise<boolean> {
 		if (!this.hasFetchedCompletionConfig) {
-			await this.refreshCompletionConfig();
+			await this.refreshCompletionConfig(scopeUri);
 		}
 		return this.enablePinyin;
 	}
 
-	private async refreshCompletionConfig(): Promise<void> {
+	private async refreshCompletionConfig(scopeUri?: string): Promise<void> {
 		try {
-			const config = await this.connection!.workspace.getConfiguration({ section: 'beanLsp.completion' });
+			const config = await this.connection!.workspace.getConfiguration({ 
+				scopeUri, 
+				section: 'beanLsp.completion' 
+			});
 			this.enablePinyin = config?.enableChinesePinyinFilter ?? false;
 			this.hasFetchedCompletionConfig = true;
 			// Update symbol index with the new pinyin setting
@@ -889,7 +894,7 @@ export class CompletionFeature implements Feature {
 		const completionItems: CompletionItem[] = [];
 
 		// Get pinyin configuration
-		const enablePinyin = await this.getEnablePinyinConfig();
+		const enablePinyin = await this.getEnablePinyinConfig(document?.uri);
 
 		// Create common completion context
 		const collector: CompletionCollector = {
