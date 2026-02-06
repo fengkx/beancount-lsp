@@ -1,4 +1,5 @@
 import { Logger } from '@bean-lsp/shared';
+import type { BeancountRuntimeStatusParams } from '@bean-lsp/shared';
 import type {
 	Connection,
 	DidChangeWatchedFilesParams,
@@ -75,8 +76,9 @@ class BeancountBrowserManager implements RealBeancountManager {
 		private readonly workerUrl: string,
 	) {
 		connection.onDidSaveTextDocument(this.onDocumentSaved.bind(this));
-		connection.onDidChangeConfiguration(() => {
+		globalEventBus.on(GlobalEvents.ConfigurationChanged, () => {
 			if (this.configDebounceTimer) {
+				
 				clearTimeout(this.configDebounceTimer);
 			}
 			this.configDebounceTimer = setTimeout(() => {
@@ -96,6 +98,13 @@ class BeancountBrowserManager implements RealBeancountManager {
 		return this.enabledMode !== 'off';
 	}
 
+	getRuntimeStatus(): BeancountRuntimeStatusParams {
+		if (this.enabledMode === 'off') {
+			return { mode: 'off' };
+		}
+		return { mode: 'wasm', version: this.enabledMode };
+	}
+
 	async setMainFile(mainFileUri: string): Promise<void> {
 		this.mainFile = mainFileUri;
 		this.markBeancheckInputChanged('main-file-updated');
@@ -105,7 +114,12 @@ class BeancountBrowserManager implements RealBeancountManager {
 	}
 
 	private async refreshConfiguration(): Promise<void> {
-		const config = await this.connection.workspace.getConfiguration({ section: 'beanLsp' });
+		// Use mainFile as scopeUri if available, otherwise undefined
+		const scopeUri = this.mainFile ?? undefined;
+		const config = await this.connection.workspace.getConfiguration({ 
+			scopeUri, 
+			section: 'beanLsp' 
+		});
 		const browserWasm = config?.browserWasmBeancount ?? {};
 		const requested = (browserWasm.enabled ?? 'off') as BrowserBeancountMode;
 		const extraPackages = this.normalizeExtraPackages(browserWasm.extraPythonPackages);
@@ -113,8 +127,18 @@ class BeancountBrowserManager implements RealBeancountManager {
 		if (requested === this.enabledMode && !packagesChanged) {
 			return;
 		}
+		const previousMode = this.enabledMode;
 		this.enabledMode = requested;
 		this.extraPythonPackages = extraPackages;
+
+		// Notify listeners about mode change
+		if (previousMode !== this.enabledMode) {
+			globalEventBus.emit<BeancountRuntimeStatusParams>(
+				GlobalEvents.BeancountModeChanged,
+				this.getRuntimeStatus(),
+			);
+		}
+
 		if (this.enabledMode === 'off') {
 			this.logger.info('Browser Beancount WASM diagnostics disabled.');
 			this.workerClient?.dispose();

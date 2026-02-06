@@ -1,3 +1,4 @@
+import type { BeancountRuntimeStatusParams } from '@bean-lsp/shared';
 import { Connection } from 'vscode-languageserver';
 
 export interface Feature {
@@ -27,6 +28,7 @@ export interface BeancountFlag {
  */
 export interface RealBeancountManager {
 	isEnabled(): boolean;
+	getRuntimeStatus(): BeancountRuntimeStatusParams;
 	getBalance(account: string, includeSubaccountBalance: boolean): Amount[];
 	getSubaccountBalances(account: string): Map<string, Amount[]>;
 	getPadAmounts(filePath: string, line: number): Amount[];

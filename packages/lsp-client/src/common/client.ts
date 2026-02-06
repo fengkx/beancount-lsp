@@ -1,5 +1,6 @@
 import { Logger, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared/logger';
 import { CustomMessages } from '@bean-lsp/shared/messages';
+import type { BeancountRuntimeStatusParams } from '@bean-lsp/shared/messages';
 import * as vscode from 'vscode';
 // Import from base package for shared types between noLogger, de and browser
 import type { InitializeParams, LanguageClientOptions, ProtocolConnection } from 'vscode-languageclient';
@@ -204,24 +205,77 @@ export function createClientOptions(options: ClientOptions): LanguageClientOptio
 }
 
 /**
+ * Formats a human-readable status bar label from the beancount runtime status.
+ */
+function formatRuntimeStatusLabel(status: BeancountRuntimeStatusParams): string {
+	switch (status.mode) {
+		case 'wasm':
+			return `$(vm-running) Beancount WASM ${status.version}`;
+		case 'local':
+			return '$(terminal) Beancount Local';
+		case 'off':
+		default:
+			return '$(circle-slash) Beancount';
+	}
+}
+
+/**
+ * Formats a tooltip string from the beancount runtime status.
+ */
+function formatRuntimeStatusTooltip(status: BeancountRuntimeStatusParams): string {
+	switch (status.mode) {
+		case 'wasm':
+			return `Beancount runtime: WASM ${status.version}`;
+		case 'local':
+			return 'Beancount runtime: Local (Python)';
+		case 'off':
+		default:
+			return 'Beancount runtime: Off';
+	}
+}
+
+/**
  * Sets up status bar for the client
  */
 export function setupStatusBar(ctx: ExtensionContext<'browser' | 'node'>): void {
+	// Track the latest runtime status so we can restore it after transient states
+	let lastRuntimeStatus: BeancountRuntimeStatusParams | null = null;
+
+	const applyRuntimeStatus = (status: BeancountRuntimeStatusParams) => {
+		lastRuntimeStatus = status;
+		ctx.statusBarItem.text = formatRuntimeStatusLabel(status);
+		ctx.statusBarItem.tooltip = formatRuntimeStatusTooltip(status);
+		ctx.statusBarItem.show();
+	};
+
 	// Update status bar when client state changes
 	ctx.client.onDidChangeState((event) => {
 		if (event.newState === State.Running) {
-			ctx.statusBarItem.text = '$(check) Beancount: Ready';
-			setTimeout(() => {
-				ctx.statusBarItem.hide();
-			}, 3000);
+			if (lastRuntimeStatus) {
+				applyRuntimeStatus(lastRuntimeStatus);
+			} else {
+				ctx.statusBarItem.text = '$(check) Beancount: Ready';
+				ctx.statusBarItem.tooltip = 'Beancount LSP is running';
+				ctx.statusBarItem.show();
+			}
 		} else if (event.newState === State.Starting) {
 			ctx.statusBarItem.text = '$(sync~spin) Beancount: Initializing...';
+			ctx.statusBarItem.tooltip = 'Beancount LSP is starting...';
 			ctx.statusBarItem.show();
 		} else {
 			ctx.statusBarItem.text = '$(error) Beancount: Stopped';
+			ctx.statusBarItem.tooltip = 'Beancount LSP has stopped';
 			ctx.statusBarItem.show();
 		}
 	});
+
+	// Listen for runtime status notifications from the server
+	ctx.client.onNotification(
+		CustomMessages.BeancountRuntimeStatus,
+		(params: BeancountRuntimeStatusParams) => {
+			applyRuntimeStatus(params);
+		},
+	);
 }
 
 /**

@@ -1,4 +1,5 @@
 import { Logger } from '@bean-lsp/shared';
+import type { BeancountRuntimeStatusParams } from '@bean-lsp/shared';
 import { $, execa } from 'execa';
 import { ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { basename, isAbsolute, normalize } from 'path';
@@ -212,6 +213,10 @@ class BeancountManager implements RealBeancountManager {
 		return true;
 	}
 
+	getRuntimeStatus(): BeancountRuntimeStatusParams {
+		return { mode: 'local' };
+	}
+
 	async setMainFile(mainFileUri: string): Promise<void> {
 		this.mainFile = URI.parse(mainFileUri).fsPath;
 		this.markBeancheckInputChanged('main-file-updated');
@@ -219,7 +224,9 @@ class BeancountManager implements RealBeancountManager {
 	}
 
 	async getPython3Path(): Promise<string> {
-		const config = await this.connection.workspace.getConfiguration();
+		// Use mainFile as scopeUri if available, otherwise use first workspace folder
+		const scopeUri = this.mainFile ? URI.file(this.mainFile).toString() : (await this.connection.workspace.getWorkspaceFolders())?.[0]?.uri;
+		const config = await this.connection.workspace.getConfiguration({ scopeUri });
 		let python3Path = config?.beanLsp?.python3Path || config?.beancount?.python3Path || 'python3';
 
 		if (python3Path !== 'python3' && !isAbsolute(python3Path)) {

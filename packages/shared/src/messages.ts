@@ -9,7 +9,21 @@ export const CustomMessages = {
 	GetPayees: 'beanLspCustom/getPayees' as const,
 	GetNarrations: 'beanLspCustom/getNarrations' as const,
 	RunBeanQuery: 'beanLspCustom/runBeanQuery' as const,
+	/** Server -> Client notification: beancount runtime mode changed */
+	BeancountRuntimeStatus: 'beanLspCustom/beancountRuntimeStatus' as const,
 };
+
+/**
+ * Payload for the BeancountRuntimeStatus notification.
+ *
+ * - `mode: 'off'`   – beancount checking is disabled (browser without WASM)
+ * - `mode: 'wasm'`  – browser WASM runtime, `version` carries `'v2'` | `'v3'`
+ * - `mode: 'local'` – node-side, using a local python / beancount installation
+ */
+export type BeancountRuntimeStatusParams =
+	| { mode: 'off' }
+	| { mode: 'wasm'; version: 'v2' | 'v3' }
+	| { mode: 'local' };
 
 export const GetAccountsSchema = {
 	request: z.object({

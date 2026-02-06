@@ -1,4 +1,5 @@
 import { CustomMessages, Logger, LogLevel, logLevelToString, mapTraceServerToLogLevel } from '@bean-lsp/shared';
+import type { BeancountRuntimeStatusParams } from '@bean-lsp/shared';
 import {
 	Connection,
 	DidChangeConfigurationNotification,
@@ -279,12 +280,31 @@ export function startServer(
 		await symbolIndex.initFiles(initFiles);
 		await symbolIndex.unleashFiles([]);
 
+		// Send initial beancount runtime status and relay future mode changes
+		const sendRuntimeStatus = (status: BeancountRuntimeStatusParams) => {
+			connection.sendNotification(CustomMessages.BeancountRuntimeStatus, status);
+		};
+		if (beanMgr) {
+			sendRuntimeStatus(beanMgr.getRuntimeStatus());
+		} else {
+			sendRuntimeStatus({ mode: 'off' });
+		}
+		globalEventBus.on<BeancountRuntimeStatusParams>(
+			GlobalEvents.BeancountModeChanged,
+			sendRuntimeStatus,
+		);
+
 		if (hasConfigurationCapability) {
 			// Register for all configuration changes.
 			connection.client.register(DidChangeConfigurationNotification.type, undefined);
 
-			// Get initial configuration for trace server setting
-			const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });
+			// Get initial configuration for trace server setting and resource-scoped settings
+			// Use mainBeanFile as scopeUri if available, otherwise use first workspace folder
+			const scopeUri = mainBeanFile || (await connection.workspace.getWorkspaceFolders())?.[0]?.uri;
+			const config = await connection.workspace.getConfiguration({ 
+				scopeUri, 
+				section: 'beanLsp' 
+			});
 			if (config.trace && config.trace.server) {
 				const logLevel = mapTraceServerToLogLevel(config.trace.server);
 				serverLogger.setLevel(logLevel);
@@ -319,7 +339,13 @@ export function startServer(
 			connection.onDidChangeConfiguration(async _ => {
 				if (hasConfigurationCapability) {
 					globalEventBus.emit(GlobalEvents.ConfigurationChanged);
-					const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });
+					// Use mainBeanFile as scopeUri if available
+					const mainFile = await documents.getMainBeanFileUri();
+					const scopeUri = mainFile || (await connection.workspace.getWorkspaceFolders())?.[0]?.uri;
+					const config = await connection.workspace.getConfiguration({ 
+						scopeUri, 
+						section: 'beanLsp' 
+					});
 					if (config.trace && config.trace.server) {
 						const logLevel = mapTraceServerToLogLevel(config.trace.server);
 						serverLogger.setLevel(logLevel);
