@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.170
+
+- chore(lsp): bump version to 0.0.170 in package.json ([22d272c](https://github.com/fengkx/beancount-lsp/commit/22d272c))
+- fix(lsp): prevent CodeLens display when no padding is available ([5d1158f](https://github.com/fengkx/beancount-lsp/commit/5d1158f))
+- docs: enhance bug report template and README with Online Preview Demo links ([aadedf1](https://github.com/fengkx/beancount-lsp/commit/aadedf1))
+- refactor(beancheck): streamline transaction handling and remove unused code ([0daabb4](https://github.com/fengkx/beancount-lsp/commit/0daabb4))
+- chore: update Node.js setup in workflows to use .nvmrc for version management ([e5e9459](https://github.com/fengkx/beancount-lsp/commit/e5e9459))
+
 ## v0.0.169
 
 - chore(lsp): bump version to 0.0.169 in package.json ([19e87f2](https://github.com/fengkx/beancount-lsp/commit/19e87f2))
