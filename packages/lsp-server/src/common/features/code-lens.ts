@@ -234,8 +234,12 @@ export class CodeLensFeature implements Feature {
 				return codeLens;
 			}
 
-			// Don't show codelens when there's no padding
+			// Return empty string when there's no padding
 			if (amounts.length === 0) {
+				codeLens.command = {
+					title: '',
+					command: '',
+				};
 				return codeLens;
 			}
 
