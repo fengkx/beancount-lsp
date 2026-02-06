@@ -14,14 +14,32 @@ import '@codingame/monaco-vscode-api/vscode/vs/editor/contrib/linkedEditing/brow
 import { whenReady as lspClientReady } from '../lsp-client.vsix';
 
 // @ts-expect-error TODO
-import { initialize, registerFile, updateUserConfiguration } from '@codingame/monaco-editor-wrapper';
+import { initialize, registerFile, registerWorker, updateUserConfiguration, Worker as MonacoWorker } from '@codingame/monaco-editor-wrapper';
 import { getService } from '@codingame/monaco-vscode-api';
 import { IExtensionService, IExtensionsWorkbenchService } from '@codingame/monaco-vscode-api/services';
 import { getBuiltinExtensions } from '@codingame/monaco-vscode-api/extensions';
 import { URI } from '@codingame/monaco-vscode-api/vscode/vs/base/common/uri';
-import { RegisteredMemoryFile } from '@codingame/monaco-vscode-files-service-override';
+import { IFileService } from '@codingame/monaco-vscode-api/vscode/vs/platform/files/common/files.service';
+import { ISearchService } from '@codingame/monaco-vscode-api/vscode/vs/workbench/services/search/common/search.service';
+import {
+	HTMLFileSystemProvider,
+	createIndexedDBProviders,
+	initFile,
+	registerHTMLFileSystemProvider,
+	RegisteredMemoryFile,
+} from '@codingame/monaco-vscode-files-service-override';
 import { ExtensionIdentifier } from '@codingame/monaco-vscode-api/vscode/vs/platform/extensions/common/extensions';
-import { commands, ConfigurationTarget, extensions, languages, StatusBarAlignment, Uri, window, workspace } from 'vscode';
+import {
+	commands,
+	ConfigurationTarget,
+	extensions,
+	languages,
+	RelativePattern,
+	StatusBarAlignment,
+	Uri,
+	window,
+	workspace,
+} from 'vscode';
 import * as pako from 'pako';
 import defaultFiles from './demo-files.json';
 import defaultUserConfig from './demo-user-config.json';
@@ -36,6 +54,75 @@ function debugLog(...args: unknown[]) {
 	}
 	// eslint-disable-next-line no-console
 	console.log('[playground]', ...args);
+}
+
+type WindowWithFileSystemAccess = Window & {
+	showDirectoryPicker: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
+};
+
+function getFileSystemAccessWindow(): WindowWithFileSystemAccess | null {
+	const candidate = globalThis as unknown as Partial<WindowWithFileSystemAccess>;
+	return typeof candidate.showDirectoryPicker === 'function'
+		? candidate as WindowWithFileSystemAccess
+		: null;
+}
+
+registerWorker(
+	'LocalFileSearchWorker',
+	new MonacoWorker(new URL('@codingame/monaco-vscode-search-service-override/worker', import.meta.url), {
+		type: 'module',
+	}),
+);
+
+type SearchQueryLike = {
+	filePattern?: unknown;
+	includePattern?: unknown;
+	folderQueries?: Array<{ includePattern?: unknown }>;
+	_reason?: unknown;
+};
+
+type FileSearchProviderLike = {
+	fileSearch: (query: SearchQueryLike, token?: unknown) => Promise<unknown>;
+	__bclspGlobFilePatternPatch?: boolean;
+	fileSystemProvider?: {
+		getHandle?: (resource: URI) => Promise<unknown>;
+	};
+};
+
+async function patchSearchServiceForGlobFindFiles(): Promise<void> {
+	let searchService: { fileSearchProviders?: Map<string, FileSearchProviderLike> };
+	try {
+		searchService = await getService(ISearchService) as unknown as {
+			fileSearchProviders?: Map<string, FileSearchProviderLike>;
+		};
+	} catch {
+		return;
+	}
+
+	const provider = searchService.fileSearchProviders?.get('file');
+	if (!provider || provider.__bclspGlobFilePatternPatch) {
+		return;
+	}
+
+	const originalFileSearch = provider.fileSearch.bind(provider);
+	provider.fileSearch = async (query: SearchQueryLike, token?: unknown) => {
+		const filePattern = typeof query?.filePattern === 'string' ? query.filePattern.trim() : '';
+		const hasGlobSyntax = /[*?[\]{}]/.test(filePattern);
+
+		if (filePattern.length > 0 && hasGlobSyntax) {
+			const hasIncludePattern = query.includePattern != null
+				|| query.folderQueries?.some(folderQuery => folderQuery?.includePattern != null);
+
+			const nextQuery = hasIncludePattern
+				? { ...query, filePattern: '' }
+				: { ...query, filePattern: '', includePattern: { [filePattern]: true } };
+			return originalFileSearch(nextQuery, token);
+		}
+
+		return originalFileSearch(query, token);
+	};
+
+	provider.__bclspGlobFilePatternPatch = true;
 }
 
 function readConfigValue(key: string): unknown {
@@ -256,14 +343,28 @@ const baseConfig = {
 	'editor.codeLens': true,
 };
 
-const shareFromHash = await tryLoadShareStateFromHash();
-debugLog('init config source', { fromHash: Boolean(shareFromHash) });
-const initialFiles: DemoFile[] = shareFromHash?.files ?? (defaultFiles as DemoFile[]);
-const initialConfig: Record<string, unknown> = shareFromHash
+type PlaygroundFsMode = 'memfs' | 'fsa';
+const requestedFsMode = new URLSearchParams(globalThis.location.search).get('fs');
+const fsMode: PlaygroundFsMode = requestedFsMode?.toLowerCase() === 'fsa' ? 'fsa' : 'memfs';
+const isMemfsMode = fsMode === 'memfs';
+const isFsaMode = fsMode === 'fsa';
+const fsaWorkspaceUri = URI.from({ scheme: 'vscode-userdata', path: '/workspaces/fsa.code-workspace' });
+
+const shareFromHash = isMemfsMode ? await tryLoadShareStateFromHash() : null;
+debugLog('init mode', { fsMode, fromHash: Boolean(shareFromHash) });
+const initialFiles: DemoFile[] = isMemfsMode
+	? (shareFromHash?.files ?? (defaultFiles as DemoFile[]))
+	: [];
+const initialConfig: Record<string, unknown> = isMemfsMode && shareFromHash
 	? { ...baseConfig, ...(shareFromHash.config ?? {}) }
-	: { ...baseConfig, ...(defaultUserConfig as Record<string, unknown>) };
-	let activeFile: string | undefined = shareFromHash?.activeFile ?? '/tmp/project/main.bean';
-	debugLog('initialConfig', initialConfig);
+	: {
+		...baseConfig,
+		...(defaultUserConfig as Record<string, unknown>),
+	};
+let activeFile: string | undefined = isMemfsMode
+	? (shareFromHash?.activeFile ?? '/tmp/project/main.bean')
+	: undefined;
+debugLog('initialConfig', initialConfig);
 
 	const stateFiles = new Map<string, string>(initialFiles.map((f) => [f.path, f.content]));
 	let stateConfig: Record<string, unknown> = { ...initialConfig };
@@ -273,12 +374,40 @@ const initialConfig: Record<string, unknown> = shareFromHash
 	debugLog('pre-initialize updateUserConfiguration', { keys: Object.keys(stateConfig).length });
 	updateUserConfiguration(JSON.stringify(stateConfig));
 
-	for (const file of initialFiles) {
-		registerFile(new RegisteredMemoryFile(URI.file(file.path), file.content));
+	if (isMemfsMode) {
+		for (const file of initialFiles) {
+			registerFile(new RegisteredMemoryFile(URI.file(file.path), file.content));
+		}
 	}
+
+// In FSA mode, replace the default `file://` provider directly.
+// Using an overlay provider keeps workbench fallback path-input flow instead of browser picker.
+if (isFsaMode && getFileSystemAccessWindow() && typeof FileSystemDirectoryHandle !== 'undefined') {
+	try {
+		await createIndexedDBProviders();
+		await initFile(
+			fsaWorkspaceUri,
+			JSON.stringify({
+				folders: [],
+			}),
+		);
+		registerHTMLFileSystemProvider();
+		debugLog('browser file system access provider enabled');
+	} catch (error) {
+		console.warn('[playground] failed to enable browser file system access provider', error);
+	}
+}
 
 debugLog('before initialize');
 let initResolved = false;
+const workspaceProvider = isFsaMode
+	? {
+		open: async () => false,
+		workspace: { workspaceUri: fsaWorkspaceUri, label: 'FSA' },
+		trusted: true,
+	}
+	: undefined;
+
 const initPromise = initialize(
 	{
 		productConfiguration: {
@@ -289,6 +418,7 @@ const initPromise = initialize(
 			},
 			linkProtectionTrustedDomains: ['https://open-vsx.org'],
 		},
+		workspaceProvider,
 	},
 	{ container: document.getElementById('workbench')! },
 )
@@ -313,7 +443,13 @@ const initPromise = initialize(
 			}, 3000);
 		}),
 	]);
-	debugLog('after initialize race', { initResolved, initTimedOut });
+debugLog('after initialize race', { initResolved, initTimedOut });
+
+if (isFsaMode) {
+	await patchSearchServiceForGlobFindFiles();
+	await patchFsaProviderHandleResolution();
+	await commands.executeCommand('workbench.action.closeAllEditors');
+}
 
 debugLog('applied initial stateConfig', { keys: Object.keys(stateConfig).length });
 await applyConfigHard('init apply', stateConfig);
@@ -323,11 +459,18 @@ setTimeout(() => {
 
 // If initialize resolves later, re-apply once more to defeat late default overrides.
 void initPromise.then(async () => {
+	if (isFsaMode) {
+		await patchSearchServiceForGlobFindFiles();
+		await patchFsaProviderHandleResolution();
+	}
 	await applyConfigHard('init apply (post-initialize)', stateConfig);
 });
 
 let shareHashTimer: ReturnType<typeof setTimeout> | undefined;
 function updateShareHashSoon() {
+	if (!isMemfsMode) {
+		return;
+	}
 	if (shareHashTimer != null) {
 		globalThis.clearTimeout(shareHashTimer);
 	}
@@ -337,6 +480,9 @@ function updateShareHashSoon() {
 }
 
 async function updateShareHashNow() {
+	if (!isMemfsMode) {
+		return;
+	}
 	debugLog('updateShareHashNow start');
 	const files = Array.from(stateFiles.entries())
 		.filter(([path]) => path.startsWith('/tmp/project/'))
@@ -413,6 +559,49 @@ workspace.onDidChangeConfiguration(() => {
 	updateShareHashSoon();
 });
 
+async function alignFsaWorkspaceFolderHandles(): Promise<void> {
+	if (!isFsaMode) {
+		return;
+	}
+	const fileService = await getService(IFileService);
+	const provider = fileService.getProvider('file');
+	if (!(provider instanceof HTMLFileSystemProvider)) {
+		return;
+	}
+
+	const folders = workspace.workspaceFolders ?? [];
+	for (let i = 0; i < folders.length; i++) {
+		const folder = folders[i];
+		const folderUri = URI.parse(folder.uri.toString());
+		const handle = await provider.getHandle(folderUri);
+		if (handle) {
+			continue;
+		}
+
+		// If the workspace folder URI does not map to a registered handle,
+		// file-search based APIs (e.g. findFiles) can return empty results.
+		const candidates = Array.from(provider.directories).filter(dir => dir.name === folder.name);
+		if (candidates.length !== 1) {
+			continue;
+		}
+		const canonicalUri = await provider.registerDirectoryHandle(candidates[0]);
+		const nextFolderUri = normalizeFolderUri(Uri.parse(canonicalUri.toString()));
+		if (nextFolderUri.toString() === folder.uri.toString()) {
+			continue;
+		}
+		workspace.updateWorkspaceFolders(i, 1, {
+			uri: nextFolderUri,
+			name: folder.name,
+		});
+	}
+}
+
+workspace.onDidChangeWorkspaceFolders(() => {
+	if (isFsaMode) {
+		void alignFsaWorkspaceFolderHandles();
+	}
+});
+
 async function waitForLanguage(languageId: string, timeoutMs: number): Promise<boolean> {
 	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
@@ -438,7 +627,120 @@ async function openProjectFile(path: string): Promise<void> {
 	debugLog('opened project file', { path, languageId, languageReady: ready });
 }
 
+function normalizeFolderUri(uri: Uri): Uri {
+	if (uri.path.length > 1 && uri.path.endsWith('/')) {
+		return uri.with({ path: uri.path.slice(0, -1) });
+	}
+	return uri;
+}
+
+function normalizeProviderUri(resource: URI): URI {
+	if (resource.path.length > 1 && resource.path.endsWith('/')) {
+		return resource.with({ path: resource.path.replace(/\/+$/, '') });
+	}
+	return resource;
+}
+
+async function patchFsaProviderHandleResolution(): Promise<void> {
+	if (!isFsaMode) {
+		return;
+	}
+	const fileService = await getService(IFileService);
+	const provider = fileService.getProvider('file');
+	if (!(provider instanceof HTMLFileSystemProvider)) {
+		return;
+	}
+
+	const patched = provider as HTMLFileSystemProvider & { __bclspGetHandlePatched?: boolean };
+	if (patched.__bclspGetHandlePatched) {
+		return;
+	}
+
+	const originalGetHandle = provider.getHandle.bind(provider);
+	provider.getHandle = async (resource: URI) => {
+		const normalized = normalizeProviderUri(resource);
+		return originalGetHandle(normalized);
+	};
+	patched.__bclspGetHandlePatched = true;
+}
+
+function getWorkspaceFolderName(uri: Uri): string {
+	const normalized = uri.path.endsWith('/') ? uri.path.slice(0, -1) : uri.path;
+	const idx = normalized.lastIndexOf('/');
+	return idx >= 0 ? normalized.slice(idx + 1) || 'workspace' : normalized || 'workspace';
+}
+
+async function openLocalWorkspaceFolder(): Promise<boolean> {
+	if (!isFsaMode) {
+		void window.showInformationMessage('Local File System Access mode is disabled. Use ?fs=fsa to enable it.');
+		return false;
+	}
+	const fileService = await getService(IFileService);
+	const provider = fileService.getProvider('file');
+	if (!(provider instanceof HTMLFileSystemProvider)) {
+		void window.showErrorMessage('HTML file system provider is not available.');
+		return false;
+	}
+	const fsWindow = getFileSystemAccessWindow();
+	if (!fsWindow) {
+		void window.showErrorMessage('Browser File System Access API is not available in this environment.');
+		return false;
+	}
+	let folderHandle: FileSystemDirectoryHandle;
+	try {
+		folderHandle = await fsWindow.showDirectoryPicker({ mode: 'readwrite' });
+	} catch {
+		// User cancelled; handled intentionally so there is no fallback path-input prompt.
+		return true;
+	}
+
+	const rawFolderUri = await provider.registerDirectoryHandle(folderHandle);
+	const folderUri = normalizeFolderUri(Uri.parse(rawFolderUri.toString()));
+
+	// Prefer the standard VS Code open-folder flow (same as vscode.dev).
+	// This keeps workbench and extension-host workspace state consistent.
+	try {
+		const opened = await commands.executeCommand<boolean>('vscode.openFolder', folderUri, {
+			forceReuseWindow: true,
+		});
+		if (opened !== false) {
+			return true;
+		}
+	} catch (error) {
+		debugLog('vscode.openFolder failed, fallback to updateWorkspaceFolders', { error: String(error) });
+	}
+
+	const existing = workspace.workspaceFolders ?? [];
+	const added = workspace.updateWorkspaceFolders(0, existing.length, {
+		uri: folderUri,
+		name: getWorkspaceFolderName(folderUri),
+	});
+	if (!added) {
+		void window.showErrorMessage(`Failed to open workspace folder: ${folderUri.toString()}`);
+		return false;
+	}
+
+	const beanFiles = await workspace.findFiles(
+		new RelativePattern(folderUri, '**/*.{bean,beancount}'),
+		'**/{node_modules,.git}/**',
+		50,
+	);
+	if (beanFiles.length === 0) {
+		void window.showInformationMessage('Workspace opened. No .bean/.beancount file found.');
+		return true;
+	}
+
+	const mainCandidate = beanFiles.find(file => file.path.endsWith('/main.bean')) ?? beanFiles[0];
+	await commands.executeCommand('vscode.open', mainCandidate);
+	void window.showInformationMessage(`Opened local workspace: ${folderHandle.name}`);
+	return true;
+}
+
 commands.registerCommand('demo.copyShareUrl', async () => {
+	if (!isMemfsMode) {
+		void window.showInformationMessage('Share URL is only available in memfs mode.');
+		return;
+	}
 	await updateShareHashNow();
 	const url = globalThis.location.href;
 	try {
@@ -450,9 +752,16 @@ commands.registerCommand('demo.copyShareUrl', async () => {
 });
 
 commands.registerCommand('demo.resetDemo', () => {
+	if (!isMemfsMode) {
+		void window.showInformationMessage('Reset is only available in memfs mode.');
+		return;
+	}
 	const nextUrl = `${globalThis.location.pathname}${globalThis.location.search}#`;
 	globalThis.history.replaceState(null, '', nextUrl);
 	globalThis.location.reload();
+});
+commands.registerCommand('demo.openLocalWorkspace', () => {
+	void openLocalWorkspaceFolder();
 });
 
 refreshTrackedConfig();
@@ -472,17 +781,26 @@ setTimeout(() => {
 	logConfigSnapshot('post-vsix apply (next tick)');
 }, 0);
 
-const shareItem = window.createStatusBarItem(StatusBarAlignment.Right, 200);
-shareItem.text = 'Share';
-shareItem.tooltip = 'Copy a fully reproducible URL (includes files + config)';
-shareItem.command = 'demo.copyShareUrl';
-shareItem.show();
+if (isMemfsMode) {
+	const shareItem = window.createStatusBarItem(StatusBarAlignment.Right, 200);
+	shareItem.text = 'Share';
+	shareItem.tooltip = 'Copy a fully reproducible URL (includes files + config)';
+	shareItem.command = 'demo.copyShareUrl';
+	shareItem.show();
 
-const resetItem = window.createStatusBarItem(StatusBarAlignment.Right, 199);
-resetItem.text = 'Reset';
-resetItem.tooltip = 'Reset demo to defaults';
-resetItem.command = 'demo.resetDemo';
-resetItem.show();
+	const resetItem = window.createStatusBarItem(StatusBarAlignment.Right, 199);
+	resetItem.text = 'Reset';
+	resetItem.tooltip = 'Reset demo to defaults';
+	resetItem.command = 'demo.resetDemo';
+	resetItem.show();
+}
+if (isFsaMode) {
+	const openLocalItem = window.createStatusBarItem(StatusBarAlignment.Right, 198);
+	openLocalItem.text = 'Open Local';
+	openLocalItem.tooltip = 'Open a local folder via Browser File System Access API';
+	openLocalItem.command = 'demo.openLocalWorkspace';
+	openLocalItem.show();
+}
 	if (DEBUG) {
 		console.log('[extensions] builtin', getBuiltinExtensions().map((ext) => ext.identifier.id));
 	}
@@ -539,11 +857,15 @@ const extension = extensions.getExtension(targetExtensionId);
 		}
 	}
 
-if (activeFile && activeFile.startsWith('/tmp/project/') && stateFiles.has(activeFile)) {
-	await openProjectFile(activeFile);
+if (isMemfsMode) {
+	if (activeFile && activeFile.startsWith('/tmp/project/') && stateFiles.has(activeFile)) {
+		await openProjectFile(activeFile);
+	} else {
+		activeFile = '/tmp/project/main.bean';
+		await openProjectFile(activeFile);
+	}
 } else {
-	activeFile = '/tmp/project/main.bean';
-	await openProjectFile(activeFile);
+	void window.showInformationMessage('File System Access mode enabled. Click "Open Local" to pick a folder.');
 }
 await commands.executeCommand('workbench.view.extensions');
 await extensionsWorkbenchService.openSearch('@builtin');

@@ -309,6 +309,9 @@ importers:
       '@codingame/monaco-vscode-languages-service-override':
         specifier: ^25.1.2
         version: 25.1.2
+      '@codingame/monaco-vscode-search-service-override':
+        specifier: ^25.1.2
+        version: 25.1.2
       '@codingame/monaco-vscode-textmate-service-override':
         specifier: ^25.1.2
         version: 25.1.2
