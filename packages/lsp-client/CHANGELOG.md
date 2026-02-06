@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.0.167
+
+- style: format code ([1c9dd29](https://github.com/fengkx/beancount-lsp/commit/1c9dd29))
+- refactor(playground): reorganize code with section comments ([539c8d7](https://github.com/fengkx/beancount-lsp/commit/539c8d7))
+- fix(lsp): implement per-document configuration caching ([4139db4](https://github.com/fengkx/beancount-lsp/commit/4139db4))
+- fix(lsp): add scopeUri to getConfiguration calls ([e8ef9d1](https://github.com/fengkx/beancount-lsp/commit/e8ef9d1))
+- feat: add beancount runtime status notification ([6627c3d](https://github.com/fengkx/beancount-lsp/commit/6627c3d))
+- fix(config): add resource scope to configuration properties ([c579f3f](https://github.com/fengkx/beancount-lsp/commit/c579f3f))
+- docs: add VSCode LSP configuration best practices ([dfbc3df](https://github.com/fengkx/beancount-lsp/commit/dfbc3df))
+- chore: bump version to 0.0.167 in package.json ([90a2396](https://github.com/fengkx/beancount-lsp/commit/90a2396))
+- feat: minor tweaks ([310f0a8](https://github.com/fengkx/beancount-lsp/commit/310f0a8))
+- feat: add AGENTS.md for playground ([c4ccc9d](https://github.com/fengkx/beancount-lsp/commit/c4ccc9d))
+- feat(playground): support FSA workspace with search worker ([42efe9e](https://github.com/fengkx/beancount-lsp/commit/42efe9e))
+- feat(playground): add linked-editing tag demo data ([8653ca1](https://github.com/fengkx/beancount-lsp/commit/8653ca1))
+- refactor(beancheck): replace custom RPC handling with vscode-languageserver MessageConnection ([435ccf6](https://github.com/fengkx/beancount-lsp/commit/435ccf6))
+- chore: update lock file ([6f25638](https://github.com/fengkx/beancount-lsp/commit/6f25638))
+- feat(playground): enable completion providers without forcing language id ([77a4ac4](https://github.com/fengkx/beancount-lsp/commit/77a4ac4))
+- feat(diagnostics): serialize beancheck runs and cancel stale validations ([9ac64a0](https://github.com/fengkx/beancount-lsp/commit/9ac64a0))
+- feat(beancheck): add reusable runner and persistent rpc execution ([d9cbdc4](https://github.com/fengkx/beancount-lsp/commit/d9cbdc4))
+- docs: update CHANGELOG.md for v0.0.165 ([eb13438](https://github.com/fengkx/beancount-lsp/commit/eb13438))
+- chore: update lsp-client version to 0.0.165 ([8b1de02](https://github.com/fengkx/beancount-lsp/commit/8b1de02))
+- fix: clarify description for extra Python packages in WASM runtime ([c4fdb51](https://github.com/fengkx/beancount-lsp/commit/c4fdb51))
+- fix: diagnostics for loading plugins ([8245102](https://github.com/fengkx/beancount-lsp/commit/8245102))
+- fix: playground time order ([59cb37b](https://github.com/fengkx/beancount-lsp/commit/59cb37b))
+- feat: add GitHub Actions workflow for deploying playground to gh-pages ([475ae72](https://github.com/fengkx/beancount-lsp/commit/475ae72))
+- docs: update CHANGELOG.md for v0.0.163 ([b0378bf](https://github.com/fengkx/beancount-lsp/commit/b0378bf))
+- feat: add GitHub Actions workflow for deploying playground to gh-pages ([6afe0c0](https://github.com/fengkx/beancount-lsp/commit/6afe0c0))
+- feat: add playground package with initial setup and demo files ([9f0f55e](https://github.com/fengkx/beancount-lsp/commit/9f0f55e))
+- tmp ([5782554](https://github.com/fengkx/beancount-lsp/commit/5782554))
+- chore: update lsp-client version to 0.0.163 ([4ef7491](https://github.com/fengkx/beancount-lsp/commit/4ef7491))
+- feat: update beancount-wasm to version 0.2.0 and enhance browser-side configuration ([3c36c0b](https://github.com/fengkx/beancount-lsp/commit/3c36c0b))
+- feat: add CodeLens refresh support to CodeLensFeature ([c96eea4](https://github.com/fengkx/beancount-lsp/commit/c96eea4))
+
 ## v0.0.165
 
 - chore: update lsp-client version to 0.0.165 ([7113cbe](https://github.com/fengkx/beancount-lsp/commit/7113cbe))
