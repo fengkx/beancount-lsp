@@ -210,7 +210,7 @@ export function createClientOptions(options: ClientOptions): LanguageClientOptio
 function formatRuntimeStatusLabel(status: BeancountRuntimeStatusParams): string {
 	switch (status.mode) {
 		case 'wasm':
-			return `$(vm-running) Beancount WASM ${status.version}`;
+			return `$(chip) Beancount WASM ${status.version}`;
 		case 'local':
 			return '$(terminal) Beancount Local';
 		case 'off':
@@ -254,7 +254,7 @@ export function setupStatusBar(ctx: ExtensionContext<'browser' | 'node'>): void 
 			if (lastRuntimeStatus) {
 				applyRuntimeStatus(lastRuntimeStatus);
 			} else {
-				ctx.statusBarItem.text = '$(check) Beancount: Ready';
+				ctx.statusBarItem.text = '$(check) Beancount LSP: Ready';
 				ctx.statusBarItem.tooltip = 'Beancount LSP is running';
 				ctx.statusBarItem.show();
 			}
