@@ -225,6 +225,15 @@ export class CodeLensFeature implements Feature {
 			const filePath = data.filePath ?? URI.parse(data.uri).fsPath;
 			const amounts = this.beanMgr.getPadAmounts(filePath, data.line);
 
+			if (amounts === null) {
+				// Data not loaded yet, show loading indicator
+				codeLens.command = {
+					title: '🧮 Loading...',
+					command: '',
+				};
+				return codeLens;
+			}
+
 			if (amounts.length === 0) {
 				codeLens.command = {
 					title: '🧮 No padding',

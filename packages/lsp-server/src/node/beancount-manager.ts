@@ -439,10 +439,10 @@ class BeancountManager implements RealBeancountManager {
 		return subaccounts;
 	}
 
-	getPadAmounts(filePath: string, line: number): Amount[] {
+	getPadAmounts(filePath: string, line: number): Amount[] | null {
 		const pads = this.result?.pads;
 		if (!pads) {
-			return [];
+			return null;
 		}
 
 		const normalizedPath = normalize(filePath);

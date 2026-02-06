@@ -31,7 +31,7 @@ export interface RealBeancountManager {
 	getRuntimeStatus(): BeancountRuntimeStatusParams;
 	getBalance(account: string, includeSubaccountBalance: boolean): Amount[];
 	getSubaccountBalances(account: string): Map<string, Amount[]>;
-	getPadAmounts(filePath: string, line: number): Amount[];
+	getPadAmounts(filePath: string, line: number): Amount[] | null;
 	getErrors(): BeancountError[];
 	getFlagged(): BeancountFlag[];
 	setMainFile(mainFile: string): Promise<void>;
