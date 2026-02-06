@@ -59,6 +59,8 @@ class BeancountBrowserManager implements RealBeancountManager {
 	private enabledMode: BrowserBeancountMode = 'off';
 	private extraPythonPackages: string[] = [];
 	private lastFileSnapshot = new Map<string, string>();
+	private configDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+	private static readonly CONFIG_DEBOUNCE_MS = 500;
 	private inputGeneration = 0;
 	private queuedBeancheckGeneration = 0;
 	private appliedBeancheckGeneration = 0;
@@ -74,7 +76,13 @@ class BeancountBrowserManager implements RealBeancountManager {
 	) {
 		connection.onDidSaveTextDocument(this.onDocumentSaved.bind(this));
 		connection.onDidChangeConfiguration(() => {
-			void this.refreshConfiguration();
+			if (this.configDebounceTimer) {
+				clearTimeout(this.configDebounceTimer);
+			}
+			this.configDebounceTimer = setTimeout(() => {
+				this.configDebounceTimer = undefined;
+				void this.refreshConfiguration();
+			}, BeancountBrowserManager.CONFIG_DEBOUNCE_MS);
 		});
 		connection.onDidChangeWatchedFiles(event => {
 			void this.handleWatchedFiles(event);
@@ -500,6 +508,10 @@ class BeancountBrowserManager implements RealBeancountManager {
 	}
 
 	dispose(): void {
+		if (this.configDebounceTimer) {
+			clearTimeout(this.configDebounceTimer);
+			this.configDebounceTimer = undefined;
+		}
 		this.activeBeancheckTokenSource?.cancel();
 		this.activeBeancheckTokenSource?.dispose();
 		this.activeBeancheckTokenSource = null;

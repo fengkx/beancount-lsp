@@ -867,5 +867,9 @@ if (isMemfsMode) {
 } else {
 	void window.showInformationMessage('File System Access mode enabled. Click "Open Local" to pick a folder.');
 }
-await commands.executeCommand('workbench.view.extensions');
-await extensionsWorkbenchService.openSearch('@builtin');
+
+// Switch sidebar back to Explorer and focus the editor if a file is open.
+await commands.executeCommand('workbench.view.explorer');
+if (window.activeTextEditor) {
+	await commands.executeCommand('workbench.action.focusActiveEditorGroup');
+}
