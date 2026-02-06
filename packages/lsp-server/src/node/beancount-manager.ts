@@ -8,6 +8,12 @@ import {
 	Connection,
 	DidSaveTextDocumentParams,
 } from 'vscode-languageserver';
+import {
+	createMessageConnection,
+	MessageConnection,
+	StreamMessageReader,
+	StreamMessageWriter,
+} from 'vscode-languageserver/node';
 import { URI } from 'vscode-uri';
 import {
 	Amount,
@@ -43,11 +49,6 @@ interface BeancheckOutput {
 	};
 }
 
-interface PendingRpcRequest {
-	resolve: (value: unknown) => void;
-	reject: (error: Error) => void;
-}
-
 function asError(error: unknown): Error {
 	return error instanceof Error ? error : new Error(String(error));
 }
@@ -60,9 +61,7 @@ function createCancellationError(): Error {
 
 class BeancheckRpcClient {
 	private process: ChildProcessWithoutNullStreams | null = null;
-	private stdoutBuffer = Buffer.alloc(0);
-	private nextRequestId = 1;
-	private readonly pendingRequests = new Map<number, PendingRpcRequest>();
+	private rpcConnection: MessageConnection | null = null;
 	private startPromise: Promise<void> | null = null;
 	private disposed = false;
 
@@ -83,10 +82,10 @@ class BeancheckRpcClient {
 			return;
 		}
 		this.disposed = true;
-		this.failAllPending(new Error('beancheck rpc client disposed'));
+		this.rpcConnection?.dispose();
+		this.rpcConnection = null;
 		const process = this.process;
 		this.process = null;
-		this.stdoutBuffer = Buffer.alloc(0);
 		if (process && process.exitCode === null && !process.killed) {
 			process.kill();
 		}
@@ -96,7 +95,12 @@ class BeancheckRpcClient {
 		if (this.disposed) {
 			throw new Error('beancheck rpc client disposed');
 		}
-		if (this.process && this.process.exitCode === null && !this.process.killed) {
+		if (
+			this.process
+			&& this.process.exitCode === null
+			&& !this.process.killed
+			&& this.rpcConnection
+		) {
 			return;
 		}
 		if (!this.startPromise) {
@@ -115,11 +119,20 @@ class BeancheckRpcClient {
 			{ stdio: ['pipe', 'pipe', 'pipe'] },
 		);
 		this.process = child;
-		this.stdoutBuffer = Buffer.alloc(0);
-
-		child.stdout.on('data', chunk => {
-			const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-			this.handleStdoutData(data);
+		const messageReader = new StreamMessageReader(child.stdout);
+		const messageWriter = new StreamMessageWriter(child.stdin);
+		const rpcConnection = createMessageConnection(messageReader, messageWriter);
+		this.rpcConnection = rpcConnection;
+		rpcConnection.listen();
+		rpcConnection.onError(([error, message, count]) => {
+			this.logger.error(
+				`beancheck rpc protocol error: ${error.message}; message=${message}; count=${count}`,
+			);
+		});
+		rpcConnection.onClose(() => {
+			if (this.rpcConnection === rpcConnection) {
+				this.rpcConnection = null;
+			}
 		});
 
 		child.stderr.on('data', chunk => {
@@ -132,9 +145,11 @@ class BeancheckRpcClient {
 		child.on('error', error => {
 			const err = asError(error);
 			this.logger.error(`beancheck rpc process error: ${err.message}`);
-			this.failAllPending(err);
 			if (this.process === child) {
 				this.process = null;
+			}
+			if (this.rpcConnection === rpcConnection) {
+				this.rpcConnection = null;
 			}
 		});
 
@@ -147,190 +162,29 @@ class BeancheckRpcClient {
 			if (this.process === child) {
 				this.process = null;
 			}
-			if (!this.disposed) {
-				this.failAllPending(
-					new Error(`beancheck rpc process exited (code=${String(code)}, signal=${String(signal)})`),
-				);
+			if (this.rpcConnection === rpcConnection) {
+				this.rpcConnection = null;
 			}
 		});
 	}
 
-	private sendRequest<T>(
+	private async sendRequest<T>(
 		method: string,
 		params: Record<string, unknown>,
 		token: CancellationToken,
 	): Promise<T> {
-		const requestId = this.nextRequestId++;
-		return new Promise<T>((resolve, reject) => {
-			let cancelSubscription: { dispose: () => void } | null = null;
-			const cleanup = () => {
-				cancelSubscription?.dispose();
-				cancelSubscription = null;
-				this.pendingRequests.delete(requestId);
-			};
-			const rejectWith = (error: Error) => {
-				cleanup();
-				reject(error);
-			};
-			const resolveWith = (value: unknown) => {
-				cleanup();
-				resolve(value as T);
-			};
-
-			this.pendingRequests.set(requestId, {
-				resolve: resolveWith,
-				reject: rejectWith,
-			});
-
-			if (token.isCancellationRequested) {
-				this.sendCancelRequest(requestId);
-				rejectWith(createCancellationError());
-				return;
-			}
-
-			cancelSubscription = token.onCancellationRequested(() => {
-				this.sendCancelRequest(requestId);
-			});
-
-			try {
-				this.writeMessage({
-					jsonrpc: '2.0',
-					id: requestId,
-					method,
-					params,
-				});
-			} catch (error) {
-				rejectWith(asError(error));
-			}
-		});
-	}
-
-	private sendCancelRequest(requestId: number): void {
+		const connection = this.rpcConnection;
+		if (!connection) {
+			throw new Error('beancheck rpc connection is not ready');
+		}
 		try {
-			this.writeMessage({
-				jsonrpc: '2.0',
-				method: '$/cancelRequest',
-				params: {
-					id: requestId,
-				},
-			});
-		} catch {
-			// Ignore cancellation delivery failures.
-		}
-	}
-
-	private writeMessage(payload: unknown): void {
-		const child = this.process;
-		if (!child || child.exitCode !== null || child.killed) {
-			throw new Error('beancheck rpc process is not running');
-		}
-		const body = Buffer.from(JSON.stringify(payload), 'utf-8');
-		const header = Buffer.from(`Content-Length: ${body.length}\r\n\r\n`, 'ascii');
-		child.stdin.write(header);
-		child.stdin.write(body);
-	}
-
-	private handleStdoutData(chunk: Buffer): void {
-		this.stdoutBuffer = Buffer.concat([this.stdoutBuffer, chunk]);
-		while (true) {
-			const headerEnd = this.stdoutBuffer.indexOf('\r\n\r\n');
-			if (headerEnd < 0) {
-				return;
+			return await connection.sendRequest(method, params, token) as T;
+		} catch (error) {
+			const err = asError(error) as Error & { code?: number };
+			if (err.code === -32800) {
+				err.name = 'CancellationError';
 			}
-			const headerText = this.stdoutBuffer.subarray(0, headerEnd).toString('ascii');
-			let contentLength: number | null = null;
-			for (const line of headerText.split('\r\n')) {
-				const separator = line.indexOf(':');
-				if (separator < 0) {
-					continue;
-				}
-				const key = line.slice(0, separator).trim().toLowerCase();
-				const value = line.slice(separator + 1).trim();
-				if (key === 'content-length') {
-					const parsed = Number.parseInt(value, 10);
-					if (Number.isFinite(parsed) && parsed >= 0) {
-						contentLength = parsed;
-					}
-				}
-			}
-
-			if (contentLength === null) {
-				this.logger.error('Invalid RPC message from beancheck process: missing Content-Length');
-				this.stdoutBuffer = this.stdoutBuffer.subarray(headerEnd + 4);
-				continue;
-			}
-
-			const messageEnd = headerEnd + 4 + contentLength;
-			if (this.stdoutBuffer.length < messageEnd) {
-				return;
-			}
-
-			const body = this.stdoutBuffer.subarray(headerEnd + 4, messageEnd);
-			this.stdoutBuffer = this.stdoutBuffer.subarray(messageEnd);
-
-			let payload: unknown;
-			try {
-				payload = JSON.parse(body.toString('utf-8'));
-			} catch (error) {
-				this.logger.error(`Invalid JSON from beancheck process: ${String(error)}`);
-				continue;
-			}
-			this.handleRpcPayload(payload);
-		}
-	}
-
-	private handleRpcPayload(payload: unknown): void {
-		if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-			return;
-		}
-		const message = payload as Record<string, unknown>;
-		if (message['jsonrpc'] !== '2.0') {
-			return;
-		}
-		const requestId = message['id'];
-		if (typeof requestId !== 'number') {
-			return;
-		}
-		const pending = this.pendingRequests.get(requestId);
-		if (!pending) {
-			return;
-		}
-		if (message['error']) {
-			const errorPayload = message['error'];
-			let code: number | undefined;
-			let errorMessage = 'beancheck rpc error';
-			let data: unknown;
-			if (errorPayload && typeof errorPayload === 'object') {
-				const rpcError = errorPayload as Record<string, unknown>;
-				if (typeof rpcError['code'] === 'number') {
-					code = rpcError['code'];
-				}
-				if (typeof rpcError['message'] === 'string') {
-					errorMessage = rpcError['message'];
-				}
-				data = rpcError['data'];
-			}
-			const error = new Error(errorMessage) as Error & { code?: number; data?: unknown };
-			if (code !== undefined) {
-				error.code = code;
-			}
-			if (data !== undefined) {
-				error.data = data;
-			}
-			if (code === -32800) {
-				error.name = 'CancellationError';
-			}
-			pending.reject(error);
-			return;
-		}
-		pending.resolve(message['result']);
-	}
-
-	private failAllPending(error: Error): void {
-		const requests = Array.from(this.pendingRequests.values());
-		this.pendingRequests.clear();
-		for (const request of requests) {
-			request.reject(error);
+			throw err;
 		}
 	}
 }
