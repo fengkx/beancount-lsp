@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.172
+
+- chore(lsp): add vsix build step and bump version to 0.0.172 ([54fd77b](https://github.com/fengkx/beancount-lsp/commit/54fd77b))
+- fix(lsp): return empty command for CodeLens when no padding is available ([acbff67](https://github.com/fengkx/beancount-lsp/commit/acbff67))
+- chore: update pnpm-lock.yaml with new package versions and dependencies ([f5806de](https://github.com/fengkx/beancount-lsp/commit/f5806de))
+
 ## v0.0.170
 
 - chore(lsp): bump version to 0.0.170 in package.json ([22d272c](https://github.com/fengkx/beancount-lsp/commit/22d272c))
