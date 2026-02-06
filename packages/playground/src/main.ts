@@ -44,6 +44,20 @@ import * as pako from 'pako';
 import defaultFiles from './demo-files.json';
 import defaultUserConfig from './demo-user-config.json';
 
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const PROJECT_PATH_PREFIX = '/tmp/project/';
+const DEFAULT_MAIN_BEAN = `${PROJECT_PATH_PREFIX}main.bean`;
+const TARGET_EXTENSION_ID = 'fengkx.beancount-lsp-client';
+const SHARE_HASH_KEY = 'bclsp=';
+const INIT_TIMEOUT_MS = 3000;
+
+// ---------------------------------------------------------------------------
+// Debug helpers
+// ---------------------------------------------------------------------------
+
 const DEBUG =
 	new URLSearchParams(globalThis.location.search).has('debug')
 	|| globalThis.localStorage.getItem('bclsp:debug') === '1';
@@ -56,6 +70,10 @@ function debugLog(...args: unknown[]) {
 	console.log('[playground]', ...args);
 }
 
+// ---------------------------------------------------------------------------
+// File System Access API detection
+// ---------------------------------------------------------------------------
+
 type WindowWithFileSystemAccess = Window & {
 	showDirectoryPicker: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
 };
@@ -67,12 +85,28 @@ function getFileSystemAccessWindow(): WindowWithFileSystemAccess | null {
 		: null;
 }
 
+// ---------------------------------------------------------------------------
+// Project-file path helpers
+// ---------------------------------------------------------------------------
+
+function isProjectFile(uri: { scheme: string; path: string }): boolean {
+	return uri.scheme === 'file' && uri.path.startsWith(PROJECT_PATH_PREFIX);
+}
+
+// ---------------------------------------------------------------------------
+// Worker registration
+// ---------------------------------------------------------------------------
+
 registerWorker(
 	'LocalFileSearchWorker',
 	new MonacoWorker(new URL('@codingame/monaco-vscode-search-service-override/worker', import.meta.url), {
 		type: 'module',
 	}),
 );
+
+// ---------------------------------------------------------------------------
+// Search service patch (FSA mode)
+// ---------------------------------------------------------------------------
 
 type SearchQueryLike = {
 	filePattern?: unknown;
@@ -124,6 +158,10 @@ async function patchSearchServiceForGlobFindFiles(): Promise<void> {
 
 	provider.__bclspGlobFilePatternPatch = true;
 }
+
+// ---------------------------------------------------------------------------
+// Configuration helpers
+// ---------------------------------------------------------------------------
 
 function readConfigValue(key: string): unknown {
 	try {
@@ -191,6 +229,10 @@ async function applyConfigHard(
 	logConfigSnapshot(`${label} (after workspace.update)`);
 }
 
+// ---------------------------------------------------------------------------
+// Share-state codec (URL hash persistence)
+// ---------------------------------------------------------------------------
+
 type DemoFile = { path: string; content: string };
 type ShareStateV1 = {
 	v: 1;
@@ -199,7 +241,8 @@ type ShareStateV1 = {
 	activeFile?: string;
 };
 
-const SHARE_HASH_KEY = 'bclsp=';
+type HashCodec = 'gz';
+type ShareWireV1 = { v: 1; f: Array<[string, string]>; c: Record<string, unknown>; a?: string };
 
 function base64UrlEncodeBytes(bytes: Uint8Array): string {
 	let binary = '';
@@ -243,10 +286,6 @@ async function gzipDecompressToUtf8(bytes: Uint8Array): Promise<string> {
 	const decompressed = readable.pipeThrough(new DecompressionStream('gzip'));
 	return await new Response(decompressed).text();
 }
-
-type HashCodec = 'gz';
-
-type ShareWireV1 = { v: 1; f: Array<[string, string]>; c: Record<string, unknown>; a?: string };
 
 function toWire(state: ShareStateV1): ShareWireV1 {
 	return {
@@ -336,228 +375,50 @@ async function setShareHash(state: ShareStateV1) {
 	}
 }
 
-const baseConfig = {
-	'workbench.activityBar.visible': true,
-	'workbench.sideBar.location': 'left',
-	'workbench.statusBar.visible': true,
-	'editor.codeLens': true,
-};
+// ---------------------------------------------------------------------------
+// URI normalisation helpers
+// ---------------------------------------------------------------------------
 
-type PlaygroundFsMode = 'memfs' | 'fsa';
-const requestedFsMode = new URLSearchParams(globalThis.location.search).get('fs');
-const fsMode: PlaygroundFsMode = requestedFsMode?.toLowerCase() === 'fsa' ? 'fsa' : 'memfs';
-const isMemfsMode = fsMode === 'memfs';
-const isFsaMode = fsMode === 'fsa';
-const fsaWorkspaceUri = URI.from({ scheme: 'vscode-userdata', path: '/workspaces/fsa.code-workspace' });
+function normalizeFolderUri(uri: Uri): Uri {
+	if (uri.path.length > 1 && uri.path.endsWith('/')) {
+		return uri.with({ path: uri.path.slice(0, -1) });
+	}
+	return uri;
+}
 
-const shareFromHash = isMemfsMode ? await tryLoadShareStateFromHash() : null;
-debugLog('init mode', { fsMode, fromHash: Boolean(shareFromHash) });
-const initialFiles: DemoFile[] = isMemfsMode
-	? (shareFromHash?.files ?? (defaultFiles as DemoFile[]))
-	: [];
-const initialConfig: Record<string, unknown> = isMemfsMode && shareFromHash
-	? { ...baseConfig, ...(shareFromHash.config ?? {}) }
-	: {
-		...baseConfig,
-		...(defaultUserConfig as Record<string, unknown>),
+function normalizeProviderUri(resource: URI): URI {
+	if (resource.path.length > 1 && resource.path.endsWith('/')) {
+		return resource.with({ path: resource.path.replace(/\/+$/, '') });
+	}
+	return resource;
+}
+
+// ---------------------------------------------------------------------------
+// FSA provider patches
+// ---------------------------------------------------------------------------
+
+async function patchFsaProviderHandleResolution(): Promise<void> {
+	if (!isFsaMode) {
+		return;
+	}
+	const fileService = await getService(IFileService);
+	const provider = fileService.getProvider('file');
+	if (!(provider instanceof HTMLFileSystemProvider)) {
+		return;
+	}
+
+	const patched = provider as HTMLFileSystemProvider & { __bclspGetHandlePatched?: boolean };
+	if (patched.__bclspGetHandlePatched) {
+		return;
+	}
+
+	const originalGetHandle = provider.getHandle.bind(provider);
+	provider.getHandle = async (resource: URI) => {
+		const normalized = normalizeProviderUri(resource);
+		return originalGetHandle(normalized);
 	};
-let activeFile: string | undefined = isMemfsMode
-	? (shareFromHash?.activeFile ?? '/tmp/project/main.bean')
-	: undefined;
-debugLog('initialConfig', initialConfig);
-
-	const stateFiles = new Map<string, string>(initialFiles.map((f) => [f.path, f.content]));
-	let stateConfig: Record<string, unknown> = { ...initialConfig };
-
-	// Apply config as early as possible (before initialize / extension host startup),
-	// so the Beancount extension reads the intended settings during activation.
-	debugLog('pre-initialize updateUserConfiguration', { keys: Object.keys(stateConfig).length });
-	updateUserConfiguration(JSON.stringify(stateConfig));
-
-	if (isMemfsMode) {
-		for (const file of initialFiles) {
-			registerFile(new RegisteredMemoryFile(URI.file(file.path), file.content));
-		}
-	}
-
-// In FSA mode, replace the default `file://` provider directly.
-// Using an overlay provider keeps workbench fallback path-input flow instead of browser picker.
-if (isFsaMode && getFileSystemAccessWindow() && typeof FileSystemDirectoryHandle !== 'undefined') {
-	try {
-		await createIndexedDBProviders();
-		await initFile(
-			fsaWorkspaceUri,
-			JSON.stringify({
-				folders: [],
-			}),
-		);
-		registerHTMLFileSystemProvider();
-		debugLog('browser file system access provider enabled');
-	} catch (error) {
-		console.warn('[playground] failed to enable browser file system access provider', error);
-	}
+	patched.__bclspGetHandlePatched = true;
 }
-
-debugLog('before initialize');
-let initResolved = false;
-const workspaceProvider = isFsaMode
-	? {
-		open: async () => false,
-		workspace: { workspaceUri: fsaWorkspaceUri, label: 'FSA' },
-		trusted: true,
-	}
-	: undefined;
-
-const initPromise = initialize(
-	{
-		productConfiguration: {
-			extensionsGallery: {
-				serviceUrl: 'https://open-vsx.org/vscode/gallery',
-				itemUrl: 'https://open-vsx.org/vscode/item',
-				resourceUrlTemplate: 'https://open-vsx.org/vscode/unpkg/{publisher}/{name}/{version}/{path}',
-			},
-			linkProtectionTrustedDomains: ['https://open-vsx.org'],
-		},
-		workspaceProvider,
-	},
-	{ container: document.getElementById('workbench')! },
-)
-		.then(() => {
-			initResolved = true;
-			debugLog('initialize resolved');
-		})
-		.catch((error: unknown) => {
-			console.error('[playground] initialize failed', error);
-		});
-
-	// In production builds, initialize() can appear "stuck" even though the workbench partially works.
-	// Don't block config/hash on that; continue after a short timeout and apply config anyway.
-	let initTimedOut = false;
-	await Promise.race([
-		initPromise,
-		new Promise<void>((resolve) => {
-			setTimeout(() => {
-				initTimedOut = true;
-				debugLog('initialize timed out (continuing anyway)');
-				resolve();
-			}, 3000);
-		}),
-	]);
-debugLog('after initialize race', { initResolved, initTimedOut });
-
-if (isFsaMode) {
-	await patchSearchServiceForGlobFindFiles();
-	await patchFsaProviderHandleResolution();
-	await commands.executeCommand('workbench.action.closeAllEditors');
-}
-
-debugLog('applied initial stateConfig', { keys: Object.keys(stateConfig).length });
-await applyConfigHard('init apply', stateConfig);
-setTimeout(() => {
-	logConfigSnapshot('init apply (next tick)');
-}, 0);
-
-// If initialize resolves later, re-apply once more to defeat late default overrides.
-void initPromise.then(async () => {
-	if (isFsaMode) {
-		await patchSearchServiceForGlobFindFiles();
-		await patchFsaProviderHandleResolution();
-	}
-	await applyConfigHard('init apply (post-initialize)', stateConfig);
-});
-
-let shareHashTimer: ReturnType<typeof setTimeout> | undefined;
-function updateShareHashSoon() {
-	if (!isMemfsMode) {
-		return;
-	}
-	if (shareHashTimer != null) {
-		globalThis.clearTimeout(shareHashTimer);
-	}
-	shareHashTimer = globalThis.setTimeout(() => {
-		void updateShareHashNow();
-	}, 600);
-}
-
-async function updateShareHashNow() {
-	if (!isMemfsMode) {
-		return;
-	}
-	debugLog('updateShareHashNow start');
-	const files = Array.from(stateFiles.entries())
-		.filter(([path]) => path.startsWith('/tmp/project/'))
-		.sort(([a], [b]) => a.localeCompare(b))
-		.map(([path, content]) => ({ path, content }));
-	const state: ShareStateV1 = {
-		v: 1,
-		files,
-		config: stateConfig,
-		activeFile,
-	};
-	await setShareHash(state);
-	debugLog('updateShareHashNow done', { files: files.length, activeFile });
-}
-
-function refreshTrackedConfig() {
-	const cfg = workspace.getConfiguration();
-	const next: Record<string, unknown> = {};
-	const diffs: Array<{ key: string; expected: unknown; actual: unknown }> = [];
-	for (const key of Object.keys(stateConfig)) {
-		const actual = cfg.get(key);
-		next[key] = actual;
-		const expected = stateConfig[key];
-		// Shallow-ish compare for logging only.
-		if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-			diffs.push({ key, expected, actual });
-		}
-	}
-	// Keep config stable by preserving insertion order of stateConfig keys
-	stateConfig = { ...stateConfig, ...next };
-	debugLog('refreshTrackedConfig', { diffs: diffs.slice(0, 10), diffCount: diffs.length });
-	logConfigSnapshot('refreshTrackedConfig snapshot');
-}
-
-workspace.onDidChangeTextDocument((e) => {
-	const doc = e.document;
-	if (doc.uri.scheme !== 'file') {
-		return;
-	}
-	const path = doc.uri.path;
-	if (!path.startsWith('/tmp/project/')) {
-		return;
-	}
-	stateFiles.set(path, doc.getText());
-	updateShareHashSoon();
-});
-
-workspace.onDidOpenTextDocument((doc) => {
-	if (doc.uri.scheme !== 'file') {
-		return;
-	}
-	const path = doc.uri.path;
-	if (!path.startsWith('/tmp/project/')) {
-		return;
-	}
-	if (!stateFiles.has(path)) {
-		stateFiles.set(path, doc.getText());
-		updateShareHashSoon();
-	}
-});
-
-window.onDidChangeActiveTextEditor((editor) => {
-	const path = editor?.document?.uri?.scheme === 'file' ? editor.document.uri.path : undefined;
-	if (!path || !path.startsWith('/tmp/project/')) {
-		return;
-	}
-	activeFile = path;
-	updateShareHashSoon();
-});
-
-workspace.onDidChangeConfiguration(() => {
-	debugLog('onDidChangeConfiguration');
-	refreshTrackedConfig();
-	updateShareHashSoon();
-});
 
 async function alignFsaWorkspaceFolderHandles(): Promise<void> {
 	if (!isFsaMode) {
@@ -596,11 +457,9 @@ async function alignFsaWorkspaceFolderHandles(): Promise<void> {
 	}
 }
 
-workspace.onDidChangeWorkspaceFolders(() => {
-	if (isFsaMode) {
-		void alignFsaWorkspaceFolderHandles();
-	}
-});
+// ---------------------------------------------------------------------------
+// Language / file helpers
+// ---------------------------------------------------------------------------
 
 async function waitForLanguage(languageId: string, timeoutMs: number): Promise<boolean> {
 	const deadline = Date.now() + timeoutMs;
@@ -627,48 +486,15 @@ async function openProjectFile(path: string): Promise<void> {
 	debugLog('opened project file', { path, languageId, languageReady: ready });
 }
 
-function normalizeFolderUri(uri: Uri): Uri {
-	if (uri.path.length > 1 && uri.path.endsWith('/')) {
-		return uri.with({ path: uri.path.slice(0, -1) });
-	}
-	return uri;
-}
-
-function normalizeProviderUri(resource: URI): URI {
-	if (resource.path.length > 1 && resource.path.endsWith('/')) {
-		return resource.with({ path: resource.path.replace(/\/+$/, '') });
-	}
-	return resource;
-}
-
-async function patchFsaProviderHandleResolution(): Promise<void> {
-	if (!isFsaMode) {
-		return;
-	}
-	const fileService = await getService(IFileService);
-	const provider = fileService.getProvider('file');
-	if (!(provider instanceof HTMLFileSystemProvider)) {
-		return;
-	}
-
-	const patched = provider as HTMLFileSystemProvider & { __bclspGetHandlePatched?: boolean };
-	if (patched.__bclspGetHandlePatched) {
-		return;
-	}
-
-	const originalGetHandle = provider.getHandle.bind(provider);
-	provider.getHandle = async (resource: URI) => {
-		const normalized = normalizeProviderUri(resource);
-		return originalGetHandle(normalized);
-	};
-	patched.__bclspGetHandlePatched = true;
-}
-
 function getWorkspaceFolderName(uri: Uri): string {
 	const normalized = uri.path.endsWith('/') ? uri.path.slice(0, -1) : uri.path;
 	const idx = normalized.lastIndexOf('/');
 	return idx >= 0 ? normalized.slice(idx + 1) || 'workspace' : normalized || 'workspace';
 }
+
+// ---------------------------------------------------------------------------
+// FSA workspace folder opening
+// ---------------------------------------------------------------------------
 
 async function openLocalWorkspaceFolder(): Promise<boolean> {
 	if (!isFsaMode) {
@@ -736,6 +562,310 @@ async function openLocalWorkspaceFolder(): Promise<boolean> {
 	return true;
 }
 
+// ---------------------------------------------------------------------------
+// Status-bar item factory
+// ---------------------------------------------------------------------------
+
+function addStatusBarItem(text: string, tooltip: string, commandId: string, priority: number) {
+	const item = window.createStatusBarItem(StatusBarAlignment.Right, priority);
+	item.text = text;
+	item.tooltip = tooltip;
+	item.command = commandId;
+	item.show();
+}
+
+// ---------------------------------------------------------------------------
+// Extension activation
+// ---------------------------------------------------------------------------
+
+async function activateTargetExtension(): Promise<void> {
+	debugLog('[extensions] builtin', getBuiltinExtensions().map((ext) => ext.identifier.id));
+
+	const extensionService = await getService(IExtensionService);
+	await extensionService.whenInstalledExtensionsRegistered();
+	const extensionsWorkbenchService = await getService(IExtensionsWorkbenchService);
+	await extensionsWorkbenchService.whenInitialized;
+
+	debugLog('[extensions] workbench local', extensionsWorkbenchService.local.map((ext) => ext.identifier.id));
+	debugLog('[extensions] workbench installed', extensionsWorkbenchService.installed.map((ext) => ext.identifier.id));
+
+	await extensionsWorkbenchService.openSearch('@builtin');
+
+	try {
+		await extensionService.activateById(new ExtensionIdentifier(TARGET_EXTENSION_ID), {
+			startup: false,
+			extensionId: new ExtensionIdentifier(TARGET_EXTENSION_ID),
+			activationEvent: 'onDemand',
+		});
+		debugLog('[extensions] activated by service', TARGET_EXTENSION_ID);
+	} catch (error) {
+		console.error('[extensions] service activate failed', error);
+	}
+
+	const extension = extensions.getExtension(TARGET_EXTENSION_ID);
+	debugLog('[extensions] total', extensions.all.length);
+	debugLog('[extensions] target', TARGET_EXTENSION_ID, extension);
+
+	if (!extension) {
+		debugLog('[extensions] target not found');
+		return;
+	}
+
+	debugLog('[extensions] isActive before', extension.isActive);
+	try {
+		await extension.activate();
+		debugLog('[extensions] isActive after', extension.isActive);
+	} catch (error) {
+		console.error('[extensions] activate failed', error);
+	}
+}
+
+// ===========================================================================
+// Main initialisation flow
+// ===========================================================================
+
+const baseConfig = {
+	'workbench.activityBar.visible': true,
+	'workbench.sideBar.location': 'left',
+	'workbench.statusBar.visible': true,
+	'editor.codeLens': true,
+	// The monaco-editor-wrapper registers editor.quickSuggestions=false as a
+	// default override.  Re-enable it so that typing inside a word (e.g. an
+	// account name in a posting) auto-triggers textDocument/completion via the
+	// LSP triggerKind "Invoked" path, not only via explicit triggerCharacters.
+	'editor.quickSuggestions': {
+		other: 'on',
+		comments: 'off',
+		strings: 'off',
+	},
+};
+
+// --- Mode detection --------------------------------------------------------
+
+type PlaygroundFsMode = 'memfs' | 'fsa';
+const requestedFsMode = new URLSearchParams(globalThis.location.search).get('fs');
+const fsMode: PlaygroundFsMode = requestedFsMode?.toLowerCase() === 'fsa' ? 'fsa' : 'memfs';
+const isMemfsMode = fsMode === 'memfs';
+const isFsaMode = fsMode === 'fsa';
+const fsaWorkspaceUri = URI.from({ scheme: 'vscode-userdata', path: '/workspaces/fsa.code-workspace' });
+
+// --- Resolve initial state from URL hash or defaults -----------------------
+
+const shareFromHash = isMemfsMode ? await tryLoadShareStateFromHash() : null;
+debugLog('init mode', { fsMode, fromHash: Boolean(shareFromHash) });
+
+const initialFiles: DemoFile[] = isMemfsMode
+	? (shareFromHash?.files ?? (defaultFiles as DemoFile[]))
+	: [];
+const initialConfig: Record<string, unknown> = isMemfsMode && shareFromHash
+	? { ...baseConfig, ...(shareFromHash.config ?? {}) }
+	: { ...baseConfig, ...(defaultUserConfig as Record<string, unknown>) };
+let activeFile: string | undefined = isMemfsMode
+	? (shareFromHash?.activeFile ?? DEFAULT_MAIN_BEAN)
+	: undefined;
+debugLog('initialConfig', initialConfig);
+
+// --- Mutable playground state ----------------------------------------------
+
+const stateFiles = new Map<string, string>(initialFiles.map((f) => [f.path, f.content]));
+let stateConfig: Record<string, unknown> = { ...initialConfig };
+
+// Apply config as early as possible (before initialize / extension host startup),
+// so the Beancount extension reads the intended settings during activation.
+debugLog('pre-initialize updateUserConfiguration', { keys: Object.keys(stateConfig).length });
+updateUserConfiguration(JSON.stringify(stateConfig));
+
+if (isMemfsMode) {
+	for (const file of initialFiles) {
+		registerFile(new RegisteredMemoryFile(URI.file(file.path), file.content));
+	}
+}
+
+// --- FSA provider setup ----------------------------------------------------
+
+// In FSA mode, replace the default `file://` provider directly.
+// Using an overlay provider keeps workbench fallback path-input flow instead of browser picker.
+if (isFsaMode && getFileSystemAccessWindow() && typeof FileSystemDirectoryHandle !== 'undefined') {
+	try {
+		await createIndexedDBProviders();
+		await initFile(
+			fsaWorkspaceUri,
+			JSON.stringify({ folders: [] }),
+		);
+		registerHTMLFileSystemProvider();
+		debugLog('browser file system access provider enabled');
+	} catch (error) {
+		console.warn('[playground] failed to enable browser file system access provider', error);
+	}
+}
+
+// --- Workbench initialisation ----------------------------------------------
+
+debugLog('before initialize');
+let initResolved = false;
+const workspaceProvider = isFsaMode
+	? {
+		open: async () => false,
+		workspace: { workspaceUri: fsaWorkspaceUri, label: 'FSA' },
+		trusted: true,
+	}
+	: undefined;
+
+const initPromise = initialize(
+	{
+		productConfiguration: {
+			extensionsGallery: {
+				serviceUrl: 'https://open-vsx.org/vscode/gallery',
+				itemUrl: 'https://open-vsx.org/vscode/item',
+				resourceUrlTemplate: 'https://open-vsx.org/vscode/unpkg/{publisher}/{name}/{version}/{path}',
+			},
+			linkProtectionTrustedDomains: ['https://open-vsx.org'],
+		},
+		workspaceProvider,
+	},
+	{ container: document.getElementById('workbench')! },
+)
+	.then(() => {
+		initResolved = true;
+		debugLog('initialize resolved');
+	})
+	.catch((error: unknown) => {
+		console.error('[playground] initialize failed', error);
+	});
+
+// In production builds, initialize() can appear "stuck" even though the workbench partially works.
+// Don't block config/hash on that; continue after a short timeout and apply config anyway.
+let initTimedOut = false;
+await Promise.race([
+	initPromise,
+	new Promise<void>((resolve) => {
+		setTimeout(() => {
+			initTimedOut = true;
+			debugLog('initialize timed out (continuing anyway)');
+			resolve();
+		}, INIT_TIMEOUT_MS);
+	}),
+]);
+debugLog('after initialize race', { initResolved, initTimedOut });
+
+// --- Post-init patches & config --------------------------------------------
+
+if (isFsaMode) {
+	await patchSearchServiceForGlobFindFiles();
+	await patchFsaProviderHandleResolution();
+	await commands.executeCommand('workbench.action.closeAllEditors');
+}
+
+debugLog('applied initial stateConfig', { keys: Object.keys(stateConfig).length });
+await applyConfigHard('init apply', stateConfig);
+setTimeout(() => {
+	logConfigSnapshot('init apply (next tick)');
+}, 0);
+
+// If initialize resolves later, re-apply once more to defeat late default overrides.
+void initPromise.then(async () => {
+	if (isFsaMode) {
+		await patchSearchServiceForGlobFindFiles();
+		await patchFsaProviderHandleResolution();
+	}
+	await applyConfigHard('init apply (post-initialize)', stateConfig);
+});
+
+// --- Share-hash live tracking ----------------------------------------------
+
+let shareHashTimer: ReturnType<typeof setTimeout> | undefined;
+function updateShareHashSoon() {
+	if (!isMemfsMode) {
+		return;
+	}
+	if (shareHashTimer != null) {
+		globalThis.clearTimeout(shareHashTimer);
+	}
+	shareHashTimer = globalThis.setTimeout(() => {
+		void updateShareHashNow();
+	}, 600);
+}
+
+async function updateShareHashNow() {
+	if (!isMemfsMode) {
+		return;
+	}
+	debugLog('updateShareHashNow start');
+	const files = Array.from(stateFiles.entries())
+		.filter(([path]) => path.startsWith(PROJECT_PATH_PREFIX))
+		.sort(([a], [b]) => a.localeCompare(b))
+		.map(([path, content]) => ({ path, content }));
+	const state: ShareStateV1 = {
+		v: 1,
+		files,
+		config: stateConfig,
+		activeFile,
+	};
+	await setShareHash(state);
+	debugLog('updateShareHashNow done', { files: files.length, activeFile });
+}
+
+function refreshTrackedConfig() {
+	const cfg = workspace.getConfiguration();
+	const next: Record<string, unknown> = {};
+	const diffs: Array<{ key: string; expected: unknown; actual: unknown }> = [];
+	for (const key of Object.keys(stateConfig)) {
+		const actual = cfg.get(key);
+		next[key] = actual;
+		const expected = stateConfig[key];
+		// Shallow-ish compare for logging only.
+		if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+			diffs.push({ key, expected, actual });
+		}
+	}
+	// Keep config stable by preserving insertion order of stateConfig keys
+	stateConfig = { ...stateConfig, ...next };
+	debugLog('refreshTrackedConfig', { diffs: diffs.slice(0, 10), diffCount: diffs.length });
+	logConfigSnapshot('refreshTrackedConfig snapshot');
+}
+
+// --- Event listeners -------------------------------------------------------
+
+workspace.onDidChangeTextDocument((e) => {
+	if (!isProjectFile(e.document.uri)) {
+		return;
+	}
+	stateFiles.set(e.document.uri.path, e.document.getText());
+	updateShareHashSoon();
+});
+
+workspace.onDidOpenTextDocument((doc) => {
+	if (!isProjectFile(doc.uri)) {
+		return;
+	}
+	if (!stateFiles.has(doc.uri.path)) {
+		stateFiles.set(doc.uri.path, doc.getText());
+		updateShareHashSoon();
+	}
+});
+
+window.onDidChangeActiveTextEditor((editor) => {
+	if (!editor || !isProjectFile(editor.document.uri)) {
+		return;
+	}
+	activeFile = editor.document.uri.path;
+	updateShareHashSoon();
+});
+
+workspace.onDidChangeConfiguration(() => {
+	debugLog('onDidChangeConfiguration');
+	refreshTrackedConfig();
+	updateShareHashSoon();
+});
+
+workspace.onDidChangeWorkspaceFolders(() => {
+	if (isFsaMode) {
+		void alignFsaWorkspaceFolderHandles();
+	}
+});
+
+// --- Demo commands ---------------------------------------------------------
+
 commands.registerCommand('demo.copyShareUrl', async () => {
 	if (!isMemfsMode) {
 		void window.showInformationMessage('Share URL is only available in memfs mode.');
@@ -760,12 +890,15 @@ commands.registerCommand('demo.resetDemo', () => {
 	globalThis.history.replaceState(null, '', nextUrl);
 	globalThis.location.reload();
 });
+
 commands.registerCommand('demo.openLocalWorkspace', () => {
 	void openLocalWorkspaceFolder();
 });
 
 refreshTrackedConfig();
 updateShareHashSoon();
+
+// --- LSP client VSIX -------------------------------------------------------
 
 try {
 	await lspClientReady();
@@ -781,87 +914,27 @@ setTimeout(() => {
 	logConfigSnapshot('post-vsix apply (next tick)');
 }, 0);
 
-if (isMemfsMode) {
-	const shareItem = window.createStatusBarItem(StatusBarAlignment.Right, 200);
-	shareItem.text = 'Share';
-	shareItem.tooltip = 'Copy a fully reproducible URL (includes files + config)';
-	shareItem.command = 'demo.copyShareUrl';
-	shareItem.show();
+// --- Status bar items ------------------------------------------------------
 
-	const resetItem = window.createStatusBarItem(StatusBarAlignment.Right, 199);
-	resetItem.text = 'Reset';
-	resetItem.tooltip = 'Reset demo to defaults';
-	resetItem.command = 'demo.resetDemo';
-	resetItem.show();
+if (isMemfsMode) {
+	addStatusBarItem('Share', 'Copy a fully reproducible URL (includes files + config)', 'demo.copyShareUrl', 200);
+	addStatusBarItem('Reset', 'Reset demo to defaults', 'demo.resetDemo', 199);
 }
 if (isFsaMode) {
-	const openLocalItem = window.createStatusBarItem(StatusBarAlignment.Right, 198);
-	openLocalItem.text = 'Open Local';
-	openLocalItem.tooltip = 'Open a local folder via Browser File System Access API';
-	openLocalItem.command = 'demo.openLocalWorkspace';
-	openLocalItem.show();
-}
-	if (DEBUG) {
-		console.log('[extensions] builtin', getBuiltinExtensions().map((ext) => ext.identifier.id));
-	}
-
-const targetExtensionId = 'fengkx.beancount-lsp-client';
-const extensionService = await getService(IExtensionService);
-await extensionService.whenInstalledExtensionsRegistered();
-const extensionsWorkbenchService = await getService(IExtensionsWorkbenchService);
-await extensionsWorkbenchService.whenInitialized;
-	if (DEBUG) {
-		console.log(
-			'[extensions] workbench local',
-			extensionsWorkbenchService.local.map((ext) => ext.identifier.id),
-		);
-		console.log(
-			'[extensions] workbench installed',
-			extensionsWorkbenchService.installed.map((ext) => ext.identifier.id),
-		);
-	}
-await extensionsWorkbenchService.openSearch('@builtin');
-try {
-	await extensionService.activateById(new ExtensionIdentifier(targetExtensionId), {
-		startup: false,
-		extensionId: new ExtensionIdentifier(targetExtensionId),
-		activationEvent: 'onDemand',
-	});
-		if (DEBUG) {
-			console.log('[extensions] activated by service', targetExtensionId);
-		}
-} catch (error) {
-	console.error('[extensions] service activate failed', error);
+	addStatusBarItem('Open Local', 'Open a local folder via Browser File System Access API', 'demo.openLocalWorkspace', 198);
 }
 
-const extension = extensions.getExtension(targetExtensionId);
-	if (DEBUG) {
-		console.log('[extensions] total', extensions.all.length);
-		console.log('[extensions] target', targetExtensionId, extension);
-	}
-	if (!extension) {
-		if (DEBUG) {
-			console.warn('[extensions] target not found');
-		}
-	} else {
-		if (DEBUG) {
-			console.log('[extensions] isActive before', extension.isActive);
-		}
-		try {
-			await extension.activate();
-			if (DEBUG) {
-				console.log('[extensions] isActive after', extension.isActive);
-			}
-		} catch (error) {
-			console.error('[extensions] activate failed', error);
-		}
-	}
+// --- Extension activation --------------------------------------------------
+
+await activateTargetExtension();
+
+// --- Open initial file -----------------------------------------------------
 
 if (isMemfsMode) {
-	if (activeFile && activeFile.startsWith('/tmp/project/') && stateFiles.has(activeFile)) {
+	if (activeFile && activeFile.startsWith(PROJECT_PATH_PREFIX) && stateFiles.has(activeFile)) {
 		await openProjectFile(activeFile);
 	} else {
-		activeFile = '/tmp/project/main.bean';
+		activeFile = DEFAULT_MAIN_BEAN;
 		await openProjectFile(activeFile);
 	}
 } else {
