@@ -10,6 +10,10 @@ A VSCode extension (Language Server) for Beancount plain text accounting, provid
 
 It can be run fully in a browser, which means you can use it in [VSCode for Web](https://vscode.dev/) and [github.dev](https://github.dev/) without any additional setup (even without bean and python).
 
+## Try Online
+
+**[Online Preview Demo](https://fengkx.github.io/beancount-lsp)** - Try the extension in your browser (note: browser version has limited features compared to the desktop VSCode extension).
+
 ## Features
 
 ### Core Language Features

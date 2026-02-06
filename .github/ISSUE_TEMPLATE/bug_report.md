@@ -18,11 +18,16 @@ assignees: ''
 
 ## Minimal Beancount Example
 
-<!-- Please provide the smallest possible Beancount text that reproduces the issue: -->
+<!-- Please provide the smallest possible Beancount text that reproduces the issue.
+You can also use the Online Preview Demo (https://fengkx.github.io/beancount-lsp) to reproduce
+the issue and share the URL here. -->
 
 ```beancount
 <replace with beancount text>
 ```
+
+<!-- Or share a link from the Online Preview Demo: -->
+<!-- Demo URL: (paste URL here if applicable) -->
 
 ## Expected Behavior
 
