@@ -1,6 +1,12 @@
 import { Logger } from '@bean-lsp/shared';
 import Big from 'big.js';
-import { Connection, Diagnostic, DiagnosticSeverity } from 'vscode-languageserver';
+import {
+	CancellationToken,
+	CancellationTokenSource,
+	Connection,
+	Diagnostic,
+	DiagnosticSeverity,
+} from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { URI } from 'vscode-uri';
 import { asLspRange } from '../common';
@@ -37,6 +43,7 @@ export class DiagnosticsFeature implements Feature {
 		warnOnIncompleteTransaction: true, // Default to show warnings for incomplete transactions
 	};
 	private diagnosticsFromBeancount: { [uri: string]: Diagnostic[] } = {};
+	private readonly validationTokenByUri = new Map<string, CancellationTokenSource>();
 
 	constructor(
 		private readonly documents: DocumentStore,
@@ -108,6 +115,14 @@ export class DiagnosticsFeature implements Feature {
 		} catch (error) {
 			this.logger.error(`Error fetching configuration: ${error}`);
 		}
+
+		connection.onExit(() => {
+			for (const source of this.validationTokenByUri.values()) {
+				source.cancel();
+				source.dispose();
+			}
+			this.validationTokenByUri.clear();
+		});
 	}
 
 	private async validateAllDocuments(connection: Connection): Promise<void> {
@@ -180,23 +195,60 @@ export class DiagnosticsFeature implements Feature {
 
 	private async validateDocument(document: TextDocument, connection: Connection): Promise<void> {
 		if (isNotGitUri(document.uri)) {
+			const tokenSource = this.createValidationToken(document.uri);
 			try {
-				const diagnostics = await this.provideDiagnostics(document);
+				const diagnostics = await this.provideDiagnostics(document, tokenSource.token);
+				if (tokenSource.token.isCancellationRequested) {
+					return;
+				}
 				connection.sendDiagnostics({
 					uri: document.uri,
 					diagnostics,
 				});
 			} catch (err) {
+				if (this.isCancellationError(err)) {
+					return;
+				}
 				this.logger.error(`Error validating document: ${err}`);
+			} finally {
+				if (this.validationTokenByUri.get(document.uri) === tokenSource) {
+					this.validationTokenByUri.delete(document.uri);
+				}
+				tokenSource.dispose();
 			}
 		}
 	}
 
-	private async provideDiagnostics(document: TextDocument): Promise<Diagnostic[]> {
+	private createValidationToken(uri: string): CancellationTokenSource {
+		const previous = this.validationTokenByUri.get(uri);
+		if (previous) {
+			previous.cancel();
+			previous.dispose();
+		}
+		const next = new CancellationTokenSource();
+		this.validationTokenByUri.set(uri, next);
+		return next;
+	}
+
+	private throwIfCancelled(token: CancellationToken): void {
+		if (token.isCancellationRequested) {
+			const error = new Error('diagnostics cancelled');
+			error.name = 'CancellationError';
+			throw error;
+		}
+	}
+
+	private isCancellationError(err: unknown): boolean {
+		return err instanceof Error && err.name === 'CancellationError';
+	}
+
+	private async provideDiagnostics(document: TextDocument, token: CancellationToken): Promise<Diagnostic[]> {
+		this.throwIfCancelled(token);
 		const tree = await this.trees.getParseTree(document);
 		if (!tree) {
 			return [];
 		}
+		this.throwIfCancelled(token);
 
 		const diagnostics: Diagnostic[] = [];
 
@@ -209,13 +261,16 @@ export class DiagnosticsFeature implements Feature {
 
 		// Find all transactions in the document
 		const transactions = await findAllTransactions(tree, document);
+		this.throwIfCancelled(token);
 
 		// Check each transaction for balance - with chunking for performance
 		const CHUNK_SIZE = 50; // Process transactions in chunks to avoid blocking UI
 		for (let i = 0; i < transactions.length; i += CHUNK_SIZE) {
+			this.throwIfCancelled(token);
 			const chunk = transactions.slice(i, i + CHUNK_SIZE);
 
 			for (const transaction of chunk) {
+				this.throwIfCancelled(token);
 				// Check for pending transactions (marked with '!')
 				if (transaction.flag === '!' && this.config.warnOnIncompleteTransaction) {
 					diagnostics.push({
@@ -272,6 +327,7 @@ export class DiagnosticsFeature implements Feature {
 				await new Promise(resolve => setTimeout(resolve, 0));
 			}
 		}
+		this.throwIfCancelled(token);
 		if (document.lineCount <= 10000 && tree.rootNode.hasError()) {
 			// Skip the diagnostics tip if the document is too large to avoid performance issues
 			// But there is still code action to fix the incomplete balance lines
@@ -302,7 +358,8 @@ export class DiagnosticsFeature implements Feature {
 		}
 
 		// Validate account root names
-		await this.validateAccountRoots(tree, diagnostics);
+		await this.validateAccountRoots(tree, diagnostics, token);
+		this.throwIfCancelled(token);
 
 		const beancountDiagnostics = this.diagnosticsFromBeancount[document.uri];
 		if (!beancountDiagnostics) {
@@ -486,17 +543,21 @@ export class DiagnosticsFeature implements Feature {
 	private async validateAccountRoots(
 		tree: import('web-tree-sitter').Tree,
 		diagnostics: Diagnostic[],
+		token: CancellationToken,
 	): Promise<void> {
+		this.throwIfCancelled(token);
 		const validRoots = this.optionsManager.getValidRootAccounts();
 		
 		// Query all account nodes
 		const accountQuery = TreeQuery.getQueryByTokenName('account');
 		const accountCaptures = await accountQuery.captures(tree);
+		this.throwIfCancelled(token);
 		
 		// Track seen accounts to avoid duplicate diagnostics
 		const seenAccounts = new Set<string>();
 		
 		for (const capture of accountCaptures) {
+			this.throwIfCancelled(token);
 			const accountNode = capture.node;
 			const accountName = accountNode.text;
 			
