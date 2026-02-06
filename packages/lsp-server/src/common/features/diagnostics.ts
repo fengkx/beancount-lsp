@@ -63,7 +63,9 @@ export class DiagnosticsFeature implements Feature {
 
 		// Listen for configuration changes
 		globalEventBus.on(GlobalEvents.ConfigurationChanged, async () => {
-			const configuration = await connection.workspace.getConfiguration();
+			// Use first workspace folder as scopeUri for global configuration
+			const scopeUri = (await connection.workspace.getWorkspaceFolders())?.[0]?.uri;
+			const configuration = await connection.workspace.getConfiguration({ scopeUri });
 			if (configuration.settings?.beancount?.diagnostics) {
 				const diagnosticsSettings = configuration.settings.beancount.diagnostics;
 				if (typeof diagnosticsSettings.tolerance === 'number') {
@@ -90,7 +92,9 @@ export class DiagnosticsFeature implements Feature {
 
 		// Fetch the configuration initially
 		try {
-			const configuration = await connection.workspace.getConfiguration();
+			// Use first workspace folder as scopeUri for global configuration
+			const scopeUri = (await connection.workspace.getWorkspaceFolders())?.[0]?.uri;
+			const configuration = await connection.workspace.getConfiguration({ scopeUri });
 			const diagnosticsSettings = configuration?.beancount?.diagnostics;
 
 			if (diagnosticsSettings?.tolerance !== undefined) {

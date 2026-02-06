@@ -47,7 +47,12 @@ export class HoverFeature implements Feature {
 
 	private async updateIncludeSubaccountBalance(connection: lsp.Connection): Promise<void> {
 		try {
-			const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });
+			// Use first workspace folder as scopeUri for global configuration
+			const scopeUri = (await connection.workspace.getWorkspaceFolders())?.[0]?.uri;
+			const config = await connection.workspace.getConfiguration({ 
+				scopeUri, 
+				section: 'beanLsp' 
+			});
 			if (config.hover !== undefined) {
 				const includeSubaccountBalance = config.hover?.includeSubaccountBalance ?? false; // Default to false if not specified
 				this.setIncludeSubaccountBalance(includeSubaccountBalance);

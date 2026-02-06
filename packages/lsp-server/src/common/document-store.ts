@@ -217,14 +217,16 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 		return this._documentsCache.delete(uri);
 	}
 
-	private async getConfiguration() {
-		const config = await this._connection.workspace.getConfiguration({ section: 'beanLsp' });
+	private async getConfiguration(scopeUri?: string) {
+		const config = await this._connection.workspace.getConfiguration({ 
+			scopeUri, 
+			section: 'beanLsp' 
+		});
 		this.logger.info(config);
 		return config;
 	}
 
 	public async getMainBeanFileUri(): Promise<string | null> {
-		const config = await this.getConfiguration();
 		const workspace = await this._connection.workspace.getWorkspaceFolders();
 
 		if (!workspace) {
@@ -232,15 +234,19 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 			return null;
 		}
 
-		if (workspace && !config.mainBeanFile) {
-			this._connection!.window.showWarningMessage(
-				`Using default 'main.bean' as mainBeanFile, You should configure 'beanLsp.mainBeanFile'`,
-			);
-		}
 		const rootUri = workspace[0]?.uri;
 
 		if (!rootUri) {
 			return null;
+		}
+
+		// Use workspace folder URI as scopeUri for configuration
+		const config = await this.getConfiguration(rootUri);
+
+		if (workspace && !config.mainBeanFile) {
+			this._connection!.window.showWarningMessage(
+				`Using default 'main.bean' as mainBeanFile, You should configure 'beanLsp.mainBeanFile'`,
+			);
 		}
 
 		const mainAbsPath = UriUtils.joinPath(URI.parse(rootUri), config.mainBeanFile ?? 'main.bean');

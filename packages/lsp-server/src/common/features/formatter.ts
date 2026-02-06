@@ -59,7 +59,12 @@ export class FormatterFeature implements Feature {
 	 */
 	private async updateFormatterConfig(connection: Connection): Promise<void> {
 		try {
-			const config = await connection.workspace.getConfiguration({ section: 'beanLsp' });
+			// Use first workspace folder as scopeUri for global configuration
+			const scopeUri = (await connection.workspace.getWorkspaceFolders())?.[0]?.uri;
+			const config = await connection.workspace.getConfiguration({ 
+				scopeUri, 
+				section: 'beanLsp' 
+			});
 			if (config?.formatter !== undefined) {
 				const formatterEnabled = config.formatter?.enabled !== false; // Default to true if not specified
 				this.setFormatterEnabled(formatterEnabled);
