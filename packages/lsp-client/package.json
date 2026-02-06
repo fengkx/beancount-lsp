@@ -142,11 +142,12 @@
 					"default": "main.bean",
 					"description": "Specifies the main Beancount file to use for analysis. This should be relative to the workspace root."
 				},
-				"beanLsp.python3Path": {
-					"type": "string",
-					"default": "",
-					"description": "Path to Python 3 executable. If empty, the system default Python 3 will be used. This Python installation should have the beancount package installed."
-				},
+			"beanLsp.python3Path": {
+				"scope": "resource",
+				"type": "string",
+				"default": "",
+				"description": "Path to Python 3 executable. If empty, the system default Python 3 will be used. This Python installation should have the beancount package installed."
+			},
 				"beanLsp.browserWasmBeancount.enabled": {
 					"scope": "resource",
 					"type": "string",
@@ -179,59 +180,69 @@
 					"default": true,
 					"description": "Show warnings for incomplete transactions (marked with '!' flag). These are transactions that are considered unconfirmed in Beancount."
 				},
-				"beanLsp.inlayHints.enable": {
-					"type": "boolean",
-					"default": true,
-					"description": "Enable inlay hints for Beancount files."
+			"beanLsp.inlayHints.enable": {
+				"scope": "resource",
+				"type": "boolean",
+				"default": true,
+				"description": "Enable inlay hints for Beancount files."
+			},
+			"beanLsp.codeLens.enable": {
+				"scope": "resource",
+				"type": "boolean",
+				"default": true,
+				"description": "Master switch to enable or disable all code lens."
+			},
+			"beanLsp.codeLens.accountBalance.enable": {
+				"scope": "resource",
+				"type": "boolean",
+				"default": true,
+				"description": "Enable or disable code lens for open directives showing account balances."
+			},
+			"beanLsp.codeLens.pad.enable": {
+				"scope": "resource",
+				"type": "boolean",
+				"default": true,
+				"description": "Enable or disable code lens for pad directives showing pad amounts."
+			},
+			"beanLsp.mainCurrency": {
+				"scope": "resource",
+				"type": "string",
+				"default": "",
+				"description": "Main currency for price conversions. If empty, the most frequently used currency will be used."
+			},
+			"beanLsp.currencys": {
+				"scope": "resource",
+				"type": "array",
+				"items": {
+					"type": "string"
 				},
-				"beanLsp.codeLens.enable": {
-					"type": "boolean",
-					"default": true,
-					"description": "Master switch to enable or disable all code lens."
-				},
-				"beanLsp.codeLens.accountBalance.enable": {
-					"type": "boolean",
-					"default": true,
-					"description": "Enable or disable code lens for open directives showing account balances."
-				},
-				"beanLsp.codeLens.pad.enable": {
-					"type": "boolean",
-					"default": true,
-					"description": "Enable or disable code lens for pad directives showing pad amounts."
-				},
-				"beanLsp.mainCurrency": {
-					"type": "string",
-					"default": "",
-					"description": "Main currency for price conversions. If empty, the most frequently used currency will be used."
-				},
-				"beanLsp.currencys": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					},
-					"default": [],
-					"description": "List of currencies that should participate in price conversions. Commodities not included in this list (like stocks) will be excluded from conversion calculations. If empty, all commodities will be considered for conversions."
-				},
-				"beanLsp.formatter.enabled": {
-					"type": "boolean",
-					"default": true,
-					"description": "Enable or disable automatic formatting of Beancount files. The formatter aligns accounts, amounts (with decimal point alignment), currencies, and comments for improved readability."
-				},
-				"beanLsp.formatter.alignCurrency": {
-					"type": "boolean",
-					"default": false,
-					"description": "When true, align the currency column across postings and balance lines. When false, algin by decimal point."
-				},
-				"beanLsp.hover.includeSubaccountBalance": {
-					"type": "boolean",
-					"default": false,
-					"description": "Enable or disable the hover window including balances of subaccounts. By default, only show the balance of the hovered account."
-				},
-				"beanLsp.completion.enableChinesePinyinFilter": {
-					"type": "boolean",
-					"default": false,
-					"description": "Chinese pinyin fuzzy filter in completions. When enabled, you can use pinyin first letters to filter Chinese characters (e.g., 'zs' to match '招商')."
-				}
+				"default": [],
+				"description": "List of currencies that should participate in price conversions. Commodities not included in this list (like stocks) will be excluded from conversion calculations. If empty, all commodities will be considered for conversions."
+			},
+			"beanLsp.formatter.enabled": {
+				"scope": "resource",
+				"type": "boolean",
+				"default": true,
+				"description": "Enable or disable automatic formatting of Beancount files. The formatter aligns accounts, amounts (with decimal point alignment), currencies, and comments for improved readability."
+			},
+			"beanLsp.formatter.alignCurrency": {
+				"scope": "resource",
+				"type": "boolean",
+				"default": false,
+				"description": "When true, align the currency column across postings and balance lines. When false, algin by decimal point."
+			},
+			"beanLsp.hover.includeSubaccountBalance": {
+				"scope": "resource",
+				"type": "boolean",
+				"default": false,
+				"description": "Enable or disable the hover window including balances of subaccounts. By default, only show the balance of the hovered account."
+			},
+			"beanLsp.completion.enableChinesePinyinFilter": {
+				"scope": "resource",
+				"type": "boolean",
+				"default": false,
+				"description": "Chinese pinyin fuzzy filter in completions. When enabled, you can use pinyin first letters to filter Chinese characters (e.g., 'zs' to match '招商')."
+			}
 			}
 		},
 		"configurationDefaults": {
