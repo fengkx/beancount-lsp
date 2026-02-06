@@ -17,6 +17,12 @@ interface FileTree {
 	reset: (files: FileUpdate[]) => void;
 }
 
+interface PyProxy {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	toJs: (options?: { dict_converter?: (...args: any[]) => any; create_pyproxies?: boolean }) => unknown;
+	destroy: () => void;
+}
+
 interface PyodideRuntime {
 	runPythonAsync: (code: string) => Promise<unknown>;
 	globals: {
@@ -60,8 +66,7 @@ if "run_beancheck" not in beancheck_namespace:
 `;
 
 const BEANCHECK_RUN_WRAPPER = String.raw`
-import json
-json.dumps(beancheck_namespace["run_beancheck"](entry_path))
+beancheck_namespace["run_beancheck"](entry_path)
 `;
 
 let runtimeState: RuntimeState | null = null;
@@ -184,8 +189,21 @@ async function beancheck(entryFile: string): Promise<string> {
 	}
 	const entryPath = `${WORK_ROOT}/${entryFile}`;
 	runtime.pyodide.globals.set('entry_path', entryPath);
-	const result = await runtime.pyodide.runPythonAsync(BEANCHECK_RUN_WRAPPER);
-	return result as string;
+	const pyResult = await runtime.pyodide.runPythonAsync(BEANCHECK_RUN_WRAPPER);
+	// Use Pyodide's toJs() to convert Python dict to JS object, then native
+	// JSON.stringify. This avoids running json.dumps inside WASM Python which
+	// is 3-10x slower than native V8 JSON serialization.
+	if (pyResult != null && typeof (pyResult as PyProxy).toJs === 'function') {
+		const proxy = pyResult as PyProxy;
+		try {
+			const jsResult = proxy.toJs({ dict_converter: Object.fromEntries });
+			return JSON.stringify(jsResult);
+		} finally {
+			proxy.destroy();
+		}
+	}
+	// Fallback: result is already a string (e.g. if Python returned json.dumps)
+	return pyResult as string;
 }
 
 const workerApi: WorkerApi = {

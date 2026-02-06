@@ -38,14 +38,11 @@ import traceback
 from beancount import loader
 from beancount.core import convert, flags
 from beancount.core.data import Transaction, Open, Close, Pad
-from beancount.core.display_context import Align
 from beancount.core.realization import (
     compute_balance,
-    dump_balances,
     realize,
     iter_children,
 )
-import io
 import json
 import argparse
 
@@ -103,8 +100,6 @@ def run_beancheck(file: str, payee_narration: bool = False):
 
     general = {}
     accounts = {}
-    # Keep this map for backward compatibility with previous logic.
-    automatics = defaultdict(dict)
     pad_entries = {}
     pad_amounts = defaultdict(lambda: defaultdict(dict))
     commodities = set()
@@ -113,6 +108,7 @@ def run_beancheck(file: str, payee_narration: bool = False):
     tags = set()
     links = set()
     flagged_entries = []
+    padding_transactions = []
 
     for entry in entries:
         if isinstance(entry, Pad):
@@ -128,27 +124,17 @@ def run_beancheck(file: str, payee_narration: bool = False):
         if isinstance(entry, Transaction):
             if completePayeeNarration:
                 payees.add(f"{entry.payee}")
-            if not entry.narration.startswith("(Padding inserted"):
+            if entry.narration.startswith("(Padding inserted"):
+                padding_transactions.append(entry)
+            else:
                 if completePayeeNarration:
                     narrations.add(f"{entry.narration}")
                 tags.update(entry.tags)
                 links.update(entry.links)
-            txn_commodities = set()
             for posting in entry.postings:
-                txn_commodities.add(posting.units.currency)
+                commodities.add(posting.units.currency)
                 if hasattr(posting, "flag") and posting.flag == "!":
                     flagged_entries.append(get_flag_metadata(posting))
-                if posting.meta and posting.meta.get("__automatic__", False) is True:
-                    # only send the posting if more than 2 legs in txn, or multiple commodities
-                    if len(entry.postings) > 2 or len(txn_commodities) > 1:
-                        amounts = automatics[posting.meta["filename"]].get(
-                            posting.meta["lineno"], []
-                        )
-                        amounts.append(posting.units.to_string())
-                        automatics[posting.meta["filename"]][posting.meta["lineno"]] = (
-                            amounts
-                        )
-            commodities.update(txn_commodities)
         elif isinstance(entry, Open):
             accounts[entry.account] = {
                 "open": entry.date.__str__(),
@@ -163,11 +149,7 @@ def run_beancheck(file: str, payee_narration: bool = False):
             except:
                 continue
 
-    for entry in entries:
-        if not isinstance(entry, Transaction):
-            continue
-        if not entry.narration.startswith("(Padding inserted"):
-            continue
+    for entry in padding_transactions:
         filename, lineno = _pad_ref_from_meta(entry.meta or {})
         if not filename or not lineno:
             for posting in entry.postings:
@@ -203,35 +185,19 @@ def run_beancheck(file: str, payee_narration: bool = False):
             for currency, number in chosen_totals.items():
                 totals[currency] = totals.get(currency, ZERO) + number
 
-    f = io.StringIO("")
     realized_entries = realize(entries)
-    dump_balances(
-        realized_entries,
-        options["dcontext"].build(alignment=Align.DOT, reserved=2),
-        at_cost=True,
-        fullnames=True,
-        file=f,
-    )
-
-    for line in f.getvalue().split("\n"):
-        if len(line) > 0:
-            parts = [p for p in line.split(" ", 2) if len(p) > 0]
-            if len(parts) > 1:
-                stripped_balance = parts[1].strip()
-                if len(stripped_balance) > 0:
-                    try:
-                        accounts[parts[0]]["balance"].append(stripped_balance)
-                    except:
-                        continue
-
     for real_account in iter_children(realized_entries):
-        inventory = compute_balance(real_account)
-        if accounts.get(real_account.account) is None:
+        acct = accounts.get(real_account.account)
+        if acct is None:
             continue
-        for position in inventory.reduce(convert.get_cost).get_positions():
-            accounts[real_account.account]["balance_incl_subaccounts"].append(
-                position.units.to_string()
-            )
+        # Own balance at cost (replaces dump_balances + text parsing)
+        own_cost = real_account.balance.reduce(convert.get_cost)
+        for position in own_cost.get_positions():
+            acct["balance"].append(position.units.to_string())
+        # Cumulative balance including sub-accounts at cost
+        total_cost = compute_balance(real_account).reduce(convert.get_cost)
+        for position in total_cost.get_positions():
+            acct["balance_incl_subaccounts"].append(position.units.to_string())
 
     payees.discard("")
     payees.discard("None")
