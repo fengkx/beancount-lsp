@@ -7,6 +7,9 @@ import '@codingame/monaco-editor-wrapper/features/extensionGallery';
 import '@codingame/monaco-editor-wrapper/features/extensionHostWorker';
 import '@codingame/monaco-editor-wrapper/features/viewPanels';
 import '@codingame/monaco-vscode-api/vscode/vs/editor/contrib/codelens/browser/codelensController';
+// Register suggest/snippet editor contributions; otherwise completion UI won't trigger LSP requests.
+import '@codingame/monaco-vscode-api/vscode/vs/editor/contrib/suggest/browser/suggestController';
+import '@codingame/monaco-vscode-api/vscode/vs/editor/contrib/snippet/browser/snippetController2';
 import { whenReady as lspClientReady } from '../lsp-client.vsix';
 
 // @ts-expect-error TODO
@@ -17,7 +20,7 @@ import { getBuiltinExtensions } from '@codingame/monaco-vscode-api/extensions';
 import { URI } from '@codingame/monaco-vscode-api/vscode/vs/base/common/uri';
 import { RegisteredMemoryFile } from '@codingame/monaco-vscode-files-service-override';
 import { ExtensionIdentifier } from '@codingame/monaco-vscode-api/vscode/vs/platform/extensions/common/extensions';
-import { commands, ConfigurationTarget, extensions, StatusBarAlignment, Uri, window, workspace } from 'vscode';
+import { commands, ConfigurationTarget, extensions, languages, StatusBarAlignment, Uri, window, workspace } from 'vscode';
 import * as pako from 'pako';
 import defaultFiles from './demo-files.json';
 import defaultUserConfig from './demo-user-config.json';
@@ -409,6 +412,31 @@ workspace.onDidChangeConfiguration(() => {
 	updateShareHashSoon();
 });
 
+async function waitForLanguage(languageId: string, timeoutMs: number): Promise<boolean> {
+	const deadline = Date.now() + timeoutMs;
+	while (Date.now() < deadline) {
+		const all = await languages.getLanguages();
+		if (all.includes(languageId)) {
+			return true;
+		}
+		await new Promise<void>(resolve => setTimeout(resolve, 100));
+	}
+	return false;
+}
+
+async function openProjectFile(path: string): Promise<void> {
+	const uri = Uri.file(path);
+	const ready = await waitForLanguage('beancount', 5000);
+	if (!ready) {
+		console.warn('[playground] beancount language registration not ready before open');
+	}
+	await commands.executeCommand('vscode.open', uri);
+	const languageId = window.activeTextEditor?.document?.uri?.toString() === uri.toString()
+		? window.activeTextEditor.document.languageId
+		: undefined;
+	debugLog('opened project file', { path, languageId, languageReady: ready });
+}
+
 commands.registerCommand('demo.copyShareUrl', async () => {
 	await updateShareHashNow();
 	const url = globalThis.location.href;
@@ -511,10 +539,10 @@ const extension = extensions.getExtension(targetExtensionId);
 	}
 
 if (activeFile && activeFile.startsWith('/tmp/project/') && stateFiles.has(activeFile)) {
-	await commands.executeCommand('vscode.open', Uri.file(activeFile));
+	await openProjectFile(activeFile);
 } else {
 	activeFile = '/tmp/project/main.bean';
-	await commands.executeCommand('vscode.open', Uri.file(activeFile));
+	await openProjectFile(activeFile);
 }
 await commands.executeCommand('workbench.view.extensions');
 await extensionsWorkbenchService.openSearch('@builtin');
