@@ -10,6 +10,7 @@ import '@codingame/monaco-vscode-api/vscode/vs/editor/contrib/codelens/browser/c
 // Register suggest/snippet editor contributions; otherwise completion UI won't trigger LSP requests.
 import '@codingame/monaco-vscode-api/vscode/vs/editor/contrib/suggest/browser/suggestController';
 import '@codingame/monaco-vscode-api/vscode/vs/editor/contrib/snippet/browser/snippetController2';
+import '@codingame/monaco-vscode-api/vscode/vs/editor/contrib/linkedEditing/browser/linkedEditing';
 import { whenReady as lspClientReady } from '../lsp-client.vsix';
 
 // @ts-expect-error TODO
