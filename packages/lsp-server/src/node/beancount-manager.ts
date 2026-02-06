@@ -193,6 +193,8 @@ class BeancheckRpcClient {
 class BeancountManager implements RealBeancountManager {
 	private mainFile: string | null = null;
 	private result: BeancheckOutput | null = null;
+	/** Stale result kept for SWR: non-diagnostic data (balances, pads) served from here while revalidating */
+	private staleResult: BeancheckOutput | null = null;
 	private padFileCache = new Map<string, Record<string, Amount[]> | null>();
 	private logger = new Logger('BeancountManager');
 	private inputGeneration = 0;
@@ -301,7 +303,10 @@ class BeancountManager implements RealBeancountManager {
 		this.inputGeneration += 1;
 
 		// Previous beancheck diagnostics no longer match the current on-disk snapshot.
+		// Keep stale result for SWR: non-diagnostic data (balances, pads) served from stale
+		// while diagnostics are cleared immediately.
 		if (this.result && this.appliedBeancheckGeneration < this.inputGeneration) {
+			this.staleResult = this.result;
 			this.result = null;
 			this.padFileCache.clear();
 			globalEventBus.emit(GlobalEvents.BeancountUpdate);
@@ -386,6 +391,7 @@ class BeancountManager implements RealBeancountManager {
 		}
 
 		this.result = result;
+		this.staleResult = null;
 		this.padFileCache.clear();
 		this.appliedBeancheckGeneration = targetGeneration;
 		globalEventBus.emit(GlobalEvents.BeancountUpdate);
@@ -404,8 +410,13 @@ class BeancountManager implements RealBeancountManager {
 		void this.scheduleBeancheckRevalidate();
 	}
 
+	/** Effective result for non-diagnostic data: current result or stale fallback (SWR) */
+	private get effectiveResult(): BeancheckOutput | null {
+		return this.result ?? this.staleResult;
+	}
+
 	getBalance(account: string, includeSubaccountBalance: boolean): Amount[] {
-		let accountDetails = this.result?.general?.accounts?.[account] as AccountDetails | null;
+		let accountDetails = this.effectiveResult?.general?.accounts?.[account] as AccountDetails | null;
 		if (!accountDetails) {
 			return [];
 		}
@@ -416,7 +427,7 @@ class BeancountManager implements RealBeancountManager {
 	}
 
 	getSubaccountBalances(account: string): Map<string, Amount[]> {
-		const accounts = this.result?.general?.accounts;
+		const accounts = this.effectiveResult?.general?.accounts;
 
 		const subaccounts = new Map();
 
@@ -440,7 +451,7 @@ class BeancountManager implements RealBeancountManager {
 	}
 
 	getPadAmounts(filePath: string, line: number): Amount[] | null {
-		const pads = this.result?.pads;
+		const pads = this.effectiveResult?.pads;
 		if (!pads) {
 			return null;
 		}
