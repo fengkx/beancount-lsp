@@ -13,8 +13,6 @@ function run(cmd, args, cwd) {
 	}
 }
 
-run('pnpm', ['-C', lspClientDir, 'run', 'vsix'], repoRoot);
-
 const candidates = fs
 	.readdirSync(lspClientDir)
 	.filter((f) => f.endsWith('.vsix'))
