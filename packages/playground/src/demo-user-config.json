@@ -2,7 +2,7 @@
   "beanLsp.maxNumberOfProblems": 2000,
   "beanLsp.trace.server": "verbose",
   "beanLsp.mainBeanFile": "main.bean",
-  "beanLsp.browserWasmBeancount.enabled": "v2",
+  "beanLsp.browserWasmBeancount.enabled": "v3",
   "beanLsp.browserWasmBeancount.extraPythonPackages": ["fava-plugins"],
   "beancount.diagnostics.tolerance": 0.005,
   "beancount.diagnostics.warnOnIncompleteTransaction": true,

@@ -43,6 +43,7 @@ import {
 import * as pako from 'pako';
 import defaultFiles from './demo-files.json';
 import defaultUserConfig from './demo-user-config.json';
+import localFileSearchWorkerUrl from '@codingame/monaco-vscode-search-service-override/worker?worker&url';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -99,7 +100,7 @@ function isProjectFile(uri: { scheme: string; path: string }): boolean {
 
 registerWorker(
 	'LocalFileSearchWorker',
-	new MonacoWorker(new URL('@codingame/monaco-vscode-search-service-override/worker', import.meta.url), {
+	new MonacoWorker(new URL(localFileSearchWorkerUrl, globalThis.location.href), {
 		type: 'module',
 	}),
 );
