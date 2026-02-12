@@ -38,11 +38,8 @@ import traceback
 from beancount import loader
 from beancount.core import convert, flags
 from beancount.core.data import Transaction, Open, Close, Pad
-from beancount.core.realization import (
-    compute_balance,
-    realize,
-    iter_children,
-)
+from beancount.core.inventory import Inventory
+from beancount.core.realization import realize
 import json
 import argparse
 
@@ -73,6 +70,7 @@ def _account_score(item):
     values = item[1].values()
     return sum(abs(v) for v in values)
 
+
 def _pad_ref_from_meta(meta):
     if not meta:
         return None, None
@@ -87,6 +85,27 @@ def _pad_ref_from_meta(meta):
     if filename and lineno:
         return filename, lineno
     return None, None
+
+
+def _collect_account_cost_balances(real_root):
+    own_cost_by_account = {}
+    total_cost_by_account = {}
+
+    def walk(real_account):
+        own_cost = real_account.balance.reduce(convert.get_cost)
+        own_cost_by_account[real_account.account] = own_cost
+
+        total_cost = own_cost.__copy__()
+        for _, child in real_account.items():
+            child_total = walk(child)
+            total_cost.add_inventory(child_total)
+
+        total_cost_by_account[real_account.account] = total_cost
+        return total_cost
+
+    walk(real_root)
+    return own_cost_by_account, total_cost_by_account
+
 
 def run_beancheck(file: str, payee_narration: bool = False):
     entries, errors, options = loader.load_file(file)
@@ -186,16 +205,13 @@ def run_beancheck(file: str, payee_narration: bool = False):
                 totals[currency] = totals.get(currency, ZERO) + number
 
     realized_entries = realize(entries)
-    for real_account in iter_children(realized_entries):
-        acct = accounts.get(real_account.account)
-        if acct is None:
-            continue
-        # Own balance at cost (replaces dump_balances + text parsing)
-        own_cost = real_account.balance.reduce(convert.get_cost)
+    own_cost_by_account, total_cost_by_account = _collect_account_cost_balances(realized_entries)
+    for account_name, acct in accounts.items():
+        own_cost = own_cost_by_account.get(account_name, Inventory())
         for position in own_cost.get_positions():
             acct["balance"].append(position.units.to_string())
-        # Cumulative balance including sub-accounts at cost
-        total_cost = compute_balance(real_account).reduce(convert.get_cost)
+
+        total_cost = total_cost_by_account.get(account_name, Inventory())
         for position in total_cost.get_positions():
             acct["balance_incl_subaccounts"].append(position.units.to_string())
 

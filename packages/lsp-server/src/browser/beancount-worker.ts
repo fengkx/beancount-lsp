@@ -57,9 +57,19 @@ interface ClientApi {
 const WORK_ROOT = '/work';
 
 const BEANCHECK_LOAD_SCRIPT = String.raw`
+import os
+
+# WASM filesystem is sync-heavy and files change frequently; disable Beancount
+# pickle cache to avoid extra cache read/write overhead.
+os.environ["BEANCOUNT_DISABLE_LOAD_CACHE"] = "1"
+
 if "beancheck_namespace" not in globals():
     beancheck_namespace = {"__name__": "beancheck_module"}
     exec(beancheck_code, beancheck_namespace)
+
+loader_module = beancheck_namespace.get("loader")
+if loader_module is not None:
+    loader_module.initialize(False)
 
 if "run_beancheck" not in beancheck_namespace:
     raise RuntimeError("run_beancheck() is not defined in beancheck.py")
