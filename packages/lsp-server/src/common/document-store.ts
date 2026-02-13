@@ -178,6 +178,10 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 		return super.get(uri);
 	}
 
+	public isOpen(uri: string): boolean {
+		return this.get(uri) !== undefined;
+	}
+
 	async retrieve(uri: string): Promise<TextDocument> {
 		const result = this.get(uri);
 		if (result) {

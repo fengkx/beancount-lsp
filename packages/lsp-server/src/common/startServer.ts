@@ -230,19 +230,25 @@ export function startServer(
 		connection.onDidChangeWatchedFiles(e => {
 			documents.refetchBeanFiles();
 			for (const { type, uri } of e.changes) {
+				if (type === FileChangeType.Created || type === FileChangeType.Deleted) {
+					documents.refetchBeanFiles();
+				}
 				switch (type) {
 					case FileChangeType.Created:
-						documents.refetchBeanFiles();
 						symbolIndex.addSyncFile(uri);
+						trees.invalidateCache(uri);
 						break;
 					case FileChangeType.Deleted:
-						documents.refetchBeanFiles();
 						symbolIndex.removeFile(uri);
 						documents.removeFile(uri);
+						trees.invalidateCache(uri);
 						break;
 					case FileChangeType.Changed:
 						symbolIndex.addSyncFile(uri);
-						documents.removeFile(uri);
+						if (!documents.isOpen(uri)) {
+							documents.removeFile(uri);
+							trees.invalidateCache(uri);
+						}
 						break;
 				}
 			}
