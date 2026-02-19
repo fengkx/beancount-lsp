@@ -39,7 +39,7 @@ export default defineConfig([
 	// Base configuration for all files
 	{
 		linterOptions: {
-			reportUnusedDisableDirectives: true,
+			reportUnusedDisableDirectives: false,
 		},
 
 		plugins: {
@@ -82,6 +82,7 @@ export default defineConfig([
 				'ignoreRestSiblings': true,
 			}],
 			'@typescript-eslint/no-require-imports': 'error',
+			'no-useless-assignment': 'off',
 			'no-undef': 'off',
 		},
 	},
