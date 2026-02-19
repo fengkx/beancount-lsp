@@ -5,28 +5,28 @@ catalogs:
   build:
     tsup: ^8.5.1
     tsx: ^4.21.0
-    turbo: ^2.7.4
+    turbo: ^2.8.10
   dev:
     nano-staged: ^0.9.0
     simple-git-hooks: ^2.13.1
   lint:
     '@eslint/eslintrc': ^3.3.3
-    '@eslint/js': ^9.39.2
-    '@typescript-eslint/eslint-plugin': ^8.53.0
-    '@typescript-eslint/parser': ^8.49.0
-    dprint: ^0.50.2
-    eslint: ^9.39.1
+    '@eslint/js': ^10.0.1
+    '@typescript-eslint/eslint-plugin': ^8.56.0
+    '@typescript-eslint/parser': ^8.56.0
+    dprint: ^0.51.1
+    eslint: ^10.0.0
     eslint-import-resolver-typescript: ^4.4.4
     eslint-plugin-import-x: ^4.16.1
-    eslint-plugin-turbo: ^2.7.4
-    eslint-plugin-unused-imports: ^4.3.0
+    eslint-plugin-turbo: ^2.8.10
+    eslint-plugin-unused-imports: ^4.4.1
   prod:
-    zod: ^4.3.5
+    zod: ^4.3.6
   types:
     '@fengkx/tsconfig': ^2.0.0
-    '@types/node': ^25.0.8
-    globals: ^16.5.0
-    type-fest: ^5.4.0
+    '@types/node': ^25.3.0
+    globals: ^17.3.0
+    type-fest: ^5.4.4
     typescript: ^5.9.3
 
 onlyBuiltDependencies:
