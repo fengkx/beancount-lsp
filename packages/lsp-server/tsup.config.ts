@@ -43,6 +43,7 @@ const nodeConfig = defineConfig({
 		...commonConfig.noExternal,
 		'execa',
 		'fast-glob',
+		'untildify',
 	],
 	banner: {
 		js: '#!/usr/bin/env node',

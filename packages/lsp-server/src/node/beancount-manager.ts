@@ -2,7 +2,7 @@ import { Logger } from '@bean-lsp/shared';
 import type { BeancountRuntimeStatusParams } from '@bean-lsp/shared';
 import { $, execa } from 'execa';
 import { ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
-import { basename, isAbsolute, normalize } from 'path';
+import { basename, isAbsolute, normalize, resolve } from 'path';
 import {
 	CancellationToken,
 	CancellationTokenSource,
@@ -24,6 +24,7 @@ import {
 	RealBeancountManager,
 } from '../common/features/types';
 import { globalEventBus, GlobalEvents } from '../common/utils/event-bus';
+import { expandPythonPath } from './python-path';
 
 // eslint-disable-next-line import-x/no-relative-packages
 import beanCheckPythonCode from './beancheck.py';
@@ -230,13 +231,14 @@ class BeancountManager implements RealBeancountManager {
 		const scopeUri = this.mainFile ? URI.file(this.mainFile).toString() : (await this.connection.workspace.getWorkspaceFolders())?.[0]?.uri;
 		const config = await this.connection.workspace.getConfiguration({ scopeUri });
 		let python3Path = config?.beanLsp?.python3Path || config?.beancount?.python3Path || 'python3';
+		python3Path = expandPythonPath(python3Path);
 
 		if (python3Path !== 'python3' && !isAbsolute(python3Path)) {
 			const workspaceFolders = await this.connection.workspace.getWorkspaceFolders();
 			if (workspaceFolders && workspaceFolders.length > 0) {
 				// @ts-expect-error already check length
 				const workspacePath = URI.parse(workspaceFolders[0].uri).fsPath;
-				python3Path = `${workspacePath}/${python3Path}`;
+				python3Path = resolve(workspacePath, python3Path);
 			}
 		}
 

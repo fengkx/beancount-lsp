@@ -53,6 +53,7 @@
 		"@remusao/smaz": "^2.2.0",
 		"async-call-rpc": "^6.4.2",
 		"beancount-wasm": "^0.3.0",
-		"scheduler-polyfill": "^1.3.0"
+		"scheduler-polyfill": "^1.3.0",
+		"untildify": "^6.0.0"
 	}
 }
