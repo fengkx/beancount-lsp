@@ -123,11 +123,11 @@ export class SymbolIndex {
 		const uris = new Set(_uris);
 		this.logger.debug(`[index] initializing index for ${uris.size} files.`);
 
-		let cnt = 0;
+		const firstUri = uris.values().next().value as string | undefined;
+		if (firstUri) {
+			this.addSyncFile(firstUri);
+		}
 		for (const uri of uris) {
-			if (cnt < 1) {
-				this.addSyncFile(uri);
-			}
 			this.addAsyncFile(uri);
 		}
 	}

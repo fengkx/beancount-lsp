@@ -1,5 +1,8 @@
 import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
+import { TextDocument } from 'vscode-languageserver-textdocument';
+import type Parser from 'web-tree-sitter';
+import { asLspRange } from '../common';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
 import * as positionUtils from './position-utils';
@@ -49,7 +52,7 @@ export class DefinitionFeature {
 		const poptagAtPosition = await positionUtils.getPopTagAtPosition(this.trees, document, params.position);
 		if (poptagAtPosition) {
 			logger.debug(`Found poptag at cursor: ${poptagAtPosition}`);
-			return this.findPushTagDefinitions(poptagAtPosition, params.textDocument.uri);
+			return this.findPushTagDefinitions(document, params.position);
 		}
 
 		// Check for account at position
@@ -104,48 +107,117 @@ export class DefinitionFeature {
 	}
 
 	/**
-	 * Find the pushtag definition for a given tag name (used for go-to-definition on poptag)
-	 * According to Beancount syntax, pushtag and poptag work as a stack, so we need to find
-	 * the chronologically closest pushtag before the current poptag
-	 * We only handle pushtag/poptag within the same file, and ignore cross-file references
+	 * Find the matching pushtag for the poptag at the given position.
+	 * Matching must follow Beancount's push/pop stack behavior within the same file.
 	 */
-	private async findPushTagDefinitions(tagName: string, currentUri: string): Promise<lsp.Location[] | null> {
-		// Find all pushtag declarations
-		const pushtagDeclarations = await this.symbolIndex.findAsync({
-			[SymbolKey.TYPE]: SymbolType.PUSHTAG,
-			name: tagName,
-		}) as SymbolInfo[];
-
-		// If we don't have any pushtag declarations, return null
-		if (pushtagDeclarations.length === 0) {
-			logger.debug(`No pushtag declaration found for tag: ${tagName}`);
+	private async findPushTagDefinitions(
+		document: TextDocument,
+		position: lsp.Position,
+	): Promise<lsp.Location[] | null> {
+		const tree = await this.trees.getParseTree(document);
+		if (!tree) {
 			return null;
 		}
 
-		// Filter to only pushtag declarations in the same file
-		const sameFileDeclarations = pushtagDeclarations.filter(decl => decl._uri === currentUri);
-
-		// If there are no pushtag declarations in the same file, return null
-		// We only care about same-file references
-		if (sameFileDeclarations.length === 0) {
-			logger.debug(`No pushtag declaration found for tag: ${tagName} in the current file`);
+		const node = tree.rootNode.descendantForIndex(document.offsetAt(position));
+		const poptagNode = this.findNodeOrParentOfType(node, 'poptag');
+		if (!poptagNode) {
 			return null;
 		}
 
-		// Sort declarations by line number to find the most recent one
-		const sortedDeclarations = [...sameFileDeclarations].sort((a, b) => {
-			return a.range[0] - b.range[0];
-		});
+		const tagName = this.extractTagName(poptagNode);
+		if (!tagName) {
+			return null;
+		}
 
-		// Return the most recent pushtag declaration
-		if (sortedDeclarations.length > 0 && sortedDeclarations[0]) {
-			return [{
-				uri: sortedDeclarations[0]._uri,
-				range: getRange(sortedDeclarations[0]),
-			}];
+		const matchedPushtagNode = this.findMatchingPushtag(tree.rootNode, poptagNode, tagName);
+		if (!matchedPushtagNode) {
+			logger.debug(`No matching pushtag found for poptag: ${tagName}`);
+			return null;
+		}
+
+		const tagNode = matchedPushtagNode.child(1);
+		if (!tagNode) {
+			return null;
+		}
+
+		return [{
+			uri: document.uri,
+			range: asLspRange(tagNode),
+		}];
+	}
+
+	private findNodeOrParentOfType(node: Parser.SyntaxNode, type: 'pushtag' | 'poptag'): Parser.SyntaxNode | null {
+		let current: Parser.SyntaxNode | null = node;
+		while (current) {
+			if (current.type === type) {
+				return current;
+			}
+			current = current.parent;
+		}
+		return null;
+	}
+
+	private extractTagName(node: Parser.SyntaxNode): string | null {
+		const tagNode = node.child(1);
+		if (tagNode && tagNode.type === 'tag') {
+			return tagNode.text.startsWith('#') ? tagNode.text.substring(1) : tagNode.text;
+		}
+		return null;
+	}
+
+	private findMatchingPushtag(
+		rootNode: Parser.SyntaxNode,
+		poptagNode: Parser.SyntaxNode,
+		tagName: string,
+	): Parser.SyntaxNode | null {
+		const poptagOffset = poptagNode.startIndex;
+		const allNodes: Parser.SyntaxNode[] = [];
+		this.collectAllNodes(rootNode, allNodes);
+
+		// Process from current poptag backwards to preserve proper stack matching.
+		const relevantNodes = allNodes
+			.filter(node => {
+				if (node.type !== 'pushtag' && node.type !== 'poptag') return false;
+				return node.startIndex < poptagOffset;
+			})
+			.sort((a, b) => b.startIndex - a.startIndex);
+
+		const stack: Parser.SyntaxNode[] = [poptagNode];
+		for (const node of relevantNodes) {
+			if (node.type === 'poptag') {
+				stack.push(node);
+				continue;
+			}
+
+			const nodeTagName = this.extractTagName(node);
+			if (!nodeTagName) {
+				continue;
+			}
+
+			for (let i = stack.length - 1; i >= 0; i--) {
+				const stackTagName = this.extractTagName(stack[i]!);
+				if (stackTagName !== nodeTagName) {
+					continue;
+				}
+
+				if (stack[i] === poptagNode && nodeTagName === tagName) {
+					return node;
+				}
+
+				stack.splice(i, 1);
+				break;
+			}
 		}
 
 		return null;
+	}
+
+	private collectAllNodes(node: Parser.SyntaxNode, result: Parser.SyntaxNode[]): void {
+		result.push(node);
+		for (const child of node.children) {
+			this.collectAllNodes(child, result);
+		}
 	}
 
 	private async findTagUsages(tagName: string): Promise<lsp.Location[] | null> {
