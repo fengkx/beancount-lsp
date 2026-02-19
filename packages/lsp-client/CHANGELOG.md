@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.0.174
+
+- chore(lsp-client): bump version to 0.0.174 ([b6dc219](https://github.com/fengkx/beancount-lsp/commit/b6dc219))
+- fix(ci): align node setup and vite plugin typing ([0408027](https://github.com/fengkx/beancount-lsp/commit/0408027))
+- chore: relax noisy eslint checks after deps upgrade ([3647e59](https://github.com/fengkx/beancount-lsp/commit/3647e59))
+- chore: update dependencies ([b0df622](https://github.com/fengkx/beancount-lsp/commit/b0df622))
+- docs: add lsp-server noExternal dependency rule ([ddddb7b](https://github.com/fengkx/beancount-lsp/commit/ddddb7b))
+- feat(lsp-server): expand python3Path env and tilde ([932d811](https://github.com/fengkx/beancount-lsp/commit/932d811))
+- Fix poptag definition matching and sync init file ([f4d6ef6](https://github.com/fengkx/beancount-lsp/commit/f4d6ef6))
+- fix: try fix cache problem ([6ad2705](https://github.com/fengkx/beancount-lsp/commit/6ad2705))
+- perf(beancheck): optimize cost balance aggregation ([27674c8](https://github.com/fengkx/beancount-lsp/commit/27674c8))
+- chore: update beancount-wasm ([4eecbb7](https://github.com/fengkx/beancount-lsp/commit/4eecbb7))
+- fix: playground init ([22c9752](https://github.com/fengkx/beancount-lsp/commit/22c9752))
+
 ## v0.0.172
 
 - chore(lsp): add vsix build step and bump version to 0.0.172 ([54fd77b](https://github.com/fengkx/beancount-lsp/commit/54fd77b))
