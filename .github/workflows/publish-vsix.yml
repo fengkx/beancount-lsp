@@ -40,8 +40,15 @@ jobs:
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          run_install: true
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build packages
         run: pnpm build

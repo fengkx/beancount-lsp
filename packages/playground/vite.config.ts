@@ -1,5 +1,6 @@
 import importMetaUrlPlugin from '@codingame/esbuild-import-meta-url-plugin';
 import vsixPlugin from '@codingame/monaco-vscode-rollup-vsix-plugin';
+import type { PluginOption } from 'vite';
 import { defineConfig } from 'vite';
 
 const config = defineConfig({
@@ -13,7 +14,9 @@ const config = defineConfig({
 		format: 'es',
 	},
 	plugins: [
-		vsixPlugin(),
+		// Vite and the VSIX rollup plugin can resolve different Rollup type versions.
+		// Runtime is compatible, but TS sees incompatible hook context types.
+		vsixPlugin() as unknown as PluginOption,
 	],
 })
 
