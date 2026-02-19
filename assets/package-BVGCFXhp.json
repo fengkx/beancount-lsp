@@ -1,0 +1,234 @@
+{
+  "name": "language-haskell",
+  "displayName": "Haskell Syntax Highlighting",
+  "description": "Syntax support for the Haskell programming language.",
+  "version": "3.6.0",
+  "publisher": "justusadam",
+  "engines": {
+    "vscode": "^1.0.0"
+  },
+  "icon": "images/logo.png",
+  "galleryBanner": {
+    "color": "#293845",
+    "theme": "dark"
+  },
+  "files": [
+    "src/*",
+    "syntaxes/*.json",
+    "images/",
+    "README.md",
+    "LICENSE",
+    "*-configuration.json",
+    "tsconfig.json",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "language",
+    "haskell",
+    "highlight",
+    "syntax"
+  ],
+  "license": "BSD-3-Clause",
+  "homepage": "https://github.com/JustusAdam/language-haskell",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JustusAdam/language-haskell.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JustusAdam/language-haskell/issues",
+    "email": "dev@justus.science"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:haskell"
+  ],
+  "main": "./out/src/extension",
+  "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "Haskell configuration",
+      "properties": {
+        "haskell.indentationRules.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Set to 'false' to disable automatically increasing indent on newlines after '=', 'do', 'where' etc."
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "haskell",
+        "aliases": [
+          "Haskell",
+          "haskell"
+        ],
+        "extensions": [
+          ".hs",
+          ".hsig",
+          "hs-boot"
+        ],
+        "configuration": "./haskell-configuration.json"
+      },
+      {
+        "id": "cabal",
+        "aliases": [
+          "Cabal",
+          "cabal"
+        ],
+        "extensions": [
+          ".cabal"
+        ],
+        "configuration": "./cabal-configuration.json"
+      },
+      {
+        "id": "C2Hs",
+        "aliases": [
+          "C2Hs",
+          "c2hs"
+        ],
+        "extensions": [
+          ".chs"
+        ],
+        "configuration": "./C2Hs-configuration.json"
+      },
+      {
+        "id": "Hsc2Hs",
+        "aliases": [
+          "Hsc2Hs",
+          "HsC2Hs",
+          "hsc2hs"
+        ],
+        "extensions": [
+          ".hsc"
+        ],
+        "configuration": "./Hsc2Hs-configuration.json"
+      },
+      {
+        "id": "literate haskell",
+        "aliases": [
+          "Literate Haskell",
+          "literate Haskell"
+        ],
+        "extensions": [
+          ".lhs"
+        ],
+        "configuration": "./literate-haskell-configuration.json"
+      },
+      {
+        "id": "yaml",
+        "aliases": [
+          "YAML",
+          "yaml"
+        ],
+        "filenames": [
+          "stack.yaml.lock"
+        ]
+      },
+      {
+        "id": "alex",
+        "aliases": [
+          "Alex",
+          "alex",
+          "Haskell Alex"
+        ],
+        "extensions": [
+          ".x"
+        ],
+        "configuration": "./haskell-configuration.json"
+      },
+      {
+        "id": "happy",
+        "aliases": [
+          "Happy",
+          "happy",
+          "Haskell Happy"
+        ],
+        "extensions": [
+          ".y"
+        ],
+        "configuration": "./haskell-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "haskell",
+        "scopeName": "source.haskell",
+        "path": "./syntaxes/haskell.json"
+      },
+      {
+        "language": "cabal",
+        "scopeName": "source.cabal",
+        "path": "./syntaxes/cabal.json"
+      },
+      {
+        "language": "C2Hs",
+        "scopeName": "source.c2hs",
+        "path": "./syntaxes/C2Hs.json"
+      },
+      {
+        "language": "Hsc2Hs",
+        "scopeName": "source.hsc",
+        "path": "./syntaxes/Hsc2Hs.json"
+      },
+      {
+        "language": "literate haskell",
+        "scopeName": "text.tex.latex.haskell",
+        "path": "./syntaxes/literateHaskell.json"
+      },
+      {
+        "language": "alex",
+        "scopeName": "source.haskell.alex",
+        "path": "./syntaxes/alex.json"
+      },
+      {
+        "language": "happy",
+        "scopeName": "source.haskell.happy",
+        "path": "./syntaxes/happy.json"
+      },
+      {
+        "scopeName": "markdown.haskell.codeblock",
+        "path": "./syntaxes/codeblock-haskell.json",
+        "injectTo": [
+          "text.html.markdown"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.haskell": "haskell"
+        }
+      },
+      {
+        "scopeName": "markdown.lhaskell.codeblock",
+        "path": "./syntaxes/codeblock-literate-haskell.json",
+        "injectTo": [
+          "text.html.markdown"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.lhaskell": "lhaskell"
+        }
+      },
+      {
+        "scopeName": "markdown.cabal.codeblock",
+        "path": "./syntaxes/codeblock-cabal.json",
+        "injectTo": [
+          "text.html.markdown"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.cabal": "cabal"
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "tsc -p ./",
+    "compile": "tsc -p ./",
+    "postinstall": "node ./node_modules/vscode/bin/install"
+  },
+  "devDependencies": {
+    "js-yaml": "^3.13.1",
+    "npm": "^6.14.5",
+    "typescript": "^2.6.2",
+    "vsce": "^1.75.0",
+    "vscode": "^1.0.0"
+  }
+}
