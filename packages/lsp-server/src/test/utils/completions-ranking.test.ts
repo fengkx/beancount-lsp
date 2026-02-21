@@ -145,6 +145,19 @@ describe('rankAccountQuery', () => {
 		expect(exact!.tier).toBeGreaterThan(substring!.tier);
 	});
 
+	it('supports collapsed multi-segment query matching', () => {
+		const prefixMatch = rankAccountQuery('A:FundsC', 'Assets:Funds:CMB', 1);
+		const exactCollapsed = rankAccountQuery('A:FundsCMB', 'Assets:Funds:CMB', 1);
+		expect(prefixMatch).not.toBeNull();
+		expect(exactCollapsed).not.toBeNull();
+		expect(exactCollapsed!.tier).toBeGreaterThanOrEqual(prefixMatch!.tier);
+	});
+
+	it('rejects collapsed query with wrong order', () => {
+		const rejected = rankAccountQuery('A:CMBFunds', 'Assets:Funds:CMB', 1);
+		expect(rejected).toBeNull();
+	});
+
 });
 
 describe('rankTextMatchTier', () => {

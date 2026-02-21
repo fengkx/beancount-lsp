@@ -911,23 +911,57 @@ function findBestSegmentMatch(
 	accountParts: string[],
 	startIdx: number,
 	queryPart: string,
-): { index: number; kind: AccountSegmentMatchKind } | null {
-	const firstMatchByKind: Partial<Record<AccountSegmentMatchKind, number>> = {};
+): { index: number; endIndex: number; kind: AccountSegmentMatchKind } | null {
+	type MatchCandidate = { index: number; endIndex: number };
+	const firstMatchByKind: Partial<Record<AccountSegmentMatchKind, MatchCandidate>> = {};
+
+	const updateCandidate = (kind: AccountSegmentMatchKind, index: number, endIndex: number) => {
+		const current = firstMatchByKind[kind];
+		if (!current) {
+			firstMatchByKind[kind] = { index, endIndex };
+			return;
+		}
+		const currentSpan = current.endIndex - current.index;
+		const nextSpan = endIndex - index;
+		// Prefer earlier match; if same start index, prefer shorter span.
+		if (index < current.index || (index === current.index && nextSpan < currentSpan)) {
+			firstMatchByKind[kind] = { index, endIndex };
+		}
+	};
+
+	// 1) Single-segment matching.
 	for (let i = startIdx; i < accountParts.length; i++) {
 		const kind = scoreSegmentMatch(queryPart, accountParts[i]!);
 		if (!kind) continue;
-		if (firstMatchByKind[kind] === undefined) {
-			firstMatchByKind[kind] = i;
+		updateCandidate(kind, i, i);
+	}
+
+	// 2) Collapsed multi-segment matching, e.g. `FundsCMB` -> `Funds:CMB`.
+	for (let i = startIdx; i < accountParts.length; i++) {
+		let collapsed = '';
+		for (let j = i; j < accountParts.length; j++) {
+			collapsed += accountParts[j]!;
+			if (!collapsed.includes(queryPart[0]!)) {
+				continue;
+			}
+			let kind: AccountSegmentMatchKind | null = null;
+			if (queryPart === collapsed) kind = 'exact';
+			else if (collapsed.startsWith(queryPart)) kind = 'prefix';
+			else if (collapsed.includes(queryPart)) kind = 'substring';
+			if (kind) {
+				updateCandidate(kind, i, j);
+			}
 		}
 	}
-	if (firstMatchByKind.exact !== undefined) {
-		return { index: firstMatchByKind.exact, kind: 'exact' };
+
+	if (firstMatchByKind.exact) {
+		return { ...firstMatchByKind.exact, kind: 'exact' };
 	}
-	if (firstMatchByKind.prefix !== undefined) {
-		return { index: firstMatchByKind.prefix, kind: 'prefix' };
+	if (firstMatchByKind.prefix) {
+		return { ...firstMatchByKind.prefix, kind: 'prefix' };
 	}
-	if (firstMatchByKind.substring !== undefined) {
-		return { index: firstMatchByKind.substring, kind: 'substring' };
+	if (firstMatchByKind.substring) {
+		return { ...firstMatchByKind.substring, kind: 'substring' };
 	}
 	return null;
 }
@@ -980,10 +1014,10 @@ export function rankAccountQuery(
 		if (match.kind === 'prefix') prefixCount++;
 		if (match.kind === 'substring') substringCount++;
 		gapCount += Math.max(0, match.index - lastMatchIndex - 1);
-		lastMatchIndex = match.index;
-		segmentStart = match.index + 1;
+		lastMatchIndex = match.endIndex;
+		segmentStart = match.endIndex + 1;
 		if (i === queryTailIdx) {
-			tailHit = match.index === accountParts.length - 1;
+			tailHit = match.endIndex === accountParts.length - 1;
 		}
 	}
 
