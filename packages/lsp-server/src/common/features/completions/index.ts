@@ -11,9 +11,9 @@
  * with special handling for Chinese text using pinyin first letters.
  */
 
-import { getParser, Logger } from '@bean-lsp/shared';
+import { Logger } from '@bean-lsp/shared/logger';
 import { add, formatDate, sub } from 'date-fns';
-import { globalEventBus, GlobalEvents } from 'src/common/utils/event-bus';
+import { globalEventBus, GlobalEvents } from '../../utils/event-bus';
 import { match, P } from 'ts-pattern';
 import {
 	CompletionItem,
@@ -237,6 +237,7 @@ async function reparseWithPlaceholder(
 		const { start, end } = computeTokenRange(fullText, offset, kind);
 		const normalized = normalizePlaceholder(fullText, start, placeholder);
 		const virtualText = fullText.slice(0, start) + normalized + fullText.slice(end);
+		const { getParser } = await import('@bean-lsp/shared/parser');
 		const parser = await getParser();
 		vt = parser.parse(virtualText);
 		const phNode = vt.rootNode.descendantForIndex(start, start + normalized.length);
@@ -880,11 +881,25 @@ async function addCurrencyCompletions(collector: CompletionCollector): Promise<v
 function scoreSegmentMatch(
 	querySegment: string,
 	accountSegment: string,
+	accountSegmentRaw?: string,
 ): AccountSegmentMatchKind | null {
 	if (!querySegment) return null;
 	if (querySegment === accountSegment) return 'exact';
 	if (accountSegment.startsWith(querySegment)) return 'prefix';
 	if (accountSegment.includes(querySegment)) return 'substring';
+
+	if (accountSegmentRaw) {
+		const acronym = accountSegmentRaw
+			.split('')
+			.filter(ch => /[A-Z0-9]/.test(ch))
+			.join('')
+			.toLowerCase();
+		if (acronym) {
+			if (querySegment === acronym) return 'exact';
+			if (acronym.startsWith(querySegment)) return 'prefix';
+			if (acronym.includes(querySegment)) return 'substring';
+		}
+	}
 	return null;
 }
 
@@ -909,6 +924,7 @@ function scoreRootMatch(queryRoot: string, accountRoot: string): number {
 
 function findBestSegmentMatch(
 	accountParts: string[],
+	accountPartsRaw: string[],
 	startIdx: number,
 	queryPart: string,
 ): { index: number; endIndex: number; kind: AccountSegmentMatchKind } | null {
@@ -931,7 +947,7 @@ function findBestSegmentMatch(
 
 	// 1) Single-segment matching.
 	for (let i = startIdx; i < accountParts.length; i++) {
-		const kind = scoreSegmentMatch(queryPart, accountParts[i]!);
+		const kind = scoreSegmentMatch(queryPart, accountParts[i]!, accountPartsRaw[i]!);
 		if (!kind) continue;
 		updateCandidate(kind, i, i);
 	}
@@ -986,7 +1002,8 @@ export function rankAccountQuery(
 		};
 	}
 
-	const accountParts = account.split(':').map(p => p.toLowerCase());
+	const accountPartsRaw = account.split(':');
+	const accountParts = accountPartsRaw.map(p => p.toLowerCase());
 	if (accountParts.length === 0) {
 		return null;
 	}
@@ -1006,7 +1023,7 @@ export function rankAccountQuery(
 	const queryTailIdx = normalizedQueryParts.length - 1;
 	for (let i = 1; i < normalizedQueryParts.length; i++) {
 		const queryPart = normalizedQueryParts[i]!;
-		const match = findBestSegmentMatch(accountParts, segmentStart, queryPart);
+		const match = findBestSegmentMatch(accountParts, accountPartsRaw, segmentStart, queryPart);
 		if (!match) {
 			return null;
 		}
