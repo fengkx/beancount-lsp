@@ -1014,7 +1014,6 @@ export function rankAccountQuery(
 	}
 
 	let segmentStart = 1;
-	let exactCount = 0;
 	let prefixCount = 0;
 	let substringCount = 0;
 	let gapCount = 0;
@@ -1027,7 +1026,6 @@ export function rankAccountQuery(
 		if (!match) {
 			return null;
 		}
-		if (match.kind === 'exact') exactCount++;
 		if (match.kind === 'prefix') prefixCount++;
 		if (match.kind === 'substring') substringCount++;
 		gapCount += Math.max(0, match.index - lastMatchIndex - 1);
