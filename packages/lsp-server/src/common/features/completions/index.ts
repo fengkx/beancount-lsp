@@ -13,6 +13,7 @@
 
 import { getParser, Logger } from '@bean-lsp/shared';
 import { add, formatDate, sub } from 'date-fns';
+import { globalEventBus, GlobalEvents } from 'src/common/utils/event-bus';
 import { match, P } from 'ts-pattern';
 import {
 	CompletionItem,
@@ -30,7 +31,6 @@ import { DocumentStore } from '../../document-store';
 import { Trees } from '../../trees';
 import { SymbolIndex } from '../symbol-index';
 import { Feature } from '../types';
-import { globalEventBus, GlobalEvents } from 'src/common/utils/event-bus';
 
 const Tuple = <T extends unknown[]>(xs: readonly [...T]): T => xs as T;
 
@@ -39,23 +39,77 @@ const Tuple = <T extends unknown[]>(xs: readonly [...T]): T => xs as T;
  * '2' - Date completions
  * '#' - Tag completions
  * '"' - Payee/narration completions
- * '^' - Reserved
+ * '^' - Link completions
  */
-export const triggerCharacters = Tuple(['2', '#', '"', '^'] as const);
+export const triggerCharacters = Tuple([
+	'2',
+	'#',
+	'"',
+	'^',
+] as const);
 type TriggerCharacter = (typeof triggerCharacters)[number];
 
 /**
  * Information about the context where completion was triggered
  * Used to determine what kind of completions to provide
  */
-type TriggerInfo = {
+export type TriggerInfo = {
 	triggerCharacter: TriggerCharacter | undefined;
 	currentType: string;
 	parentType: string | undefined;
 	previousSiblingType: string | undefined;
 	previousPreviousSiblingType: string | undefined;
-	currentLine: string;
 };
+
+type TokenRange = {
+	startChar: number;
+	endChar: number;
+};
+
+type CompletionTextContext = {
+	linePrefix: string;
+	tokenRange: TokenRange;
+	tokenText: string;
+	triggerCharacter?: string;
+	inOpenQuote: boolean;
+	afterHash: boolean;
+	afterCaret: boolean;
+};
+
+type AccountSegmentMatchKind = 'exact' | 'prefix' | 'substring';
+
+type AccountMatchRank = {
+	tier: number;
+	matchedSegmentCount: number;
+	gapCount: number;
+	rootQuality: number;
+	tailHit: boolean;
+	usageBucket: number;
+};
+
+type CompletionIntent =
+	| {
+		type: 'date';
+	}
+	| {
+		type: 'identifier';
+	}
+	| {
+		type: 'tag';
+	}
+	| {
+		type: 'link';
+	}
+	| {
+		type: 'currency';
+	}
+	| {
+		type: 'payeeNarration';
+		params: AddPayeesAndNarrationsParams;
+	}
+	| {
+		type: 'account';
+	};
 
 // -----------------------------
 // Placeholder reparse utilities
@@ -246,84 +300,306 @@ async function reparseWithPlaceholder(
 	}
 }
 
-/**
- * Result of extracting user input
- */
-type ExtractedUserInput = {
-	/** The text the user has typed (relevant portion for filtering) */
-	userInput: string;
-	/** The full current line text up to the cursor position */
-	currentLine: string;
-};
-
-/**
- * Extracts the user's input text at the current position
- *
- * @param document The text document
- * @param position The current cursor position
- * @param triggerCharacter The character that triggered completion
- * @returns Object containing userInput and currentLine
- */
-function extractUserInput(
+export function buildCompletionTextContext(
 	document: TextDocument,
 	position: Position,
 	triggerCharacter?: string,
-): ExtractedUserInput {
-	// Get the text of the current line up to the cursor position
-	const currentLine = document.getText({
+): CompletionTextContext {
+	const linePrefix = document.getText({
 		start: { line: position.line, character: 0 },
 		end: position,
 	});
-
-	let userInput = '';
-
-	// Handle different trigger scenarios
-	if (triggerCharacter) {
-		// For account triggers (A, L, E, I), we only need what's after the trigger
-		if (['A', 'L', 'E', 'I'].includes(triggerCharacter)) {
-			// If the last character is the trigger, there's no actual input yet
-			if (currentLine.endsWith(triggerCharacter)) {
-				userInput = '';
-			} else {
-				// Find the last occurrence of the trigger character
-				const triggerIndex = currentLine.lastIndexOf(triggerCharacter);
-				if (triggerIndex >= 0) {
-					userInput = currentLine.substring(triggerIndex + 1);
-				}
-			}
-		} else if (triggerCharacter === '"') {
-			// For payee/narration triggers ("), extract what's inside the quotes
-			const lastQuoteIndex = currentLine.lastIndexOf('"');
-			if (lastQuoteIndex >= 0) {
-				userInput = currentLine.substring(lastQuoteIndex + 1);
-			}
-		} else if (triggerCharacter === '#') {
-			// For tag triggers (#), extract what's after the #
-			const lastHashIndex = currentLine.lastIndexOf('#');
-			if (lastHashIndex >= 0) {
-				userInput = currentLine.substring(lastHashIndex + 1);
-			}
-		} else if (triggerCharacter === ' ') {
-			// For space triggers, extract the last word
-			const words = currentLine.trim().split(/\s+/);
-			userInput = words[words.length - 1] || '';
-		}
+	const isTokenChar = (ch: string) => /[\p{L}\p{N}:：._/-]/u.test(ch);
+	let startChar = linePrefix.length;
+	while (startChar > 0 && isTokenChar(linePrefix.charAt(startChar - 1))) {
+		startChar--;
 	}
-
-	// Default case: take the last token after whitespace
-	if (!userInput && !triggerCharacter) {
-		const lastWhitespaceIndex = currentLine.lastIndexOf(' ');
-		if (lastWhitespaceIndex >= 0) {
-			userInput = currentLine.substring(lastWhitespaceIndex + 1);
-		} else {
-			userInput = currentLine;
-		}
-	}
+	const endChar = linePrefix.length;
+	const tokenText = linePrefix.slice(startChar, endChar);
+	const leftChar = startChar > 0 ? linePrefix.charAt(startChar - 1) : '';
+	const quoteCount = linePrefix.split('"').length - 1;
 
 	return {
-		userInput,
-		currentLine,
+		linePrefix,
+		tokenRange: { startChar, endChar },
+		tokenText: normalizeAccountQueryToken(tokenText),
+		triggerCharacter,
+		inOpenQuote: quoteCount % 2 === 1,
+		afterHash: tokenText.startsWith('#') || leftChar === '#',
+		afterCaret: tokenText.startsWith('^') || leftChar === '^',
 	};
+}
+
+function normalizeAccountQueryToken(input: string): string {
+	return input
+		.replace(/：/g, ':')
+		.replace(/^["'#^]+/, '')
+		.trim();
+}
+
+export function rankTextMatchTier(query: string, label: string, filterText: string): number {
+	const normalizedQuery = query.trim().toLowerCase();
+	if (!normalizedQuery) return 0;
+
+	const labelLower = label.toLowerCase();
+	const filter = filterText.toLowerCase();
+	const filterTokens = filter.split(/\s+/).filter(Boolean);
+	if (labelLower === normalizedQuery) return 6;
+	if (filterTokens.some(token => token === normalizedQuery)) return 5;
+	if (labelLower.startsWith(normalizedQuery) || filterTokens.some(token => token.startsWith(normalizedQuery))) {
+		return 4;
+	}
+	if (labelLower.includes(normalizedQuery)) return 3;
+	if (filter.includes(normalizedQuery)) return 2;
+	return 0;
+}
+
+function normalizeSymbolLikeText(input: string): string {
+	return input.toLowerCase().replace(/[_\-./:\\s]/g, '');
+}
+
+function isSubsequence(needle: string, haystack: string): boolean {
+	if (!needle) return true;
+	let i = 0;
+	for (const ch of haystack) {
+		if (ch === needle[i]) {
+			i++;
+			if (i >= needle.length) return true;
+		}
+	}
+	return false;
+}
+
+export function rankSymbolLikeMatchTier(query: string, label: string, filterText: string): number {
+	const baseTier = rankTextMatchTier(query, label, filterText);
+	const normalizedQuery = normalizeSymbolLikeText(query.trim());
+	if (!normalizedQuery) return baseTier;
+
+	const normalizedLabel = normalizeSymbolLikeText(label);
+	if (normalizedLabel === normalizedQuery) return Math.max(baseTier, 6);
+	if (normalizedLabel.startsWith(normalizedQuery)) return Math.max(baseTier, 5);
+	if (normalizedLabel.includes(normalizedQuery)) return Math.max(baseTier, 4);
+	if (isSubsequence(normalizedQuery, normalizedLabel)) return Math.max(baseTier, 3);
+
+	const normalizedFilter = normalizeSymbolLikeText(filterText);
+	if (normalizedFilter.includes(normalizedQuery) || isSubsequence(normalizedQuery, normalizedFilter)) {
+		return Math.max(baseTier, 2);
+	}
+	return baseTier;
+}
+
+export function rankCurrencyMatchTier(query: string, label: string, filterText: string): number {
+	return rankSymbolLikeMatchTier(query, label, filterText);
+}
+
+type RankedLabelItem<T> = {
+	item: T;
+	label: string;
+	usageCount: number;
+	tier: number;
+	filterText?: string;
+};
+
+function rankAndSortLabelItems<T>(params: {
+	items: readonly T[];
+	query: string;
+	getLabel: (item: T) => string;
+	getUsageCount: (item: T) => number;
+	rankFn: (query: string, label: string, filterText: string) => number;
+	getFilterText: (label: string) => string;
+}): RankedLabelItem<T>[] {
+	const { items, query, getLabel, getUsageCount, rankFn, getFilterText } = params;
+	const hasQuery = query.length > 0;
+	const ranked: RankedLabelItem<T>[] = [];
+
+	for (const item of items) {
+		const label = getLabel(item);
+		const usageCount = getUsageCount(item);
+		if (!hasQuery) {
+			ranked.push({ item, label, usageCount, tier: 0 });
+			continue;
+		}
+		const filterText = getFilterText(label);
+		const tier = rankFn(query, label, filterText);
+		if (tier <= 0) {
+			continue;
+		}
+		ranked.push({ item, label, usageCount, tier, filterText });
+	}
+
+	ranked.sort((a, b) => {
+		if (a.tier !== b.tier) return b.tier - a.tier;
+		if (a.usageCount !== b.usageCount) return b.usageCount - a.usageCount;
+		return a.label.localeCompare(b.label);
+	});
+	return ranked;
+}
+
+export function resolveCompletionIntent(
+	info: TriggerInfo,
+	textCtx: CompletionTextContext,
+): CompletionIntent[] {
+	const intents: CompletionIntent[] = [];
+	const numberExprTypes = new Set(['unary_number_expr', 'number', 'binary_number_expr']);
+	const trimmedPrefix = textCtx.linePrefix.trim();
+	const suppressCurrencyForCurrentToken = shouldSuppressCurrencyForCurrentToken(textCtx.linePrefix);
+
+	if (trimmedPrefix.length > 0 && /^\d{0,4}$/.test(trimmedPrefix)) {
+		intents.push({ type: 'date' });
+	}
+	if (info.currentType === 'identifier' && info.previousSiblingType === 'date') {
+		intents.push({ type: 'identifier' });
+	}
+	if (info.triggerCharacter === '#' || info.currentType === '#' || textCtx.afterHash) {
+		intents.push({ type: 'tag' });
+	}
+	if (info.triggerCharacter === '^' || textCtx.afterCaret) {
+		intents.push({ type: 'link' });
+	}
+	if (
+		(numberExprTypes.has(info.previousSiblingType || '') && info.previousPreviousSiblingType === 'account')
+		|| (
+			info.currentType === 'flag'
+			&& info.previousSiblingType === 'account'
+			&& /^PSTCURM$/.test(textCtx.tokenText)
+		)
+		|| (
+			info.currentType === 'currency'
+			&& numberExprTypes.has(info.previousSiblingType || '')
+		)
+	) {
+		if (!suppressCurrencyForCurrentToken) {
+			intents.push({ type: 'currency' });
+		}
+	}
+
+	if (
+		(
+			info.triggerCharacter === '"'
+			&& (
+				info.previousSiblingType === 'txn'
+				|| info.currentType === 'payee'
+				|| (
+					info.previousSiblingType === 'txn'
+					&& info.previousPreviousSiblingType === 'date'
+				)
+			)
+		)
+		|| (
+			textCtx.inOpenQuote
+			&& (info.previousSiblingType === 'txn' || info.currentType === 'payee')
+		)
+	) {
+		intents.push({
+			type: 'payeeNarration',
+			params: {
+				shouldIncludePayees: true,
+				quotationStyle: 'end',
+				addSpaceAfter: true,
+			},
+		});
+	}
+	if (
+		(
+			info.triggerCharacter === '"'
+			&& (info.previousSiblingType === 'payee' || info.previousSiblingType === 'string')
+		)
+		|| (
+			textCtx.inOpenQuote
+			&& (info.previousSiblingType === 'payee' || info.previousSiblingType === 'string')
+		)
+		|| (
+			info.currentType === 'ERROR'
+			&& info.previousSiblingType === 'string'
+			&& info.previousPreviousSiblingType === 'txn'
+			&& (info.triggerCharacter === '"' || textCtx.inOpenQuote)
+		)
+	) {
+		intents.push({
+			type: 'payeeNarration',
+			params: {
+				shouldIncludePayees: false,
+				quotationStyle: 'end',
+				addSpaceAfter: false,
+			},
+		});
+	}
+	if (
+		(
+			info.triggerCharacter === '"'
+			&& info.currentType === 'narration'
+		)
+		|| (textCtx.inOpenQuote && info.currentType === 'narration')
+	) {
+		intents.push({
+			type: 'payeeNarration',
+			params: {
+				shouldIncludePayees: true,
+				quotationStyle: 'both',
+				addSpaceAfter: false,
+			},
+		});
+	}
+	if (
+		info.currentType === 'ERROR'
+		&& info.previousSiblingType === 'txn'
+		&& info.previousPreviousSiblingType === 'date'
+		&& (info.triggerCharacter === '"' || textCtx.inOpenQuote)
+	) {
+		intents.push({
+			type: 'payeeNarration',
+			params: {
+				shouldIncludePayees: true,
+				quotationStyle: 'end',
+				addSpaceAfter: true,
+			},
+		});
+	}
+	if (info.currentType === 'narration') {
+		intents.push({
+			type: 'payeeNarration',
+			params: {
+				shouldIncludePayees: true,
+				quotationStyle: 'both',
+				addSpaceAfter: true,
+			},
+		});
+	}
+	if (info.currentType === 'account' && info.parentType === 'posting') {
+		intents.push({ type: 'account' });
+	}
+
+	// Lexical fallback for unstable AST states.
+	if (intents.length === 0) {
+		if (textCtx.inOpenQuote) {
+			intents.push({
+				type: 'payeeNarration',
+				params: {
+					shouldIncludePayees: true,
+					quotationStyle: 'end',
+					addSpaceAfter: true,
+				},
+			});
+		}
+		if (textCtx.afterHash) {
+			intents.push({ type: 'tag' });
+		}
+		if (textCtx.afterCaret) {
+			intents.push({ type: 'link' });
+		}
+		if (/^[AEIL][:A-Za-z0-9._/-]*$/i.test(textCtx.tokenText)) {
+			intents.push({ type: 'account' });
+		}
+	}
+
+	// Deduplicate while preserving order.
+	const seen = new Set<string>();
+	return intents.filter((intent) => {
+		const key = JSON.stringify(intent);
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
 }
 
 /**
@@ -337,37 +613,45 @@ function addCompletionItem(
 	item: { label: string; kind?: CompletionItemKind; detail?: string },
 	textEdit: string | TextEdit,
 	usageCount?: number,
+	matchScore?: number,
+	sortTextOverride?: string,
+	filterTextOverride?: string,
 ): void {
 	if (collector.existingCompletions.has(item.label)) {
 		return;
 	}
 
 	// Get filter text from symbol index cache
-	const filterText = collector.symbolIndex.getFilterText(item.label);
+	const filterText = filterTextOverride ?? collector.symbolIndex.getFilterText(item.label);
 
-	// Calculate score for sorting if userInput is provided
-	let score = 0;
-	if (collector.userInput) {
-		// score = scoreMatch(item.label, filterText, userInput);
-
-		// Boost score based on usage count if provided
-		if (usageCount !== undefined) {
-			// Add a bonus based on usage count, capped at a reasonable value
-			// Using 20 points per usage with a max bonus of 200 (for 10+ usages)
-			const usageBonus = Math.min(usageCount * 1, 3500);
-			score += usageBonus;
-		}
-	}
-
+	// Calculate score for sorting if user input is provided
+	let score = matchScore ? Math.max(0, matchScore) * 100 : 0;
+	void usageCount;
 	const completionItem: CompletionItem = {
 		...item,
 		kind: item.kind || CompletionItemKind.Text,
 		filterText,
-		textEdit: typeof textEdit === 'string' ? TextEdit.insert(collector.position, textEdit) : textEdit,
+		textEdit: typeof textEdit === 'string'
+			? TextEdit.replace(
+				{
+					start: {
+						line: collector.position.line,
+						character: collector.textCtx.tokenRange.startChar,
+					},
+					end: {
+						line: collector.position.line,
+						character: collector.textCtx.tokenRange.endChar,
+					},
+				},
+				textEdit,
+			)
+			: textEdit,
 		// Add data for debugging if needed
-		data: collector.userInput ? { score, usageCount } : undefined,
+		data: collector.textCtx.tokenText ? { score, usageCount } : undefined,
 	};
-	if (score > 0) {
+	if (sortTextOverride) {
+		completionItem.sortText = sortTextOverride;
+	} else if (score > 0) {
 		completionItem.sortText = String(1000000 - Math.round(score)).padStart(7, '0');
 	}
 	collector.completions.push(completionItem);
@@ -388,14 +672,12 @@ interface CompletionCollector {
 	existingCompletions: Set<string>;
 	/** The array of completion items to add to */
 	completions: CompletionItem[];
-	/** Optional user input for better scoring and sorting */
-	userInput?: string;
-	/** Optional current line text for context */
-	currentLine?: string;
 	/** Optional document for additional context */
 	document?: TextDocument;
 	/** Whether to enable Chinese pinyin fuzzy filter */
 	enablePinyin: boolean;
+	/** Unified completion text context */
+	textCtx: CompletionTextContext;
 }
 
 /**
@@ -432,35 +714,74 @@ async function addPayeesAndNarrations(
 		addSpaceAfter,
 	} = params;
 
-	// Fetch payees and narrations in parallel
-	const [payees, narrations] = await Promise.all([
+	// Fetch values and usage counts in parallel to support stable tie-break by usage
+	const [payees, narrations, payeeUsageCounts, narrationUsageCounts] = await Promise.all([
 		shouldIncludePayees ? collector.symbolIndex.getPayees(true, { waitTime: 100 }) : Promise.resolve([]),
 		collector.symbolIndex.getNarrations(true, { waitTime: 100 }),
+		shouldIncludePayees ? collector.symbolIndex.getPayeeUsageCounts() : Promise.resolve(new Map<string, number>()),
+		collector.symbolIndex.getNarrationUsageCounts(),
 	]);
 
 	// Precompute quote strings based on the chosen style
 	const quote = quotationStyle === 'both' ? '"' : quotationStyle === 'end' ? '"' : '';
 	const startQuote = quotationStyle === 'both' ? '"' : '';
 
+	type TextCompletionCandidate = {
+		label: string;
+		detail: string;
+		insertText: string;
+		usageCount: number;
+	};
+	const query = collector.textCtx.tokenText.trim().toLowerCase();
+	const candidates: TextCompletionCandidate[] = [];
+
 	// Add payees if requested
 	if (shouldIncludePayees) {
 		payees.forEach((payee: string) => {
-			addCompletionItem(
-				collector,
-				{ label: payee, kind: CompletionItemKind.Text, detail: '(payee)' },
-				`${startQuote}${payee}${quote}${addSpaceAfter ? ' ' : ''}`,
-				undefined,
-			);
+			candidates.push({
+				label: payee,
+				detail: '(payee)',
+				insertText: `${startQuote}${payee}${quote}${addSpaceAfter ? ' ' : ''}`,
+				usageCount: payeeUsageCounts.get(payee) || 0,
+			});
 		});
 	}
 
 	// Add narrations
 	narrations.forEach((narration: string) => {
+		candidates.push({
+			label: narration,
+			detail: '(narration)',
+			insertText: `${startQuote}${narration}${quote}${addSpaceAfter ? ' ' : ''}`,
+			usageCount: narrationUsageCounts.get(narration) || 0,
+		});
+	});
+
+	const rankedCandidates = rankAndSortLabelItems({
+		items: candidates,
+		query,
+		getLabel: candidate => candidate.label,
+		getUsageCount: candidate => candidate.usageCount,
+		rankFn: rankTextMatchTier,
+		getFilterText: label => collector.symbolIndex.getFilterText(label),
+	});
+
+	rankedCandidates.forEach((ranked, index) => {
+		const candidate = ranked.item;
+		const usageDetail = ranked.usageCount > 0
+			? `${candidate.detail} | Used ${ranked.usageCount} time${ranked.usageCount === 1 ? '' : 's'}`
+			: candidate.detail;
+		const normalizedFilterText = query
+			? `${query} ${ranked.filterText ?? collector.symbolIndex.getFilterText(candidate.label)}`
+			: undefined;
 		addCompletionItem(
 			collector,
-			{ label: narration, kind: CompletionItemKind.Text, detail: '(narration)' },
-			`${startQuote}${narration}${quote}${addSpaceAfter ? ' ' : ''}`,
+			{ label: candidate.label, kind: CompletionItemKind.Text, detail: usageDetail },
+			candidate.insertText,
+			ranked.usageCount,
 			undefined,
+			String(index).padStart(7, '0'),
+			normalizedFilterText,
 		);
 	});
 }
@@ -474,18 +795,33 @@ async function addPayeesAndNarrations(
  * @param collector Completion context
  */
 async function addTagCompletions(collector: CompletionCollector): Promise<void> {
-	// Fetch tags from the index
-	const tags = await collector.symbolIndex.getTags();
+	const [tags, usageCounts] = await Promise.all([
+		collector.symbolIndex.getTags(),
+		collector.symbolIndex.getTagUsageCounts(),
+	]);
+	const query = collector.textCtx.tokenText.trim().toLowerCase();
 
-	const shouldAddPrefix = collector.currentLine && !collector.currentLine.endsWith('#');
+	const shouldAddPrefix = !collector.textCtx.afterHash;
+	const rankedTags = rankAndSortLabelItems({
+		items: tags,
+		query,
+		getLabel: tag => tag,
+		getUsageCount: tag => usageCounts.get(tag) || 0,
+		rankFn: rankSymbolLikeMatchTier,
+		getFilterText: label => collector.symbolIndex.getFilterText(label),
+	});
 
-	// Add each tag as a completion item
-	tags.forEach((tag: string) => {
+	rankedTags.forEach(({ item: tag, usageCount }, index) => {
+		const detail = usageCount > 0
+			? `(tag) | Used ${usageCount} time${usageCount === 1 ? '' : 's'}`
+			: '(tag)';
 		addCompletionItem(
 			collector,
-			{ label: tag, kind: CompletionItemKind.Property, detail: '(tag)' },
+			{ label: tag, kind: CompletionItemKind.Property, detail },
 			shouldAddPrefix ? `#${tag}` : tag,
+			usageCount,
 			undefined,
+			String(index).padStart(7, '0'),
 		);
 	});
 }
@@ -499,70 +835,228 @@ async function addTagCompletions(collector: CompletionCollector): Promise<void> 
  * @param collector Completion context
  */
 async function addCurrencyCompletions(collector: CompletionCollector): Promise<void> {
-	const userInput = collector.userInput ?? '';
-	// Fetch currencies/commodities from the index
-	const currencies = await collector.symbolIndex.getCommodities();
+	if (shouldSuppressCurrencyForCurrentToken(collector.textCtx.linePrefix)) {
+		return;
+	}
+	const query = collector.textCtx.tokenText.trim().toLowerCase();
+	const { startChar, endChar } = collector.textCtx.tokenRange;
+	const [currencies, usageCounts] = await Promise.all([
+		collector.symbolIndex.getCommodities(),
+		collector.symbolIndex.getCommodityUsageCounts(),
+	]);
+	const rankedCurrencies = rankAndSortLabelItems({
+		items: currencies,
+		query,
+		getLabel: currency => currency,
+		getUsageCount: currency => usageCounts.get(currency) || 0,
+		rankFn: rankSymbolLikeMatchTier,
+		getFilterText: label => collector.symbolIndex.getFilterText(label),
+	});
 
-	// Add each currency as a completion item
-	currencies.filter(c => {
-		if (!userInput) {
-			return true;
-		}
-		if (!/^[A-Z]/.test(userInput)) {
-			return true;
-		}
-		return c.startsWith(userInput);
-	}).forEach((currency: string) => {
+	rankedCurrencies.forEach(({ item: currency, usageCount }, index) => {
+		const detail = usageCount > 0
+			? `(currency) | Used ${usageCount} time${usageCount === 1 ? '' : 's'}`
+			: '(currency)';
 		addCompletionItem(
 			collector,
-			{ label: currency, kind: CompletionItemKind.Unit, detail: '(currency)' },
+			{ label: currency, kind: CompletionItemKind.Unit, detail },
 			TextEdit.replace(
 				{
 					start: {
 						line: collector.position.line,
-						character: collector.position.character - userInput.length,
+						character: startChar,
 					},
-					end: { line: collector.position.line, character: collector.position.character },
+					end: { line: collector.position.line, character: endChar },
 				},
 				currency,
 			),
+			usageCount,
 			undefined,
+			String(index).padStart(7, '0'),
 		);
 	});
 }
 
-/**
- * Parameters for addAccountCompletions
- */
-interface AddAccountCompletionsParams {
-	/** The trigger character or empty string */
-	triggerChar: string;
+function scoreSegmentMatch(
+	querySegment: string,
+	accountSegment: string,
+): AccountSegmentMatchKind | null {
+	if (!querySegment) return null;
+	if (querySegment === accountSegment) return 'exact';
+	if (accountSegment.startsWith(querySegment)) return 'prefix';
+	if (accountSegment.includes(querySegment)) return 'substring';
+	return null;
+}
+
+function scoreRootMatch(queryRoot: string, accountRoot: string): number {
+	if (!queryRoot) {
+		return 0;
+	}
+	if (queryRoot === accountRoot) {
+		return 160;
+	}
+	if (accountRoot.startsWith(queryRoot)) {
+		return 120;
+	}
+	if (queryRoot.length === 1 && accountRoot.startsWith(queryRoot)) {
+		return 100;
+	}
+	if (accountRoot.includes(queryRoot)) {
+		return 70;
+	}
+	return -1;
+}
+
+function findBestSegmentMatch(
+	accountParts: string[],
+	startIdx: number,
+	queryPart: string,
+): { index: number; kind: AccountSegmentMatchKind } | null {
+	const firstMatchByKind: Partial<Record<AccountSegmentMatchKind, number>> = {};
+	for (let i = startIdx; i < accountParts.length; i++) {
+		const kind = scoreSegmentMatch(queryPart, accountParts[i]!);
+		if (!kind) continue;
+		if (firstMatchByKind[kind] === undefined) {
+			firstMatchByKind[kind] = i;
+		}
+	}
+	if (firstMatchByKind.exact !== undefined) {
+		return { index: firstMatchByKind.exact, kind: 'exact' };
+	}
+	if (firstMatchByKind.prefix !== undefined) {
+		return { index: firstMatchByKind.prefix, kind: 'prefix' };
+	}
+	if (firstMatchByKind.substring !== undefined) {
+		return { index: firstMatchByKind.substring, kind: 'substring' };
+	}
+	return null;
+}
+
+export function rankAccountQuery(
+	query: string,
+	account: string,
+	usageCount: number = 0,
+): AccountMatchRank | null {
+	const normalizedQueryParts = normalizeAccountQueryToken(query)
+		.split(':')
+		.map(p => p.trim().toLowerCase())
+		.filter(Boolean);
+	if (normalizedQueryParts.length === 0) {
+		return {
+			tier: 0,
+			matchedSegmentCount: 0,
+			gapCount: 0,
+			rootQuality: 0,
+			tailHit: false,
+			usageBucket: Math.min(usageCount, 20),
+		};
+	}
+
+	const accountParts = account.split(':').map(p => p.toLowerCase());
+	if (accountParts.length === 0) {
+		return null;
+	}
+
+	const rootQuality = scoreRootMatch(normalizedQueryParts[0]!, accountParts[0]!);
+	if (rootQuality < 0) {
+		return null;
+	}
+
+	let segmentStart = 1;
+	let exactCount = 0;
+	let prefixCount = 0;
+	let substringCount = 0;
+	let gapCount = 0;
+	let lastMatchIndex = 0;
+	let tailHit = false;
+	const queryTailIdx = normalizedQueryParts.length - 1;
+	for (let i = 1; i < normalizedQueryParts.length; i++) {
+		const queryPart = normalizedQueryParts[i]!;
+		const match = findBestSegmentMatch(accountParts, segmentStart, queryPart);
+		if (!match) {
+			return null;
+		}
+		if (match.kind === 'exact') exactCount++;
+		if (match.kind === 'prefix') prefixCount++;
+		if (match.kind === 'substring') substringCount++;
+		gapCount += Math.max(0, match.index - lastMatchIndex - 1);
+		lastMatchIndex = match.index;
+		segmentStart = match.index + 1;
+		if (i === queryTailIdx) {
+			tailHit = match.index === accountParts.length - 1;
+		}
+	}
+
+	let tier = 2;
+	if (substringCount > 0) {
+		tier = 0;
+	} else if (prefixCount > 0) {
+		tier = 1;
+	}
+
+	return {
+		tier,
+		matchedSegmentCount: normalizedQueryParts.length - 1,
+		gapCount,
+		rootQuality,
+		tailHit,
+		usageBucket: Math.min(usageCount, 20),
+	};
+}
+
+function compareAccountRank(a: AccountMatchRank, b: AccountMatchRank): number {
+	if (a.tier !== b.tier) return b.tier - a.tier;
+	if (a.matchedSegmentCount !== b.matchedSegmentCount) return b.matchedSegmentCount - a.matchedSegmentCount;
+	if (a.tailHit !== b.tailHit) return Number(b.tailHit) - Number(a.tailHit);
+	if (a.gapCount !== b.gapCount) return a.gapCount - b.gapCount;
+	if (a.rootQuality !== b.rootQuality) return b.rootQuality - a.rootQuality;
+	if (a.usageBucket !== b.usageBucket) return b.usageBucket - a.usageBucket;
+	return 0;
+}
+
+export function deriveAccountQueryFromLine(linePrefix: string): string {
+	const normalizedLine = linePrefix.replace(/：/g, ':');
+	// Prefer strict account query with at least one non-empty segment after ':'.
+	const strict = normalizedLine.match(/(?:^|\s)([AEIL](?::[A-Za-z0-9._/-]+)+)$/i);
+	if (strict && strict[1]) {
+		return normalizeAccountQueryToken(strict[1]);
+	}
+	// Then fallback to looser account-like token.
+	const m = normalizedLine.match(/(?:^|\s)([AEIL](?::[A-Za-z0-9._/-]*)*)$/i);
+	if (m && m[1]) {
+		return normalizeAccountQueryToken(m[1]);
+	}
+	const lastToken = normalizedLine.trim().split(/\s+/).at(-1) ?? '';
+	return normalizeAccountQueryToken(lastToken);
+}
+
+function shouldTraceAccountQuery(linePrefix: string, tokenText: string): boolean {
+	return /(?:^|\s)[AEIL](?::|：)/i.test(linePrefix) || /^[AEIL](?::|：)/i.test(tokenText);
+}
+
+function getCurrentWhitespaceToken(linePrefix: string): string {
+	const normalized = linePrefix.replace(/：/g, ':');
+	const currentToken = normalized.match(/(?:^|\s)(\S*)$/)?.[1] ?? '';
+	return currentToken.trim();
+}
+
+function isNumericInputToken(token: string): boolean {
+	if (!token) return false;
+	return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(token);
+}
+
+// Generic currency guard:
+// - While user is typing a numeric token, keep number input uninterrupted.
+// - Once number token is finished (cursor after whitespace), currency can be suggested.
+export function shouldSuppressCurrencyForCurrentToken(linePrefix: string): boolean {
+	const currentToken = getCurrentWhitespaceToken(linePrefix);
+	return isNumericInputToken(currentToken);
 }
 
 /**
- * Adds account completions based on the trigger letter
- *
- * This function filters accounts from the symbol index based on their type:
- * - 'A': Assets accounts
- * - 'L': Liabilities accounts
- * - 'E': Both Equity and Expenses accounts (special case)
- * - 'I': Income accounts
- *
- * It adds appropriate detail information to distinguish account types,
- * particularly for the 'E' trigger which can match two account types.
- *
- * Closed accounts are excluded from completions to keep the suggestions relevant.
- *
- * @param params Account completion parameters
- * @returns Updated counter value
+ * Adds account completions using token range replacement and token query filtering.
  */
-async function addAccountCompletions(
-	collector: CompletionCollector,
-	params: AddAccountCompletionsParams,
-): Promise<void> {
-	const {
-		triggerChar,
-	} = params;
+async function addAccountCompletions(collector: CompletionCollector): Promise<void> {
 	let accountsNames: string[] = [];
 	// Fetch all account definitions from the index
 	const accounts = await collector.symbolIndex.getAccountDefinitions();
@@ -574,9 +1068,9 @@ async function addAccountCompletions(
 
 	// Extract current date from the current line if possible
 	let currentDate: string | undefined;
-	if (collector.currentLine) {
+	if (collector.textCtx.linePrefix) {
 		// Try to match a date pattern in the current line
-		const dateMatch = collector.currentLine.match(/(\d{4}[-/]\d{2}[-/]\d{2})/);
+		const dateMatch = collector.textCtx.linePrefix.match(/(\d{4}[-/]\d{2}[-/]\d{2})/);
 		if (dateMatch && dateMatch[1]) {
 			currentDate = dateMatch[1];
 		}
@@ -613,8 +1107,22 @@ async function addAccountCompletions(
 	}
 
 	accountsNames = Array.from(new Set(accountsNames));
+	const lineDerivedQuery = deriveAccountQueryFromLine(collector.textCtx.linePrefix);
+	const queryFromToken = collector.textCtx.tokenText;
+	const query = queryFromToken || lineDerivedQuery;
+	const querySource = queryFromToken ? 'token' : 'line';
+	const hasActiveQuery = query.length > 0;
+	const accountMatchScores = new Map<string, number>();
+	const accountRanks = new Map<string, AccountMatchRank>();
+	const shouldTrace = shouldTraceAccountQuery(collector.textCtx.linePrefix, collector.textCtx.tokenText);
 
-	// Filter accounts based on the trigger character and closed status
+	if (shouldTrace) {
+		logger.info(
+			`[account-query] source=${querySource} token="${collector.textCtx.tokenText}" lineDerived="${lineDerivedQuery}" query="${query}" range=${collector.textCtx.tokenRange.startChar}-${collector.textCtx.tokenRange.endChar}`,
+		);
+	}
+
+	// Filter accounts by lifecycle and token query (supports skipped account segments).
 	const filteredAccounts = accountsNames.filter((account) => {
 		// check if the account is closed and if the current date is after the closing date
 		if (currentDate && closedAccounts.has(account)) {
@@ -625,44 +1133,52 @@ async function addAccountCompletions(
 			}
 		}
 
+		const usageCount = accountUsageCounts.get(account) || 0;
+		const rank = hasActiveQuery ? rankAccountQuery(query, account, usageCount) : {
+			tier: 0,
+			matchedSegmentCount: 0,
+			gapCount: 0,
+			rootQuality: 0,
+			tailHit: false,
+			usageBucket: Math.min(usageCount, 20),
+		};
+		if (!rank) {
+			return false;
+		}
+		accountRanks.set(account, rank);
+		accountMatchScores.set(account, rank.tier * 100 + rank.rootQuality * 10 + (rank.tailHit ? 5 : 0));
 		return true;
 	});
 
-	// Sort accounts by usage count (most used first)
+	// Sort by query relevance first, then usage count.
 	filteredAccounts.sort((a, b) => {
+		const rankA = accountRanks.get(a);
+		const rankB = accountRanks.get(b);
+		if (rankA && rankB) {
+			const rankDiff = compareAccountRank(rankA, rankB);
+			if (rankDiff !== 0) {
+				return rankDiff;
+			}
+		}
 		const countA = accountUsageCounts.get(a) || 0;
 		const countB = accountUsageCounts.get(b) || 0;
-		return countB - countA; // Descending order
+		if (countA !== countB) {
+			return countB - countA;
+		}
+		return a.localeCompare(b);
 	});
 
-	// Compute how many characters to delete from the left of the cursor once
-	let deleteCount = triggerChar.length;
-	// If we have a concrete userInput, prefer replacing exactly that
-	if (!deleteCount && collector.userInput && collector.userInput.length > 0) {
-		deleteCount = collector.userInput.length;
-	}
-	// Otherwise, derive by scanning left for an account-like token
-	if (!deleteCount && collector.document) {
-		try {
-			const lineText = collector.document.getText({
-				start: { line: collector.position.line, character: 0 },
-				end: { line: collector.position.line, character: collector.position.character },
-			});
-			let i = lineText.length - 1;
-			const isAccountCharLocal = (
-				ch: string,
-			) => (/[A-Za-z0-9]/.test(ch) || ch === ':' || ch === '_' || ch === '-' || ch === '/' || ch === '.');
-			while (i >= 0 && isAccountCharLocal(lineText.charAt(i))) {
-				deleteCount++;
-				i--;
-			}
-		} catch {
-			// ignore
-		}
+	if (shouldTrace) {
+		const top = filteredAccounts.slice(0, 8).map((account) => {
+			const rank = accountRanks.get(account);
+			const usage = accountUsageCounts.get(account) || 0;
+			return `${account} (rank=${JSON.stringify(rank)}, usage=${usage})`;
+		});
+		logger.info(`[account-query] filtered=${filteredAccounts.length} rankTopN=${top.join(' | ')}`);
 	}
 
 	// Add each filtered account as a completion item
-	filteredAccounts.forEach((account) => {
+	filteredAccounts.forEach((account, index) => {
 		let detail = '';
 
 		// Add usage count to the detail if available
@@ -689,13 +1205,15 @@ async function addAccountCompletions(
 			},
 			TextEdit.replace(
 				{
-					start: { line: collector.position.line, character: collector.position.character - deleteCount },
-					end: { line: collector.position.line, character: collector.position.character },
+					start: { line: collector.position.line, character: collector.textCtx.tokenRange.startChar },
+					end: { line: collector.position.line, character: collector.textCtx.tokenRange.endChar },
 				},
 				account + ' ',
-			),
-			usageCount,
-		);
+				),
+				usageCount,
+				accountMatchScores.get(account),
+				String(index).padStart(7, '0'),
+			);
 	});
 }
 
@@ -708,18 +1226,33 @@ async function addAccountCompletions(
  * @param collector Completion context
  */
 async function addLinkCompletions(collector: CompletionCollector): Promise<void> {
-	// Fetch links from the index
-	const links = await collector.symbolIndex.getLinks();
+	const [links, usageCounts] = await Promise.all([
+		collector.symbolIndex.getLinks(),
+		collector.symbolIndex.getLinkUsageCounts(),
+	]);
+	const query = collector.textCtx.tokenText.trim().toLowerCase();
 
-	const shouldAddPrefix = collector.currentLine && !collector.currentLine.endsWith('^');
+	const shouldAddPrefix = !collector.textCtx.afterCaret;
+	const rankedLinks = rankAndSortLabelItems({
+		items: links,
+		query,
+		getLabel: link => link,
+		getUsageCount: link => usageCounts.get(link) || 0,
+		rankFn: rankSymbolLikeMatchTier,
+		getFilterText: label => collector.symbolIndex.getFilterText(label),
+	});
 
-	// Add each link as a completion item
-	links.forEach((link: string) => {
+	rankedLinks.forEach(({ item: link, usageCount }, index) => {
+		const detail = usageCount > 0
+			? `(link) | Used ${usageCount} time${usageCount === 1 ? '' : 's'}`
+			: '(link)';
 		addCompletionItem(
 			collector,
-			{ label: link, kind: CompletionItemKind.Reference, detail: '(link)' },
+			{ label: link, kind: CompletionItemKind.Reference, detail },
 			shouldAddPrefix ? `^${link}` : link,
+			usageCount,
 			undefined,
+			String(index).padStart(7, '0'),
 		);
 	});
 }
@@ -741,10 +1274,10 @@ const logger = new Logger('completions');
  * based on the cursor position and surrounding tokens.
  */
 export class CompletionFeature implements Feature {
-	private lastCompletionItems: CompletionItem[] = [];
 	private connection: Connection | null = null;
 	private enablePinyin: boolean = false;
 	private hasFetchedCompletionConfig: boolean = false;
+	private requestSeq: number = 0;
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
@@ -780,9 +1313,9 @@ export class CompletionFeature implements Feature {
 
 	private async refreshCompletionConfig(scopeUri?: string): Promise<void> {
 		try {
-			const config = await this.connection!.workspace.getConfiguration({ 
-				scopeUri, 
-				section: 'beanLsp.completion' 
+			const config = await this.connection!.workspace.getConfiguration({
+				scopeUri,
+				section: 'beanLsp.completion',
 			});
 			this.enablePinyin = config?.enableChinesePinyinFilter ?? false;
 			this.hasFetchedCompletionConfig = true;
@@ -822,34 +1355,32 @@ export class CompletionFeature implements Feature {
 	provideCompletionItems = async (
 		params: CompletionParams,
 	): Promise<CompletionItem[] | CompletionList | null> => {
+		const requestId = ++this.requestSeq;
 		const document = await this.documents.retrieve(params.textDocument.uri);
 		const tree = await this.trees.getParseTree(document);
 		if (!tree) {
 			return CompletionList.create([]);
 		}
+		const textCtx = buildCompletionTextContext(
+			document,
+			params.position,
+			params.context?.triggerCharacter as string | undefined,
+		);
+		logger.info(
+			`[completion-context] requestId=${requestId} triggerKind=${params.context?.triggerKind ?? 'n/a'} triggerChar="${params.context?.triggerCharacter ?? ''}" token="${textCtx.tokenText}" range=${textCtx.tokenRange.startChar}-${textCtx.tokenRange.endChar} cursor=${params.position.character} isIncomplete=true`,
+		);
+		if (textCtx.tokenRange.endChar !== params.position.character) {
+			logger.warn(
+				`[completion-context] requestId=${requestId} stale-range tokenEnd=${textCtx.tokenRange.endChar} cursor=${params.position.character}`,
+			);
+		}
 
 		// Check if this is a closing quote
 		if (params.context?.triggerCharacter === '"') {
-			// Get the text of the current line up to the cursor position
-			const line = document.getText({
-				start: { line: params.position.line, character: 0 },
-				end: params.position,
-			});
-
-			// Count quotes in the line
-			const quoteCount = line.split('"').length - 1;
-			// If there's an even number of quotes, this is a closing quote
-			if (quoteCount % 2 === 0) {
+			if (!textCtx.inOpenQuote) {
 				return CompletionList.create([]); // Don't trigger completion for closing quotes
 			}
 		}
-
-		// Extract user input for better sorting
-		const { userInput, currentLine } = extractUserInput(
-			document,
-			params.position,
-			params.context?.triggerCharacter as string,
-		);
 
 		// Analyze the token at the current position
 		const current = nodeAtPosition(tree.rootNode, params.position, true);
@@ -862,15 +1393,17 @@ export class CompletionFeature implements Feature {
 				triggerCharacter: params.context?.triggerCharacter as TriggerCharacter,
 				previousSiblingType: current.previousSibling?.type,
 				previousPreviousSiblingType: current.previousSibling?.previousSibling?.type,
-				currentLine,
 			},
 			params.position,
 			current,
-			userInput,
+			textCtx,
 			document,
 		);
+		logger.info(
+			`[completion-context] requestId=${requestId} itemsCount=${completionItems.length}`,
+		);
 
-		return CompletionList.create(completionItems, false);
+		return CompletionList.create(completionItems, true);
 	};
 
 	/**
@@ -881,14 +1414,14 @@ export class CompletionFeature implements Feature {
 	 *
 	 * @param info Information about the trigger context
 	 * @param position The current cursor position
-	 * @param userInput Optional user input for scoring and sorting
+	 * @param textCtx Unified text context around cursor
 	 * @returns Array of completion items
 	 */
 	async calcCompletionItems(
 		info: TriggerInfo,
 		position: Position,
 		current: Parser.SyntaxNode,
-		userInput?: string,
+		textCtx: CompletionTextContext,
 		document?: TextDocument,
 	): Promise<CompletionItem[]> {
 		const completionItems: CompletionItem[] = [];
@@ -902,10 +1435,9 @@ export class CompletionFeature implements Feature {
 			position,
 			existingCompletions: new Set<string>(),
 			completions: completionItems,
-			userInput,
-			currentLine: info.currentLine,
 			document,
 			enablePinyin,
+			textCtx,
 		};
 
 		// Helper function to add a single completion item
@@ -924,236 +1456,82 @@ export class CompletionFeature implements Feature {
 		};
 
 		logger.info(`Starting completion with info: ${JSON.stringify(info)}`);
-		const p: Promise<void> = match({ ...info, userInput })
-			.with({ triggerCharacter: '2', currentLine: P.string.regex(/^\d*$/) }, async () => {
-				// Date completions: Provide the current date, yesterday, day before yesterday, and tomorrow
-				logger.info('Branch: triggerCharacter 2');
-				const d = new Date();
-				const yesterday = sub(d, { days: 1 });
-				const dayBeforeYesterday = sub(d, { days: 2 });
-				const tomorrow = add(d, { days: 1 });
+		const intents = resolveCompletionIntent(info, textCtx);
+		for (const intent of intents) {
+			const initialCount = completionItems.length;
+			switch (intent.type) {
+				case 'date': {
+					const d = new Date();
+					const yesterday = sub(d, { days: 1 });
+					const dayBeforeYesterday = sub(d, { days: 2 });
+					const tomorrow = add(d, { days: 1 });
 
-				// Create a set to track all dates for deduplication
-				const dateSet = new Set<string>();
+					const dateSet = new Set<string>();
+					const standardDates = [d, yesterday, tomorrow, dayBeforeYesterday];
+					const formattedStandardDates = standardDates.map(d => formatDate(d, 'yyyy-MM-dd'));
+					formattedStandardDates.forEach(dateStr => dateSet.add(dateStr));
 
-				// Add standard dates in specific order
-				const standardDates = [d, yesterday, tomorrow, dayBeforeYesterday];
-				const formattedStandardDates = standardDates.map(d => formatDate(d, 'yyyy-MM-dd'));
-
-				// Add these standard dates to the set for deduplication
-				formattedStandardDates.forEach(dateStr => dateSet.add(dateStr));
-
-				// Find recent dates from previous lines if document is available
-				if (document && position) {
-					// Start searching from current line and work backwards
-					const startLine = Math.max(0, position.line - 50); // Look up to 50 lines back
-					const endLine = position.line;
-					const recentDates: string[] = [];
-
-					// Scan previous lines for dates
-					for (let lineNum = endLine; lineNum >= startLine; lineNum--) {
-						const lineText = document.getText({
-							start: { line: lineNum, character: 0 },
-							end: { line: lineNum, character: Number.MAX_SAFE_INTEGER },
-						});
-
-						// Find all dates in the line
-						const dateMatches = lineText.match(/\d{4}[-/]\d{2}[-/]\d{2}/g);
-						if (dateMatches) {
-							dateMatches.forEach(date => {
-								// Only add if not already in the set
-								if (!dateSet.has(date)) {
-									dateSet.add(date);
-									recentDates.push(date);
-								}
+					if (document && position) {
+						const startLine = Math.max(0, position.line - 50);
+						const endLine = position.line;
+						for (let lineNum = endLine; lineNum >= startLine; lineNum--) {
+							const lineText = document.getText({
+								start: { line: lineNum, character: 0 },
+								end: { line: lineNum, character: Number.MAX_SAFE_INTEGER },
 							});
+							const dateMatches = lineText.match(/\d{4}[-/]\d{2}[-/]\d{2}/g);
+							dateMatches?.forEach(date => dateSet.add(date));
 						}
 					}
 
-					logger.info(`Found ${recentDates.length} recent dates from previous lines`);
+					formattedStandardDates.forEach((dateStr, idx) => {
+						addItem({
+							label: dateStr,
+							sortText: String.fromCharCode(65 + idx),
+							kind: CompletionItemKind.Constant,
+							detail: '',
+						});
+					});
+
+					Array.from(dateSet)
+						.filter(date => !formattedStandardDates.includes(date))
+						.sort()
+						.reverse()
+						.forEach((dateStr, idx) => {
+							addItem({
+								label: dateStr,
+								sortText: String.fromCharCode(65 + formattedStandardDates.length + idx),
+								kind: CompletionItemKind.Constant,
+								detail: '(recent)',
+							});
+						});
+					break;
 				}
-
-				// First add standard dates in the specified order
-				formattedStandardDates.forEach((dateStr, idx) => {
-					addItem({
-						label: dateStr,
-						sortText: String.fromCharCode(65 + idx), // A, B, C, D for the standard dates
-						kind: CompletionItemKind.Constant,
-						detail: '', // No detail for standard dates
+				case 'identifier':
+					['open', 'close', 'balance', 'pad', 'document', 'note'].forEach((t) => {
+						addItem({ label: t, kind: CompletionItemKind.Field });
 					});
-				});
-
-				// Then add recent dates from the document, sorted by recency (most recent first)
-				const recentDatesFromDocument = Array.from(dateSet)
-					.filter(date => !formattedStandardDates.includes(date))
-					.sort()
-					.reverse();
-
-				recentDatesFromDocument.forEach((dateStr, idx) => {
-					addItem({
-						label: dateStr,
-						sortText: String.fromCharCode(65 + formattedStandardDates.length + idx), // E, F, G, etc. for recent dates
-						kind: CompletionItemKind.Constant,
-						detail: '(recent)',
-					});
-				});
-
-				logger.info(`Date completions added, items: ${completionItems.length}`);
-			})
-			.with({ currentType: 'identifier', previousSiblingType: P.union('date') }, async () => {
-				['open', 'close', 'balance', 'pad', 'document', 'note'].forEach((t) => {
-					addItem({ label: t, kind: CompletionItemKind.Field });
-				});
-				logger.info(`Identifier completions added, items: ${completionItems.length}`);
-			})
-			.with(
-				{ triggerCharacter: '#' },
-				{ currentType: '#' },
-				async () => {
-					// Tag completions when triggered by # character
-					logger.info('Branch: triggerCharacter #');
-					const initialCount = completionItems.length;
+					break;
+				case 'tag':
 					await addTagCompletions(collector);
-					logger.info(`Tags added, items: ${completionItems.length - initialCount}`);
-				},
-			)
-			.with({ triggerCharacter: '^' }, async () => {
-				// Link completions when triggered by ^ character
-				logger.info('Branch: triggerCharacter ^');
-				const initialCount = completionItems.length;
-				await addLinkCompletions(collector);
-				logger.info(`Links added, items: ${completionItems.length - initialCount}`);
-			})
-			.with(
-				{
-					previousSiblingType: P.union('unary_number_expr', 'number', 'binary_number_expr'),
-					previousPreviousSiblingType: 'account',
-				},
-				{
-					// Currency completions after a account (staring with flag leetters)
-					currentType: 'flag',
-					previousSiblingType: 'account',
-					userInput: P.string.regex(/^PSTCURM$/),
-				},
-				{
-					currentType: 'currency',
-					previousSiblingType: P.union('unary_number_expr', 'number', 'binary_number_expr'),
-				},
-				async () => {
-					// Currency completions after a number and space
-					logger.info('Branch: number in posting - currency context');
-					const initialCount = completionItems.length;
+					break;
+				case 'link':
+					await addLinkCompletions(collector);
+					break;
+				case 'currency':
 					await addCurrencyCompletions(collector);
-					logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
-				},
-			)
-			.with(
-				{ triggerCharacter: '"', previousSiblingType: 'txn' },
-				{
-					triggerCharacter: '"',
-					currentType: 'payee',
-				},
-				{
-					triggerCharacter: '"',
-					previousSiblingType: 'txn',
-					previousPreviousSiblingType: 'date',
-				},
-				async () => {
-					// Payee and narration completions after a transaction keyword
-					logger.info('Branch: triggerCharacter " with txn sibling');
-					const initialCount = completionItems.length;
-					await addPayeesAndNarrations(collector, {
-						shouldIncludePayees: true,
-						quotationStyle: 'end',
-						addSpaceAfter: true,
-					});
-					logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
-				},
-			)
-			.with(
-				{ triggerCharacter: '"', previousSiblingType: 'payee' },
-				{ triggerCharacter: '"', previousSiblingType: 'string' },
-				async () => {
-					// Narration completions only after a payee
-					logger.info('Branch: triggerCharacter " with payee sibling');
-					const initialCount = completionItems.length;
-					await addPayeesAndNarrations(collector, {
-						shouldIncludePayees: false,
-						quotationStyle: 'end',
-						addSpaceAfter: false,
-					});
-					logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
-				},
-			)
-			.with({ triggerCharacter: '"', currentType: 'narration' }, async () => {
-				// Payee and narration completions when positioned at a narration
-				logger.info('Branch: triggerCharacter " with narration current');
-				const initialCount = completionItems.length;
-				await addPayeesAndNarrations(collector, {
-					shouldIncludePayees: true,
-					quotationStyle: 'both',
-					addSpaceAfter: false,
-				});
-				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
-			})
-			.with({
-				triggerCharacter: '"',
-				currentType: 'ERROR',
-				previousSiblingType: 'string',
-				previousPreviousSiblingType: 'txn',
-			}, async () => {
-				// Narration completions in error recovery mode after string and txn
-				logger.info('Branch: triggerCharacter " with ERROR current, string sibling, txn previous');
-				const initialCount = completionItems.length;
-				await addPayeesAndNarrations(collector, {
-					shouldIncludePayees: false,
-					quotationStyle: 'end',
-					addSpaceAfter: false,
-				});
-				logger.info(`Narrations added, items: ${completionItems.length - initialCount}`);
-			})
-			.with({
-				triggerCharacter: '"',
-				currentType: 'ERROR',
-				previousSiblingType: 'txn',
-				previousPreviousSiblingType: 'date',
-			}, async () => {
-				// Payee and narration completions in error recovery mode after txn and date
-				logger.info('Branch: triggerCharacter " with ERROR current, txn sibling, date previous');
-				const initialCount = completionItems.length;
-				await addPayeesAndNarrations(collector, {
-					shouldIncludePayees: true,
-					quotationStyle: 'end',
-					addSpaceAfter: true,
-				});
-				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
-			})
-			.with({ currentType: 'narration' }, async () => {
-				// Payee and narration completions when positioned at a narration outside quotes
-				logger.info('Branch: narration current');
-				const initialCount = completionItems.length;
-				await addPayeesAndNarrations(collector, {
-					shouldIncludePayees: true,
-					quotationStyle: 'both',
-					addSpaceAfter: true,
-				});
-				logger.info(`Payees and narrations added, items: ${completionItems.length - initialCount}`);
-			})
-			.with({ currentType: 'account', parentType: 'posting' }, async () => {
-				// Account completions after a posting
-				logger.info('Branch: account current, posting parent');
-				const initialCount = completionItems.length;
-				await addAccountCompletions(collector, {
-					triggerChar: userInput ?? '',
-				});
-				logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
-			})
-			.otherwise(() => {
-				// No matching context found, provide no completions
-				logger.info('No matching branch found');
-				return Promise.resolve();
-			});
-		await p;
+					break;
+				case 'payeeNarration':
+					await addPayeesAndNarrations(collector, intent.params);
+					break;
+				case 'account':
+					await addAccountCompletions(collector);
+					break;
+			}
+			if (completionItems.length > initialCount) {
+				break;
+			}
+		}
 
 		if (current.type === 'ERROR') {
 			let n = current.parent;
@@ -1171,10 +1549,13 @@ export class CompletionFeature implements Feature {
 							validTypes,
 							head4ValidTypes: validTypes.slice(0, 4),
 							triggerCharacter: info.triggerCharacter,
-							userInput,
+							tokenText: textCtx.tokenText,
 						},
 					)
 						.with({ head4ValidTypes: ['account', 'binary_number_expr'] }, async () => {
+							if (shouldSuppressCurrencyForCurrentToken(textCtx.linePrefix)) {
+								return;
+							}
 							const initialCount = completionItems.length;
 							await addCurrencyCompletions(collector);
 							logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
@@ -1211,13 +1592,11 @@ export class CompletionFeature implements Feature {
 							{ head4ValidTypes: ['date', 'pad', 'identifier', 'identifier'] },
 							{
 								head4ValidTypes: [P._, P._, P.union('atat', 'at'), 'number'],
-								userInput: P.string.regex(/^[AEIL]+$/),
+								tokenText: P.string.regex(/^[AEIL]+$/),
 							},
 							async () => {
 								const initialCount = completionItems.length;
-								await addAccountCompletions(collector, {
-									triggerChar: userInput ?? '',
-								});
+								await addAccountCompletions(collector);
 								logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
 							},
 						)
@@ -1254,9 +1633,7 @@ export class CompletionFeature implements Feature {
 						placeholder: 'Assets:Bank',
 						kind: 'account',
 						onSuccess: async () => {
-							await addAccountCompletions(collector, {
-								triggerChar: '',
-							});
+							await addAccountCompletions(collector);
 						},
 						description: 'account',
 					},
@@ -1334,11 +1711,6 @@ export class CompletionFeature implements Feature {
 		}
 
 		logger.info(`Final completion items: ${completionItems.length}`);
-		this.lastCompletionItems = completionItems;
-		if (completionItems.length <= 0) {
-			// for inputting something includes trigger character in narration
-			completionItems.push(...this.lastCompletionItems);
-		}
 		return completionItems;
 	}
 }
