@@ -406,6 +406,41 @@ export class SymbolIndex {
 		return usageCounts;
 	}
 
+	public async getPayeeUsageCounts(): Promise<Map<string, number>> {
+		this.logger.debug('[index] Getting payee usage counts');
+		return this.getUsageCountsByType(SymbolType.PAYEE);
+	}
+
+	public async getNarrationUsageCounts(): Promise<Map<string, number>> {
+		this.logger.debug('[index] Getting narration usage counts');
+		return this.getUsageCountsByType(SymbolType.NARRATION);
+	}
+
+	public async getCommodityUsageCounts(): Promise<Map<string, number>> {
+		this.logger.debug('[index] Getting commodity usage counts');
+		return this.getUsageCountsByType(SymbolType.COMMODITY);
+	}
+
+	public async getTagUsageCounts(): Promise<Map<string, number>> {
+		this.logger.debug('[index] Getting tag usage counts');
+		return this.getUsageCountsByType(SymbolType.TAG);
+	}
+
+	public async getLinkUsageCounts(): Promise<Map<string, number>> {
+		this.logger.debug('[index] Getting link usage counts');
+		return this.getUsageCountsByType(SymbolType.LINK);
+	}
+
+	private async getUsageCountsByType(type: typeof SymbolType[keyof typeof SymbolType]): Promise<Map<string, number>> {
+		const items = await this._symbolInfoStorage.findAsync({ [SymbolKey.TYPE]: type }) as SymbolInfo[];
+		const usageCounts = new Map<string, number>();
+		for (const item of items) {
+			const count = usageCounts.get(item.name) || 0;
+			usageCounts.set(item.name, count + 1);
+		}
+		return usageCounts;
+	}
+
 	/**
 	 * Gets all closed accounts with their closing dates
 	 *
