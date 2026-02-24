@@ -2,6 +2,7 @@ import { AsyncCall } from 'async-call-rpc/base';
 import { WorkerChannel } from 'async-call-rpc/utils/web/worker.js';
 
 type BeancountVersion = 'v2' | 'v3';
+export type BeancheckMode = 'diagnostics' | 'full';
 
 interface FileUpdate {
 	name: string;
@@ -17,7 +18,7 @@ interface WorkerApi {
 	) => Promise<void>;
 	sync: (updates: FileUpdate[], removed: string[]) => Promise<void>;
 	reset: (files: FileUpdate[]) => Promise<void>;
-	beancheck: (entryFile: string) => Promise<string>;
+	beancheck: (entryFile: string, options?: { mode?: BeancheckMode }) => Promise<string>;
 }
 
 interface ClientApi {
@@ -128,9 +129,9 @@ export class BeancountWorkerClient {
 		return this.api!.reset(files);
 	}
 
-	async beancheck(entryFile: string): Promise<string> {
+	async beancheck(entryFile: string, options?: { mode?: BeancheckMode }): Promise<string> {
 		await this.ensureReady();
-		return this.api!.beancheck(entryFile);
+		return this.api!.beancheck(entryFile, options);
 	}
 
 	dispose(): void {

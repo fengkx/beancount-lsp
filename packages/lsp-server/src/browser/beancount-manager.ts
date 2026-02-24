@@ -20,6 +20,7 @@ import {
 	RealBeancountManager,
 } from '../common/features/types';
 import { globalEventBus, GlobalEvents } from '../common/utils/event-bus';
+import type { BeancheckMode } from './beancount-worker-client';
 import { BeancountWorkerClient } from './beancount-worker-client';
 
 interface AccountDetails {
@@ -51,11 +52,15 @@ interface FileUpdate {
 	content: string;
 }
 
+type BeancheckDiagnosticsResult = Pick<BeancheckOutput, 'errors' | 'flags'>;
+type BeancheckDerivedResult = Pick<BeancheckOutput, 'pads' | 'general'>;
+
 class BeancountBrowserManager implements RealBeancountManager {
 	private mainFile: string | null = null;
-	private result: BeancheckOutput | null = null;
-	/** Stale result kept for SWR: non-diagnostic data (balances, pads) served from here while revalidating */
-	private staleResult: BeancheckOutput | null = null;
+	private diagnosticsResult: BeancheckDiagnosticsResult | null = null;
+	private derivedResult: BeancheckDerivedResult | null = null;
+	/** Stale derived data kept for SWR while revalidating full beancheck. */
+	private staleDerivedResult: BeancheckDerivedResult | null = null;
 	private padFileCache = new Map<string, Record<string, Amount[]> | null>();
 	private logger = new Logger('BeancountBrowserManager');
 	private workerClient: BeancountWorkerClient | null = null;
@@ -64,13 +69,29 @@ class BeancountBrowserManager implements RealBeancountManager {
 	private lastFileSnapshot = new Map<string, string>();
 	private configDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 	private static readonly CONFIG_DEBOUNCE_MS = 500;
+	private static readonly SYNC_FLUSH_DEBOUNCE_MS = 50;
+	private static readonly DIAGNOSTICS_DEBOUNCE_MS = 250;
+	private static readonly FULL_IDLE_DEBOUNCE_MS = 1200;
+	private static readonly WATCHED_FILES_FULL_DEBOUNCE_MS = 300;
 	private inputGeneration = 0;
-	private queuedBeancheckGeneration = 0;
-	private appliedBeancheckGeneration = 0;
-	private hasPendingBeancheckRun = false;
-	private beancheckQueuePromise: Promise<void> | null = null;
-	private activeBeancheckTokenSource: CancellationTokenSource | null = null;
-	private activeBeancheckRunGeneration = 0;
+	private queuedDiagnosticsGeneration = 0;
+	private appliedDiagnosticsGeneration = 0;
+	private hasPendingDiagnosticsRun = false;
+	private diagnosticsQueuePromise: Promise<void> | null = null;
+	private activeDiagnosticsTokenSource: CancellationTokenSource | null = null;
+	private activeDiagnosticsRunGeneration = 0;
+	private diagnosticsDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+	private queuedFullGeneration = 0;
+	private appliedFullGeneration = 0;
+	private hasPendingFullRun = false;
+	private fullQueuePromise: Promise<void> | null = null;
+	private activeFullTokenSource: CancellationTokenSource | null = null;
+	private activeFullRunGeneration = 0;
+	private fullDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+	private pendingSyncUpdates = new Map<string, string>();
+	private pendingSyncRemovals = new Set<string>();
+	private syncFlushTimer: ReturnType<typeof setTimeout> | null = null;
+	private syncFlushPromise: Promise<void> | null = null;
 
 	constructor(
 		private readonly connection: Connection,
@@ -112,7 +133,8 @@ class BeancountBrowserManager implements RealBeancountManager {
 		this.markBeancheckInputChanged('main-file-updated');
 		await this.refreshConfiguration();
 		await this.refreshFileTree();
-		await this.scheduleBeancheckRevalidate();
+		await this.scheduleDiagnosticsRevalidate(this.inputGeneration, { immediate: true });
+		await this.scheduleFullRevalidate(this.inputGeneration, { immediate: true });
 	}
 
 	private async refreshConfiguration(): Promise<void> {
@@ -143,20 +165,31 @@ class BeancountBrowserManager implements RealBeancountManager {
 
 		if (this.enabledMode === 'off') {
 			this.logger.info('Browser Beancount WASM diagnostics disabled.');
+			this.clearPendingSyncBuffers();
 			this.workerClient?.dispose();
 			this.workerClient = null;
-			this.result = null;
-			this.staleResult = null;
+			this.diagnosticsResult = null;
+			this.derivedResult = null;
+			this.staleDerivedResult = null;
 			this.padFileCache.clear();
-			this.activeBeancheckTokenSource?.cancel();
-			this.activeBeancheckTokenSource?.dispose();
-			this.activeBeancheckTokenSource = null;
-			this.activeBeancheckRunGeneration = 0;
+			this.clearRevalidateTimers();
+			this.activeDiagnosticsTokenSource?.cancel();
+			this.activeDiagnosticsTokenSource?.dispose();
+			this.activeDiagnosticsTokenSource = null;
+			this.activeDiagnosticsRunGeneration = 0;
+			this.activeFullTokenSource?.cancel();
+			this.activeFullTokenSource?.dispose();
+			this.activeFullTokenSource = null;
+			this.activeFullRunGeneration = 0;
 			this.inputGeneration = 0;
-			this.queuedBeancheckGeneration = 0;
-			this.appliedBeancheckGeneration = 0;
-			this.hasPendingBeancheckRun = false;
-			globalEventBus.emit(GlobalEvents.BeancountUpdate);
+			this.queuedDiagnosticsGeneration = 0;
+			this.appliedDiagnosticsGeneration = 0;
+			this.hasPendingDiagnosticsRun = false;
+			this.queuedFullGeneration = 0;
+			this.appliedFullGeneration = 0;
+			this.hasPendingFullRun = false;
+			globalEventBus.emit(GlobalEvents.BeancountDiagnosticsUpdated);
+			globalEventBus.emit(GlobalEvents.BeancountDerivedDataUpdated);
 			return;
 		}
 		await this.ensureWorker();
@@ -165,7 +198,8 @@ class BeancountBrowserManager implements RealBeancountManager {
 		});
 		await this.refreshFileTree();
 		this.markBeancheckInputChanged('runtime-reconfigured');
-		await this.scheduleBeancheckRevalidate();
+		await this.scheduleDiagnosticsRevalidate(this.inputGeneration, { immediate: true });
+		await this.scheduleFullRevalidate(this.inputGeneration, { immediate: true });
 	}
 
 	private isBeanFileUri(uri: string): boolean {
@@ -197,24 +231,35 @@ class BeancountBrowserManager implements RealBeancountManager {
 	private markBeancheckInputChanged(reason: string): void {
 		this.inputGeneration += 1;
 
-		// Previous beancheck diagnostics no longer match the latest synced input snapshot.
-		// Keep stale result for SWR: non-diagnostic data (balances, pads) served from stale
-		// while diagnostics are cleared immediately.
-		if (this.result && this.appliedBeancheckGeneration < this.inputGeneration) {
-			this.staleResult = this.result;
-			this.result = null;
+		if (this.diagnosticsResult && this.appliedDiagnosticsGeneration < this.inputGeneration) {
+			this.diagnosticsResult = null;
+			globalEventBus.emit(GlobalEvents.BeancountDiagnosticsUpdated);
+		}
+
+		// Keep stale derived data for SWR while revalidating the heavier full beancheck.
+		if (this.derivedResult && this.appliedFullGeneration < this.inputGeneration) {
+			this.staleDerivedResult = this.derivedResult;
+			this.derivedResult = null;
 			this.padFileCache.clear();
-			globalEventBus.emit(GlobalEvents.BeancountUpdate);
 		}
 
 		if (
-			this.activeBeancheckTokenSource
-			&& this.activeBeancheckRunGeneration < this.inputGeneration
+			this.activeDiagnosticsTokenSource
+			&& this.activeDiagnosticsRunGeneration < this.inputGeneration
 		) {
 			this.logger.debug(
-				`cancelling beancheck generation ${this.activeBeancheckRunGeneration} due to ${reason} (generation=${this.inputGeneration})`,
+				`cancelling diagnostics generation ${this.activeDiagnosticsRunGeneration} due to ${reason} (generation=${this.inputGeneration})`,
 			);
-			this.activeBeancheckTokenSource.cancel();
+			this.activeDiagnosticsTokenSource.cancel();
+		}
+		if (
+			this.activeFullTokenSource
+			&& this.activeFullRunGeneration < this.inputGeneration
+		) {
+			this.logger.debug(
+				`cancelling full beancheck generation ${this.activeFullRunGeneration} due to ${reason} (generation=${this.inputGeneration})`,
+			);
+			this.activeFullTokenSource.cancel();
 		}
 	}
 
@@ -233,9 +278,11 @@ class BeancountBrowserManager implements RealBeancountManager {
 		if (!this.isBeanFileUri(uri)) {
 			return;
 		}
-		const changed = await this.syncFileUpdate(uri, content);
+		const changed = this.queueFileUpdate(uri, content);
 		if (changed) {
 			this.markBeancheckInputChanged('document-sync');
+			void this.scheduleDiagnosticsRevalidate();
+			void this.scheduleFullRevalidate();
 		}
 	}
 
@@ -243,6 +290,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 		if (this.enabledMode === 'off' || !this.workerClient) {
 			return;
 		}
+		await this.flushPendingSync();
 		const files = await this.collectBeanFiles();
 		await this.workerClient.reset(files);
 	}
@@ -251,6 +299,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 		if (this.enabledMode === 'off' || !this.workerClient) {
 			return;
 		}
+		await this.flushPendingSync();
 		const updates: FileUpdate[] = [];
 		const removed: string[] = [];
 
@@ -273,7 +322,10 @@ class BeancountBrowserManager implements RealBeancountManager {
 		if (updates.length || removed.length) {
 			await this.workerClient.sync(updates, removed);
 			this.markBeancheckInputChanged('watched-files');
-			void this.scheduleBeancheckRevalidate();
+			void this.scheduleDiagnosticsRevalidate();
+			void this.scheduleFullRevalidate(this.inputGeneration, {
+				debounceMs: BeancountBrowserManager.WATCHED_FILES_FULL_DEBOUNCE_MS,
+			});
 		} else {
 			await this.refreshFileTree();
 		}
@@ -290,18 +342,86 @@ class BeancountBrowserManager implements RealBeancountManager {
 		return updates;
 	}
 
-	private async syncFileUpdate(uri: string, content: string): Promise<boolean> {
-		if (!this.workerClient) {
-			return false;
-		}
+	private queueFileUpdate(uri: string, content: string): boolean {
 		const name = this.normalizeFileName(uri);
 		const previous = this.lastFileSnapshot.get(name);
 		if (previous === content) {
 			return false;
 		}
 		this.lastFileSnapshot.set(name, content);
-		await this.workerClient.sync([{ name, content }], []);
+		this.pendingSyncRemovals.delete(name);
+		this.pendingSyncUpdates.set(name, content);
+		this.scheduleSyncFlush();
 		return true;
+	}
+
+	private scheduleSyncFlush(): void {
+		if (this.syncFlushTimer) {
+			return;
+		}
+		this.syncFlushTimer = setTimeout(() => {
+			this.syncFlushTimer = null;
+			void this.flushPendingSync();
+		}, BeancountBrowserManager.SYNC_FLUSH_DEBOUNCE_MS);
+	}
+
+	private async flushPendingSync(): Promise<void> {
+		if (this.enabledMode === 'off' || !this.workerClient) {
+			return;
+		}
+		if (this.syncFlushPromise) {
+			await this.syncFlushPromise;
+			return;
+		}
+		this.syncFlushPromise = (async () => {
+			while (this.pendingSyncUpdates.size > 0 || this.pendingSyncRemovals.size > 0) {
+				const updates = Array.from(this.pendingSyncUpdates.entries()).map(([name, content]) => ({
+					name,
+					content,
+				}));
+				const removed = Array.from(this.pendingSyncRemovals);
+				this.pendingSyncUpdates.clear();
+				this.pendingSyncRemovals.clear();
+				try {
+					await this.workerClient!.sync(updates, removed);
+				} catch (error) {
+					for (const name of removed) {
+						this.pendingSyncUpdates.delete(name);
+						this.pendingSyncRemovals.add(name);
+					}
+					for (const update of updates) {
+						this.pendingSyncRemovals.delete(update.name);
+						this.pendingSyncUpdates.set(update.name, update.content);
+					}
+					throw error;
+				}
+			}
+		})();
+		try {
+			await this.syncFlushPromise;
+		} finally {
+			this.syncFlushPromise = null;
+		}
+	}
+
+	private clearPendingSyncBuffers(): void {
+		if (this.syncFlushTimer) {
+			clearTimeout(this.syncFlushTimer);
+			this.syncFlushTimer = null;
+		}
+		this.pendingSyncUpdates.clear();
+		this.pendingSyncRemovals.clear();
+	}
+
+	private clearRevalidateTimers(): void {
+		if (this.diagnosticsDebounceTimer) {
+			clearTimeout(this.diagnosticsDebounceTimer);
+			this.diagnosticsDebounceTimer = null;
+		}
+		if (this.fullDebounceTimer) {
+			clearTimeout(this.fullDebounceTimer);
+			this.fullDebounceTimer = null;
+		}
 	}
 
 	private normalizeFileName(uri: string): string {
@@ -328,7 +448,10 @@ class BeancountBrowserManager implements RealBeancountManager {
 		return to.path.slice(fromPath.length);
 	}
 
-	private async runBeanCheck(token: CancellationToken): Promise<string | null> {
+	private async runBeanCheckByMode(
+		mode: BeancheckMode,
+		token: CancellationToken,
+	): Promise<string | null> {
 		if (!this.mainFile || this.enabledMode === 'off' || !this.workerClient) {
 			return null;
 		}
@@ -339,61 +462,89 @@ class BeancountBrowserManager implements RealBeancountManager {
 		if (token.isCancellationRequested) {
 			return null;
 		}
-		const result = await this.workerClient.beancheck(entryFile);
+		await this.flushPendingSync();
+		if (token.isCancellationRequested) {
+			return null;
+		}
+		const result = await this.workerClient.beancheck(entryFile, { mode });
 		if (token.isCancellationRequested) {
 			return null;
 		}
 		return result;
 	}
 
-	private async scheduleBeancheckRevalidate(targetGeneration = this.inputGeneration): Promise<void> {
+	private async runBeanCheckDiagnostics(token: CancellationToken): Promise<string | null> {
+		return this.runBeanCheckByMode('diagnostics', token);
+	}
+
+	private async runBeanCheckFull(token: CancellationToken): Promise<string | null> {
+		return this.runBeanCheckByMode('full', token);
+	}
+
+	private async scheduleDiagnosticsRevalidate(
+		targetGeneration = this.inputGeneration,
+		options?: { immediate?: boolean },
+	): Promise<void> {
 		if (this.enabledMode === 'off' || !this.mainFile) {
 			return;
 		}
-
-		this.queuedBeancheckGeneration = Math.max(this.queuedBeancheckGeneration, targetGeneration);
-		this.hasPendingBeancheckRun = true;
-		if (
-			this.activeBeancheckTokenSource
-			&& this.activeBeancheckRunGeneration < this.queuedBeancheckGeneration
-		) {
-			this.activeBeancheckTokenSource.cancel();
+		if (options?.immediate) {
+			this.enqueueDiagnosticsRevalidate(targetGeneration);
+			await this.diagnosticsQueuePromise;
+			return;
 		}
-
-		if (!this.beancheckQueuePromise) {
-			this.beancheckQueuePromise = this.processBeancheckQueue()
-				.finally(() => {
-					this.beancheckQueuePromise = null;
-				});
+		if (this.diagnosticsDebounceTimer) {
+			clearTimeout(this.diagnosticsDebounceTimer);
 		}
-		await this.beancheckQueuePromise;
+		this.diagnosticsDebounceTimer = setTimeout(() => {
+			this.diagnosticsDebounceTimer = null;
+			this.enqueueDiagnosticsRevalidate(targetGeneration);
+		}, BeancountBrowserManager.DIAGNOSTICS_DEBOUNCE_MS);
 	}
 
-	private async processBeancheckQueue(): Promise<void> {
-		while (this.hasPendingBeancheckRun) {
-			this.hasPendingBeancheckRun = false;
-			const targetGeneration = this.queuedBeancheckGeneration;
+	private enqueueDiagnosticsRevalidate(targetGeneration: number): void {
+		this.queuedDiagnosticsGeneration = Math.max(this.queuedDiagnosticsGeneration, targetGeneration);
+		this.hasPendingDiagnosticsRun = true;
+		if (
+			this.activeDiagnosticsTokenSource
+			&& this.activeDiagnosticsRunGeneration < this.queuedDiagnosticsGeneration
+		) {
+			this.activeDiagnosticsTokenSource.cancel();
+		}
+
+		if (!this.diagnosticsQueuePromise) {
+			this.diagnosticsQueuePromise = this.processDiagnosticsQueue()
+				.finally(() => {
+					this.diagnosticsQueuePromise = null;
+				});
+		}
+	}
+
+	private async processDiagnosticsQueue(): Promise<void> {
+		while (this.hasPendingDiagnosticsRun) {
+			this.hasPendingDiagnosticsRun = false;
+			const targetGeneration = this.queuedDiagnosticsGeneration;
 			const tokenSource = new CancellationTokenSource();
-			this.activeBeancheckTokenSource = tokenSource;
-			this.activeBeancheckRunGeneration = targetGeneration;
+			this.activeDiagnosticsTokenSource = tokenSource;
+			this.activeDiagnosticsRunGeneration = targetGeneration;
 			try {
-				await this.revalidateBeanCheck(targetGeneration, tokenSource.token);
+				await this.revalidateDiagnostics(targetGeneration, tokenSource.token);
 			} finally {
-				if (this.activeBeancheckTokenSource === tokenSource) {
-					this.activeBeancheckTokenSource = null;
-					this.activeBeancheckRunGeneration = 0;
+				if (this.activeDiagnosticsTokenSource === tokenSource) {
+					this.activeDiagnosticsTokenSource = null;
+					this.activeDiagnosticsRunGeneration = 0;
 				}
 				tokenSource.dispose();
 			}
 		}
 	}
 
-	private async revalidateBeanCheck(targetGeneration: number, token: CancellationToken): Promise<void> {
+	private async revalidateDiagnostics(targetGeneration: number, token: CancellationToken): Promise<void> {
 		if (token.isCancellationRequested || targetGeneration !== this.inputGeneration) {
 			return;
 		}
-		this.logger.info(`running browser beancheck generation=${targetGeneration}`);
-		const r = await this.runBeanCheck(token);
+		this.logger.info(`running browser beancheck diagnostics generation=${targetGeneration}`);
+		const r = await this.runBeanCheckDiagnostics(token);
 		if (!r) {
 			return;
 		}
@@ -416,11 +567,106 @@ class BeancountBrowserManager implements RealBeancountManager {
 			return;
 		}
 
-		this.result = this.rewriteFileUris(parsed);
-		this.staleResult = null;
+		const rewritten = this.rewriteDiagnosticsUris(parsed);
+		this.diagnosticsResult = {
+			errors: rewritten.errors,
+			flags: rewritten.flags,
+		};
+		this.appliedDiagnosticsGeneration = targetGeneration;
+		globalEventBus.emit(GlobalEvents.BeancountDiagnosticsUpdated);
+	}
+
+	private async scheduleFullRevalidate(
+		targetGeneration = this.inputGeneration,
+		options?: { immediate?: boolean; debounceMs?: number },
+	): Promise<void> {
+		if (this.enabledMode === 'off' || !this.mainFile) {
+			return;
+		}
+		if (options?.immediate) {
+			this.enqueueFullRevalidate(targetGeneration);
+			await this.fullQueuePromise;
+			return;
+		}
+		if (this.fullDebounceTimer) {
+			clearTimeout(this.fullDebounceTimer);
+		}
+		this.fullDebounceTimer = setTimeout(() => {
+			this.fullDebounceTimer = null;
+			this.enqueueFullRevalidate(targetGeneration);
+		}, options?.debounceMs ?? BeancountBrowserManager.FULL_IDLE_DEBOUNCE_MS);
+	}
+
+	private enqueueFullRevalidate(targetGeneration: number): void {
+		this.queuedFullGeneration = Math.max(this.queuedFullGeneration, targetGeneration);
+		this.hasPendingFullRun = true;
+		if (
+			this.activeFullTokenSource
+			&& this.activeFullRunGeneration < this.queuedFullGeneration
+		) {
+			this.activeFullTokenSource.cancel();
+		}
+		if (!this.fullQueuePromise) {
+			this.fullQueuePromise = this.processFullQueue().finally(() => {
+				this.fullQueuePromise = null;
+			});
+		}
+	}
+
+	private async processFullQueue(): Promise<void> {
+		while (this.hasPendingFullRun) {
+			this.hasPendingFullRun = false;
+			const targetGeneration = this.queuedFullGeneration;
+			const tokenSource = new CancellationTokenSource();
+			this.activeFullTokenSource = tokenSource;
+			this.activeFullRunGeneration = targetGeneration;
+			try {
+				await this.revalidateFull(targetGeneration, tokenSource.token);
+			} finally {
+				if (this.activeFullTokenSource === tokenSource) {
+					this.activeFullTokenSource = null;
+					this.activeFullRunGeneration = 0;
+				}
+				tokenSource.dispose();
+			}
+		}
+	}
+
+	private async revalidateFull(targetGeneration: number, token: CancellationToken): Promise<void> {
+		if (token.isCancellationRequested || targetGeneration !== this.inputGeneration) {
+			return;
+		}
+		this.logger.info(`running browser beancheck full generation=${targetGeneration}`);
+		const r = await this.runBeanCheckFull(token);
+		if (!r) {
+			return;
+		}
+		if (token.isCancellationRequested || targetGeneration !== this.inputGeneration) {
+			this.logger.info(
+				`discarding stale browser full beancheck result generation=${targetGeneration}; latest generation=${this.inputGeneration}`,
+			);
+			return;
+		}
+		let parsed: BeancheckOutput;
+		try {
+			parsed = JSON.parse(r) as BeancheckOutput;
+		} catch (error) {
+			this.logger.error(`failed to parse browser beancheck result: ${String(error)}`);
+			return;
+		}
+		if (token.isCancellationRequested || targetGeneration !== this.inputGeneration) {
+			return;
+		}
+
+		const rewritten = this.rewriteFileUris(parsed);
+		this.derivedResult = {
+			general: rewritten.general,
+			pads: rewritten.pads,
+		};
+		this.staleDerivedResult = null;
 		this.padFileCache.clear();
-		this.appliedBeancheckGeneration = targetGeneration;
-		globalEventBus.emit(GlobalEvents.BeancountUpdate);
+		this.appliedFullGeneration = targetGeneration;
+		globalEventBus.emit(GlobalEvents.BeancountDerivedDataUpdated);
 	}
 
 	private onDocumentSaved(params: DidSaveTextDocumentParams): void {
@@ -430,16 +676,16 @@ class BeancountBrowserManager implements RealBeancountManager {
 		if (!this.isBeanFileUri(params.textDocument.uri)) {
 			return;
 		}
-		void this.scheduleBeancheckRevalidate();
+		void this.scheduleFullRevalidate(this.inputGeneration, { immediate: true });
 	}
 
-	/** Effective result for non-diagnostic data: current result or stale fallback (SWR) */
-	private get effectiveResult(): BeancheckOutput | null {
-		return this.result ?? this.staleResult;
+	/** Effective derived data: current result or stale fallback (SWR) */
+	private get effectiveDerivedResult(): BeancheckDerivedResult | null {
+		return this.derivedResult ?? this.staleDerivedResult;
 	}
 
 	getBalance(account: string, includeSubaccountBalance: boolean): Amount[] {
-		let accountDetails = this.effectiveResult?.general?.accounts?.[account] as AccountDetails | null;
+		let accountDetails = this.effectiveDerivedResult?.general?.accounts?.[account] as AccountDetails | null;
 		if (!accountDetails) {
 			return [];
 		}
@@ -448,7 +694,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 	}
 
 	getSubaccountBalances(account: string): Map<string, Amount[]> {
-		const accounts = this.effectiveResult?.general?.accounts;
+		const accounts = this.effectiveDerivedResult?.general?.accounts;
 		const subaccounts = new Map<string, Amount[]>();
 		if (!accounts) {
 			return subaccounts;
@@ -466,7 +712,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 	}
 
 	getPadAmounts(filePath: string, line: number): Amount[] | null {
-		const pads = this.effectiveResult?.pads;
+		const pads = this.effectiveDerivedResult?.pads;
 		if (!pads) {
 			return null;
 		}
@@ -531,12 +777,20 @@ class BeancountBrowserManager implements RealBeancountManager {
 		};
 	}
 
+	private rewriteDiagnosticsUris(result: BeancheckOutput): BeancheckDiagnosticsResult {
+		const rewritten = this.rewriteFileUris(result);
+		return {
+			errors: rewritten.errors,
+			flags: rewritten.flags,
+		};
+	}
+
 	getErrors(): BeancountError[] {
-		return this.result?.errors ?? [];
+		return this.diagnosticsResult?.errors ?? [];
 	}
 
 	getFlagged(): BeancountFlag[] {
-		return this.result?.flags ?? [];
+		return this.diagnosticsResult?.flags ?? [];
 	}
 
 	async runQuery(_query: string): Promise<string> {
@@ -548,10 +802,16 @@ class BeancountBrowserManager implements RealBeancountManager {
 			clearTimeout(this.configDebounceTimer);
 			this.configDebounceTimer = undefined;
 		}
-		this.activeBeancheckTokenSource?.cancel();
-		this.activeBeancheckTokenSource?.dispose();
-		this.activeBeancheckTokenSource = null;
-		this.activeBeancheckRunGeneration = 0;
+		this.clearRevalidateTimers();
+		this.clearPendingSyncBuffers();
+		this.activeDiagnosticsTokenSource?.cancel();
+		this.activeDiagnosticsTokenSource?.dispose();
+		this.activeDiagnosticsTokenSource = null;
+		this.activeDiagnosticsRunGeneration = 0;
+		this.activeFullTokenSource?.cancel();
+		this.activeFullTokenSource?.dispose();
+		this.activeFullTokenSource = null;
+		this.activeFullRunGeneration = 0;
 		this.workerClient?.dispose();
 		this.workerClient = null;
 	}

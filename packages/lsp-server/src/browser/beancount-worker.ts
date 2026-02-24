@@ -5,6 +5,7 @@ import { createBeancountRuntime, createFileTree } from 'beancount-wasm/runtime';
 import beanCheckPythonCode from '../node/beancheck.py';
 
 type BeancountVersion = 'v2' | 'v3';
+type BeancheckMode = 'diagnostics' | 'full';
 
 interface FileUpdate {
 	name: string;
@@ -47,7 +48,7 @@ interface WorkerApi {
 	) => Promise<void>;
 	sync: (updates: FileUpdate[], removed: string[]) => Promise<void>;
 	reset: (files: FileUpdate[]) => Promise<void>;
-	beancheck: (entryFile: string) => Promise<string>;
+	beancheck: (entryFile: string, options?: { mode?: BeancheckMode }) => Promise<string>;
 }
 
 interface ClientApi {
@@ -76,7 +77,7 @@ if "run_beancheck" not in beancheck_namespace:
 `;
 
 const BEANCHECK_RUN_WRAPPER = String.raw`
-beancheck_namespace["run_beancheck"](entry_path)
+beancheck_namespace["run_beancheck"](entry_path, mode=beancheck_mode)
 `;
 
 let runtimeState: RuntimeState | null = null;
@@ -190,7 +191,7 @@ async function reset(files: FileUpdate[]): Promise<void> {
 	runtime.fileTree.reset(files);
 }
 
-async function beancheck(entryFile: string): Promise<string> {
+async function beancheck(entryFile: string, options?: { mode?: BeancheckMode }): Promise<string> {
 	const runtime = await loadRuntime(runtimeState?.version ?? 'v3', runtimeState?.extraPythonPackages);
 	if (!runtime.beancheckLoaded) {
 		runtime.pyodide.globals.set('beancheck_code', beanCheckPythonCode);
@@ -198,7 +199,9 @@ async function beancheck(entryFile: string): Promise<string> {
 		runtime.beancheckLoaded = true;
 	}
 	const entryPath = `${WORK_ROOT}/${entryFile}`;
+	const mode = options?.mode ?? 'full';
 	runtime.pyodide.globals.set('entry_path', entryPath);
+	runtime.pyodide.globals.set('beancheck_mode', mode);
 	const pyResult = await runtime.pyodide.runPythonAsync(BEANCHECK_RUN_WRAPPER);
 	// Use Pyodide's toJs() to convert Python dict to JS object, then native
 	// JSON.stringify. This avoids running json.dumps inside WASM Python which

@@ -52,11 +52,15 @@ export class CodeLensFeature implements Feature {
 			this.codeLensConfig = null; // Reset cache to force re-read on next request
 		});
 
-		const unsubscribe = globalEventBus.on(GlobalEvents.BeancountUpdate, () => {
+		const unsubscribeLegacy = globalEventBus.on(GlobalEvents.BeancountUpdate, () => {
+			this.scheduleRefresh();
+		});
+		const unsubscribeDerived = globalEventBus.on(GlobalEvents.BeancountDerivedDataUpdated, () => {
 			this.scheduleRefresh();
 		});
 		connection.onExit(() => {
-			unsubscribe();
+			unsubscribeLegacy();
+			unsubscribeDerived();
 			this.clearRefreshTimer();
 		});
 

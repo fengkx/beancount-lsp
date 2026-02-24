@@ -107,9 +107,10 @@ def _collect_account_cost_balances(real_root):
     return own_cost_by_account, total_cost_by_account
 
 
-def run_beancheck(file: str, payee_narration: bool = False):
+def run_beancheck(file: str, payee_narration: bool = False, mode: str = "full"):
     entries, errors, options = loader.load_file(file)
     completePayeeNarration = payee_narration
+    diagnostics_only = mode == "diagnostics"
     ZERO = Decimal(0)
 
     error_list = [
@@ -118,19 +119,19 @@ def run_beancheck(file: str, payee_narration: bool = False):
     ]
 
     general = {}
-    accounts = {}
-    pad_entries = {}
-    pad_amounts = defaultdict(lambda: defaultdict(dict))
-    commodities = set()
-    payees = set()
-    narrations = set()
-    tags = set()
-    links = set()
+    accounts = {} if not diagnostics_only else None
+    pad_entries = {} if not diagnostics_only else None
+    pad_amounts = defaultdict(lambda: defaultdict(dict)) if not diagnostics_only else None
+    commodities = set() if not diagnostics_only else None
+    payees = set() if not diagnostics_only else None
+    narrations = set() if not diagnostics_only else None
+    tags = set() if not diagnostics_only else None
+    links = set() if not diagnostics_only else None
     flagged_entries = []
-    padding_transactions = []
+    padding_transactions = [] if not diagnostics_only else None
 
     for entry in entries:
-        if isinstance(entry, Pad):
+        if (not diagnostics_only) and isinstance(entry, Pad):
             meta = entry.meta or {}
             filename = meta.get("filename")
             lineno = meta.get("lineno")
@@ -141,20 +142,21 @@ def run_beancheck(file: str, payee_narration: bool = False):
         if hasattr(entry, "flag") and entry.flag == "!":
             flagged_entries.append(get_flag_metadata(entry))
         if isinstance(entry, Transaction):
-            if completePayeeNarration:
+            if (not diagnostics_only) and completePayeeNarration:
                 payees.add(f"{entry.payee}")
-            if entry.narration.startswith("(Padding inserted"):
+            if (not diagnostics_only) and entry.narration.startswith("(Padding inserted"):
                 padding_transactions.append(entry)
-            else:
+            elif not diagnostics_only:
                 if completePayeeNarration:
                     narrations.add(f"{entry.narration}")
                 tags.update(entry.tags)
                 links.update(entry.links)
             for posting in entry.postings:
-                commodities.add(posting.units.currency)
+                if (not diagnostics_only) and posting.units is not None:
+                    commodities.add(posting.units.currency)
                 if hasattr(posting, "flag") and posting.flag == "!":
                     flagged_entries.append(get_flag_metadata(posting))
-        elif isinstance(entry, Open):
+        elif (not diagnostics_only) and isinstance(entry, Open):
             accounts[entry.account] = {
                 "open": entry.date.__str__(),
                 "currencies": entry.currencies if entry.currencies else [],
@@ -162,11 +164,19 @@ def run_beancheck(file: str, payee_narration: bool = False):
                 "balance": [],
                 "balance_incl_subaccounts": [],
             }
-        elif isinstance(entry, Close):
+        elif (not diagnostics_only) and isinstance(entry, Close):
             try:
                 accounts[entry.account]["close"] = entry.date.__str__()
             except:
                 continue
+
+    if diagnostics_only:
+        return {
+            "errors": error_list,
+            "general": {},
+            "flags": flagged_entries,
+            "pads": {},
+        }
 
     for entry in padding_transactions:
         filename, lineno = _pad_ref_from_meta(entry.meta or {})
@@ -332,6 +342,10 @@ def _serve_rpc_stdio():
                 return
 
         if method == "beancheck/run":
+            mode = params.get("mode", "full")
+            if mode not in ("full", "diagnostics"):
+                mode = "full"
+
             if request_id in cancelled_request_ids:
                 cancelled_request_ids.discard(request_id)
                 if request_id is not None:
@@ -364,7 +378,7 @@ def _serve_rpc_stdio():
 
             payee_narration = bool(params.get("payeeNarration", False))
             try:
-                result = run_beancheck(file, payee_narration)
+                result = run_beancheck(file, payee_narration, mode=mode)
                 if request_id is not None:
                     _write_rpc_message(
                         {

@@ -56,10 +56,12 @@ export class DiagnosticsFeature implements Feature {
 		this.logger.info('Registering diagnostics feature');
 
 		// Register callback on global bus to update diagnosticsFromBeancount on save
-		globalEventBus.on(GlobalEvents.BeancountUpdate, async () => {
+		const onBeancountDiagnosticsUpdated = async () => {
 			this.updateDiagnosticsFromBeancount();
 			await this.validateAllDocuments(connection);
-		});
+		};
+		globalEventBus.on(GlobalEvents.BeancountUpdate, onBeancountDiagnosticsUpdated);
+		globalEventBus.on(GlobalEvents.BeancountDiagnosticsUpdated, onBeancountDiagnosticsUpdated);
 
 		// Listen for configuration changes
 		globalEventBus.on(GlobalEvents.ConfigurationChanged, async () => {
