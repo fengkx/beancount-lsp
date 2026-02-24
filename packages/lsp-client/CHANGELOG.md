@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.176
+
+- chore(lsp-client): bump version to 0.0.176 ([47fa3da](https://github.com/fengkx/beancount-lsp/commit/47fa3da))
+- feat(server): improve completion experience(#164) ([e212b01](https://github.com/fengkx/beancount-lsp/commit/e212b01))
+
 ## v0.0.174
 
 - chore(lsp-client): bump version to 0.0.174 ([b6dc219](https://github.com/fengkx/beancount-lsp/commit/b6dc219))
