@@ -2,16 +2,20 @@ import { describe, expect, it } from 'vitest';
 import type { Position } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import {
+	type TriggerInfo,
+} from '../../common/features/completions';
+import {
 	buildCompletionTextContext,
 	deriveAccountQueryFromLine,
+	shouldSuppressCurrencyForCurrentToken,
+} from '../../common/features/completions/completion-context';
+import { resolveCompletionIntent } from '../../common/features/completions/completion-intents';
+import {
 	rankCurrencyMatchTier,
 	rankSymbolLikeMatchTier,
 	rankTextMatchTier,
 	rankAccountQuery,
-	resolveCompletionIntent,
-	shouldSuppressCurrencyForCurrentToken,
-	type TriggerInfo,
-} from '../../common/features/completions';
+} from '../../common/features/completions/completion-ranking';
 
 function makeDoc(line: string): TextDocument {
 	return TextDocument.create('file:///test.bean', 'beancount', 1, line);
@@ -156,6 +160,39 @@ describe('rankAccountQuery', () => {
 	it('rejects collapsed query with wrong order', () => {
 		const rejected = rankAccountQuery('A:CMBFunds', 'Assets:Funds:CMB', 1);
 		expect(rejected).toBeNull();
+	});
+
+	it('supports cross-segment fuzzy subsequence matching', () => {
+		const matched = rankAccountQuery('A:FC', 'Assets:Funds:CMB', 1);
+		expect(matched).not.toBeNull();
+		expect(matched!.tier).toBe(-1);
+	});
+
+	it('rejects cross-segment fuzzy matching with wrong order', () => {
+		const rejected = rankAccountQuery('A:CF', 'Assets:Funds:CMB', 1);
+		expect(rejected).toBeNull();
+	});
+
+	it('ranks collapsed prefix/exact above cross-segment fuzzy', () => {
+		const fuzzy = rankAccountQuery('A:FC', 'Assets:Funds:CMB', 1);
+		const prefix = rankAccountQuery('A:FundsC', 'Assets:Funds:CMB', 1);
+		const exact = rankAccountQuery('A:FundsCMB', 'Assets:Funds:CMB', 1);
+		expect(fuzzy).not.toBeNull();
+		expect(prefix).not.toBeNull();
+		expect(exact).not.toBeNull();
+		expect(prefix!.tier).toBeGreaterThan(fuzzy!.tier);
+		expect(exact!.tier).toBeGreaterThan(fuzzy!.tier);
+	});
+
+	it('does not relax single-segment matching to subsequence fuzzy', () => {
+		const rejected = rankAccountQuery('L:ctd', 'Liabilities:CreditCard', 1);
+		expect(rejected).toBeNull();
+	});
+
+	it('requires at least two characters for cross-segment fuzzy', () => {
+		const rejected = rankAccountQuery('A:F', 'Assets:Foo:Bar', 1);
+		expect(rejected).not.toBeNull();
+		expect(rejected!.tier).toBeGreaterThan(-1);
 	});
 
 });
