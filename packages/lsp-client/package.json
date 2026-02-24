@@ -334,7 +334,7 @@
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run build",
-		"build": "vitest run scripts/update-input-schema.spec.mts && node scripts/make-word-pattern.js && tsup",
+		"build": "vitest run scripts/update-input-schema.spec.mts scripts/make-word-pattern.spec.mts && node scripts/make-word-pattern.js && tsup",
 		"typecheck": "tsc --noEmit true",
 		"test-compile": "tsc -p ./ && npm run copy:asset",
 		"copy:asset": "cp src/queries/*.scm out/queries",
