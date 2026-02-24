@@ -45,6 +45,21 @@ class Queue {
 	}
 }
 
+export type CompiledAccountCandidate = {
+	name: string;
+	partsRaw: string[];
+	partsLower: string[];
+	rootLower: string;
+};
+
+export type AccountCompletionSnapshot = {
+	version: number;
+	accountsNames: string[];
+	accounts: CompiledAccountCandidate[];
+	usageCounts: Map<string, number>;
+	closedAccounts: Map<string, string>;
+};
+
 export class SymbolIndex {
 	private logger = new Logger('index');
 	public findAsync: (query: Record<string, unknown>) => Promise<SymbolInfo[]>;
@@ -74,6 +89,10 @@ export class SymbolIndex {
 
 	// LRU cache for text to filter text mapping
 	private readonly _filterTextCache = new LRUMap<string, string>(1000);
+	private _accountCompletionSnapshotDirty = true;
+	private _accountCompletionSnapshotVersionSource = 0;
+	private _accountCompletionSnapshot?: AccountCompletionSnapshot;
+	private _accountCompletionSnapshotBuildPromise?: Promise<AccountCompletionSnapshot>;
 
 	addSyncFile(uri: string): void {
 		this._syncQueue.enqueue(uri);
@@ -87,6 +106,12 @@ export class SymbolIndex {
 		this._syncQueue.dequeue(uri);
 		this._asyncQueue.dequeue(uri);
 		this._symbolInfoStorage.removeSync({ _uri: uri });
+		this.invalidateAccountCompletionSnapshot();
+	}
+
+	private invalidateAccountCompletionSnapshot(): void {
+		this._accountCompletionSnapshotDirty = true;
+		this._accountCompletionSnapshotVersionSource++;
 	}
 
 	/**
@@ -207,6 +232,7 @@ export class SymbolIndex {
 
 		this._symbolInfoStorage.removeSync({ _uri: document.uri });
 		await this._symbolInfoStorage.insertAsync(symbols);
+		this.invalidateAccountCompletionSnapshot();
 	}
 
 	/**
@@ -463,6 +489,77 @@ export class SymbolIndex {
 
 		this.logger.debug(`[index] Found ${accountClosingDates.size} closed accounts`);
 		return accountClosingDates;
+	}
+
+	public async getAccountCompletionSnapshot(): Promise<AccountCompletionSnapshot> {
+		if (!this._accountCompletionSnapshotDirty && this._accountCompletionSnapshot) {
+			return this._accountCompletionSnapshot;
+		}
+		if (this._accountCompletionSnapshotBuildPromise) {
+			return this._accountCompletionSnapshotBuildPromise;
+		}
+		this._accountCompletionSnapshotBuildPromise = this._buildAccountCompletionSnapshot();
+		try {
+			const snapshot = await this._accountCompletionSnapshotBuildPromise;
+			this._accountCompletionSnapshot = snapshot;
+			this._accountCompletionSnapshotDirty = false;
+			return snapshot;
+		} finally {
+			this._accountCompletionSnapshotBuildPromise = undefined;
+		}
+	}
+
+	private async _buildAccountCompletionSnapshot(): Promise<AccountCompletionSnapshot> {
+		const buildVersion = this._accountCompletionSnapshotVersionSource;
+		const [accountDefinitions, accountUsageSymbols, closedAccountSymbols] = await Promise.all([
+			this._symbolInfoStorage.findAsync({
+				[SymbolKey.TYPE]: SymbolType.ACCOUNT_DEFINITION,
+			}) as Promise<SymbolInfo[]>,
+			this._symbolInfoStorage.findAsync({
+				[SymbolKey.TYPE]: SymbolType.ACCOUNT_USAGE,
+			}) as Promise<SymbolInfo[]>,
+			this._symbolInfoStorage.findAsync({
+				[SymbolKey.TYPE]: SymbolType.ACCOUNT_CLOSE,
+			}) as Promise<SymbolInfo[]>,
+		]);
+
+		const usageCounts = new Map<string, number>();
+		for (const usage of accountUsageSymbols) {
+			usageCounts.set(usage.name, (usageCounts.get(usage.name) || 0) + 1);
+		}
+
+		const closedAccounts = new Map<string, string>();
+		for (const account of closedAccountSymbols) {
+			if (account.date) {
+				closedAccounts.set(account.name, account.date);
+			}
+		}
+
+		let accountsNames: string[];
+		if (accountDefinitions.length <= 0) {
+			accountsNames = [...usageCounts.keys()];
+		} else {
+			accountsNames = Array.from(new Set(accountDefinitions.map((account) => account.name)));
+		}
+
+		const accounts: CompiledAccountCandidate[] = accountsNames.map((name) => {
+			const partsRaw = name.split(':');
+			const partsLower = partsRaw.map((p) => p.toLowerCase());
+			return {
+				name,
+				partsRaw,
+				partsLower,
+				rootLower: partsLower[0] || '',
+			};
+		});
+
+		return {
+			version: buildVersion,
+			accountsNames,
+			accounts,
+			usageCounts,
+			closedAccounts,
+		};
 	}
 
 	public async getPricesDeclarations(query: { name?: string } = {}): Promise<SymbolInfo[]> {
