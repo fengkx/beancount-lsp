@@ -31,6 +31,18 @@ function normalizeAccountQueryToken(input: string): string {
 		.trim();
 }
 
+function isSubsequence(needle: string, haystack: string): boolean {
+	if (!needle) return true;
+	let i = 0;
+	for (const ch of haystack) {
+		if (ch === needle[i]) {
+			i++;
+			if (i >= needle.length) return true;
+		}
+	}
+	return false;
+}
+
 export function rankTextMatchTier(query: string, label: string, filterText: string): number {
 	const normalizedQuery = query.trim().toLowerCase();
 	if (!normalizedQuery) return 0;
@@ -45,23 +57,17 @@ export function rankTextMatchTier(query: string, label: string, filterText: stri
 	}
 	if (labelLower.includes(normalizedQuery)) return 3;
 	if (filter.includes(normalizedQuery)) return 2;
+	if (
+		normalizedQuery.length >= 2
+		&& filterTokens.some(token => token.length >= normalizedQuery.length && isSubsequence(normalizedQuery, token))
+	) {
+		return 1;
+	}
 	return 0;
 }
 
 function normalizeSymbolLikeText(input: string): string {
 	return input.toLowerCase().replace(/[_\-./:\\s]/g, '');
-}
-
-function isSubsequence(needle: string, haystack: string): boolean {
-	if (!needle) return true;
-	let i = 0;
-	for (const ch of haystack) {
-		if (ch === needle[i]) {
-			i++;
-			if (i >= needle.length) return true;
-		}
-	}
-	return false;
 }
 
 export function rankSymbolLikeMatchTier(query: string, label: string, filterText: string): number {

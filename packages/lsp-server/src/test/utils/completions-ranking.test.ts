@@ -213,6 +213,21 @@ describe('rankTextMatchTier', () => {
 		expect(tierForTransfer).toBe(tierForTable);
 		expect(tierForTransfer).toBeGreaterThan(0);
 	});
+
+	it('supports subsequence match on pinyin initials token', () => {
+		const tier = rankTextMatchTier(
+			'ymn',
+			'幺妹儿牛肉粉',
+			'幺妹儿牛肉粉 ymenrf yao mei er niu rou fen',
+		);
+		const wrongOrder = rankTextMatchTier(
+			'ynm',
+			'幺妹儿牛肉粉',
+			'幺妹儿牛肉粉 ymenrf yao mei er niu rou fen',
+		);
+		expect(tier).toBeGreaterThan(0);
+		expect(wrongOrder).toBe(0);
+	});
 });
 
 describe('rankCurrencyMatchTier', () => {
