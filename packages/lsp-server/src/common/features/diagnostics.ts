@@ -43,6 +43,7 @@ export class DiagnosticsFeature implements Feature {
 		warnOnIncompleteTransaction: true, // Default to show warnings for incomplete transactions
 	};
 	private diagnosticsFromBeancount: { [uri: string]: Diagnostic[] } = {};
+	private standaloneBeancountDiagnosticUris = new Set<string>();
 	private readonly validationTokenByUri = new Map<string, CancellationTokenSource>();
 
 	constructor(
@@ -115,18 +116,32 @@ export class DiagnosticsFeature implements Feature {
 		);
 
 		const documentsInStore = new Set(this.documents.keys().filter(isNotGitUri));
+		const currentStandaloneUris = new Set<string>();
 		await Promise.all(
 			Object.entries(this.diagnosticsFromBeancount).map(async ([uri, diagnostics]) => {
 				if (documentsInStore.has(uri)) {
 					return;
 				}
-				if(uri.startsWith('file://') && uri.endsWith('<load>')) {
-					uri = await this.documents.getMainBeanFileUri() ?? uri;
-				}
+				uri = await this.resolveBeancountDiagnosticsUri(uri);
+				currentStandaloneUris.add(uri);
 
 				await connection.sendDiagnostics({ uri, diagnostics });
 			}),
 		);
+
+		const staleStandaloneUris = [...this.standaloneBeancountDiagnosticUris]
+			.filter(uri => !currentStandaloneUris.has(uri));
+		await Promise.all(staleStandaloneUris.map(async uri => {
+			await connection.sendDiagnostics({ uri, diagnostics: [] });
+		}));
+		this.standaloneBeancountDiagnosticUris = currentStandaloneUris;
+	}
+
+	private async resolveBeancountDiagnosticsUri(uri: string): Promise<string> {
+		if (uri.startsWith('file://') && uri.endsWith('<load>')) {
+			return await this.documents.getMainBeanFileUri() ?? uri;
+		}
+		return uri;
 	}
 
 	private updateDiagnosticsFromBeancount() {

@@ -30,28 +30,35 @@ export class InlayHintFeature implements Feature {
 		connection.onRequest(
 			'textDocument/inlayHint',
 			async (params) => {
-				logger.info(`InlayHint request received for ${params.textDocument.uri}`);
+				try {
+					logger.info(`InlayHint request received for ${params.textDocument.uri}`);
 
-				const document = await this.documents.retrieve(params.textDocument.uri);
-				const tree = await this.trees.getParseTree(document);
+					const document = await this.documents.retrieve(params.textDocument.uri);
+					const tree = await this.trees.getParseTree(document);
 
-				if (!tree) {
+					if (!tree) {
+						return [];
+					}
+
+					if (this.inlayHintsEnabled === null) {
+						const beanLspSettings = await connection.workspace.getConfiguration({
+							scopeUri: params.textDocument.uri,
+							section: 'beanLsp',
+						});
+						this.inlayHintsEnabled = beanLspSettings?.inlayHints?.enable;
+					}
+
+					if (!this.inlayHintsEnabled) {
+						return [];
+					}
+
+					return this.provideInlayHints(document, params.range, tree);
+				} catch (error) {
+					// Tree-sitter wasm can occasionally throw on stale node access during concurrent edits.
+					this.trees.invalidateCache(params.textDocument.uri);
+					logger.error(`InlayHint request failed for ${params.textDocument.uri}: ${String(error)}`);
 					return [];
 				}
-
-				if (this.inlayHintsEnabled === null) {
-					const beanLspSettings = await connection.workspace.getConfiguration({ 
-						scopeUri: params.textDocument.uri, 
-						section: 'beanLsp' 
-					});
-					this.inlayHintsEnabled = beanLspSettings?.inlayHints?.enable;
-				}
-
-				if (!this.inlayHintsEnabled) {
-					return [];
-				}
-
-				return this.provideInlayHints(document, params.range);
 			},
 		);
 	}
@@ -63,9 +70,9 @@ export class InlayHintFeature implements Feature {
 	 * @param range The range to provide hints for
 	 * @returns Array of inlay hints
 	 */
-	private async provideInlayHints(document: TextDocument, range: Range): Promise<InlayHint[]> {
+	private async provideInlayHints(document: TextDocument, range: Range, treeArg?: import('web-tree-sitter').Tree): Promise<InlayHint[]> {
 		const hints: InlayHint[] = [];
-		const tree = await this.trees.getParseTree(document);
+		const tree = treeArg ?? await this.trees.getParseTree(document);
 
 		if (!tree) {
 			return hints;

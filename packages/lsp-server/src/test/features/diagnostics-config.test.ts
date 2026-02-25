@@ -90,4 +90,44 @@ describe('Diagnostics config and dedup correctness', () => {
 		const merged = (feature as any).mergeAndDedupDiagnostics(preferred, secondary);
 		expect(merged).toHaveLength(3);
 	});
+
+	it('clears stale beancheck diagnostics for standalone URIs after errors are fixed', async () => {
+		let errors = [
+			{ file: '/tmp/main.bean<load>', line: 1, message: 'parse error' },
+		];
+		const beanMgr = {
+			isEnabled: () => true,
+			getErrors: () => errors,
+			getFlagged: () => [],
+		};
+		const documents = {
+			all: () => [],
+			keys: () => [],
+			getMainBeanFileUri: async () => 'file:///workspace/main.bean',
+		};
+		const feature = new DiagnosticsFeature(
+			documents as never,
+			{} as never,
+			new BeancountOptionsManager(),
+			beanMgr as never,
+		);
+		const { connection, sentDiagnostics } = makeFakeConnection();
+
+		(feature as any).updateDiagnosticsFromBeancount();
+		await (feature as any).validateAllDocuments(connection);
+
+		expect(sentDiagnostics.at(-1)).toMatchObject({
+			uri: 'file:///workspace/main.bean',
+		});
+		expect(sentDiagnostics.at(-1)?.diagnostics).toHaveLength(1);
+
+		errors = [];
+		(feature as any).updateDiagnosticsFromBeancount();
+		await (feature as any).validateAllDocuments(connection);
+
+		expect(sentDiagnostics.at(-1)).toEqual({
+			uri: 'file:///workspace/main.bean',
+			diagnostics: [],
+		});
+	});
 });
