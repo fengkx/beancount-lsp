@@ -47,7 +47,23 @@ vi.mock('../../common/features/symbol-extractors', () => {
 });
 
 vi.mock('../../common/features/position-utils', () => ({
-	getRangeAtPosition: async () => ({ start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }),
+	getRangeAtPosition: async (_t: unknown, d: { getText(): string; offsetAt(p: { line: number; character: number }): number; positionAt(n: number): { line: number; character: number } }, p: { line: number; character: number }) => {
+		const text = d.getText();
+		const offset = d.offsetAt(p);
+		const kind = positionKinds.get(posKey(p.line, p.character));
+		if (kind === 'payee' || kind === 'narration') {
+			const left = text.lastIndexOf('"', offset);
+			const right = text.indexOf('"', offset);
+			if (left >= 0 && right > left) {
+				return { start: d.positionAt(left), end: d.positionAt(right + 1) };
+			}
+		}
+		let start = offset;
+		let end = offset;
+		while (start > 0 && !/\s/.test(text[start - 1]!)) start--;
+		while (end < text.length && !/\s/.test(text[end]!)) end++;
+		return { start: d.positionAt(start), end: d.positionAt(end) };
+	},
 	getAccountAtPosition: async (_t: unknown, _d: unknown, p: { line: number; character: number }) =>
 		positionKinds.get(posKey(p.line, p.character)) === 'account' ? 'Assets:Cash' : null,
 	getCommodityAtPosition: async (_t: unknown, _d: unknown, p: { line: number; character: number }) =>
@@ -151,13 +167,13 @@ describe('references + rename correctness', () => {
 		positionKinds.set(posKey(payeePos.line, payeePos.character), 'payee');
 		positionKinds.set(posKey(narrationPos.line, narrationPos.character), 'narration');
 
-		const tagEdit = await (rename as any).onRename({ textDocument: { uri }, position: tagPos, newName: 'newtag' });
+		const tagEdit = await (rename as any).onRename({ textDocument: { uri }, position: tagPos, newName: '#newtag' });
 		expect(Object.values(tagEdit.changes).flat().some((e: any) => e.newText === '#newtag')).toBe(true);
-		const linkEdit = await (rename as any).onRename({ textDocument: { uri }, position: linkPos, newName: 'newlink' });
+		const linkEdit = await (rename as any).onRename({ textDocument: { uri }, position: linkPos, newName: '^newlink' });
 		expect(Object.values(linkEdit.changes).flat().some((e: any) => e.newText === '^newlink')).toBe(true);
-		const payeeEdit = await (rename as any).onRename({ textDocument: { uri }, position: payeePos, newName: 'ACME "Store"' });
+		const payeeEdit = await (rename as any).onRename({ textDocument: { uri }, position: payeePos, newName: '\"ACME \\\"Store\\\"\"' });
 		expect(Object.values(payeeEdit.changes).flat().some((e: any) => e.newText === '"ACME \\"Store\\""')).toBe(true);
-		const narrationEdit = await (rename as any).onRename({ textDocument: { uri }, position: narrationPos, newName: 'New Narration' });
+		const narrationEdit = await (rename as any).onRename({ textDocument: { uri }, position: narrationPos, newName: '\"New Narration\"' });
 		expect(Object.values(narrationEdit.changes).flat().some((e: any) => e.newText === '"New Narration"')).toBe(true);
 	});
 
@@ -170,7 +186,9 @@ describe('references + rename correctness', () => {
 		positionKinds.set(posKey(commodityPos.line, commodityPos.character), 'commodity');
 		positionKinds.set(posKey(payeePos.line, payeePos.character), 'payee');
 
-		await expect((rename as any).onRename({ textDocument: { uri }, position: tagPos, newName: '#foo' }))
+		await expect((rename as any).onRename({ textDocument: { uri }, position: tagPos, newName: 'badtag' }))
+			.rejects.toMatchObject({ code: ErrorCodes.InvalidParams });
+		await expect((rename as any).onRename({ textDocument: { uri }, position: tagPos, newName: '#bad tag' }))
 			.rejects.toMatchObject({ code: ErrorCodes.InvalidParams });
 		await expect((rename as any).onRename({ textDocument: { uri }, position: commodityPos, newName: 'usd lower' }))
 			.rejects.toMatchObject({ code: ErrorCodes.InvalidParams });

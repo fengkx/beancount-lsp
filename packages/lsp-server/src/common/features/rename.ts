@@ -143,8 +143,8 @@ export class RenameFeature {
 			logger.warn('No renamable symbol found for rename request');
 			return null;
 		}
-		this.validateNewName(target.kind, params.newName);
-		const replacementText = this.formatReplacementText(target.kind, params.newName);
+		this.validateNewName(target.kind, params.newName, target.rawText);
+		const replacementText = params.newName;
 
 		// Step 1: Get all references using the ReferencesFeature
 		const referencesParams: lsp.ReferenceParams = {
@@ -240,29 +240,31 @@ export class RenameFeature {
 	private async detectRenameTargetKind(
 		document: import('vscode-languageserver-textdocument').TextDocument,
 		position: lsp.Position,
-	): Promise<{ kind: RenameTargetKind; currentName: string } | null> {
+	): Promise<{ kind: RenameTargetKind; currentName: string; rawText: string } | null> {
+		const range = await positionUtils.getRangeAtPosition(this.trees, document, position);
+		const rawText = document.getText(range);
 		const accountAtPosition = await positionUtils.getAccountAtPosition(this.trees, document, position);
-		if (accountAtPosition) return { kind: 'account', currentName: accountAtPosition };
+		if (accountAtPosition) return { kind: 'account', currentName: accountAtPosition, rawText };
 
 		const commodityAtPosition = await positionUtils.getCommodityAtPosition(this.trees, document, position);
-		if (commodityAtPosition) return { kind: 'commodity', currentName: commodityAtPosition };
+		if (commodityAtPosition) return { kind: 'commodity', currentName: commodityAtPosition, rawText };
 
 		const tagAtPosition = await positionUtils.getTagAtPosition(this.trees, document, position);
-		if (tagAtPosition) return { kind: 'tag', currentName: tagAtPosition };
+		if (tagAtPosition) return { kind: 'tag', currentName: tagAtPosition, rawText };
 
 		const linkAtPosition = await positionUtils.getLinkAtPosition(this.trees, document, position);
-		if (linkAtPosition) return { kind: 'link', currentName: linkAtPosition };
+		if (linkAtPosition) return { kind: 'link', currentName: linkAtPosition, rawText };
 
 		const payeeAtPosition = await positionUtils.getPayeeAtPosition(this.trees, document, position);
-		if (payeeAtPosition) return { kind: 'payee', currentName: payeeAtPosition };
+		if (payeeAtPosition) return { kind: 'payee', currentName: payeeAtPosition, rawText };
 
 		const narrationAtPosition = await positionUtils.getNarrationAtPosition(this.trees, document, position);
-		if (narrationAtPosition) return { kind: 'narration', currentName: narrationAtPosition };
+		if (narrationAtPosition) return { kind: 'narration', currentName: narrationAtPosition, rawText };
 
 		return null;
 	}
 
-	private validateNewName(kind: RenameTargetKind, newName: string): void {
+	private validateNewName(kind: RenameTargetKind, newName: string, rawSelectedText: string): void {
 		if (!newName || newName.trim().length === 0) {
 			throw new ResponseError(ErrorCodes.InvalidParams, 'Rename target cannot be empty');
 		}
@@ -287,37 +289,29 @@ export class RenameFeature {
 				}
 				return;
 			case 'tag':
-				if (/^\#/.test(newName) || /[\s"]/u.test(newName) || newName.includes('^')) {
+				if (rawSelectedText.startsWith('#') && !newName.startsWith('#')) {
+					throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid tag name: must keep "#" prefix');
+				}
+				if (/[\s"]/u.test(newName) || newName.includes('^')) {
 					throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid tag name');
 				}
 				return;
 			case 'link':
-				if (/^\^/.test(newName) || /[\s"]/u.test(newName) || newName.includes('#')) {
+				if (rawSelectedText.startsWith('^') && !newName.startsWith('^')) {
+					throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid link name: must keep "^" prefix');
+				}
+				if (/[\s"]/u.test(newName) || newName.includes('#')) {
 					throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid link name');
 				}
 				return;
 			case 'payee':
 			case 'narration':
+				if (rawSelectedText.startsWith('"') && rawSelectedText.endsWith('"')) {
+					if (!(newName.startsWith('"') && newName.endsWith('"'))) {
+						throw new ResponseError(ErrorCodes.InvalidParams, `Invalid ${kind} name: must keep quotes`);
+					}
+				}
 				return;
 		}
-	}
-
-	private formatReplacementText(kind: RenameTargetKind, newName: string): string {
-		switch (kind) {
-			case 'tag':
-				return `#${newName}`;
-			case 'link':
-				return `^${newName}`;
-			case 'payee':
-			case 'narration':
-				return `"${this.escapeQuotes(newName)}"`;
-			case 'account':
-			case 'commodity':
-				return newName;
-		}
-	}
-
-	private escapeQuotes(text: string): string {
-		return text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 	}
 }
