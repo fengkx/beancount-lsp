@@ -34,6 +34,7 @@ export class ReferencesFeature {
 		params: lsp.ReferenceParams,
 	): Promise<lsp.Location[] | null> {
 		logger.debug(`References requested at position: ${JSON.stringify(params.position)}`);
+		const includeDeclaration = params.context.includeDeclaration;
 
 		const document = await this.documents.retrieve(params.textDocument.uri);
 		if (!document) {
@@ -47,16 +48,18 @@ export class ReferencesFeature {
 		const accountAtPosition = await positionUtils.getAccountAtPosition(this.trees, document, params.position);
 		if (accountAtPosition) {
 			logger.debug(`Found account at position: ${accountAtPosition}`);
-			// Find all references to this account (both usage and definition)
-			references = await this.findAccountReferences(accountAtPosition);
+			const usages = await this.findAccountUsages(accountAtPosition);
+			const definitions = includeDeclaration ? await this.findAccountDefinitions(accountAtPosition) : [];
+			references = this.dedupLocations([...usages, ...definitions]);
 		}
 
 		// Try to find a commodity at the position
 		const commodityAtPosition = await positionUtils.getCommodityAtPosition(this.trees, document, params.position);
 		if (commodityAtPosition && references.length === 0) {
 			logger.debug(`Found commodity at position: ${commodityAtPosition}`);
-			// Find all references to this commodity
-			references = await this.findCommodityReferences(commodityAtPosition);
+			const usages = await this.findCommodityUsages(commodityAtPosition);
+			const definitions = includeDeclaration ? await this.findCommodityDefinitions(commodityAtPosition) : [];
+			references = this.dedupLocations([...usages, ...definitions]);
 		}
 
 		// Try to find a tag at the position
@@ -108,13 +111,13 @@ export class ReferencesFeature {
 		}
 
 		logger.debug(`Found ${references.length} references at the current position`);
-		return references;
+		return this.dedupLocations(references);
 	}
 
 	/**
-	 * Find all references to a specific account
+	 * Find all account usages
 	 */
-	private async findAccountReferences(accountName: string): Promise<lsp.Location[]> {
+	private async findAccountUsages(accountName: string): Promise<lsp.Location[]> {
 		// Find all account usage locations
 		const accountUsages = await this.symbolIndex.findAsync({
 			[SymbolKey.TYPE]: SymbolType.ACCOUNT_USAGE,
@@ -131,14 +134,24 @@ export class ReferencesFeature {
 			});
 		});
 
-		logger.debug(`Found ${references.length} references to account: ${accountName}`);
+		logger.debug(`Found ${references.length} account usages: ${accountName}`);
 		return references;
 	}
 
+	private async findAccountDefinitions(accountName: string): Promise<lsp.Location[]> {
+		const accountDefinitions = await this.symbolIndex.getAccountDefinitions() as SymbolInfo[];
+		return accountDefinitions
+			.filter(def => def.name === accountName)
+			.map(def => ({
+				uri: def._uri,
+				range: getRange(def),
+			}));
+	}
+
 	/**
-	 * Find all references to a specific commodity
+	 * Find all commodity usages
 	 */
-	private async findCommodityReferences(commodityName: string): Promise<lsp.Location[]> {
+	private async findCommodityUsages(commodityName: string): Promise<lsp.Location[]> {
 		// Find all commodity usage locations
 		const commodityUsages = await this.symbolIndex.findAsync({
 			[SymbolKey.TYPE]: SymbolType.COMMODITY,
@@ -155,8 +168,18 @@ export class ReferencesFeature {
 			});
 		});
 
-		logger.debug(`Found ${references.length} references to commodity: ${commodityName}`);
+		logger.debug(`Found ${references.length} commodity usages: ${commodityName}`);
 		return references;
+	}
+
+	private async findCommodityDefinitions(commodityName: string): Promise<lsp.Location[]> {
+		const commodityDefinitions = await this.symbolIndex.getCommodityDefinitions() as SymbolInfo[];
+		return commodityDefinitions
+			.filter(def => def.name === commodityName)
+			.map(def => ({
+				uri: def._uri,
+				range: getRange(def),
+			}));
 	}
 
 	/**
@@ -301,5 +324,17 @@ export class ReferencesFeature {
 
 		logger.debug(`Found ${references.length} references to link: ${linkName}`);
 		return references;
+	}
+
+	private dedupLocations(locations: lsp.Location[]): lsp.Location[] {
+		const seen = new Set<string>();
+		const result: lsp.Location[] = [];
+		for (const loc of locations) {
+			const key = `${loc.uri}:${loc.range.start.line}:${loc.range.start.character}:${loc.range.end.line}:${loc.range.end.character}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			result.push(loc);
+		}
+		return result;
 	}
 }

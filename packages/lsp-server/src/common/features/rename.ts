@@ -1,5 +1,6 @@
 import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
+import { ErrorCodes, ResponseError } from 'vscode-languageserver';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
 import { DefinitionFeature } from './definitions';
@@ -9,6 +10,7 @@ import { SymbolIndex } from './symbol-index';
 
 // Create a logger for the rename module
 const logger = new Logger('rename');
+type RenameTargetKind = 'account' | 'commodity' | 'tag' | 'link' | 'payee' | 'narration';
 
 /**
  * Provides rename functionality for the Beancount Language Server.
@@ -136,6 +138,14 @@ export class RenameFeature {
 			return null;
 		}
 
+		const target = await this.detectRenameTargetKind(document, params.position);
+		if (!target) {
+			logger.warn('No renamable symbol found for rename request');
+			return null;
+		}
+		this.validateNewName(target.kind, params.newName);
+		const replacementText = this.formatReplacementText(target.kind, params.newName);
+
 		// Step 1: Get all references using the ReferencesFeature
 		const referencesParams: lsp.ReferenceParams = {
 			textDocument: params.textDocument,
@@ -205,7 +215,7 @@ export class RenameFeature {
 			const edits = editsMap.get(uri)!;
 			edits.push({
 				range: location.range,
-				newText: params.newName,
+				newText: replacementText,
 			});
 		});
 
@@ -225,5 +235,89 @@ export class RenameFeature {
 		});
 
 		return { changes };
+	}
+
+	private async detectRenameTargetKind(
+		document: import('vscode-languageserver-textdocument').TextDocument,
+		position: lsp.Position,
+	): Promise<{ kind: RenameTargetKind; currentName: string } | null> {
+		const accountAtPosition = await positionUtils.getAccountAtPosition(this.trees, document, position);
+		if (accountAtPosition) return { kind: 'account', currentName: accountAtPosition };
+
+		const commodityAtPosition = await positionUtils.getCommodityAtPosition(this.trees, document, position);
+		if (commodityAtPosition) return { kind: 'commodity', currentName: commodityAtPosition };
+
+		const tagAtPosition = await positionUtils.getTagAtPosition(this.trees, document, position);
+		if (tagAtPosition) return { kind: 'tag', currentName: tagAtPosition };
+
+		const linkAtPosition = await positionUtils.getLinkAtPosition(this.trees, document, position);
+		if (linkAtPosition) return { kind: 'link', currentName: linkAtPosition };
+
+		const payeeAtPosition = await positionUtils.getPayeeAtPosition(this.trees, document, position);
+		if (payeeAtPosition) return { kind: 'payee', currentName: payeeAtPosition };
+
+		const narrationAtPosition = await positionUtils.getNarrationAtPosition(this.trees, document, position);
+		if (narrationAtPosition) return { kind: 'narration', currentName: narrationAtPosition };
+
+		return null;
+	}
+
+	private validateNewName(kind: RenameTargetKind, newName: string): void {
+		if (!newName || newName.trim().length === 0) {
+			throw new ResponseError(ErrorCodes.InvalidParams, 'Rename target cannot be empty');
+		}
+		if (/\r|\n/.test(newName)) {
+			throw new ResponseError(ErrorCodes.InvalidParams, `Invalid ${kind} name: newline is not allowed`);
+		}
+
+		switch (kind) {
+			case 'account': {
+				if (newName !== newName.trim()) {
+					throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid account name: no leading/trailing spaces');
+				}
+				const parts = newName.split(':');
+				if (parts.length < 2 || parts.some(p => p.length === 0)) {
+					throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid account name');
+				}
+				return;
+			}
+			case 'commodity':
+				if (!/^[A-Z][A-Z0-9._-]*$/.test(newName)) {
+					throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid commodity name');
+				}
+				return;
+			case 'tag':
+				if (/^\#/.test(newName) || /[\s"]/u.test(newName) || newName.includes('^')) {
+					throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid tag name');
+				}
+				return;
+			case 'link':
+				if (/^\^/.test(newName) || /[\s"]/u.test(newName) || newName.includes('#')) {
+					throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid link name');
+				}
+				return;
+			case 'payee':
+			case 'narration':
+				return;
+		}
+	}
+
+	private formatReplacementText(kind: RenameTargetKind, newName: string): string {
+		switch (kind) {
+			case 'tag':
+				return `#${newName}`;
+			case 'link':
+				return `^${newName}`;
+			case 'payee':
+			case 'narration':
+				return `"${this.escapeQuotes(newName)}"`;
+			case 'account':
+			case 'commodity':
+				return newName;
+		}
+	}
+
+	private escapeQuotes(text: string): string {
+		return text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 	}
 }
