@@ -67,20 +67,8 @@ export class DiagnosticsFeature implements Feature {
 		globalEventBus.on(GlobalEvents.ConfigurationChanged, async () => {
 			// Use first workspace folder as scopeUri for global configuration
 			const scopeUri = (await connection.workspace.getWorkspaceFolders())?.[0]?.uri;
-			const configuration = await connection.workspace.getConfiguration({ scopeUri });
-			if (configuration.settings?.beancount?.diagnostics) {
-				const diagnosticsSettings = configuration.settings.beancount.diagnostics;
-				if (typeof diagnosticsSettings.tolerance === 'number') {
-					this.config.tolerance = diagnosticsSettings.tolerance;
-					this.logger.info(`Updated tolerance to ${this.config.tolerance}`);
-				}
-				if (typeof diagnosticsSettings.warnOnIncompleteTransaction === 'boolean') {
-					this.config.warnOnIncompleteTransaction = diagnosticsSettings.warnOnIncompleteTransaction;
-					this.logger.info(
-						`Updated warnOnIncompleteTransaction to ${this.config.warnOnIncompleteTransaction}`,
-					);
-				}
-			}
+			const loaded = await this.loadDiagnosticsConfig(connection, scopeUri);
+			this.applyDiagnosticsConfig(loaded, 'Updated');
 
 			// Re-validate all open documents with new configuration
 			await this.validateAllDocuments(connection);
@@ -96,20 +84,8 @@ export class DiagnosticsFeature implements Feature {
 		try {
 			// Use first workspace folder as scopeUri for global configuration
 			const scopeUri = (await connection.workspace.getWorkspaceFolders())?.[0]?.uri;
-			const configuration = await connection.workspace.getConfiguration({ scopeUri });
-			const diagnosticsSettings = configuration?.beancount?.diagnostics;
-
-			if (diagnosticsSettings?.tolerance !== undefined) {
-				this.config.tolerance = diagnosticsSettings.tolerance;
-				this.logger.info(`Initial tolerance set to ${this.config.tolerance}`);
-			}
-
-			if (diagnosticsSettings?.warnOnIncompleteTransaction !== undefined) {
-				this.config.warnOnIncompleteTransaction = diagnosticsSettings.warnOnIncompleteTransaction;
-				this.logger.info(
-					`Initial warnOnIncompleteTransaction set to ${this.config.warnOnIncompleteTransaction}`,
-				);
-			}
+			const loaded = await this.loadDiagnosticsConfig(connection, scopeUri);
+			this.applyDiagnosticsConfig(loaded, 'Initial');
 
 			// Validate all open documents initially
 			await this.validateAllDocuments(connection);
@@ -414,8 +390,29 @@ export class DiagnosticsFeature implements Feature {
 	private mergeAndDedupDiagnostics(preferred: Diagnostic[], if_missing: Diagnostic[]): Diagnostic[] {
 		const seen = new Map<string, Diagnostic>();
 
-		// generate a key based on line no and severity, as we only need one diagnostic of each kind
-		const getKey = (d: Diagnostic) => `${d.range.start.line}:${d.severity}`;
+		const serializeCode = (code: Diagnostic['code']): string => {
+			if (code === undefined || code === null) {
+				return '';
+			}
+			if (typeof code === 'object') {
+				try {
+					return JSON.stringify(code);
+				} catch {
+					return String(code);
+				}
+			}
+			return String(code);
+		};
+		const getKey = (d: Diagnostic) => [
+			d.range.start.line,
+			d.range.start.character,
+			d.range.end.line,
+			d.range.end.character,
+			d.severity ?? '',
+			serializeCode(d.code),
+			d.message,
+			d.source ?? '',
+		].join(':');
 
 		[...preferred, ...if_missing].forEach(d => {
 			const key = getKey(d);
@@ -425,6 +422,39 @@ export class DiagnosticsFeature implements Feature {
 		});
 
 		return Array.from(seen.values());
+	}
+
+	private async loadDiagnosticsConfig(connection: Connection, scopeUri?: string): Promise<Partial<DiagnosticsConfig>> {
+		const result: Partial<DiagnosticsConfig> = {};
+		const direct = await connection.workspace.getConfiguration({
+			scopeUri,
+			section: 'beancount.diagnostics',
+		});
+		const legacy = await connection.workspace.getConfiguration({ scopeUri });
+		const diagnosticsSettings = {
+			...(legacy?.settings?.beancount?.diagnostics ?? {}),
+			...(legacy?.beancount?.diagnostics ?? {}),
+			...(typeof direct === 'object' && direct !== null ? direct : {}),
+		} as Partial<DiagnosticsConfig>;
+
+		if (typeof diagnosticsSettings.tolerance === 'number') {
+			result.tolerance = diagnosticsSettings.tolerance;
+		}
+		if (typeof diagnosticsSettings.warnOnIncompleteTransaction === 'boolean') {
+			result.warnOnIncompleteTransaction = diagnosticsSettings.warnOnIncompleteTransaction;
+		}
+		return result;
+	}
+
+	private applyDiagnosticsConfig(config: Partial<DiagnosticsConfig>, logPrefix: 'Initial' | 'Updated'): void {
+		if (config.tolerance !== undefined) {
+			this.config.tolerance = config.tolerance;
+			this.logger.info(`${logPrefix} tolerance set to ${this.config.tolerance}`);
+		}
+		if (config.warnOnIncompleteTransaction !== undefined) {
+			this.config.warnOnIncompleteTransaction = config.warnOnIncompleteTransaction;
+			this.logger.info(`${logPrefix} warnOnIncompleteTransaction set to ${this.config.warnOnIncompleteTransaction}`);
+		}
 	}
 
 	private getTolerance(postings: Posting[]) {

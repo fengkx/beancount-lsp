@@ -106,6 +106,7 @@ export class SymbolIndex {
 		this._syncQueue.dequeue(uri);
 		this._asyncQueue.dequeue(uri);
 		this._symbolInfoStorage.removeSync({ _uri: uri });
+		this._optionsManager.clearOptionsForSource(uri);
 		this.invalidateAccountCompletionSnapshot();
 	}
 
@@ -279,11 +280,7 @@ export class SymbolIndex {
 				this.logger.debug(`Found option in ${document.uri}: ${key} = ${value}`);
 			}
 
-			// Register discovered options in the options manager
-			for (const [key, value] of options.entries()) {
-				// @ts-expect-error intended set all options by only SupportedKeys can read
-				this._optionsManager.setOption(key, value, document.uri);
-			}
+			this._optionsManager.replaceOptionsForSource(document.uri, options);
 
 			if (options.size > 0) {
 				this.logger.info(`Processed ${options.size} Beancount options in ${document.uri}`);

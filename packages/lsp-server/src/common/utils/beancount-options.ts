@@ -73,7 +73,8 @@ export interface OptionsChangeEvent {
  */
 export class BeancountOptionsManager {
 	private static _instance: BeancountOptionsManager;
-	private _options: Map<SupportedOption, BeancountOption> = new Map();
+	private sourceOptions: Map<string, Map<string, string>> = new Map();
+	private effectiveOptions: Map<SupportedOption, BeancountOption> = new Map();
 	private _onOptionChange = new Emitter<OptionsChangeEvent>();
 
 	/** Event fired when an option changes */
@@ -118,7 +119,7 @@ export class BeancountOptionsManager {
 	 * @returns The option value, or undefined if not found
 	 */
 	public getOption(name: SupportedOption): BeancountOption {
-		return this._options.get(name) ?? new BeancountOption({
+		return this.effectiveOptions.get(name) ?? new BeancountOption({
 			value: this.DEFAULT_OPTIONS[name],
 			source: undefined,
 			isDefault: true,
@@ -132,24 +133,74 @@ export class BeancountOptionsManager {
 	 * @param source Optional source file where the option was defined
 	 */
 	public setOption(name: SupportedOption, value: string, source?: string): void {
-		const previousOption = this._options.get(name);
-
-		const newOption = new BeancountOption({
-			value,
-			source,
-			isDefault: false,
-		});
-
-		this._options.set(name, newOption);
-
-		// Emit change event
-		this._onOptionChange.fire({
-			name,
-			option: newOption,
-			previousOption,
-		});
-
+		const sourceKey = source ?? '__legacy__';
+		const existing = new Map(this.sourceOptions.get(sourceKey) ?? []);
+		existing.set(name, value);
+		this.replaceOptionsForSource(sourceKey, existing);
 		logger.info(`Beancount option "${name}" set to "${value}"`);
+	}
+
+	public replaceOptionsForSource(source: string, options: Map<string, string>): void {
+		this.sourceOptions.set(source, new Map(options));
+		this.recomputeEffectiveOptions();
+	}
+
+	public clearOptionsForSource(source: string): void {
+		if (!this.sourceOptions.delete(source)) {
+			return;
+		}
+		this.recomputeEffectiveOptions();
+	}
+
+	private isSupportedOption(name: string): name is SupportedOption {
+		return name in this.DEFAULT_OPTIONS;
+	}
+
+	private optionsEqual(a: BeancountOption | undefined, b: BeancountOption | undefined): boolean {
+		if (!a && !b) return true;
+		if (!a || !b) return false;
+		return a.value === b.value && a.source === b.source && a.isDefault === b.isDefault;
+	}
+
+	private recomputeEffectiveOptions(): void {
+		const next = new Map<SupportedOption, BeancountOption>();
+		const sources = Array.from(this.sourceOptions.keys()).sort((a, b) => a.localeCompare(b));
+		for (const source of sources) {
+			const options = this.sourceOptions.get(source);
+			if (!options) continue;
+			for (const [name, value] of options.entries()) {
+				if (!this.isSupportedOption(name)) continue;
+				next.set(name, new BeancountOption({ value, source, isDefault: false }));
+			}
+		}
+
+		const changed = new Set<SupportedOption>([
+			...Array.from(this.effectiveOptions.keys()),
+			...Array.from(next.keys()),
+		]);
+		for (const name of changed) {
+			const previousOption = this.effectiveOptions.get(name);
+			const nextOption = next.get(name) ?? new BeancountOption({
+				value: this.DEFAULT_OPTIONS[name],
+				source: undefined,
+				isDefault: true,
+			});
+			const prevComparable = previousOption ?? new BeancountOption({
+				value: this.DEFAULT_OPTIONS[name],
+				source: undefined,
+				isDefault: true,
+			});
+			if (this.optionsEqual(prevComparable, nextOption)) {
+				continue;
+			}
+			this._onOptionChange.fire({
+				name,
+				option: nextOption,
+				previousOption,
+			});
+		}
+
+		this.effectiveOptions = next;
 	}
 
 	/**
