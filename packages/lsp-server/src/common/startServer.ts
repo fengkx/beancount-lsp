@@ -206,6 +206,7 @@ export function startServer(
 		);
 		const documentChangeUnsubscribe = documents.onDidChangeContent(event => {
 			symbolIndex.addSyncFile(event.document.uri);
+			priceMap.invalidateAllCaches();
 			if (debouncedUpdateTimer) clearTimeout(debouncedUpdateTimer);
 			debouncedUpdateTimer = setTimeout(() => {
 				try {
@@ -228,8 +229,10 @@ export function startServer(
 		});
 
 		connection.onDidChangeWatchedFiles(e => {
+			let shouldInvalidatePriceMap = false;
 			documents.refetchBeanFiles();
 			for (const { type, uri } of e.changes) {
+				shouldInvalidatePriceMap = true;
 				if (type === FileChangeType.Created || type === FileChangeType.Deleted) {
 					documents.refetchBeanFiles();
 				}
@@ -251,6 +254,9 @@ export function startServer(
 						}
 						break;
 				}
+			}
+			if (shouldInvalidatePriceMap) {
+				priceMap.invalidateAllCaches();
 			}
 			symbolIndex.unleashFiles([]);
 		});

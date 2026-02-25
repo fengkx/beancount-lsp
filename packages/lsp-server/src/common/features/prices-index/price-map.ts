@@ -568,6 +568,18 @@ export class PriceMap {
 			}
 		}
 
+		for (const edges of graph.values()) {
+			edges.sort((a, b) => {
+				const byTo = a.to.localeCompare(b.to);
+				if (byTo !== 0) {
+					return byTo;
+				}
+				const aTime = a.date ? new Date(a.date).getTime() : Number.NEGATIVE_INFINITY;
+				const bTime = b.date ? new Date(b.date).getTime() : Number.NEGATIVE_INFINITY;
+				return bTime - aTime;
+			});
+		}
+
 		// Update the cache
 		this.conversionGraph = graph;
 		this.lastConversionGraphUpdate = now;
@@ -617,18 +629,35 @@ export class PriceMap {
 			return null;
 		}
 
-		// Find the edge for the target currency
-		for (const edge of edges) {
-			if (edge.to === to) {
-				// If date is specified, check if this edge applies
-				if (date && edge.date && new Date(edge.date) > new Date(date)) {
-					continue;
-				}
-				return edge.rate;
+		const candidates = edges.filter(edge => edge.to === to);
+		if (candidates.length === 0) {
+			return null;
+		}
+
+		const edgeTime = (edge: ConversionEdge): number => {
+			if (!edge.date) return Number.NEGATIVE_INFINITY;
+			const time = new Date(edge.date).getTime();
+			return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time;
+		};
+
+		if (!date) {
+			const latest = candidates.reduce((best, edge) => {
+				if (!best) return edge;
+				return edgeTime(edge) > edgeTime(best) ? edge : best;
+			}, null as ConversionEdge | null);
+			return latest?.rate ?? null;
+		}
+
+		const targetTime = new Date(date).getTime();
+		let best: ConversionEdge | null = null;
+		for (const edge of candidates) {
+			const time = edgeTime(edge);
+			if (time <= targetTime && (!best || time > edgeTime(best))) {
+				best = edge;
 			}
 		}
 
-		return null;
+		return best?.rate ?? null;
 	}
 
 	/**
