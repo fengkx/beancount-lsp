@@ -173,9 +173,9 @@ describe('references + rename correctness', () => {
 		expect(Object.values(tagEdit.changes).flat().some((e: any) => e.newText === '#newtag')).toBe(true);
 		const linkEdit = await (rename as any).onRename({ textDocument: { uri }, position: linkPos, newName: '^newlink' });
 		expect(Object.values(linkEdit.changes).flat().some((e: any) => e.newText === '^newlink')).toBe(true);
-		const payeeEdit = await (rename as any).onRename({ textDocument: { uri }, position: payeePos, newName: '\"ACME \\\"Store\\\"\"' });
+		const payeeEdit = await (rename as any).onRename({ textDocument: { uri }, position: payeePos, newName: '"ACME \\"Store\\""' });
 		expect(Object.values(payeeEdit.changes).flat().some((e: any) => e.newText === '"ACME \\"Store\\""')).toBe(true);
-		const narrationEdit = await (rename as any).onRename({ textDocument: { uri }, position: narrationPos, newName: '\"New Narration\"' });
+		const narrationEdit = await (rename as any).onRename({ textDocument: { uri }, position: narrationPos, newName: '"New Narration"' });
 		expect(Object.values(narrationEdit.changes).flat().some((e: any) => e.newText === '"New Narration"')).toBe(true);
 	});
 

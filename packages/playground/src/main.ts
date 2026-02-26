@@ -72,7 +72,12 @@ function debugLog(...args: unknown[]) {
 }
 
 function hasNonAscii(text: string): boolean {
-	return /[^\x00-\x7F]/.test(text);
+	for (let i = 0; i < text.length; i++) {
+		if (text.charCodeAt(i) > 0x7F) {
+			return true;
+		}
+	}
+	return false;
 }
 
 async function sha256Hex(text: string): Promise<string> {

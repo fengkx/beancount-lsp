@@ -44,9 +44,17 @@ const ROOT_OPTION_NAMES = [
 ] as const;
 
 const DEFAULT_ROOT_NAMES = new Set(['Assets', 'Liabilities', 'Equity', 'Income', 'Expenses']);
-const NON_ASCII_RE = /[^\x00-\x7F]/;
 const INVALID_ACCOUNT_NAME_RE = /^Invalid account name:\s*(.+)$/;
 const INVALID_UNKNOWN_ACCOUNT_RE = /^Invalid reference to unknown account ['"](.+?)['"]$/;
+
+function hasNonAscii(text: string): boolean {
+	for (let i = 0; i < text.length; i++) {
+		if (text.charCodeAt(i) > 0x7F) {
+			return true;
+		}
+	}
+	return false;
+}
 
 function isNotGitUri(uri: string): boolean {
 	return URI.parse(uri).scheme !== 'git';
@@ -298,7 +306,7 @@ export class DiagnosticsFeature implements Feature {
 		for (const name of ROOT_OPTION_NAMES) {
 			const option = this.optionsManager.getOption(name);
 			const value = option.asString();
-			if (option.isDefault || !NON_ASCII_RE.test(value) || DEFAULT_ROOT_NAMES.has(value)) {
+			if (option.isDefault || !hasNonAscii(value) || DEFAULT_ROOT_NAMES.has(value)) {
 				continue;
 			}
 			customNonAsciiRoots.add(value);

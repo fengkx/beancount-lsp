@@ -57,6 +57,8 @@ export class InMemoryDocumentStore {
 	}
 }
 
+type ListenerFn = (...args: unknown[]) => unknown;
+
 export function positionAt(text: string, needle: string, offsetInNeedle = 0): { line: number; character: number } {
 	const index = text.indexOf(needle);
 	if (index < 0) {
@@ -96,7 +98,7 @@ export function makeFakeConnection(options?: {
 }) {
 	const sentDiagnostics: Array<{ uri: string; diagnostics: Diagnostic[] }> = [];
 	const configurationRequests: Array<unknown> = [];
-	const listeners: Record<string, Function[]> = {};
+	const listeners: Record<string, ListenerFn[]> = {};
 
 	const connection = {
 		workspace: {
@@ -114,16 +116,16 @@ export function makeFakeConnection(options?: {
 		sendDiagnostics(payload: { uri: string; diagnostics: Diagnostic[] }) {
 			sentDiagnostics.push(payload);
 		},
-		onExit(cb: Function) {
+		onExit(cb: ListenerFn) {
 			(listeners['exit'] ||= []).push(cb);
 		},
-		onReferences(cb: Function) {
+		onReferences(cb: ListenerFn) {
 			(listeners['references'] ||= []).push(cb);
 		},
-		onRenameRequest(cb: Function) {
+		onRenameRequest(cb: ListenerFn) {
 			(listeners['rename'] ||= []).push(cb);
 		},
-		onPrepareRename(cb: Function) {
+		onPrepareRename(cb: ListenerFn) {
 			(listeners['prepareRename'] ||= []).push(cb);
 		},
 	} as unknown as import('vscode-languageserver').Connection;
