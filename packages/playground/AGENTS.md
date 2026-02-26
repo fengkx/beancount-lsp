@@ -50,9 +50,11 @@ This file captures implementation pitfalls and stable patterns discovered while 
   - `provider.registerDirectoryHandle(...)`
   - `vscode.openFolder(...)` (preferred)
   - fallback to `workspace.updateWorkspaceFolders(...)` only when needed.
+- In browser automation, prefer the Explorer `Open Folder` button as the first-choice UI trigger (more stable than command palette fuzzy search for custom commands).
 
 ### Pitfall
 - Relying on default workbench `Open Folder` path-input flow in this stack can miss the browser picker behavior.
+- Command palette fuzzy search can select unrelated commands when trying to trigger `Open Local` / `demo.openLocalWorkspace`, including destructive-looking dialogs unrelated to FSA open-folder flow.
 
 ## `workspace.findFiles` Returns Empty
 
@@ -94,6 +96,16 @@ This file captures implementation pitfalls and stable patterns discovered while 
 - `Open Local` command can open system folder picker and mount folder.
 - `workspace.findFiles('**/*.{bean,beancount}')` returns expected results in FSA mode.
 - `pnpm -C packages/playground exec tsc --noEmit` passes.
+
+## Browser Rename/Repro Notes
+
+### Pattern
+- For `F2` rename automation, place the caret **inside** the target symbol token before invoking rename (for example with Go To Line/Column or find-navigation), then trigger `F2`.
+- Verify cross-file rename effects by reopening the previously unopened file or checking actual file contents; treat sidebar/outline-like UI labels as eventually consistent.
+
+### Pitfall
+- If the caret lands on a token boundary instead of inside the symbol, VSCode Web may show `The element can't be renamed.` even though prepare-rename works at a nearby column.
+- After a successful cross-file rename, some UI lists (outline/symbol-like views) may briefly show stale symbol text; confirm actual editor/file content before concluding LSP rename failed.
 
 ## If Something Breaks Again
 1. Check browser console for worker-related errors first.

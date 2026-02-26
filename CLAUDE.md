@@ -1,6 +1,6 @@
-# CLAUDE.md
+# Repository Agent Notes
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working with code in this repository.
 
 ## Project Overview
 
@@ -190,7 +190,8 @@ The extension provides extensive VSCode configuration options (see README.md for
 ## Key Implementation Files
 
 - **Diagnostics tolerance algorithm**: `packages/lsp-server/src/common/features/diagnostics.ts`
-- **Completion placeholder reparse**: `packages/lsp-server/src/common/features/completion.ts`
+- **Completion placeholder reparse entrypoint**: `packages/lsp-server/src/common/features/completions/index.ts`
+- **Completion engine internals**: `packages/lsp-server/src/common/features/completions/completion-engine.ts`
 - **Symbol index**: `packages/lsp-server/src/common/features/symbol-index.ts`
 - **Tree-sitter queries**: `packages/lsp-server/src/common/language/queries/`
 
@@ -204,3 +205,20 @@ The extension provides extensive VSCode configuration options (see README.md for
 - GitHub.dev blocks creating web workers from remote extension assets. Example: creating a worker from `https://*.vscode-unpkg.net/.../server/beancount-worker.js` is blocked by CSP because `child-src` allows only `self`, `data:`, and `blob:`.
 - `worker-src` is not explicitly set in the GitHub.dev CSP, so `child-src` is the fallback for workers.
 - Mitigation: create workers from `blob:` URLs (e.g., fetch the script text, wrap in `Blob`, then `URL.createObjectURL`), or use in-extension `self`/`blob` URLs. Remote HTTPS worker URLs will be blocked.
+
+
+## LSP Server Dependency Rule
+- When adding a new runtime dependency to `packages/lsp-server/package.json`, also review `packages/lsp-server/tsup.config.ts`.
+- If the dependency is imported by the server runtime code, add it to `nodeConfig.noExternal` unless there is a clear reason to keep it external.
+- Reason: `packages/lsp-server/scripts/prepare-client-assets.js` copies built server artifacts into `lsp-client`; required runtime dependencies should be bundled to avoid missing module errors at extension runtime.
+
+## Playground Browser Testing Notes
+- When editing files inside the VSCode Web playground, prefer whole-file replacement (`focus editor -> Select All -> type/paste full content`) over partial line edits.
+- Reason: editor language features (auto-indent, snippet/format behaviors, newline handling) can introduce unintended indentation or syntax changes during incremental typing.
+- Always verify editor focus before typing. VSCode Web frequently shifts focus to the command palette, Problems panel, diff editors, or other UI panels.
+- Prefer minimizing the repro fixture (for example, reduce `main.bean` includes to only the files under test) to reduce noise and focus-switch count.
+- After browser automation edits, verify actual file contents before trusting diagnostics. Useful pattern: add/call debug commands that copy active file content or a project snapshot.
+- Be careful when using command palette automation: fuzzy search can select similarly named commands (for example compare-with-clipboard flows) and open diff editors unexpectedly.
+- In FSA-mode browser automation, prefer the Explorer `Open Folder` button as the most stable entrypoint; command palette invocation of `Open Local` is more prone to fuzzy-command misfires.
+- For rename tests (`F2`), place the caret inside the symbol token (not at the token boundary) before invoking rename, otherwise VSCode Web may report `The element can't be renamed.` even when rename support is working.
+- If a syntax error appears immediately after automated typing, first suspect accidental auto-indent / misplaced whitespace from editor input rather than parser/runtime incompatibility.
