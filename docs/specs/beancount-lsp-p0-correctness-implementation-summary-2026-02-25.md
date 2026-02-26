@@ -258,6 +258,100 @@ Changes:
 - Reused shared config loading in both initial registration and config-changed path
 - Reworked `mergeAndDedupDiagnostics()` key to include:
   - start/end range
+
+## G. Post-Implementation Follow-up (2026-02-26)
+
+### G1. Root-name option changes now trigger diagnostics revalidation
+
+Problem observed in playground regression:
+
+- Editing `main.bean` to add/remove `option "name_assets"` (and related root-name options) updated effective options correctly, but existing diagnostics in other open files could remain stale until another trigger.
+
+Fix implemented:
+
+- `packages/lsp-server/src/common/features/diagnostics.ts`
+- Extended diagnostics revalidation trigger set (`REVALIDATE_ON_OPTION_CHANGE`) to include:
+  - `name_assets`
+  - `name_liabilities`
+  - `name_equity`
+  - `name_income`
+  - `name_expenses`
+
+Observed effect:
+
+- Adding a custom root (e.g. `Actifs`) produces expected root-account diagnostics.
+- Removing/restoring the option clears those diagnostics automatically without stale leftovers.
+
+### G2. Browser WASM custom non-ASCII root compat filter (beancheck parity workaround)
+
+Problem observed:
+
+- In browser WASM runtime, `beancheck` diagnostics could report `Invalid account name: <non-ASCII-root>:...` for custom non-ASCII root names, while local Python Beancount accepted equivalent minimal examples.
+- Tree-sitter parsing and local LSP account-root validation supported the Unicode roots, so this was not a parser/local-validation issue.
+
+Fix implemented:
+
+- `packages/lsp-server/src/common/features/diagnostics.ts`
+- Added a browser-WASM-only compatibility filter for beancheck diagnostics when all conditions hold:
+  - runtime mode is `wasm`
+  - custom root options are active
+  - at least one custom root contains non-ASCII characters
+- Suppresses beancheck diagnostics matching custom non-ASCII roots for:
+  - `Invalid account name: ...`
+  - `Invalid reference to unknown account '...'` (chained noise)
+- Shows a one-time warning that browser WASM diagnostics were partially suppressed and local Python runtime is authoritative.
+
+Observed effect in playground:
+
+- Russian custom roots (`Активы / Пассивы / Капитал / Доходы / Расходы`) can be used in `open` directives and transactions without beancheck noise flooding the Problems panel (browser WASM mode).
+
+### G3. Diagnostics source labeling and message language normalization
+
+Problem observed:
+
+- It was hard to distinguish which diagnostics came from local LSP checks vs runtime beancheck.
+- Root account local validation message was emitted in Chinese while surrounding diagnostics were otherwise English-first.
+
+Fix implemented:
+
+- `packages/lsp-server/src/common/features/diagnostics.ts`
+- Split `Diagnostic.source` values:
+  - local diagnostics: `beancount-lsp (lsp)`
+  - runtime beancheck diagnostics: `beancount-lsp (beancheck)`
+- Converted root-account validation message to English:
+  - `Invalid root account name "...". Valid root account names: ...`
+
+Reviewer note:
+
+- This intentionally keeps the existing validation strategy (open-document local validation does not require inclusion from `main.bean`).
+
+### G4. Playground debug commands for browser repro verification
+
+Problem observed:
+
+- VSCode Web focus/panel interactions can make browser automation appear successful while text was not actually written into the intended editor.
+
+Implementation:
+
+- `packages/playground/src/main.ts`
+- Added debug commands:
+  - `demo.copyActiveFileContent`
+  - `demo.copyAllProjectFilesSnapshot`
+
+Use:
+
+- Verify active editor content after each replacement (especially non-ASCII root tests).
+- Capture deterministic file snapshots (`path`, `length`, `sha256`, `head`) for repro handoff.
+
+### G5. Browser validation findings (manual playground runs)
+
+Validated behaviors in VSCode Web playground (WASM v3):
+
+- Custom root options in Cyrillic are recognized by local validation and root lists.
+- Account names using Cyrillic custom roots parse and render in editor/UI (outline/breadcrumb/codelens paths observed).
+- `F2` rename can be invoked on Cyrillic account names (prepare-rename succeeds and pre-fills full Cyrillic account name).
+- Opening a file not included by `main.bean` can still produce local diagnostics:
+  - this is expected because local LSP validation runs on open documents independently of beancheck include graph.
   - severity
   - code
   - message

@@ -32,12 +32,99 @@ interface DiagnosticsConfig {
 	warnOnIncompleteTransaction: boolean;
 }
 
+const DIAGNOSTIC_SOURCE_LOCAL = 'beancount-lsp (lsp)';
+const DIAGNOSTIC_SOURCE_BEANCHECK = 'beancount-lsp (beancheck)';
+
+const ROOT_OPTION_NAMES = [
+	'name_assets',
+	'name_liabilities',
+	'name_equity',
+	'name_income',
+	'name_expenses',
+] as const;
+
+const DEFAULT_ROOT_NAMES = new Set(['Assets', 'Liabilities', 'Equity', 'Income', 'Expenses']);
+const NON_ASCII_RE = /[^\x00-\x7F]/;
+const INVALID_ACCOUNT_NAME_RE = /^Invalid account name:\s*(.+)$/;
+const INVALID_UNKNOWN_ACCOUNT_RE = /^Invalid reference to unknown account ['"](.+?)['"]$/;
+
 function isNotGitUri(uri: string): boolean {
 	return URI.parse(uri).scheme !== 'git';
 }
 
+function extractAccountFromBeancheckMessage(message: string): string | null {
+	return message.match(INVALID_ACCOUNT_NAME_RE)?.[1]
+		?? message.match(INVALID_UNKNOWN_ACCOUNT_RE)?.[1]
+		?? null;
+}
+
+function shouldSuppressCustomRootParityDiagnostic(
+	diag: Diagnostic,
+	suppressibleRoots: Set<string>,
+): boolean {
+	const account = extractAccountFromBeancheckMessage(diag.message);
+	if (!account) {
+		return false;
+	}
+	const root = account.split(':')[0];
+	return root != null && suppressibleRoots.has(root);
+}
+
+interface BrowserCustomRootCompatFilterInput {
+	runtimeMode: 'off' | 'local' | 'wasm';
+	validRootAccounts: Set<string>;
+	customNonAsciiRoots: Set<string>;
+}
+
+interface BrowserCustomRootCompatFilterResult {
+	diagnosticsByUri: Record<string, Diagnostic[]>;
+	suppressedCount: number;
+}
+
+function filterBeancheckDiagnosticsForBrowserCustomRootCompat(
+	diagnosticsByUri: Record<string, Diagnostic[]>,
+	input: BrowserCustomRootCompatFilterInput,
+): BrowserCustomRootCompatFilterResult {
+	if (input.runtimeMode !== 'wasm' || input.customNonAsciiRoots.size === 0) {
+		return { diagnosticsByUri, suppressedCount: 0 };
+	}
+
+	const suppressibleRoots = new Set(
+		[...input.customNonAsciiRoots].filter(root => input.validRootAccounts.has(root)),
+	);
+	if (suppressibleRoots.size === 0) {
+		return { diagnosticsByUri, suppressedCount: 0 };
+	}
+
+	let suppressedCount = 0;
+	const next: Record<string, Diagnostic[]> = {};
+	for (const [uri, diagnostics] of Object.entries(diagnosticsByUri)) {
+		const kept = diagnostics.filter(diag => {
+			if (!shouldSuppressCustomRootParityDiagnostic(diag, suppressibleRoots)) {
+				return true;
+			}
+			suppressedCount += 1;
+			return false;
+		});
+		if (kept.length > 0) {
+			next[uri] = kept;
+		}
+	}
+
+	return { diagnosticsByUri: next, suppressedCount };
+}
+
 export class DiagnosticsFeature implements Feature {
 	private logger = new Logger('DiagnosticsFeature');
+	private static readonly REVALIDATE_ON_OPTION_CHANGE = new Set([
+		'infer_tolerance_from_cost',
+		'inferred_tolerance_multiplier',
+		'name_assets',
+		'name_liabilities',
+		'name_equity',
+		'name_income',
+		'name_expenses',
+	]);
 	private config: DiagnosticsConfig = {
 		tolerance: 0.005, // Default tolerance
 		warnOnIncompleteTransaction: true, // Default to show warnings for incomplete transactions
@@ -45,6 +132,8 @@ export class DiagnosticsFeature implements Feature {
 	private diagnosticsFromBeancount: { [uri: string]: Diagnostic[] } = {};
 	private standaloneBeancountDiagnosticUris = new Set<string>();
 	private readonly validationTokenByUri = new Map<string, CancellationTokenSource>();
+	private connection: Connection | undefined;
+	private hasShownBrowserCustomRootParityWarning = false;
 
 	constructor(
 		private readonly documents: DocumentStore,
@@ -55,6 +144,7 @@ export class DiagnosticsFeature implements Feature {
 
 	async register(connection: Connection): Promise<void> {
 		this.logger.info('Registering diagnostics feature');
+		this.connection = connection;
 
 		// Register callback on global bus to update diagnosticsFromBeancount on save
 		const onBeancountDiagnosticsUpdated = async () => {
@@ -76,7 +166,7 @@ export class DiagnosticsFeature implements Feature {
 		});
 
 		this.optionsManager.onOptionChange(async e => {
-			if (['infer_tolerance_from_cost', 'inferred_tolerance_multiplier'].includes(e.name)) {
+			if (DiagnosticsFeature.REVALIDATE_ON_OPTION_CHANGE.has(e.name)) {
 				await this.validateAllDocuments(connection);
 			}
 		});
@@ -165,7 +255,7 @@ export class DiagnosticsFeature implements Feature {
 				severity,
 				range,
 				message,
-				source: 'beancount-lsp',
+				source: DIAGNOSTIC_SOURCE_BEANCHECK,
 			} as Diagnostic;
 
 			const uri = file.includes('://') ? file : `file://${file}`;
@@ -187,7 +277,37 @@ export class DiagnosticsFeature implements Feature {
 
 			addDiagnostic(DiagnosticSeverity.Warning, f.line, f.file, f.message);
 		});
-		this.diagnosticsFromBeancount = diagnosticsFromBeancount;
+		const { diagnosticsByUri, suppressedCount } = filterBeancheckDiagnosticsForBrowserCustomRootCompat(
+			diagnosticsFromBeancount,
+			this.getBrowserCustomRootCompatFilterInput(),
+		);
+		this.diagnosticsFromBeancount = diagnosticsByUri;
+
+		if (suppressedCount > 0 && !this.hasShownBrowserCustomRootParityWarning) {
+			this.hasShownBrowserCustomRootParityWarning = true;
+			const message = 'Browser Beancount WASM runtime may not fully support custom non-ASCII root account names. Diagnostics were partially suppressed; switch to Local (Python) runtime for authoritative checks.';
+			this.logger.warn(`${message} suppressed=${suppressedCount}`);
+			void this.connection?.window.showWarningMessage(message);
+		}
+	}
+
+	private getBrowserCustomRootCompatFilterInput(): BrowserCustomRootCompatFilterInput {
+		const runtimeMode = this.beanMgr?.getRuntimeStatus().mode ?? 'off';
+		const validRootAccounts = this.optionsManager.getValidRootAccounts();
+		const customNonAsciiRoots = new Set<string>();
+		for (const name of ROOT_OPTION_NAMES) {
+			const option = this.optionsManager.getOption(name);
+			const value = option.asString();
+			if (option.isDefault || !NON_ASCII_RE.test(value) || DEFAULT_ROOT_NAMES.has(value)) {
+				continue;
+			}
+			customNonAsciiRoots.add(value);
+		}
+		return {
+			runtimeMode,
+			validRootAccounts,
+			customNonAsciiRoots,
+		};
 	}
 
 	private async validateDocument(document: TextDocument, connection: Connection): Promise<void> {
@@ -274,7 +394,7 @@ export class DiagnosticsFeature implements Feature {
 						severity: DiagnosticSeverity.Warning,
 						range: transaction.headerRange,
 						message: `transaction flagged with "!": ${document.getText(transaction.headerRange)}`,
-						source: 'beancount-lsp',
+						source: DIAGNOSTIC_SOURCE_LOCAL,
 					});
 				}
 
@@ -314,7 +434,7 @@ export class DiagnosticsFeature implements Feature {
 						severity: DiagnosticSeverity.Error,
 						range: transaction.headerRange,
 						message: `Transaction does not balance: ${imbalanceMessages.join(', ')}`,
-						source: 'beancount-lsp',
+						source: DIAGNOSTIC_SOURCE_LOCAL,
 					});
 				}
 			}
@@ -348,7 +468,7 @@ export class DiagnosticsFeature implements Feature {
 						end: { line, character: Math.max(0, lineText.length) },
 					},
 					message: 'Balance line incomplete: quick fix can complete current account balance',
-					source: 'beancount-lsp',
+					source: DIAGNOSTIC_SOURCE_LOCAL,
 					code: 'balance-missing-amount',
 				});
 			}
@@ -627,8 +747,8 @@ export class DiagnosticsFeature implements Feature {
 				diagnostics.push({
 					severity: DiagnosticSeverity.Error,
 					range: asLspRange(accountNode),
-					message: `无效的根账户名称 "${root}"。有效的根账户名称: ${validRootsList}`,
-					source: 'beancount-lsp',
+					message: `Invalid root account name "${root}". Valid root account names: ${validRootsList}`,
+					source: DIAGNOSTIC_SOURCE_LOCAL,
 					code: 'invalid-root-account',
 				});
 			}

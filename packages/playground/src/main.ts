@@ -71,6 +71,27 @@ function debugLog(...args: unknown[]) {
 	console.log('[playground]', ...args);
 }
 
+function hasNonAscii(text: string): boolean {
+	return /[^\x00-\x7F]/.test(text);
+}
+
+async function sha256Hex(text: string): Promise<string> {
+	const data = new TextEncoder().encode(text);
+	const digest = await globalThis.crypto.subtle.digest('SHA-256', data);
+	return Array.from(new Uint8Array(digest))
+		.map(byte => byte.toString(16).padStart(2, '0'))
+		.join('');
+}
+
+async function copyTextWithFallback(text: string, promptTitle: string, successMessage: string): Promise<void> {
+	try {
+		await navigator.clipboard.writeText(text);
+		void window.showInformationMessage(successMessage);
+	} catch {
+		globalThis.prompt(promptTitle, text);
+	}
+}
+
 // ---------------------------------------------------------------------------
 // File System Access API detection
 // ---------------------------------------------------------------------------
@@ -880,6 +901,39 @@ commands.registerCommand('demo.copyShareUrl', async () => {
 	} catch {
 		globalThis.prompt('Copy this URL', url);
 	}
+});
+
+commands.registerCommand('demo.copyActiveFileContent', async () => {
+	const editor = window.activeTextEditor;
+	if (!editor || !isProjectFile(editor.document.uri)) {
+		void window.showInformationMessage('Open a project .bean file editor first.');
+		return;
+	}
+	const text = editor.document.getText();
+	await copyTextWithFallback(
+		text,
+		`Copy active file content (${editor.document.uri.path})`,
+		`Copied active file content (${text.length} chars, non-ASCII: ${hasNonAscii(text) ? 'yes' : 'no'}).`,
+	);
+});
+
+commands.registerCommand('demo.copyAllProjectFilesSnapshot', async () => {
+	const projectFiles = Array.from(stateFiles.entries())
+		.filter(([path]) => path.startsWith(PROJECT_PATH_PREFIX))
+		.sort(([a], [b]) => a.localeCompare(b));
+	const snapshot = await Promise.all(projectFiles.map(async ([path, content]) => ({
+		path,
+		length: content.length,
+		hasNonAscii: hasNonAscii(content),
+		sha256: await sha256Hex(content),
+		head: content.slice(0, 160),
+	})));
+	const text = JSON.stringify(snapshot, null, 2);
+	await copyTextWithFallback(
+		text,
+		'Copy all project files snapshot',
+		`Copied project snapshot (${snapshot.length} files).`,
+	);
 });
 
 commands.registerCommand('demo.resetDemo', () => {
