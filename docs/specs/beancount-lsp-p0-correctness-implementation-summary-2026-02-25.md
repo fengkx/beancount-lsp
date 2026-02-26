@@ -357,6 +357,56 @@ Validated behaviors in VSCode Web playground (WASM v3):
   - message
   - source
 
+### G6. Rename cache invalidation follow-up + playground FSA verification (2026-02-27)
+
+Problem observed after the initial P0 rename fixes:
+
+- `rename` can modify unopened files, but server-side caches for those files were not explicitly invalidated in the rename request path.
+- `RenameFeature` also queued async reindex work before client-side workspace edits were guaranteed to be applied, which could create short-lived stale index/range behavior.
+
+Fix implemented:
+
+- `packages/lsp-server/src/common/features/rename.ts`
+  - Added `private invalidateAffectedUris(uris: string[])`
+  - For every URI in rename results:
+    - `documents.removeFile(uri)`
+    - `trees.invalidateCache(uri)`
+  - Removed rename-time `symbolIndex.addAsyncFile(uri)` enqueueing (reindex now relies on actual document/watch events)
+
+Test coverage added/updated:
+
+- `packages/lsp-server/src/test/features/references-rename.test.ts`
+  - Added regression test to assert:
+    - rename invalidates affected document/tree caches
+    - rename no longer enqueues async reindex directly
+- `packages/lsp-server/src/test/utils/test-server-harness.ts`
+  - Adjusted `InMemoryDocumentStore.removeFile()` semantics to match production `DocumentStore.removeFile()` behavior (clear retrieved-file cache semantics instead of deleting open documents)
+
+Playground browser verification (VSCode Web + FSA mode, Chrome DevTools MCP):
+
+- Repro fixture created in local filesystem (`/tmp/bean-rename-fsa-case`) with:
+  - `main.bean`
+  - `a.bean`
+  - `b.bean`
+- Verified scenario:
+  1. Open `a.bean` only (keep `b.bean` unopened)
+  2. Rename `Assets:Cash` -> `Assets:Cash:Wallet`
+  3. Confirmed browser reports `Made 4 text edits in 2 files`
+  4. Confirmed unopened `b.bean` content was updated on disk
+  5. Opened `b.bean`, invoked `F2` on renamed token, prepare-rename succeeded
+  6. Renamed back `Assets:Cash:Wallet` -> `Assets:Cash`
+  7. Confirmed both files reverted correctly on disk
+
+Validation outcome:
+
+- Cross-file rename on unopened documents works in playground FSA mode.
+- No obvious prepare-rename position mismatch was observed on the renamed token after opening `b.bean`.
+- `Find References` in this playground repro did not produce usable baseline results (`No references found`), so this iteration did **not** validate post-rename reference-location accuracy in browser UI.
+
+Reviewer note:
+
+- During reverse rename, an editor-side list item (outline/symbol-like UI) briefly appeared stale while on-disk file contents were already correct. This may be a UI refresh lag rather than AST/range corruption, but it remains a good follow-up target if position issues are reported again.
+
 ### Review focus
 
 - Confirm config loading remains safe when `getConfiguration` returns non-object values.

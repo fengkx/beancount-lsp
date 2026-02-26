@@ -230,11 +230,17 @@ export class RenameFeature {
 				Object.keys(changes).length
 			} files and ${allLocations.length} occurrences (${references.length} references, ${definitions.length} definitions)`,
 		);
-		Object.keys(changes).forEach(uri => {
-			this.symbolIndex.addAsyncFile(uri);
-		});
+		this.invalidateAffectedUris(Object.keys(changes));
 
 		return { changes };
+	}
+
+	private invalidateAffectedUris(uris: string[]): void {
+		for (const uri of uris) {
+			this.documents.removeFile(uri);
+			this.trees.invalidateCache(uri);
+			logger.debug(`Invalidated rename-affected caches for ${uri}`);
+		}
 	}
 
 	private async detectRenameTargetKind(

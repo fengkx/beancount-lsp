@@ -108,7 +108,7 @@ describe('references + rename correctness', () => {
 		'  Income:Salary',
 	].join('\n');
 	const docs = new InMemoryDocumentStore({ [uri]: text });
-	const trees = {} as never;
+	const trees = { invalidateCache() {} } as never;
 
 	const accountDef = makeSymbol(SymbolType.ACCOUNT_DEFINITION, uri, 'Assets:Cash', compact(rangeForOccurrence(text, 'Assets:Cash', 0)));
 	const accountUse = makeSymbol(SymbolType.ACCOUNT_USAGE, uri, 'Assets:Cash', compact(rangeForOccurrence(text, 'Assets:Cash', 1)));
@@ -120,6 +120,7 @@ describe('references + rename correctness', () => {
 	const narrationUse = makeSymbol(SymbolType.NARRATION, uri, 'Old Narration', compact(rangeForOccurrence(text, '"Old Narration"', 0)));
 	const all = [accountDef, accountUse, commodityDef, commodityUse, tagUse, linkUse, payeeUse, narrationUse];
 
+	const addAsyncFileSpy = vi.fn();
 	const symbolIndex = {
 		async findAsync(query: Record<string, unknown>) {
 			return all.filter((s) => {
@@ -130,11 +131,12 @@ describe('references + rename correctness', () => {
 		},
 		async getAccountDefinitions() { return [accountDef]; },
 		async getCommodityDefinitions() { return [commodityDef]; },
-		addAsyncFile() {},
+		addAsyncFile: addAsyncFileSpy,
 	} as unknown as import('../../common/features/symbol-index').SymbolIndex;
 
 	beforeEach(() => {
 		positionKinds.clear();
+		addAsyncFileSpy.mockReset();
 	});
 
 	it('honors includeDeclaration for account references', async () => {
@@ -175,6 +177,42 @@ describe('references + rename correctness', () => {
 		expect(Object.values(payeeEdit.changes).flat().some((e: any) => e.newText === '"ACME \\"Store\\""')).toBe(true);
 		const narrationEdit = await (rename as any).onRename({ textDocument: { uri }, position: narrationPos, newName: '\"New Narration\"' });
 		expect(Object.values(narrationEdit.changes).flat().some((e: any) => e.newText === '"New Narration"')).toBe(true);
+	});
+
+	it('rename invalidates affected document/tree caches and does not enqueue async reindex', async () => {
+		const secondaryUri = 'file:///secondary.bean';
+		const removeFileSpy = vi.spyOn(docs, 'removeFile');
+		const invalidateCacheSpy = vi.fn();
+		const treesWithInvalidate = { invalidateCache: invalidateCacheSpy } as never;
+		const rename = new RenameFeature(docs as never, treesWithInvalidate, symbolIndex);
+		const tagPos = positionAt(text, '#oldtag', 1);
+		positionKinds.set(posKey(tagPos.line, tagPos.character), 'tag');
+
+		const refsSpy = vi.spyOn(ReferencesFeature.prototype, 'onReferences').mockResolvedValue([
+			{ uri, range: rangeForOccurrence(text, '#oldtag', 0) },
+			{
+				uri: secondaryUri,
+				range: {
+					start: { line: 0, character: 0 },
+					end: { line: 0, character: 7 },
+				},
+			},
+		] as any);
+		const defsSpy = vi.spyOn((rename as any).definitions, 'getDefinition').mockResolvedValue(null);
+
+		try {
+			const edit = await (rename as any).onRename({ textDocument: { uri }, position: tagPos, newName: '#newtag' });
+			expect(edit).toBeTruthy();
+			expect(removeFileSpy).toHaveBeenCalledWith(uri);
+			expect(removeFileSpy).toHaveBeenCalledWith(secondaryUri);
+			expect(invalidateCacheSpy).toHaveBeenCalledWith(uri);
+			expect(invalidateCacheSpy).toHaveBeenCalledWith(secondaryUri);
+			expect(addAsyncFileSpy).not.toHaveBeenCalled();
+		} finally {
+			refsSpy.mockRestore();
+			defsSpy.mockRestore();
+			removeFileSpy.mockRestore();
+		}
 	});
 
 	it('rename rejects invalid wrapper-prefixed or malformed names', async () => {

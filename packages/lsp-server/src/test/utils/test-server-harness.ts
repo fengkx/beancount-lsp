@@ -43,7 +43,9 @@ export class InMemoryDocumentStore {
 	}
 
 	removeFile(uri: string): boolean {
-		return this.docs.delete(uri);
+		// Mirrors DocumentStore.removeFile semantics: clear only retrieved file cache,
+		// not LSP-opened documents tracked by TextDocuments.
+		return this.docs.has(uri);
 	}
 
 	isOpen(uri: string): boolean {
