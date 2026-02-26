@@ -300,7 +300,7 @@ export class DiagnosticsFeature implements Feature {
 	}
 
 	private getBrowserCustomRootCompatFilterInput(): BrowserCustomRootCompatFilterInput {
-		const runtimeMode = this.beanMgr?.getRuntimeStatus().mode ?? 'off';
+		const runtimeMode = this.beanMgr?.getRuntimeStatus?.().mode ?? 'off';
 		const validRootAccounts = this.optionsManager.getValidRootAccounts();
 		const customNonAsciiRoots = new Set<string>();
 		for (const name of ROOT_OPTION_NAMES) {
