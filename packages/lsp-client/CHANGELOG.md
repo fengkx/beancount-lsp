@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.0.178
+
+- chore(lsp-client): bump version to 0.0.178 ([148388e](https://github.com/fengkx/beancount-lsp/commit/148388e))
+- fix: test ([8a0ca13](https://github.com/fengkx/beancount-lsp/commit/8a0ca13))
+- refactor: update CLAUDE.md to generalize guidance for coding agents and enhance documentation on LSP server dependencies and browser testing practices; remove ANGENTS.md ([b123cb9](https://github.com/fengkx/beancount-lsp/commit/b123cb9))
+- fix: linters ([6f66c0a](https://github.com/fengkx/beancount-lsp/commit/6f66c0a))
+- fix(lsp-server): improve rename feature cache invalidation and test coverage ([47036d9](https://github.com/fengkx/beancount-lsp/commit/47036d9))
+- fix(lsp-server): handle unicode custom root diagnostics parity ([c59f81c](https://github.com/fengkx/beancount-lsp/commit/c59f81c))
+- fix(lsp-server): implement standalone diagnostics management and improve inlay hints error handling ([d4500ec](https://github.com/fengkx/beancount-lsp/commit/d4500ec))
+- fix(lsp-server): enhance rename feature validation and handling for special cases ([5af452b](https://github.com/fengkx/beancount-lsp/commit/5af452b))
+- docs: spec ([9d4a6dc](https://github.com/fengkx/beancount-lsp/commit/9d4a6dc))
+- docs: add p0 correctness implementation handoff spec ([060855f](https://github.com/fengkx/beancount-lsp/commit/060855f))
+- fix(lsp-server): refactor options lifecycle and diagnostics config ([d32c103](https://github.com/fengkx/beancount-lsp/commit/d32c103))
+- test(lsp-server): add options and diagnostics regression tests ([1217c6f](https://github.com/fengkx/beancount-lsp/commit/1217c6f))
+- fix(lsp-server): correct direct price selection and cache invalidation ([5a8a61f](https://github.com/fengkx/beancount-lsp/commit/5a8a61f))
+- test(lsp-server): add price map regression tests ([eb1bb06](https://github.com/fengkx/beancount-lsp/commit/eb1bb06))
+- fix(lsp-server): honor references semantics and wrapper rename ([f5e404e](https://github.com/fengkx/beancount-lsp/commit/f5e404e))
+- test(lsp-server): add references rename regression tests ([e74fa91](https://github.com/fengkx/beancount-lsp/commit/e74fa91))
+- fix(lsp-server): support pinyin initials subsequence matching ([d911fc2](https://github.com/fengkx/beancount-lsp/commit/d911fc2))
+- chore(lsp-server): update beancount-wasm dependency to version 0.3.2 ([e4bb0cd](https://github.com/fengkx/beancount-lsp/commit/e4bb0cd))
+- chore(playground): switch to rolldown-vite ([c18b39b](https://github.com/fengkx/beancount-lsp/commit/c18b39b))
+- chore(lsp-server): use debug beancount-wasm build ([1f02fd2](https://github.com/fengkx/beancount-lsp/commit/1f02fd2))
+- feat(browser): split beancheck diagnostics and derived refresh ([aa8ff99](https://github.com/fengkx/beancount-lsp/commit/aa8ff99))
+- refactor(lsp-server): split completion feature modules ([c41091e](https://github.com/fengkx/beancount-lsp/commit/c41091e))
+- perf(lsp-server): cache account completion snapshot ([8b8d6eb](https://github.com/fengkx/beancount-lsp/commit/8b8d6eb))
+
 ## v0.0.176
 
 - chore(lsp-client): bump version to 0.0.176 ([47fa3da](https://github.com/fengkx/beancount-lsp/commit/47fa3da))
