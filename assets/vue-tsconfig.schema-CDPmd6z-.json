@@ -1,0 +1,212 @@
+{
+	"properties": {
+		"vueCompilerOptions": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"target": {
+					"default": "auto",
+					"enum": [
+						"auto",
+						3,
+						3.3,
+						3.5,
+						3.6,
+						99
+					],
+					"markdownDescription": "Target version of Vue."
+				},
+				"lib": {
+					"default": "vue",
+					"markdownDescription": "Specify module name for import regular types."
+				},
+				"typesRoot": {
+					"type": "string",
+					"default": "@vue/language-core/types",
+					"markdownDescription": "Root path for helper type definitions. See: https://github.com/vuejs/language-tools/pull/5872"
+				},
+				"extensions": {
+					"type": "array",
+					"default": [".vue"],
+					"markdownDescription": "Valid file extensions that should be considered as regular Vue SFC, please note that you should not use this option separately for additional file extensions IDE support, see https://github.com/vuejs/language-tools/tree/master/extensions/vscode/README.md#custom-file-extensions."
+				},
+				"vitePressExtensions": {
+					"type": "array",
+					"default": [".md"],
+					"markdownDescription": "Valid file extensions that should be considered as regular VitePress SFC."
+				},
+				"petiteVueExtensions": {
+					"type": "array",
+					"default": [".html"],
+					"markdownDescription": "Valid file extensions that should be considered as regular PetiteVue SFC."
+				},
+				"jsxSlots": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Generate slots type for `JSX.ElementChildrenAttribute`."
+				},
+				"strictTemplates": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Enables strict templates. When set to `true`, all `checkUnknown*` options will be enabled."
+				},
+				"strictVModel": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Strict type constraints of `v-model`. If not set, uses the 'strictTemplates' value."
+				},
+				"strictCssModules": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Strict type checking of CSS modules."
+				},
+				"checkUnknownProps": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Check unknown props. If not set, uses the 'strictTemplates' value."
+				},
+				"checkUnknownEvents": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Check unknown events. If not set, uses the 'strictTemplates' value."
+				},
+				"checkUnknownDirectives": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Check unknown directives. If not set, uses the 'strictTemplates' value."
+				},
+				"checkUnknownComponents": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Check unknown components. If not set, uses the 'strictTemplates' value."
+				},
+				"inferComponentDollarEl": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Infer `$el` type on the component instance."
+				},
+				"inferComponentDollarRefs": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Infer `$refs` type on the component instance."
+				},
+				"inferTemplateDollarAttrs": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Infer `$attrs` type in the template and the return type of `useAttrs`."
+				},
+				"inferTemplateDollarEl": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Infer `$el` type in the template."
+				},
+				"inferTemplateDollarRefs": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Infer `$refs` type in the template."
+				},
+				"inferTemplateDollarSlots": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Infer `$slots` type in the template and the return type of `useSlots`."
+				},
+				"skipTemplateCodegen": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "https://github.com/vuejs/language-tools/issues/577"
+				},
+				"fallthroughAttributes": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Enable to support typed fallthrough attributes. Please note that enabling may significantly slow down type checking."
+				},
+				"resolveStyleImports": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Enable to generate type imports for external CSS files by `<style src=\"...\">` or `@import \"...\"`.\n\nSee: https://github.com/vuejs/language-tools/pull/5136"
+				},
+				"resolveStyleClassNames": {
+					"type": [
+						"boolean",
+						"string"
+					],
+					"default": "scoped",
+					"enum": [
+						true,
+						false,
+						"scoped"
+					],
+					"markdownDescription": "Enable to apply completions and document links for CSS class names used in templates."
+				},
+				"fallthroughComponentNames": {
+					"type": "array",
+					"default": [
+						"Transition",
+						"KeepAlive",
+						"Teleport",
+						"Suspense"
+					],
+					"markdownDescription": "Component names that will be transparent when collecting single root child nodes and fallthrough attributes."
+				},
+				"dataAttributes": {
+					"type": "array",
+					"default": [],
+					"markdownDescription": "A glob matcher array that should always avoid recognized as HTML Attributes and Component props."
+				},
+				"htmlAttributes": {
+					"type": "array",
+					"default": ["aria-*"],
+					"markdownDescription": "A glob matcher array that should always be recognizing as HTML Attributes rather than Component props. Attribute name will never convert to camelize case."
+				},
+				"optionsWrapper": {
+					"type": "array",
+					"default": [
+						"(await import('vue')).defineComponent(",
+						")"
+					],
+					"markdownDescription": "How to wrap option of `export default { ... }`. Default: `[\"(await import('vue')).defineComponent(\", \")\"]`."
+				},
+				"macros": {
+					"type": "object",
+					"default": {
+						"defineProps": ["defineProps"],
+						"defineModel": ["defineModel"],
+						"defineEmits": ["defineEmits"],
+						"defineSlots": ["defineSlots"],
+						"defineExpose": ["defineExpose"],
+						"defineOptions": ["defineOptions"],
+						"withDefaults": ["withDefaults"]
+					}
+				},
+				"composables": {
+					"type": "object",
+					"default": {
+						"useAttrs": ["useAttrs"],
+						"useCssModule": ["useCssModule"],
+						"useSlots": ["useSlots"],
+						"useTemplateRef": ["useTemplateRef", "templateRef"]
+					}
+				},
+				"plugins": {
+					"type": "array",
+					"default": [],
+					"markdownDescription": "Plugins to be used in the SFC compiler."
+				},
+				"experimentalModelPropName": {
+					"type": "object",
+					"default": {
+						"": {
+							"input": true
+						},
+						"value": {
+							"input": { "type": "text" },
+							"textarea": true,
+							"select": true
+						}
+					},
+					"markdownDescription": "https://github.com/vuejs/language-tools/issues/1969"
+				}
+			}
+		}
+	}
+}

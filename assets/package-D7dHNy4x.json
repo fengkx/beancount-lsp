@@ -1,0 +1,338 @@
+{
+	"name": "erlang",
+	"description": "Erlang language extension for Visual Studio Code",
+	"version": "1.1.3",
+	"icon": "images/icon.png",
+	"publisher": "pgourlain",
+	"engines": {
+		"vscode": "^1.52.0"
+	},
+	"categories": [
+		"Programming Languages",
+		"Snippets",
+		"Debuggers"
+	],
+	"activationEvents": [
+		"onLanguage:erlang",
+		"onDebugInitialConfigurations",
+		"onDebugResolve:erlang",
+		"onCommand:extension.rebarBuild",
+		"onCommand:extension.rebarGetDeps",
+		"onCommand:extension.rebarUpdateDeps",
+		"onCommand:extension.erleunit",
+		"onCommand:extension.dialyzer"
+	],
+	"main": "./out/lib/extension.js",
+	"contributes": {
+		"breakpoints": [
+			{
+				"language": "erlang"
+			}
+		],
+		"debuggers": [
+			{
+				"type": "erlang",
+				"program": "./out/lib/erlangDebug.js",
+				"runtime": "node",
+				"label": "Erlang Debug",
+				"languages": [
+					"erlang"
+				],
+				"configurationAttributes": {
+					"launch": {
+						"required": [],
+						"properties": {
+							"arguments": {
+								"type": "string",
+								"description": "Arguments to append erl command line."
+							},
+							"cwd": {
+								"type": "string",
+								"description": "Path of project",
+								"default": "${workspaceRoot}"
+							},
+							"erlpath": {
+								"type": "string",
+								"description": "Path to the erl executable or the command if in PATH",
+								"default": "erl"
+							},
+							"addEbinsToCodepath": {
+								"type": "boolean",
+								"description": "Add ebin directories in _build to code path",
+								"default": true
+							}
+						}
+					}
+				},
+				"initialConfigurations": [
+					{
+						"name": "Launch erlang",
+						"type": "erlang",
+						"request": "launch",
+						"cwd": "${workspaceRoot}"
+					}
+				]
+			}
+		],
+		"languages": [
+			{
+				"id": "erlang",
+				"aliases": [
+					"Erlang",
+					"erlang"
+				],
+				"extensions": [
+					".erl",
+					".hrl",
+					".xrl",
+					".yrl",
+					".es",
+					".escript",
+					".app.src",
+					"rebar.config"
+				],
+				"configuration": "./erlang.configuration.json",
+				"icon": {
+					"dark": "images/erlang-fileicon-dark.png",
+					"light": "images/erlang-fileicon-light.png"
+				}
+			}
+		],
+		"grammars": [
+			{
+				"language": "erlang",
+				"scopeName": "source.erlang",
+				"path": "./grammar/Erlang.plist"
+			}
+		],
+		"commands": [
+			{
+				"command": "extension.rebarBuild",
+				"title": "Erlang: rebar compile"
+			},
+			{
+				"command": "extension.rebarGetDeps",
+				"title": "Erlang: rebar get-deps"
+			},
+			{
+				"command": "extension.rebarUpdateDeps",
+				"title": "Erlang: rebar update-deps"
+			},
+			{
+				"command": "extension.rebareunit",
+				"title": "Erlang: rebar eunit"
+			},
+			{
+				"command": "extension.erleunit",
+				"title": "Erlang: run eunit tests with erlang shell"
+			},
+			{
+				"command": "extension.dialyzer",
+				"title": "Erlang: rebar dialyzer"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "extension.rebarBuild",
+				"mac": "shift+cmd+b",
+				"key": "ctrl+shift+b",
+				"when": "editorLangId == 'erlang'"
+			},
+			{
+				"command": "extension.erleunit",
+				"mac": "shift+cmd+t",
+				"key": "ctrl+shift+t",
+				"when": "editorLangId == 'erlang'"
+			}
+		],
+		"menus": {
+			"explorer/context": [
+				{
+					"when": "resourceLangId == erlang",
+					"command": "extension.erleunit",
+					"group": "compile"
+				}
+			]
+		},
+		"snippets": [
+			{
+				"language": "erlang",
+				"path": "./snippets/erlang.json"
+			}
+		],
+		"configuration": {
+			"type": "object",
+			"title": "Erlang",
+			"properties": {
+				"erlang.erlangPath": {
+					"type": "string",
+					"default": "",
+					"description": "Directory where erl/escript are located. Leave empty to use default."
+				},
+				"erlang.erlangArgs": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"title": "argument",
+						"default": ""
+					},
+					"default": [],
+					"description": "Arguments passed to Erlang backend. Leave empty unless you really have to tweak the Erlang VM."
+				},
+				"erlang.erlangDistributedNode": {
+					"type": "boolean",
+					"description": "Start the Erlang backend in a distributed Erlang node. Could be useful for extension development. Note, it starts EPMD if not running yet.",
+					"default": false
+				},
+				"erlang.rebarPath": {
+					"type": "string",
+					"default": "",
+					"description": "Directory where rebar/rebar3 are located. Leave empty to use default."
+				},
+				"erlang.rebarBuildArgs": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"title": "argument",
+						"default": ""
+					},
+					"default": [
+						"compile"
+					],
+					"description": "Arguments passed to rebar/rebar3 build command."
+				},
+				"erlang.includePaths": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"title": "path",
+						"default": ""
+					},
+					"default": [],
+					"description": "Include paths used when extension analyses the sources. Paths are read from rebar.config, and also standard set of paths is used. This setting is for special cases when the default behaviour is not enough."
+				},
+				"erlang.linting": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable/disable dynamic validation of opened Erlang source files."
+				},
+				"erlang.cacheManagement": {
+					"type": "string",
+					"default": "memory",
+					"description": "Specify where and how to store large cache tables.",
+					"enum": [
+						"memory",
+						"compressed memory",
+						"file"
+					],
+					"enumDescriptions": [
+						"Store in memory",
+						"Store in memory and apply lightweight compression to consume less memory (approx. 50%)",
+						"Store in temporary files"
+					]
+				},
+				"erlang.codeLensEnabled": {
+					"type": "boolean",
+					"default": false,
+					"description": "Enable/disable references CodeLens on functions."
+				},
+				"erlang.inlayHintsEnabled": {
+					"type": "boolean",
+					"default": false,
+					"description": "Enable/disable references InlayHints on functions."
+				},
+				"erlang.verbose": {
+					"type": "boolean",
+					"description": "Enable/disable technical traces for use in the extension development.",
+					"default": false
+				},
+				"erlang.verboseExcludeFilter": {
+					"type": "string",
+					"default": "textDocument/inlayHints,textDocument/hover",
+					"description": "List of excluded methods (i.e: textDocument/hover,textDocument/inlayHints, ...) from technical traces in the extension development."
+				},
+				"erlang.debuggerRunMode": {
+					"type": "string",
+					"default": "external",
+					"description": "Specifies how to run vscode debugadapter. Useful in extension development.",
+					"enum": [
+						"external",
+						"server",
+						"inline"
+					],
+					"enumDescriptions": [
+						"external : launch debug adapter in separate process",
+						"server: launch debugadapter as a socket based server",
+						"inline: launch debugadapter in current process"
+					]
+				},
+				"erlang.formattingLineLength": {
+					"type": "number",
+					"default": 100,
+					"description": "Maximum line length for document formatting."
+				}
+			}
+		},
+		"problemMatchers": [
+			{
+				"name": "erlang",
+				"owner": "erlang",
+				"fileLocation": [
+					"relative",
+					"${workspaceRoot}"
+				],
+				"pattern": {
+					"regexp": "^(.*):(\\d+):\\s+((Warning): )?(.*)$",
+					"file": 1,
+					"line": 2,
+					"severity": 4,
+					"message": 5
+				}
+			}
+		]
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/pgourlain/vscode_erlang.git"
+	},
+	"license": "MIT",
+	"scripts": {
+		"vscode:prepublish": "webpack --mode production",
+		"webpack": "webpack --mode development",
+		"webpack-dev": "webpack --mode development --watch",
+		"pretest": "npm run compile",
+		"test": "vscode-test",
+		"deploy": "vsce publish --no-yarn",
+		"compile": "tsc -p ./"
+	},
+	"dependencies": {
+		"fs-extra": "^8.1.0",
+		"@vscode/debugadapter": "^1.68.0",
+		"@vscode/debugprotocol": "^1.68.0",
+		"vscode-languageclient": "^9.0.1",
+		"vscode-languageserver": "^9.0.1",
+		"vscode-uri": "^1.0.3"
+	},
+	"devDependencies": {
+		"@types/fs-extra": "^8.0.0",
+		"@types/glob": "^7.1.1",
+		"@types/mocha": "^5.2.6",
+		"@types/node": "^16.11.7",
+		"@types/vscode": "^1.52.0",
+		"@typescript-eslint/eslint-plugin": "^5.42.0",
+		"@typescript-eslint/parser": "^5.42.0",
+		"@vscode/test-cli": "^0.0.9",
+		"@vscode/test-electron": "^2.3.9",
+		"@vscode/vsce": "^2.26.1",
+		"eslint": "^8.26.0",
+		"glob": "^7.1.4",
+		"gulp": "^5.0.0",
+		"mocha": "^10.2.0",
+		"source-map-support": "^0.5.12",
+		"ts-loader": "^8.1.0",
+		"typescript": "^5.0.2",
+		"vscode-test": "^1.3.0",
+		"webpack": "^5.75.0",
+		"webpack-cli": "^5.0.1"
+	}
+}
