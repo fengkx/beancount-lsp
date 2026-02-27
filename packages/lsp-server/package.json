@@ -30,7 +30,7 @@
 	"devDependencies": {
 		"@bean-lsp/shared": "workspace:*",
 		"@bean-lsp/storage": "workspace:*",
-		"@swc/core": "^1.15.11",
+		"@swc/core": "^1.15.17",
 		"@types/big.js": "^6.2.2",
 		"@types/micromatch": "^4.0.10",
 		"big.js": "^7.0.1",
