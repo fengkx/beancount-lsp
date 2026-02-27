@@ -13,7 +13,6 @@ import '@codingame/monaco-vscode-api/vscode/vs/editor/contrib/snippet/browser/sn
 import '@codingame/monaco-vscode-api/vscode/vs/editor/contrib/linkedEditing/browser/linkedEditing';
 import { whenReady as lspClientReady } from '../lsp-client.vsix';
 
-// @ts-expect-error TODO
 import { initialize, registerFile, registerWorker, updateUserConfiguration, Worker as MonacoWorker } from '@codingame/monaco-editor-wrapper';
 import { getService } from '@codingame/monaco-vscode-api';
 import { IExtensionService, IExtensionsWorkbenchService } from '@codingame/monaco-vscode-api/services';
@@ -743,8 +742,10 @@ const initPromise = initialize(
 		productConfiguration: {
 			extensionsGallery: {
 				serviceUrl: 'https://open-vsx.org/vscode/gallery',
-				itemUrl: 'https://open-vsx.org/vscode/item',
+				controlUrl: 'https://open-vsx.org/vscode/gallery',
+				extensionUrlTemplate: 'https://open-vsx.org/vscode/item/{publisher}/{name}/{version}',
 				resourceUrlTemplate: 'https://open-vsx.org/vscode/unpkg/{publisher}/{name}/{version}/{path}',
+				nlsBaseUrl: 'https://open-vsx.org/vscode/gallery',
 			},
 			linkProtectionTrustedDomains: ['https://open-vsx.org'],
 		},
