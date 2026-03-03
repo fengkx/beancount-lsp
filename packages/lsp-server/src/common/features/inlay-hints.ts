@@ -4,7 +4,7 @@ import { Connection, InlayHint, InlayHintKind, Position, Range, TextEdit } from 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
-import { findAllTransactions, isNodeInRange } from '../utils/ast-utils';
+import { findTransactionsIntersectingRange } from '../utils/ast-utils';
 import { checkTransactionBalance, hasEmptyCost, hasOnlyOneIncompleteAmount, Posting } from '../utils/balance-checker';
 import { Feature } from './types';
 
@@ -78,16 +78,10 @@ export class InlayHintFeature implements Feature {
 			return hints;
 		}
 
-		// Find all transactions in the document
-		const transactions = await findAllTransactions(tree, document);
+		const transactions = await findTransactionsIntersectingRange(tree, document, range);
 
 		// Process each transaction
 		for (const transaction of transactions) {
-			// Check if the node is within the requested range
-			if (!isNodeInRange(transaction.node, range)) {
-				continue;
-			}
-
 			// Check if this transaction has exactly one posting without an amount
 			if (hasOnlyOneIncompleteAmount(transaction.postings)) {
 				if (hasEmptyCost(transaction.postings)) {

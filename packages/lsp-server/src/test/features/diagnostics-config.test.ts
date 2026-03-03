@@ -99,6 +99,7 @@ describe('Diagnostics config and dedup correctness', () => {
 			isEnabled: () => true,
 			getErrors: () => errors,
 			getFlagged: () => [],
+			getRuntimeStatus: () => ({ mode: 'off' }),
 		};
 		const documents = {
 			all: () => [],
