@@ -256,6 +256,44 @@ def run_beancheck(file: str, payee_narration: bool = False, mode: str = "full"):
     return output
 
 
+def interpolate_incomplete_posting(
+    entry_file: str,
+    target_file: str,
+    transaction_line: int,
+    posting_line: int,
+    account: str,
+):
+    entries, _, _ = loader.load_file(entry_file)
+    normalized_target = os.path.normpath(target_file)
+
+    for entry in entries:
+        if not isinstance(entry, Transaction):
+            continue
+
+        entry_meta = entry.meta or {}
+        entry_filename = entry_meta.get("filename")
+        entry_lineno = entry_meta.get("lineno")
+        if not entry_filename or entry_lineno != transaction_line:
+            continue
+        if os.path.normpath(entry_filename) != normalized_target:
+            continue
+
+        for posting in entry.postings:
+            posting_meta = posting.meta or {}
+            if posting_meta.get("lineno") != posting_line:
+                continue
+            if posting.account != account:
+                continue
+            if posting.units is None or posting.units.number is None:
+                return None
+            return {
+                "number": str(posting.units.number),
+                "currency": posting.units.currency,
+            }
+
+    return None
+
+
 def _write_rpc_message(payload):
     body = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     header = f"Content-Length: {len(body)}\r\n\r\n".encode("ascii")
@@ -379,6 +417,81 @@ def _serve_rpc_stdio():
             payee_narration = bool(params.get("payeeNarration", False))
             try:
                 result = run_beancheck(file, payee_narration, mode=mode)
+                if request_id is not None:
+                    _write_rpc_message(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": request_id,
+                            "result": result,
+                        }
+                    )
+            except Exception as error:
+                if request_id is not None:
+                    _write_rpc_message(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": request_id,
+                            "error": {
+                                "code": -32001,
+                                "message": str(error),
+                                "data": traceback.format_exc(),
+                            },
+                        }
+                    )
+            continue
+
+        if method == "beancheck/interpolateIncompletePosting":
+            if request_id in cancelled_request_ids:
+                cancelled_request_ids.discard(request_id)
+                if request_id is not None:
+                    _write_rpc_message(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": request_id,
+                            "error": {
+                                "code": -32800,
+                                "message": "Request cancelled",
+                            },
+                        }
+                    )
+                continue
+
+            file = params.get("file")
+            target_file = params.get("targetFile")
+            transaction_line = params.get("transactionLine")
+            posting_line = params.get("postingLine")
+            account = params.get("account")
+            if (
+                not isinstance(file, str)
+                or file == ""
+                or not isinstance(target_file, str)
+                or target_file == ""
+                or not isinstance(transaction_line, int)
+                or not isinstance(posting_line, int)
+                or not isinstance(account, str)
+                or account == ""
+            ):
+                if request_id is not None:
+                    _write_rpc_message(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": request_id,
+                            "error": {
+                                "code": -32602,
+                                "message": "Invalid params for interpolateIncompletePosting",
+                            },
+                        }
+                    )
+                continue
+
+            try:
+                result = interpolate_incomplete_posting(
+                    file,
+                    target_file,
+                    transaction_line,
+                    posting_line,
+                    account,
+                )
                 if request_id is not None:
                     _write_rpc_message(
                         {

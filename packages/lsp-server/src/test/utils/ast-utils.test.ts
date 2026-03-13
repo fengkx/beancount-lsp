@@ -24,7 +24,7 @@ vi.mock('../../common/language', () => ({
 	},
 }));
 
-import { findTransactionsIntersectingRange } from '../../common/utils/ast-utils';
+import { findTransactionsIntersectingRange, parseCostSpec } from '../../common/utils/ast-utils';
 
 type MockNode = {
 	id: number;
@@ -269,6 +269,45 @@ function createFixture(): Fixture {
 }
 
 describe('findTransactionsIntersectingRange', () => {
+	it('parses empty cost spec as an explicit empty cost', () => {
+		const costCompListNode: MockNode = {
+			id: nextNodeId++,
+			type: 'cost_comp_list',
+			text: '',
+			startIndex: 0,
+			endIndex: 0,
+			startPosition: { row: 0, column: 0 },
+			endPosition: { row: 0, column: 0 },
+			parent: null,
+			childCount: 0,
+			child: () => null,
+			namedChildCount: 0,
+			namedChild: () => null,
+			childForFieldName: () => null,
+		};
+		const costSpecNode: MockNode = {
+			id: nextNodeId++,
+			type: 'cost_spec',
+			text: '{}',
+			startIndex: 0,
+			endIndex: 2,
+			startPosition: { row: 0, column: 0 },
+			endPosition: { row: 0, column: 2 },
+			parent: null,
+			childCount: 1,
+			child: (index: number) => index === 0 ? costCompListNode : null,
+			namedChildCount: 1,
+			namedChild: (index: number) => index === 0 ? costCompListNode : null,
+			childForFieldName: (name: string) => name === 'cost_comp_list' ? costCompListNode : null,
+		};
+
+		expect(parseCostSpec(costSpecNode as never)).toEqual({
+			number: '',
+			currency: '',
+			isTotalCost: false,
+		});
+	});
+
 	beforeEach(() => {
 		mocks.captures.mockReset();
 		mocks.getQueryByTokenName.mockReset();

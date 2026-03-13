@@ -5,8 +5,8 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
 import { findTransactionsIntersectingRange } from '../utils/ast-utils';
-import { checkTransactionBalance, hasEmptyCost, hasOnlyOneIncompleteAmount, Posting } from '../utils/balance-checker';
-import { Feature } from './types';
+import { checkTransactionBalance, hasBothCostAndPrice, hasEmptyCost, hasOnlyOneIncompleteAmount, Posting } from '../utils/balance-checker';
+import { Amount, Feature, RealBeancountManager } from './types';
 
 // Create a logger for this feature
 const logger = new Logger('InlayHint');
@@ -20,9 +20,12 @@ const logger = new Logger('InlayHint');
  */
 export class InlayHintFeature implements Feature {
 	private inlayHintsEnabled: boolean | null = null;
+	private readonly preciseHintCache = new Map<string, Promise<Amount | null>>();
+	private static readonly MAX_PRECISE_HINT_CACHE_SIZE = 100;
 	constructor(
 		private readonly documents: DocumentStore,
 		private readonly trees: Trees,
+		private readonly beanMgr?: RealBeancountManager,
 	) {}
 
 	register(connection: Connection): void {
@@ -31,8 +34,6 @@ export class InlayHintFeature implements Feature {
 			'textDocument/inlayHint',
 			async (params) => {
 				try {
-					logger.info(`InlayHint request received for ${params.textDocument.uri}`);
-
 					const document = await this.documents.retrieve(params.textDocument.uri);
 					const tree = await this.trees.getParseTree(document);
 
@@ -84,44 +85,21 @@ export class InlayHintFeature implements Feature {
 		for (const transaction of transactions) {
 			// Check if this transaction has exactly one posting without an amount
 			if (hasOnlyOneIncompleteAmount(transaction.postings)) {
-				if (hasEmptyCost(transaction.postings)) {
-					// Currently not supported
+				const requiresPreciseHint = this.requiresPreciseHint(transaction.postings);
+				const usePreciseHint = this.canUsePreciseHint(transaction.postings);
+				// JS balance checker does not model cost+price or empty-cost semantics correctly.
+				if (requiresPreciseHint && !usePreciseHint) {
 					continue;
 				}
 				// Find the incomplete posting
 				const incompletePosting = transaction.postings.find(posting => !posting.amount);
 
 				if (incompletePosting) {
-					// Calculate the balance
-					const balanceResult = checkTransactionBalance(transaction.postings, 0.001); // Using a tolerance of 0.001
-
-					// If the transaction is already balanced (which shouldn't happen with one incomplete posting)
-					// or if we don't have any imbalances, skip
-					if (balanceResult.isBalanced || balanceResult.imbalances.length === 0) {
+					const formattedImbalances = await this.calculateHintAmounts(document, transaction, incompletePosting, usePreciseHint);
+					if (formattedImbalances.length === 0) {
 						continue;
 					}
-
-					// Build combined hint from all imbalances
-					const formattedImbalances: string[] = [];
-					let firstNumberLength = 0;
-
-					for (const imbalance of balanceResult.imbalances) {
-						// Format the amount with the correct sign (negated since it balances the others)
-						const calculatedAmount = imbalance.difference.neg() || new Big(0);
-
-						// Format the number to have at least 2 decimal places
-						let formattedNumber = calculatedAmount.toFixed(2);
-						if (firstNumberLength === 0) {
-							firstNumberLength = formattedNumber.length;
-						}
-						// If the original number had more decimal places, preserve them
-						const originalDecimals = calculatedAmount.toString().split('.')[1]?.length || 0;
-						if (originalDecimals > 2) {
-							formattedNumber = calculatedAmount.toFixed(originalDecimals);
-						}
-
-						formattedImbalances.push(`${formattedNumber} ${imbalance.currency}`);
-					}
+					const firstNumberLength = formattedImbalances[0]?.split(/\s+/, 1)[0]?.length ?? 0;
 
 					// Get the currency column position for alignment
 					const currencyColumnPosition = this.findCurrencyColumnPosition(transaction.postings);
@@ -179,6 +157,116 @@ export class InlayHintFeature implements Feature {
 		}
 
 		return hints;
+	}
+
+	private requiresPreciseHint(postings: Posting[]): boolean {
+		return hasBothCostAndPrice(postings) || hasEmptyCost(postings);
+	}
+
+	private async calculateHintAmounts(
+		document: TextDocument,
+		transaction: {
+			headerRange: Range;
+			postings: Posting[];
+		},
+		incompletePosting: Posting,
+		usePreciseHint: boolean,
+	): Promise<string[]> {
+		if (usePreciseHint) {
+			const preciseAmount = await this.getPreciseIncompletePostingHint(document, transaction.headerRange, incompletePosting);
+			if (!preciseAmount) {
+				return [];
+			}
+			return [this.formatAmount(preciseAmount.number, preciseAmount.currency)];
+		}
+
+		const balanceResult = checkTransactionBalance(transaction.postings, 0.001);
+		if (balanceResult.isBalanced || balanceResult.imbalances.length === 0) {
+			return [];
+		}
+
+		return balanceResult.imbalances.map((imbalance) => {
+			const calculatedAmount = imbalance.difference.neg() || new Big(0);
+			return this.formatAmount(calculatedAmount.toString(), imbalance.currency);
+		});
+	}
+
+	private canUsePreciseHint(postings: Posting[]): boolean {
+		return this.requiresPreciseHint(postings) && this.beanMgr?.canResolvePreciseIncompletePostingHint() === true;
+	}
+
+	private async getPreciseIncompletePostingHint(
+		document: TextDocument,
+		transactionRange: Range,
+		incompletePosting: Posting,
+	): Promise<Amount | null> {
+		if (!this.beanMgr) {
+			return null;
+		}
+
+		const key = [
+			document.uri,
+			document.version,
+			transactionRange.start.line,
+			incompletePosting.node.startPosition.row,
+			incompletePosting.account,
+		].join(':');
+		const cached = this.preciseHintCache.get(key);
+		if (cached) {
+			try {
+				return await cached;
+			} catch {
+				return null;
+			}
+		}
+
+		// Null results are treated as transient because runtime/file sync may catch up after a refresh.
+		const pending = this.resolvePreciseHint(document, transactionRange, incompletePosting)
+			.then((amount) => {
+				if (amount === null) {
+					this.preciseHintCache.delete(key);
+				}
+				return amount;
+			})
+			.catch((error) => {
+				this.preciseHintCache.delete(key);
+				throw error;
+			});
+		this.preciseHintCache.set(key, pending);
+		if (this.preciseHintCache.size > InlayHintFeature.MAX_PRECISE_HINT_CACHE_SIZE) {
+			const oldestKey = this.preciseHintCache.keys().next().value;
+			if (oldestKey) {
+				this.preciseHintCache.delete(oldestKey);
+			}
+		}
+		try {
+			return await pending;
+		} catch {
+			return null;
+		}
+	}
+
+	private async resolvePreciseHint(
+		document: TextDocument,
+		transactionRange: Range,
+		incompletePosting: Posting,
+	): Promise<Amount | null> {
+		return this.beanMgr!.getPreciseIncompletePostingHint({
+			targetUri: document.uri,
+			transactionStartLine: transactionRange.start.line,
+			postingStartLine: incompletePosting.node.startPosition.row,
+			account: incompletePosting.account,
+		});
+	}
+
+	private formatAmount(numberText: string, currency: string): string {
+		const amount = new Big(numberText);
+		let formattedNumber = amount.toFixed(2);
+		const decimals = amount.toString().split('.')[1]?.length || 0;
+		if (decimals > 2) {
+			formattedNumber = amount.toFixed(decimals);
+		}
+		return `${formattedNumber} ${currency}`;
 	}
 
 	/**

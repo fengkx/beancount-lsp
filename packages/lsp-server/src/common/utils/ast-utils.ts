@@ -115,7 +115,7 @@ export function parseCostSpec(
 		}
 	}
 
-	return undefined;
+	return { number: '', currency: '', isTotalCost };
 }
 
 /**

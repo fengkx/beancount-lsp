@@ -21,6 +21,7 @@ import {
 	BeancountError,
 	BeancountFlag,
 	BeancountManagerFactory,
+	PreciseIncompletePostingHintParams,
 	RealBeancountManager,
 } from '../common/features/types';
 import { globalEventBus, GlobalEvents } from '../common/utils/event-bus';
@@ -51,6 +52,11 @@ interface BeancheckOutput {
 	};
 }
 
+interface PreciseIncompletePostingHintResult {
+	number: string;
+	currency: string;
+}
+
 function asError(error: unknown): Error {
 	return error instanceof Error ? error : new Error(String(error));
 }
@@ -77,6 +83,33 @@ class BeancheckRpcClient {
 		return this.sendRequest<BeancheckOutput>('beancheck/run', {
 			file: filePath,
 		}, token);
+	}
+
+	async interpolateIncompletePosting(
+		filePath: string,
+		params: {
+			targetFile: string;
+			transactionLine: number;
+			postingLine: number;
+			account: string;
+		},
+		token: CancellationToken,
+	): Promise<PreciseIncompletePostingHintResult | null> {
+		await this.ensureProcess();
+		if (token.isCancellationRequested) {
+			throw createCancellationError();
+		}
+		return this.sendRequest<PreciseIncompletePostingHintResult | null>(
+			'beancheck/interpolateIncompletePosting',
+			{
+				file: filePath,
+				targetFile: params.targetFile,
+				transactionLine: params.transactionLine,
+				postingLine: params.postingLine,
+				account: params.account,
+			},
+			token,
+		);
 	}
 
 	dispose(): void {
@@ -214,6 +247,11 @@ class BeancountManager implements RealBeancountManager {
 
 	isEnabled(): boolean {
 		return true;
+	}
+
+	canResolvePreciseIncompletePostingHint(): boolean {
+		// Local beancheck currently reads filesystem snapshots instead of unsaved editor buffers.
+		return false;
 	}
 
 	getRuntimeStatus(): BeancountRuntimeStatusParams {
@@ -506,6 +544,36 @@ class BeancountManager implements RealBeancountManager {
 		return stdout;
 	}
 
+	async getPreciseIncompletePostingHint(params: PreciseIncompletePostingHintParams): Promise<Amount | null> {
+		if (!this.mainFile) {
+			return null;
+		}
+
+		const python3Path = await this.getPython3Path();
+		const client = await this.ensureBeancheckRpcClient(python3Path);
+		const tokenSource = new CancellationTokenSource();
+		try {
+			return await client.interpolateIncompletePosting(
+				this.mainFile,
+				{
+					targetFile: URI.parse(params.targetUri).fsPath,
+					transactionLine: params.transactionStartLine + 1,
+					postingLine: params.postingStartLine + 1,
+					account: params.account,
+				},
+				tokenSource.token,
+			);
+		} catch (error) {
+			if (!this.isCancellationError(error)) {
+				this.logger.error(`Error interpolating incomplete posting: ${String(error)}`);
+				this.disposeBeancheckRpcClient();
+			}
+			return null;
+		} finally {
+			tokenSource.dispose();
+		}
+	}
+
 	dispose(): void {
 		this.activeBeancheckTokenSource?.cancel();
 		this.activeBeancheckTokenSource?.dispose();
@@ -515,4 +583,4 @@ class BeancountManager implements RealBeancountManager {
 	}
 }
 
-export const beananagerFactory: BeancountManagerFactory = (connection: Connection) => new BeancountManager(connection);
+export const beananagerFactory: BeancountManagerFactory = (connection: Connection, _documents) => new BeancountManager(connection);

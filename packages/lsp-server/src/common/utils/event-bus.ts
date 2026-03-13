@@ -157,4 +157,6 @@ export const enum GlobalEvents {
 	IndexTimeConsumed = 'index-time-consumed',
 	/** Emitted when the beancount runtime mode changes (e.g. off -> wasm v2). */
 	BeancountModeChanged = 'beancount-mode-changed',
+	/** Emitted when the beancount runtime is ready to serve precise queries. */
+	BeancountRuntimeReady = 'beancount-runtime-ready',
 }

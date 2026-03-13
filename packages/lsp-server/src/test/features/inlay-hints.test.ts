@@ -83,6 +83,23 @@ function createPostingNode(row: number, accountText: string, amountText?: { numb
 	};
 }
 
+function createBeanMgr(options?: {
+	canResolvePrecise?: boolean;
+	preciseHintSequence?: Array<{ number: string; currency: string } | null | Error>;
+}) {
+	const sequence = [...(options?.preciseHintSequence ?? [{ number: '-10.00', currency: 'USD' }])];
+	return {
+		canResolvePreciseIncompletePostingHint: vi.fn().mockReturnValue(options?.canResolvePrecise ?? true),
+		getPreciseIncompletePostingHint: vi.fn().mockImplementation(async () => {
+			const next = sequence.shift();
+			if (next instanceof Error) {
+				throw next;
+			}
+			return next ?? null;
+		}),
+	};
+}
+
 describe('InlayHintFeature', () => {
 	beforeEach(() => {
 		mocks.findTransactionsIntersectingRange.mockReset();
@@ -274,5 +291,366 @@ describe('InlayHintFeature', () => {
 		expect(hints).toHaveLength(1);
 		expect(String(hints[0]?.label)).toContain('10.00 USD, 5.00 EUR');
 		expect(hints[0]?.position).toEqual({ line: 3, character: 16 });
+	});
+
+	it('uses precise manager path for transactions with both cost and price', async () => {
+		const document = TextDocument.create(
+			'file:///inlay.bean',
+			'beancount',
+			1,
+			[
+				'2024-01-01 * "Sell"',
+				'  Assets:Broker  -10 STOCK {9.00 USD} @ 10.00 USD',
+				'  Assets:Cash  100.00 USD',
+				'  Income:PnL',
+			].join('\n'),
+		);
+		const range = Range.create(0, 0, 3, 12);
+		const transaction = {
+			node: {} as never,
+			date: '2024-01-01',
+			flag: '*',
+			headerRange: Range.create(0, 0, 0, 19),
+			postings: [
+				{
+					node: createPostingNode(1, 'Assets:Broker', { number: '-10', currency: 'STOCK', column: 17 }),
+					account: 'Assets:Broker',
+					amount: { number: '-10', currency: 'STOCK' },
+					cost: { number: '9.00', currency: 'USD' },
+					price: { type: '@', number: '10.00', currency: 'USD' },
+				},
+				{
+					node: createPostingNode(2, 'Assets:Cash', { number: '100.00', currency: 'USD', column: 15 }),
+					account: 'Assets:Cash',
+					amount: { number: '100.00', currency: 'USD' },
+				},
+				{
+					node: createPostingNode(3, 'Income:PnL'),
+					account: 'Income:PnL',
+				},
+			],
+		};
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		const beanMgr = createBeanMgr();
+
+		const feature = new InlayHintFeature({} as never, {} as never, beanMgr as never);
+		const provideInlayHints = (feature as any).provideInlayHints.bind(feature);
+		const hints = await provideInlayHints(document, range, { rootNode: {} });
+
+		expect(beanMgr.getPreciseIncompletePostingHint).toHaveBeenCalledWith({
+			targetUri: 'file:///inlay.bean',
+			transactionStartLine: 0,
+			postingStartLine: 3,
+			account: 'Income:PnL',
+		});
+		expect(hints).toHaveLength(1);
+		expect(String(hints[0]?.label).trim()).toBe('-10.00 USD');
+	});
+
+	it('does not produce hint for transactions with both cost and price when precise runtime is unavailable', async () => {
+		const document = TextDocument.create(
+			'file:///inlay.bean',
+			'beancount',
+			1,
+			[
+				'2024-01-01 * "Sell"',
+				'  Assets:Broker  -10 STOCK {9.00 USD} @ 10.00 USD',
+				'  Assets:Cash  100.00 USD',
+				'  Income:PnL',
+			].join('\n'),
+		);
+		const range = Range.create(0, 0, 3, 12);
+		const transaction = {
+			node: {} as never,
+			date: '2024-01-01',
+			flag: '*',
+			headerRange: Range.create(0, 0, 0, 19),
+			postings: [
+				{
+					node: createPostingNode(1, 'Assets:Broker', { number: '-10', currency: 'STOCK', column: 17 }),
+					account: 'Assets:Broker',
+					amount: { number: '-10', currency: 'STOCK' },
+					cost: { number: '9.00', currency: 'USD' },
+					price: { type: '@', number: '10.00', currency: 'USD' },
+				},
+				{
+					node: createPostingNode(2, 'Assets:Cash', { number: '100.00', currency: 'USD', column: 15 }),
+					account: 'Assets:Cash',
+					amount: { number: '100.00', currency: 'USD' },
+				},
+				{
+					node: createPostingNode(3, 'Income:PnL'),
+					account: 'Income:PnL',
+				},
+			],
+		};
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		const beanMgr = createBeanMgr({ canResolvePrecise: false });
+
+		const feature = new InlayHintFeature({} as never, {} as never, beanMgr as never);
+		const provideInlayHints = (feature as any).provideInlayHints.bind(feature);
+		const hints = await provideInlayHints(document, range, { rootNode: {} });
+
+		expect(beanMgr.getPreciseIncompletePostingHint).not.toHaveBeenCalled();
+		expect(hints).toEqual([]);
+	});
+
+	it('uses precise manager path for transactions with empty cost when runtime is available', async () => {
+		const document = TextDocument.create(
+			'file:///inlay.bean',
+			'beancount',
+			1,
+			[
+				'2024-01-01 * "Sell"',
+				'  Assets:Broker  -10 STOCK {} @ 10.00 USD',
+				'  Assets:Cash  100.00 USD',
+				'  Income:PnL',
+			].join('\n'),
+		);
+		const range = Range.create(0, 0, 3, 12);
+		const transaction = {
+			node: {} as never,
+			date: '2024-01-01',
+			flag: '*',
+			headerRange: Range.create(0, 0, 0, 19),
+			postings: [
+				{
+					node: createPostingNode(1, 'Assets:Broker', { number: '-10', currency: 'STOCK', column: 17 }),
+					account: 'Assets:Broker',
+					amount: { number: '-10', currency: 'STOCK' },
+					cost: { number: '', currency: '' },
+					price: { type: '@', number: '10.00', currency: 'USD' },
+				},
+				{
+					node: createPostingNode(2, 'Assets:Cash', { number: '100.00', currency: 'USD', column: 15 }),
+					account: 'Assets:Cash',
+					amount: { number: '100.00', currency: 'USD' },
+				},
+				{
+					node: createPostingNode(3, 'Income:PnL'),
+					account: 'Income:PnL',
+				},
+			],
+		};
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		const beanMgr = createBeanMgr();
+
+		const feature = new InlayHintFeature({} as never, {} as never, beanMgr as never);
+		const provideInlayHints = (feature as any).provideInlayHints.bind(feature);
+		const hints = await provideInlayHints(document, range, { rootNode: {} });
+
+		expect(beanMgr.getPreciseIncompletePostingHint).toHaveBeenCalledWith({
+			targetUri: 'file:///inlay.bean',
+			transactionStartLine: 0,
+			postingStartLine: 3,
+			account: 'Income:PnL',
+		});
+		expect(hints).toHaveLength(1);
+		expect(String(hints[0]?.label).trim()).toBe('-10.00 USD');
+	});
+
+	it('does not produce hint for empty cost when precise runtime is unavailable', async () => {
+		const document = TextDocument.create(
+			'file:///inlay.bean',
+			'beancount',
+			1,
+			[
+				'2024-01-01 * "Sell"',
+				'  Assets:Broker  -10 STOCK {} @ 10.00 USD',
+				'  Assets:Cash  100.00 USD',
+				'  Income:PnL',
+			].join('\n'),
+		);
+		const range = Range.create(0, 0, 3, 12);
+		const transaction = {
+			node: {} as never,
+			date: '2024-01-01',
+			flag: '*',
+			headerRange: Range.create(0, 0, 0, 19),
+			postings: [
+				{
+					node: createPostingNode(1, 'Assets:Broker', { number: '-10', currency: 'STOCK', column: 17 }),
+					account: 'Assets:Broker',
+					amount: { number: '-10', currency: 'STOCK' },
+					cost: { number: '', currency: '' },
+					price: { type: '@', number: '10.00', currency: 'USD' },
+				},
+				{
+					node: createPostingNode(2, 'Assets:Cash', { number: '100.00', currency: 'USD', column: 15 }),
+					account: 'Assets:Cash',
+					amount: { number: '100.00', currency: 'USD' },
+				},
+				{
+					node: createPostingNode(3, 'Income:PnL'),
+					account: 'Income:PnL',
+				},
+			],
+		};
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		const beanMgr = createBeanMgr({ canResolvePrecise: false });
+
+		const feature = new InlayHintFeature({} as never, {} as never, beanMgr as never);
+		const provideInlayHints = (feature as any).provideInlayHints.bind(feature);
+		const hints = await provideInlayHints(document, range, { rootNode: {} });
+
+		expect(beanMgr.getPreciseIncompletePostingHint).not.toHaveBeenCalled();
+		expect(hints).toEqual([]);
+	});
+
+	it('caches precise manager result within the same document version', async () => {
+		const document = TextDocument.create(
+			'file:///inlay.bean',
+			'beancount',
+			1,
+			[
+				'2024-01-01 * "Sell"',
+				'  Assets:Broker  -10 STOCK {9.00 USD} @ 10.00 USD',
+				'  Assets:Cash  100.00 USD',
+				'  Income:PnL',
+			].join('\n'),
+		);
+		const range = Range.create(0, 0, 3, 12);
+		const transaction = {
+			node: {} as never,
+			date: '2024-01-01',
+			flag: '*',
+			headerRange: Range.create(0, 0, 0, 19),
+			postings: [
+				{
+					node: createPostingNode(1, 'Assets:Broker', { number: '-10', currency: 'STOCK', column: 17 }),
+					account: 'Assets:Broker',
+					amount: { number: '-10', currency: 'STOCK' },
+					cost: { number: '9.00', currency: 'USD' },
+					price: { type: '@', number: '10.00', currency: 'USD' },
+				},
+				{
+					node: createPostingNode(2, 'Assets:Cash', { number: '100.00', currency: 'USD', column: 15 }),
+					account: 'Assets:Cash',
+					amount: { number: '100.00', currency: 'USD' },
+				},
+				{
+					node: createPostingNode(3, 'Income:PnL'),
+					account: 'Income:PnL',
+				},
+			],
+		};
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		const beanMgr = createBeanMgr();
+
+		const feature = new InlayHintFeature({} as never, {} as never, beanMgr as never);
+		const provideInlayHints = (feature as any).provideInlayHints.bind(feature);
+
+		await provideInlayHints(document, range, { rootNode: {} });
+		await provideInlayHints(document, range, { rootNode: {} });
+
+		expect(beanMgr.getPreciseIncompletePostingHint).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not cache null precise manager results within the same document version', async () => {
+		const document = TextDocument.create(
+			'file:///inlay.bean',
+			'beancount',
+			1,
+			[
+				'2024-01-01 * "Sell"',
+				'  Assets:Broker  -10 STOCK {9.00 USD} @ 10.00 USD',
+				'  Assets:Cash  100.00 USD',
+				'  Income:PnL',
+			].join('\n'),
+		);
+		const range = Range.create(0, 0, 3, 12);
+		const transaction = {
+			node: {} as never,
+			date: '2024-01-01',
+			flag: '*',
+			headerRange: Range.create(0, 0, 0, 19),
+			postings: [
+				{
+					node: createPostingNode(1, 'Assets:Broker', { number: '-10', currency: 'STOCK', column: 17 }),
+					account: 'Assets:Broker',
+					amount: { number: '-10', currency: 'STOCK' },
+					cost: { number: '9.00', currency: 'USD' },
+					price: { type: '@', number: '10.00', currency: 'USD' },
+				},
+				{
+					node: createPostingNode(2, 'Assets:Cash', { number: '100.00', currency: 'USD', column: 15 }),
+					account: 'Assets:Cash',
+					amount: { number: '100.00', currency: 'USD' },
+				},
+				{
+					node: createPostingNode(3, 'Income:PnL'),
+					account: 'Income:PnL',
+				},
+			],
+		};
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		const beanMgr = createBeanMgr({
+			preciseHintSequence: [null, { number: '-10.00', currency: 'USD' }],
+		});
+
+		const feature = new InlayHintFeature({} as never, {} as never, beanMgr as never);
+		const provideInlayHints = (feature as any).provideInlayHints.bind(feature);
+
+		const firstHints = await provideInlayHints(document, range, { rootNode: {} });
+		const secondHints = await provideInlayHints(document, range, { rootNode: {} });
+
+		expect(firstHints).toEqual([]);
+		expect(secondHints).toHaveLength(1);
+		expect(String(secondHints[0]?.label).trim()).toBe('-10.00 USD');
+		expect(beanMgr.getPreciseIncompletePostingHint).toHaveBeenCalledTimes(2);
+	});
+
+	it('does not cache failed precise manager results within the same document version', async () => {
+		const document = TextDocument.create(
+			'file:///inlay.bean',
+			'beancount',
+			1,
+			[
+				'2024-01-01 * "Sell"',
+				'  Assets:Broker  -10 STOCK {9.00 USD} @ 10.00 USD',
+				'  Assets:Cash  100.00 USD',
+				'  Income:PnL',
+			].join('\n'),
+		);
+		const range = Range.create(0, 0, 3, 12);
+		const transaction = {
+			node: {} as never,
+			date: '2024-01-01',
+			flag: '*',
+			headerRange: Range.create(0, 0, 0, 19),
+			postings: [
+				{
+					node: createPostingNode(1, 'Assets:Broker', { number: '-10', currency: 'STOCK', column: 17 }),
+					account: 'Assets:Broker',
+					amount: { number: '-10', currency: 'STOCK' },
+					cost: { number: '9.00', currency: 'USD' },
+					price: { type: '@', number: '10.00', currency: 'USD' },
+				},
+				{
+					node: createPostingNode(2, 'Assets:Cash', { number: '100.00', currency: 'USD', column: 15 }),
+					account: 'Assets:Cash',
+					amount: { number: '100.00', currency: 'USD' },
+				},
+				{
+					node: createPostingNode(3, 'Income:PnL'),
+					account: 'Income:PnL',
+				},
+			],
+		};
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		const beanMgr = createBeanMgr({
+			preciseHintSequence: [new Error('runtime not ready'), { number: '-10.00', currency: 'USD' }],
+		});
+
+		const feature = new InlayHintFeature({} as never, {} as never, beanMgr as never);
+		const provideInlayHints = (feature as any).provideInlayHints.bind(feature);
+
+		const firstHints = await provideInlayHints(document, range, { rootNode: {} });
+		const secondHints = await provideInlayHints(document, range, { rootNode: {} });
+
+		expect(firstHints).toEqual([]);
+		expect(secondHints).toHaveLength(1);
+		expect(String(secondHints[0]?.label).trim()).toBe('-10.00 USD');
+		expect(beanMgr.getPreciseIncompletePostingHint).toHaveBeenCalledTimes(2);
 	});
 });

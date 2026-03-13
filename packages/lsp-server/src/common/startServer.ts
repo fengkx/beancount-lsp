@@ -76,6 +76,7 @@ export function startServer(
 	// connection configurations
 	let hasConfigurationCapability: boolean = false;
 	let hasWorkspaceFolderCapability: boolean = false;
+	let hasInlayHintRefreshSupport: boolean = false;
 
 	const features: Feature[] = [];
 
@@ -128,6 +129,9 @@ export function startServer(
 		if (params.capabilities.workspace?.workspaceFolders) {
 			hasWorkspaceFolderCapability = true;
 		}
+		if (params.capabilities.workspace?.inlayHint?.refreshSupport) {
+			hasInlayHintRefreshSupport = true;
+		}
 
 		// Extract webTreeSitterWasmPath from initialization options if available
 		if (params.initializationOptions?.webTreeSitterWasmPath) {
@@ -167,11 +171,11 @@ export function startServer(
 		};
 
 		if (typeof beanMgrFactory === 'function') {
-			beanMgr = beanMgrFactory(connection);
+			beanMgr = beanMgrFactory(connection, documents);
 		}
 		features.push(new DiagnosticsFeature(documents, trees, optionsManager, beanMgr));
 		features.push(new HoverFeature(documents, trees, priceMap, symbolIndex, beanMgr));
-		features.push(new InlayHintFeature(documents, trees));
+		features.push(new InlayHintFeature(documents, trees, beanMgr));
 		features.push(new CodeActionFeature(documents, trees, beanMgr));
 
 		const codeLensRefreshSupport = !!params.capabilities.workspace?.codeLens?.refreshSupport;
@@ -272,6 +276,38 @@ export function startServer(
 			feature.register(connection);
 		}
 
+		// Relay runtime status changes before any manager initialization so the
+		// initial browser runtime-ready event is not missed.
+		const sendRuntimeStatus = (status: BeancountRuntimeStatusParams) => {
+			connection.sendNotification(CustomMessages.BeancountRuntimeStatus, status);
+		};
+		const refreshInlayHints = () => {
+			if (!hasInlayHintRefreshSupport) {
+				return;
+			}
+			void connection.languages.inlayHint.refresh().catch((error) => {
+				serverLogger.debug(`Failed to refresh inlay hints after runtime change: ${String(error)}`);
+			});
+		};
+		globalEventBus.on<BeancountRuntimeStatusParams>(
+			GlobalEvents.BeancountModeChanged,
+			(status) => {
+				sendRuntimeStatus(status);
+				if (status.mode === 'off') {
+					refreshInlayHints();
+				}
+			},
+		);
+		globalEventBus.on(
+			GlobalEvents.BeancountRuntimeReady,
+			refreshInlayHints,
+		);
+		if (beanMgr) {
+			sendRuntimeStatus(beanMgr.getRuntimeStatus());
+		} else {
+			sendRuntimeStatus({ mode: 'off' });
+		}
+
 		connection.onRequest(CustomMessages.QueueInit, async (uris: string[]) => {
 			serverLogger.info(`QueueInit ${uris}`);
 			await symbolIndex.initFiles(uris);
@@ -291,20 +327,6 @@ export function startServer(
 
 		await symbolIndex.initFiles(initFiles);
 		await symbolIndex.unleashFiles([]);
-
-		// Send initial beancount runtime status and relay future mode changes
-		const sendRuntimeStatus = (status: BeancountRuntimeStatusParams) => {
-			connection.sendNotification(CustomMessages.BeancountRuntimeStatus, status);
-		};
-		if (beanMgr) {
-			sendRuntimeStatus(beanMgr.getRuntimeStatus());
-		} else {
-			sendRuntimeStatus({ mode: 'off' });
-		}
-		globalEventBus.on<BeancountRuntimeStatusParams>(
-			GlobalEvents.BeancountModeChanged,
-			sendRuntimeStatus,
-		);
 
 		if (hasConfigurationCapability) {
 			// Register for all configuration changes.

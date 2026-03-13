@@ -7,6 +7,11 @@ import beanCheckPythonCode from '../node/beancheck.py';
 type BeancountVersion = 'v2' | 'v3';
 type BeancheckMode = 'diagnostics' | 'full';
 
+interface InterpolatedPostingAmount {
+	number: string;
+	currency: string;
+}
+
 interface FileUpdate {
 	name: string;
 	content: string;
@@ -49,6 +54,13 @@ interface WorkerApi {
 	sync: (updates: FileUpdate[], removed: string[]) => Promise<void>;
 	reset: (files: FileUpdate[]) => Promise<void>;
 	beancheck: (entryFile: string, options?: { mode?: BeancheckMode }) => Promise<string>;
+	interpolateIncompletePosting: (
+		entryFile: string,
+		targetFile: string,
+		transactionLine: number,
+		postingLine: number,
+		account: string,
+	) => Promise<InterpolatedPostingAmount | null>;
 }
 
 interface ClientApi {
@@ -74,10 +86,22 @@ if loader_module is not None:
 
 if "run_beancheck" not in beancheck_namespace:
     raise RuntimeError("run_beancheck() is not defined in beancheck.py")
+if "interpolate_incomplete_posting" not in beancheck_namespace:
+    raise RuntimeError("interpolate_incomplete_posting() is not defined in beancheck.py")
 `;
 
 const BEANCHECK_RUN_WRAPPER = String.raw`
 beancheck_namespace["run_beancheck"](entry_path, mode=beancheck_mode)
+`;
+
+const BEANCHECK_INTERPOLATE_WRAPPER = String.raw`
+beancheck_namespace["interpolate_incomplete_posting"](
+    entry_path,
+    target_file_path,
+    transaction_line,
+    posting_line,
+    posting_account,
+)
 `;
 
 let runtimeState: RuntimeState | null = null;
@@ -219,11 +243,45 @@ async function beancheck(entryFile: string, options?: { mode?: BeancheckMode }):
 	return pyResult as string;
 }
 
+async function interpolateIncompletePosting(
+	entryFile: string,
+	targetFile: string,
+	transactionLine: number,
+	postingLine: number,
+	account: string,
+): Promise<InterpolatedPostingAmount | null> {
+	const runtime = await loadRuntime(runtimeState?.version ?? 'v3', runtimeState?.extraPythonPackages);
+	if (!runtime.beancheckLoaded) {
+		runtime.pyodide.globals.set('beancheck_code', beanCheckPythonCode);
+		await runtime.pyodide.runPythonAsync(BEANCHECK_LOAD_SCRIPT);
+		runtime.beancheckLoaded = true;
+	}
+	runtime.pyodide.globals.set('entry_path', `${WORK_ROOT}/${entryFile}`);
+	runtime.pyodide.globals.set('target_file_path', `${WORK_ROOT}/${targetFile}`);
+	runtime.pyodide.globals.set('transaction_line', transactionLine);
+	runtime.pyodide.globals.set('posting_line', postingLine);
+	runtime.pyodide.globals.set('posting_account', account);
+	const pyResult = await runtime.pyodide.runPythonAsync(BEANCHECK_INTERPOLATE_WRAPPER);
+	if (pyResult == null) {
+		return null;
+	}
+	if (typeof (pyResult as PyProxy).toJs === 'function') {
+		const proxy = pyResult as PyProxy;
+		try {
+			return proxy.toJs({ dict_converter: Object.fromEntries }) as InterpolatedPostingAmount | null;
+		} finally {
+			proxy.destroy();
+		}
+	}
+	return pyResult as InterpolatedPostingAmount | null;
+}
+
 const workerApi: WorkerApi = {
 	init,
 	sync,
 	reset,
 	beancheck,
+	interpolateIncompletePosting,
 };
 
 const mainApi = AsyncCall<ClientApi>(workerApi, {

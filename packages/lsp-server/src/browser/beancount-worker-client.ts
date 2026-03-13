@@ -4,6 +4,11 @@ import { WorkerChannel } from 'async-call-rpc/utils/web/worker.js';
 type BeancountVersion = 'v2' | 'v3';
 export type BeancheckMode = 'diagnostics' | 'full';
 
+interface InterpolatedPostingAmount {
+	number: string;
+	currency: string;
+}
+
 interface FileUpdate {
 	name: string;
 	content: string;
@@ -19,6 +24,13 @@ interface WorkerApi {
 	sync: (updates: FileUpdate[], removed: string[]) => Promise<void>;
 	reset: (files: FileUpdate[]) => Promise<void>;
 	beancheck: (entryFile: string, options?: { mode?: BeancheckMode }) => Promise<string>;
+	interpolateIncompletePosting: (
+		entryFile: string,
+		targetFile: string,
+		transactionLine: number,
+		postingLine: number,
+		account: string,
+	) => Promise<InterpolatedPostingAmount | null>;
 }
 
 interface ClientApi {
@@ -132,6 +144,23 @@ export class BeancountWorkerClient {
 	async beancheck(entryFile: string, options?: { mode?: BeancheckMode }): Promise<string> {
 		await this.ensureReady();
 		return this.api!.beancheck(entryFile, options);
+	}
+
+	async interpolateIncompletePosting(
+		entryFile: string,
+		targetFile: string,
+		transactionLine: number,
+		postingLine: number,
+		account: string,
+	): Promise<InterpolatedPostingAmount | null> {
+		await this.ensureReady();
+		return this.api!.interpolateIncompletePosting(
+			entryFile,
+			targetFile,
+			transactionLine,
+			postingLine,
+			account,
+		);
 	}
 
 	dispose(): void {

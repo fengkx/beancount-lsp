@@ -17,6 +17,7 @@ import {
 	BeancountError,
 	BeancountFlag,
 	BeancountManagerFactory,
+	PreciseIncompletePostingHintParams,
 	RealBeancountManager,
 } from '../common/features/types';
 import { globalEventBus, GlobalEvents } from '../common/utils/event-bus';
@@ -65,6 +66,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 	private logger = new Logger('BeancountBrowserManager');
 	private workerClient: BeancountWorkerClient | null = null;
 	private enabledMode: BrowserBeancountMode = 'off';
+	private runtimeReady = false;
 	private extraPythonPackages: string[] = [];
 	private lastFileSnapshot = new Map<string, string>();
 	private configDebounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -121,6 +123,10 @@ class BeancountBrowserManager implements RealBeancountManager {
 		return this.enabledMode !== 'off';
 	}
 
+	canResolvePreciseIncompletePostingHint(): boolean {
+		return this.enabledMode !== 'off' && this.runtimeReady && !!this.workerClient && !!this.mainFile;
+	}
+
 	getRuntimeStatus(): BeancountRuntimeStatusParams {
 		if (this.enabledMode === 'off') {
 			return { mode: 'off' };
@@ -154,6 +160,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 		const previousMode = this.enabledMode;
 		this.enabledMode = requested;
 		this.extraPythonPackages = extraPackages;
+		this.runtimeReady = false;
 
 		// Notify listeners about mode change
 		if (previousMode !== this.enabledMode) {
@@ -192,11 +199,14 @@ class BeancountBrowserManager implements RealBeancountManager {
 			globalEventBus.emit(GlobalEvents.BeancountDerivedDataUpdated);
 			return;
 		}
+		// Runtime enabled is not enough; precise hints are safe only after init and file sync finish.
 		await this.ensureWorker();
 		await this.workerClient?.init(this.enabledMode, {
 			extraPythonPackages: this.extraPythonPackages,
 		});
 		await this.refreshFileTree();
+		this.runtimeReady = true;
+		globalEventBus.emit(GlobalEvents.BeancountRuntimeReady);
 		this.markBeancheckInputChanged('runtime-reconfigured');
 		await this.scheduleDiagnosticsRevalidate(this.inputGeneration, { immediate: true });
 		await this.scheduleFullRevalidate(this.inputGeneration, { immediate: true });
@@ -793,6 +803,30 @@ class BeancountBrowserManager implements RealBeancountManager {
 		return this.diagnosticsResult?.flags ?? [];
 	}
 
+	async getPreciseIncompletePostingHint(params: PreciseIncompletePostingHintParams): Promise<Amount | null> {
+		if (!this.canResolvePreciseIncompletePostingHint()) {
+			return null;
+		}
+		const workerClient = this.workerClient;
+		const mainFile = this.mainFile;
+		if (!workerClient || !mainFile) {
+			return null;
+		}
+
+		try {
+			await this.flushPendingSync();
+			return await workerClient.interpolateIncompletePosting(
+				this.normalizeFileName(mainFile),
+				this.normalizeFileName(params.targetUri),
+				params.transactionStartLine + 1,
+				params.postingStartLine + 1,
+				params.account,
+			);
+		} catch {
+			return null;
+		}
+	}
+
 	async runQuery(_query: string): Promise<string> {
 		throw new Error('Bean-query is not available in the browser runtime.');
 	}
@@ -812,6 +846,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 		this.activeFullTokenSource?.dispose();
 		this.activeFullTokenSource = null;
 		this.activeFullRunGeneration = 0;
+		this.runtimeReady = false;
 		this.workerClient?.dispose();
 		this.workerClient = null;
 	}
@@ -822,7 +857,7 @@ export const createBrowserBeancountManager = (
 	documents: DocumentStore,
 	workerUrl: string | (() => string),
 ): BeancountManagerFactory => {
-	return () =>
+	return (_connection, _documents) =>
 		new BeancountBrowserManager(
 			connection,
 			documents,
