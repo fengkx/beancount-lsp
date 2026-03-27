@@ -14,6 +14,11 @@ export type AccountMatchRank = {
 
 type CompiledAccountQuery = {
 	parts: string[];
+	hasExplicitSeparators: boolean;
+	collapsedCandidates: Array<{
+		parts: string[];
+		initials: string;
+	}>;
 };
 
 type RankedLabelItem<T> = {
@@ -239,23 +244,79 @@ export function makeEmptyAccountRank(usageCount: number): AccountMatchRank {
 }
 
 export function compileAccountQuery(query: string): CompiledAccountQuery {
+	const normalized = normalizeAccountQueryToken(query);
+	const hasExplicitSeparators = normalized.includes(':');
+	const parts = normalized
+		.split(':')
+		.map(p => p.trim().toLowerCase())
+		.filter(Boolean);
+
 	return {
-		parts: normalizeAccountQueryToken(query)
-			.split(':')
-			.map(p => p.trim().toLowerCase())
-			.filter(Boolean),
+		parts,
+		hasExplicitSeparators,
+		collapsedCandidates: hasExplicitSeparators ? [] : buildCollapsedAccountQueryCandidates(normalized),
 	};
 }
 
-export function rankCompiledAccountQuery(
-	compiledQuery: CompiledAccountQuery,
-	account: CompiledAccountCandidate,
-	usageCount: number = 0,
-): AccountMatchRank | null {
-	const normalizedQueryParts = compiledQuery.parts;
-	if (normalizedQueryParts.length === 0) {
-		return makeEmptyAccountRank(usageCount);
+function buildCollapsedAccountQueryCandidates(query: string): Array<{ parts: string[]; initials: string }> {
+	const candidates = new Map<string, { parts: string[]; initials: string }>();
+
+	const addCandidate = (parts: string[]) => {
+		const normalizedParts = parts
+			.map(part => part.trim().toLowerCase())
+			.filter(Boolean);
+		if (normalizedParts.length === 0) {
+			return;
+		}
+		const key = normalizedParts.join('\u0000');
+		if (candidates.has(key)) {
+			return;
+		}
+		candidates.set(key, {
+			parts: normalizedParts,
+			initials: normalizedParts.map(part => part[0]!).join(''),
+		});
+	};
+
+	addCandidate([query]);
+
+	const shorthandParts = splitCollapsedAccountShorthand(query);
+	if (shorthandParts.length > 1) {
+		addCandidate(shorthandParts);
 	}
+
+	if (/^[a-z0-9._/-]+$/.test(query) && query.length >= 2 && query.length <= 4) {
+		addCandidate(query.split(''));
+	}
+
+	return Array.from(candidates.values());
+}
+
+function splitCollapsedAccountShorthand(query: string): string[] {
+	if (!query) {
+		return [];
+	}
+
+	const result: string[] = [];
+	let current = query[0]!;
+	for (let i = 1; i < query.length; i++) {
+		const ch = query[i]!;
+		if (/[A-Z]/.test(ch)) {
+			result.push(current);
+			current = ch;
+			continue;
+		}
+		current += ch;
+	}
+	result.push(current);
+	return result;
+}
+
+function rankStructuredAccountQuery(
+	normalizedQueryParts: string[],
+	account: CompiledAccountCandidate,
+	usageCount: number,
+): AccountMatchRank | null {
 	if (account.partsLower.length === 0) {
 		return null;
 	}
@@ -310,6 +371,98 @@ export function rankCompiledAccountQuery(
 	};
 }
 
+function rankCollapsedAccountQuery(
+	compiledQuery: CompiledAccountQuery,
+	account: CompiledAccountCandidate,
+	usageCount: number,
+): AccountMatchRank | null {
+	let bestRank: AccountMatchRank | null = null;
+
+	for (const candidate of compiledQuery.collapsedCandidates) {
+		if (candidate.parts.length === 0) {
+			continue;
+		}
+		if (!isSubsequence(candidate.initials, account.segmentInitialsLower)) {
+			continue;
+		}
+
+		const rootQueryPart = candidate.parts[0]!;
+		if (!account.rootLower.startsWith(rootQueryPart)) {
+			continue;
+		}
+
+		let gapCount = 0;
+		let lastMatchIndex = 0;
+		let matchedSegmentCount = 1;
+		let exactCount = rootQueryPart === account.rootLower ? 1 : 0;
+		let tailHit = candidate.parts.length === 1 && account.partsLower.length === 1;
+		let segmentStart = 1;
+		let valid = true;
+
+		for (let i = 1; i < candidate.parts.length; i++) {
+			const queryPart = candidate.parts[i]!;
+			let matchedIndex = -1;
+			for (let j = segmentStart; j < account.partsLower.length; j++) {
+				if (account.partsLower[j]!.startsWith(queryPart)) {
+					matchedIndex = j;
+					break;
+				}
+			}
+			if (matchedIndex < 0) {
+				valid = false;
+				break;
+			}
+
+			matchedSegmentCount++;
+			gapCount += Math.max(0, matchedIndex - lastMatchIndex - 1);
+			lastMatchIndex = matchedIndex;
+			segmentStart = matchedIndex + 1;
+			if (account.partsLower[matchedIndex] === queryPart) {
+				exactCount++;
+			}
+			if (i === candidate.parts.length - 1) {
+				tailHit = matchedIndex === account.partsLower.length - 1;
+			}
+		}
+
+		if (!valid) {
+			continue;
+		}
+
+		const rank: AccountMatchRank = {
+			tier: exactCount === candidate.parts.length ? 2 : 1,
+			matchedSegmentCount,
+			gapCount,
+			rootQuality: scoreRootMatch(rootQueryPart, account.rootLower),
+			tailHit,
+			fuzzyCount: 0,
+			usageBucket: Math.min(usageCount, 20),
+		};
+
+		if (!bestRank || compareAccountRank(rank, bestRank) < 0) {
+			bestRank = rank;
+		}
+	}
+
+	return bestRank;
+}
+
+export function rankCompiledAccountQuery(
+	compiledQuery: CompiledAccountQuery,
+	account: CompiledAccountCandidate,
+	usageCount: number = 0,
+): AccountMatchRank | null {
+	const normalizedQueryParts = compiledQuery.parts;
+	if (normalizedQueryParts.length === 0) {
+		return makeEmptyAccountRank(usageCount);
+	}
+	if (compiledQuery.hasExplicitSeparators) {
+		return rankStructuredAccountQuery(normalizedQueryParts, account, usageCount);
+	}
+
+	return rankCollapsedAccountQuery(compiledQuery, account, usageCount);
+}
+
 export function rankAccountQuery(
 	query: string,
 	account: string,
@@ -323,6 +476,7 @@ export function rankAccountQuery(
 		partsRaw: accountPartsRaw,
 		partsLower: accountParts,
 		rootLower: accountParts[0] || '',
+		segmentInitialsLower: accountParts.map(part => part[0] || '').join(''),
 	}, usageCount);
 }
 

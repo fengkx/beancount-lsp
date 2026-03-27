@@ -195,6 +195,39 @@ describe('rankAccountQuery', () => {
 		expect(rejected!.tier).toBeGreaterThan(-1);
 	});
 
+	it('supports collapsed shorthand initials for bank savings', () => {
+		const matched = rankAccountQuery('ABS', 'Assets:Bank:Savings', 1);
+		expect(matched).not.toBeNull();
+		expect(matched!.tailHit).toBe(true);
+		expect(matched!.matchedSegmentCount).toBe(3);
+	});
+
+	it('supports collapsed shorthand initials for bank checking', () => {
+		const matched = rankAccountQuery('ABC', 'Assets:Bank:Checking', 1);
+		expect(matched).not.toBeNull();
+		expect(matched!.tailHit).toBe(true);
+		expect(matched!.matchedSegmentCount).toBe(3);
+	});
+
+	it('supports collapsed shorthand with multi-letter segment prefixes', () => {
+		const matched = rankAccountQuery('ABaC', 'Assets:Bank:Checking', 1);
+		expect(matched).not.toBeNull();
+		expect(matched!.tailHit).toBe(true);
+		expect(matched!.matchedSegmentCount).toBe(3);
+	});
+
+	it('supports collapsed shorthand while skipping middle segments in order', () => {
+		const matched = rankAccountQuery('AC', 'Assets:Bank:Checking', 1);
+		expect(matched).not.toBeNull();
+		expect(matched!.tailHit).toBe(true);
+		expect(matched!.matchedSegmentCount).toBe(2);
+	});
+
+	it('rejects collapsed shorthand with wrong segment order', () => {
+		const rejected = rankAccountQuery('ASB', 'Assets:Bank:Savings', 1);
+		expect(rejected).toBeNull();
+	});
+
 });
 
 describe('rankTextMatchTier', () => {

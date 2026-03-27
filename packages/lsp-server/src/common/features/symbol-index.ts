@@ -50,6 +50,7 @@ export type CompiledAccountCandidate = {
 	partsRaw: string[];
 	partsLower: string[];
 	rootLower: string;
+	segmentInitialsLower: string;
 };
 
 export type AccountCompletionSnapshot = {
@@ -547,6 +548,7 @@ export class SymbolIndex {
 				partsRaw,
 				partsLower,
 				rootLower: partsLower[0] || '',
+				segmentInitialsLower: partsLower.map(part => part[0] || '').join(''),
 			};
 		});
 
