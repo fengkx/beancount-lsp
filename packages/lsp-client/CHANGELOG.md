@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.0.180
+
+- chore(lsp-client): bump version to 0.0.180 ([8ed60a0](https://github.com/fengkx/beancount-lsp/commit/8ed60a0))
+- fix(lsp-server): support account shorthand autocomplete ([9c28a28](https://github.com/fengkx/beancount-lsp/commit/9c28a28))
+- fix(lsp-server): tighten precise inlay hint resolution ([5b5dc61](https://github.com/fengkx/beancount-lsp/commit/5b5dc61))
+- chore: update dependencies in pnpm-lock.yaml and pnpm-workspace.yaml ([eb552de](https://github.com/fengkx/beancount-lsp/commit/eb552de))
+- fix(lsp-server): scope inlay hint transaction lookup by range ([daef7d7](https://github.com/fengkx/beancount-lsp/commit/daef7d7))
+- chore: update dependencies ([35127d5](https://github.com/fengkx/beancount-lsp/commit/35127d5))
+- fix(playground): align extension gallery config types ([8b6b224](https://github.com/fengkx/beancount-lsp/commit/8b6b224))
+
 ## v0.0.178
 
 - chore(lsp-client): bump version to 0.0.178 ([148388e](https://github.com/fengkx/beancount-lsp/commit/148388e))
