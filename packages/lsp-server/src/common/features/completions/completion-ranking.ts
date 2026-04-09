@@ -13,6 +13,7 @@ export type AccountMatchRank = {
 };
 
 type CompiledAccountQuery = {
+	normalized: string;
 	parts: string[];
 	hasExplicitSeparators: boolean;
 	collapsedCandidates: Array<{
@@ -231,6 +232,19 @@ function findBestSegmentMatch(
 	return null;
 }
 
+function rankForSegmentMatchKind(kind: AccountSegmentMatchKind): Pick<AccountMatchRank, 'tier' | 'fuzzyCount'> {
+	switch (kind) {
+		case 'exact':
+			return { tier: 2, fuzzyCount: 0 };
+		case 'prefix':
+			return { tier: 1, fuzzyCount: 0 };
+		case 'substring':
+			return { tier: 0, fuzzyCount: 0 };
+		case 'fuzzy':
+			return { tier: -1, fuzzyCount: 1 };
+	}
+}
+
 export function makeEmptyAccountRank(usageCount: number): AccountMatchRank {
 	return {
 		tier: 0,
@@ -245,13 +259,15 @@ export function makeEmptyAccountRank(usageCount: number): AccountMatchRank {
 
 export function compileAccountQuery(query: string): CompiledAccountQuery {
 	const normalized = normalizeAccountQueryToken(query);
+	const normalizedLower = normalized.toLowerCase();
 	const hasExplicitSeparators = normalized.includes(':');
-	const parts = normalized
+	const parts = normalizedLower
 		.split(':')
 		.map(p => p.trim().toLowerCase())
 		.filter(Boolean);
 
 	return {
+		normalized: normalizedLower,
 		parts,
 		hasExplicitSeparators,
 		collapsedCandidates: hasExplicitSeparators ? [] : buildCollapsedAccountQueryCandidates(normalized),
@@ -447,6 +463,39 @@ function rankCollapsedAccountQuery(
 	return bestRank;
 }
 
+function rankRootAnchoredTailSubsequenceFallback(
+	compiledQuery: CompiledAccountQuery,
+	account: CompiledAccountCandidate,
+	usageCount: number,
+): AccountMatchRank | null {
+	if (compiledQuery.hasExplicitSeparators || compiledQuery.normalized.length < 3) {
+		return null;
+	}
+
+	const rootQuery = compiledQuery.normalized[0]!;
+	const tailQuery = compiledQuery.normalized.slice(1);
+	if (!tailQuery || !account.rootLower.startsWith(rootQuery)) {
+		return null;
+	}
+
+	const match = findBestSegmentMatch(account.partsLower, account.partsRaw, 1, tailQuery);
+	if (!match) {
+		return null;
+	}
+
+	const { tier, fuzzyCount } = rankForSegmentMatchKind(match.kind);
+
+	return {
+		tier,
+		matchedSegmentCount: 1,
+		gapCount: account.partsLower.length + Math.max(0, match.index - 1),
+		rootQuality: scoreRootMatch(rootQuery, account.rootLower),
+		tailHit: match.endIndex === account.partsLower.length - 1,
+		fuzzyCount,
+		usageBucket: Math.min(usageCount, 20),
+	};
+}
+
 export function rankCompiledAccountQuery(
 	compiledQuery: CompiledAccountQuery,
 	account: CompiledAccountCandidate,
@@ -460,7 +509,8 @@ export function rankCompiledAccountQuery(
 		return rankStructuredAccountQuery(normalizedQueryParts, account, usageCount);
 	}
 
-	return rankCollapsedAccountQuery(compiledQuery, account, usageCount);
+	return rankCollapsedAccountQuery(compiledQuery, account, usageCount)
+		?? rankRootAnchoredTailSubsequenceFallback(compiledQuery, account, usageCount);
 }
 
 export function rankAccountQuery(

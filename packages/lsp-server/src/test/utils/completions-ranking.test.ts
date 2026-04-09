@@ -11,6 +11,7 @@ import {
 } from '../../common/features/completions/completion-context';
 import { resolveCompletionIntent } from '../../common/features/completions/completion-intents';
 import {
+	compareAccountRank,
 	rankCurrencyMatchTier,
 	rankSymbolLikeMatchTier,
 	rankTextMatchTier,
@@ -225,6 +226,43 @@ describe('rankAccountQuery', () => {
 
 	it('rejects collapsed shorthand with wrong segment order', () => {
 		const rejected = rankAccountQuery('ASB', 'Assets:Bank:Savings', 1);
+		expect(rejected).toBeNull();
+	});
+
+	// The fallback below is intentionally narrower than a full-label fuzzy matcher.
+	// It keeps root anchoring and only lets the remaining query match within tail segments.
+	it('matches root-anchored tail fallback for AIB', () => {
+		// "A" anchors the root, while "IB" is consumed in the tail text "BrokerageIBKR".
+		const matched = rankAccountQuery('AIB', 'Assets:Brokerage:IBKR', 1);
+		expect(matched).not.toBeNull();
+		expect(matched!.tier).toBe(1);
+		expect(matched!.fuzzyCount).toBe(0);
+	});
+
+	it('keeps shorthand ABI ranked above fallback AIB for the same account', () => {
+		const shorthand = rankAccountQuery('ABI', 'Assets:Brokerage:IBKR', 1);
+		const fallback = rankAccountQuery('AIB', 'Assets:Brokerage:IBKR', 1);
+		expect(shorthand).not.toBeNull();
+		expect(fallback).not.toBeNull();
+		expect(compareAccountRank(shorthand!, fallback!)).toBeLessThan(0);
+	});
+
+	it('prefers direct tail matches over weaker fuzzy fallback matches', () => {
+		const intended = rankAccountQuery('AIB', 'Assets:Brokerage:IBKR', 1);
+		const weaker = rankAccountQuery('AIB', 'Assets:Dividend:Brokerage', 1);
+		expect(intended).not.toBeNull();
+		expect(weaker).not.toBeNull();
+		expect(compareAccountRank(intended!, weaker!)).toBeLessThan(0);
+	});
+
+	it('does not relax ASB into a full-label fuzzy match', () => {
+		// The fallback must not consume tail characters from the root segment text.
+		const rejected = rankAccountQuery('ASB', 'Assets:Bank:Savings', 1);
+		expect(rejected).toBeNull();
+	});
+
+	it('still rejects query when the root anchor mismatches', () => {
+		const rejected = rankAccountQuery('LIB', 'Assets:Brokerage:IBKR', 1);
 		expect(rejected).toBeNull();
 	});
 
