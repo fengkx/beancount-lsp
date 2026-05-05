@@ -108,16 +108,16 @@ export class InlayHintFeature implements Feature {
 					const combinedImbalanceText = formattedImbalances.join(', ');
 
 					// Create an inlay hint for the calculated amount
-					const accountNode = incompletePosting.node.childForFieldName('account');
-					if (accountNode) {
+					const accountEndPosition = incompletePosting.accountEndPosition;
+					if (accountEndPosition) {
 						// Create position for inlay hint
 						const line = document.getText(
 							Range.create(
-								Position.create(accountNode.endPosition.row, 0),
-								Position.create(accountNode.endPosition.row + 1, 0),
+								Position.create(accountEndPosition.line, 0),
+								Position.create(accountEndPosition.line + 1, 0),
 							),
 						).replace(/[\r|\n]$/g, '');
-						const lineEndPos = Position.create(accountNode.endPosition.row, line.length);
+						const lineEndPos = Position.create(accountEndPosition.line, line.length);
 						const hintPosition = Position.create(
 							lineEndPos.line,
 							lineEndPos.character,
@@ -208,7 +208,7 @@ export class InlayHintFeature implements Feature {
 			document.uri,
 			document.version,
 			transactionRange.start.line,
-			incompletePosting.node.startPosition.row,
+			incompletePosting.postingStartLine,
 			incompletePosting.account,
 		].join(':');
 		const cached = this.preciseHintCache.get(key);
@@ -254,7 +254,7 @@ export class InlayHintFeature implements Feature {
 		return this.beanMgr!.getPreciseIncompletePostingHint({
 			targetUri: document.uri,
 			transactionStartLine: transactionRange.start.line,
-			postingStartLine: incompletePosting.node.startPosition.row,
+			postingStartLine: incompletePosting.postingStartLine ?? transactionRange.start.line,
 			account: incompletePosting.account,
 		});
 	}
@@ -278,17 +278,9 @@ export class InlayHintFeature implements Feature {
 
 		// Find the rightmost currency position among postings with amounts
 		for (const posting of postings) {
-			if (posting.amount && posting.node) {
-				const amountNode = posting.node.childForFieldName('amount');
-				if (amountNode) {
-					const currencyNode = amountNode.children.find(c => c.type === 'currency');
-					if (currencyNode) {
-						// Get the position of the currency
-						const currencyPosition = currencyNode.startPosition.column;
-						if (currencyPosition > maxCurrencyPosition) {
-							maxCurrencyPosition = currencyPosition;
-						}
-					}
+			if (posting.amount && posting.amountCurrencyColumn !== undefined) {
+				if (posting.amountCurrencyColumn > maxCurrencyPosition) {
+					maxCurrencyPosition = posting.amountCurrencyColumn;
 				}
 			}
 		}

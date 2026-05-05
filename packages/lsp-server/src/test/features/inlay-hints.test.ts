@@ -34,6 +34,14 @@ type MockNode = {
 	childForFieldName: (name: string) => MockNode | null;
 };
 
+type MockPostingWithNode = {
+	node?: MockNode;
+	postingStartLine?: number;
+	accountEndPosition?: { line: number; character: number };
+	amountCurrencyColumn?: number;
+	[key: string]: unknown;
+};
+
 function createLeaf(type: string, text: string, row: number, column: number): MockNode {
 	return {
 		type,
@@ -81,6 +89,22 @@ function createPostingNode(row: number, accountText: string, amountText?: { numb
 			}
 		},
 	};
+}
+
+function withPostingPositions<T extends { postings: MockPostingWithNode[] }>(transaction: T): T {
+	for (const posting of transaction.postings) {
+		const node = posting.node;
+		if (!node) continue;
+		const accountNode = node.childForFieldName('account');
+		const amountNode = node.childForFieldName('amount');
+		posting.postingStartLine = node.startPosition.row;
+		posting.accountEndPosition = accountNode
+			? { line: accountNode.endPosition.row, character: accountNode.endPosition.column }
+			: undefined;
+		posting.amountCurrencyColumn = amountNode?.children.find(child => child.type === 'currency')?.startPosition.column;
+		delete posting.node;
+	}
+	return transaction;
 }
 
 function createBeanMgr(options?: {
@@ -158,7 +182,7 @@ describe('InlayHintFeature', () => {
 				},
 			],
 		};
-		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([withPostingPositions(transaction)]);
 
 		const feature = new InlayHintFeature({} as never, {} as never);
 		const provideInlayHints = (feature as any).provideInlayHints.bind(feature);
@@ -199,7 +223,7 @@ describe('InlayHintFeature', () => {
 				},
 			],
 		};
-		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([withPostingPositions(transaction)]);
 
 		const feature = new InlayHintFeature({} as never, {} as never);
 		const provideInlayHints = (feature as any).provideInlayHints.bind(feature);
@@ -238,7 +262,7 @@ describe('InlayHintFeature', () => {
 				},
 			],
 		};
-		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([withPostingPositions(transaction)]);
 
 		const feature = new InlayHintFeature({} as never, {} as never);
 		const provideInlayHints = (feature as any).provideInlayHints.bind(feature);
@@ -282,7 +306,7 @@ describe('InlayHintFeature', () => {
 				},
 			],
 		};
-		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([withPostingPositions(transaction)]);
 
 		const feature = new InlayHintFeature({} as never, {} as never);
 		const provideInlayHints = (feature as any).provideInlayHints.bind(feature);
@@ -330,7 +354,7 @@ describe('InlayHintFeature', () => {
 				},
 			],
 		};
-		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([withPostingPositions(transaction)]);
 		const beanMgr = createBeanMgr();
 
 		const feature = new InlayHintFeature({} as never, {} as never, beanMgr as never);
@@ -384,7 +408,7 @@ describe('InlayHintFeature', () => {
 				},
 			],
 		};
-		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([withPostingPositions(transaction)]);
 		const beanMgr = createBeanMgr({ canResolvePrecise: false });
 
 		const feature = new InlayHintFeature({} as never, {} as never, beanMgr as never);
@@ -432,7 +456,7 @@ describe('InlayHintFeature', () => {
 				},
 			],
 		};
-		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([withPostingPositions(transaction)]);
 		const beanMgr = createBeanMgr();
 
 		const feature = new InlayHintFeature({} as never, {} as never, beanMgr as never);
@@ -486,7 +510,7 @@ describe('InlayHintFeature', () => {
 				},
 			],
 		};
-		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([withPostingPositions(transaction)]);
 		const beanMgr = createBeanMgr({ canResolvePrecise: false });
 
 		const feature = new InlayHintFeature({} as never, {} as never, beanMgr as never);
@@ -534,7 +558,7 @@ describe('InlayHintFeature', () => {
 				},
 			],
 		};
-		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([withPostingPositions(transaction)]);
 		const beanMgr = createBeanMgr();
 
 		const feature = new InlayHintFeature({} as never, {} as never, beanMgr as never);
@@ -583,7 +607,7 @@ describe('InlayHintFeature', () => {
 				},
 			],
 		};
-		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([withPostingPositions(transaction)]);
 		const beanMgr = createBeanMgr({
 			preciseHintSequence: [null, { number: '-10.00', currency: 'USD' }],
 		});
@@ -637,7 +661,7 @@ describe('InlayHintFeature', () => {
 				},
 			],
 		};
-		mocks.findTransactionsIntersectingRange.mockResolvedValue([transaction]);
+		mocks.findTransactionsIntersectingRange.mockResolvedValue([withPostingPositions(transaction)]);
 		const beanMgr = createBeanMgr({
 			preciseHintSequence: [new Error('runtime not ready'), { number: '-10.00', currency: 'USD' }],
 		});

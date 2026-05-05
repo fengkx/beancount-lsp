@@ -1,4 +1,3 @@
-import type Parser from 'web-tree-sitter';
 import { Posting } from '../../common/utils/balance-checker';
 
 /**
@@ -11,7 +10,6 @@ export function createPosting(
 	price?: { type: '@' | '@@'; number: string; currency: string },
 ): Posting {
 	return {
-		node: {} as Parser.SyntaxNode,
 		account,
 		amount,
 		cost,

@@ -327,7 +327,7 @@ describe('findTransactionsIntersectingRange', () => {
 		const result = await findTransactionsIntersectingRange(fixture.tree as never, fixture.document, range);
 
 		expect(result).toHaveLength(1);
-		expect(result[0]?.node.id).toBe(fixture.txn1.id);
+		expect(result[0]?.startIndex).toBe(fixture.txn1.startIndex);
 	});
 
 	it('includes boundary transaction when range starts inside posting', async () => {
@@ -338,7 +338,7 @@ describe('findTransactionsIntersectingRange', () => {
 		const result = await findTransactionsIntersectingRange(fixture.tree as never, fixture.document, range);
 
 		expect(result).toHaveLength(1);
-		expect(result[0]?.node.id).toBe(fixture.txn1.id);
+		expect(result[0]?.startIndex).toBe(fixture.txn1.startIndex);
 	});
 
 	it('includes boundary transaction when range ends inside posting', async () => {
@@ -349,7 +349,7 @@ describe('findTransactionsIntersectingRange', () => {
 		const result = await findTransactionsIntersectingRange(fixture.tree as never, fixture.document, range);
 
 		expect(result).toHaveLength(1);
-		expect(result[0]?.node.id).toBe(fixture.txn2.id);
+		expect(result[0]?.startIndex).toBe(fixture.txn2.startIndex);
 	});
 
 	it('deduplicates transactions found by both query and ancestor recovery', async () => {
@@ -360,7 +360,7 @@ describe('findTransactionsIntersectingRange', () => {
 		const result = await findTransactionsIntersectingRange(fixture.tree as never, fixture.document, range);
 
 		expect(result).toHaveLength(1);
-		expect(result[0]?.node.id).toBe(fixture.txn1.id);
+		expect(result[0]?.startIndex).toBe(fixture.txn1.startIndex);
 	});
 
 	it('materializes complete transaction postings', async () => {
@@ -387,7 +387,7 @@ describe('findTransactionsIntersectingRange', () => {
 		const range = Range.create(0, 0, 6, 24);
 		const result = await findTransactionsIntersectingRange(fixture.tree as never, fixture.document, range);
 
-		expect(result.map(transaction => transaction.node.id)).toEqual([fixture.txn1.id, fixture.txn2.id]);
+		expect(result.map(transaction => transaction.startIndex)).toEqual([fixture.txn1.startIndex, fixture.txn2.startIndex]);
 	});
 
 	it('uses range-specific cache keys', async () => {

@@ -676,7 +676,6 @@ describe('Balance Checker', () => {
 			},
 		];
 
-		// @ts-expect-error - This is a test
 		const result = checkTransactionBalance(postings, 0.005);
 		expect(result.isBalanced).toBe(true);
 	});

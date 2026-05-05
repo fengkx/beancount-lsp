@@ -1,6 +1,5 @@
 import { Logger } from '@bean-lsp/shared';
 import Big from 'big.js';
-import type Parser from 'web-tree-sitter';
 import { parseExpression } from './expression-parser';
 
 // Logger for balance checker
@@ -11,8 +10,13 @@ const logger = new Logger('BalanceChecker');
  */
 // Interface to represent a posting in a transaction
 export interface Posting {
-	node: Parser.SyntaxNode;
 	account: string;
+	postingStartLine?: number;
+	accountEndPosition?: {
+		line: number;
+		character: number;
+	};
+	amountCurrencyColumn?: number;
 	amount?: {
 		number: string; // Changed to string to work with Big.js
 		currency: string;

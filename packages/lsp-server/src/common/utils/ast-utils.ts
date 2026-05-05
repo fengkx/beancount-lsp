@@ -1,5 +1,4 @@
 import { Logger } from '@bean-lsp/shared';
-import { LRUCache } from 'mnemonist';
 import { Position, Range } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import type * as Parser from 'web-tree-sitter';
@@ -8,16 +7,18 @@ import { Posting } from './balance-checker';
 
 // Create a logger for this module
 const logger = new Logger('AstUtils');
-const lruCache = new LRUCache<string, Transaction[]>(100);
+const allTransactionsCache = new WeakMap<import('web-tree-sitter').Tree, Transaction[]>();
+const rangedTransactionsCache = new WeakMap<import('web-tree-sitter').Tree, Map<string, Transaction[]>>();
 
 /**
  * Represents a transaction in the AST
  */
 export interface Transaction {
-	node: Parser.SyntaxNode;
 	date: string;
 	flag: string | undefined; // Explicit with undefined to fix TypeScript error
 	headerRange: Range; // Added to store the header range for optimized highlighting
+	startIndex: number;
+	endIndex: number;
 	postings: Posting[];
 }
 
@@ -139,11 +140,32 @@ export function parsePriceAnnotation(
 	return undefined;
 }
 
-function makeTransactionsCacheKey(rootNodeId: number, documentVersion: number, range?: Range): string {
-	if (!range) {
-		return `txns:${rootNodeId}:${documentVersion}:all`;
+function makeRangeCacheKey(documentVersion: number, range: Range): string {
+	return `${documentVersion}:${range.start.line}:${range.start.character}:${range.end.line}:${range.end.character}`;
+}
+
+function makePosition(point: Parser.Point): Position {
+	return Position.create(point.row, point.column);
+}
+
+function getTreeRangeCache(tree: import('web-tree-sitter').Tree): Map<string, Transaction[]> {
+	let cache = rangedTransactionsCache.get(tree);
+	if (!cache) {
+		cache = new Map();
+		rangedTransactionsCache.set(tree, cache);
 	}
-	return `txns:${rootNodeId}:${documentVersion}:${range.start.line}:${range.start.character}:${range.end.line}:${range.end.character}`;
+	return cache;
+}
+
+function makeTransactionId(node: Parser.SyntaxNode): string {
+	return `${node.startIndex}:${node.endIndex}`;
+}
+
+function makeTransactionsCacheKey(documentVersion: number, range?: Range): string {
+	if (!range) {
+		return `txns:${documentVersion}:all`;
+	}
+	return `txns:${makeRangeCacheKey(documentVersion, range)}`;
 }
 
 function computeHeaderRange(document: TextDocument, node: Parser.SyntaxNode): Range {
@@ -165,12 +187,15 @@ function inferPriceTypeFromPosting(postingNode: Parser.SyntaxNode): '@' | '@@' {
 function materializePosting(postingNode: Parser.SyntaxNode): Posting {
 	const accountNode = postingNode.childForFieldName('account');
 	const amountNode = postingNode.childForFieldName('amount');
+	const currencyNode = (amountNode?.children ?? []).find(child => child.type === 'currency');
 	const costSpecNode = postingNode.childForFieldName('cost_spec');
 	const priceNode = postingNode.childForFieldName('price_annotation');
 
 	return {
-		node: postingNode,
 		account: accountNode?.text ?? '',
+		postingStartLine: postingNode.startPosition.row,
+		accountEndPosition: accountNode ? makePosition(accountNode.endPosition) : undefined,
+		amountCurrencyColumn: currencyNode?.startPosition.column,
 		amount: amountNode ? parseAmount(amountNode) : undefined,
 		cost: costSpecNode ? parseCostSpec(costSpecNode) : undefined,
 		price: priceNode ? parsePriceAnnotation(priceNode, inferPriceTypeFromPosting(postingNode)) : undefined,
@@ -187,10 +212,11 @@ function materializeTransaction(document: TextDocument, transactionNode: Parser.
 	}
 
 	return {
-		node: transactionNode,
 		date: transactionNode.childForFieldName('date')?.text ?? '',
 		flag: transactionNode.childForFieldName('txn')?.text,
 		headerRange: computeHeaderRange(document, transactionNode),
+		startIndex: transactionNode.startIndex,
+		endIndex: transactionNode.endIndex,
 		postings,
 	};
 }
@@ -217,15 +243,13 @@ export async function findAllTransactions(
 	tree: import('web-tree-sitter').Tree,
 	document: TextDocument,
 ): Promise<Transaction[]> {
-	const rootNode: Parser.SyntaxNode = tree.rootNode;
-	const key = makeTransactionsCacheKey(rootNode.id, document.version);
-	const cached = lruCache.get(key);
+	const cached = allTransactionsCache.get(tree);
 	if (cached) {
 		return cached;
 	}
 
 	// Aggregate using tree-sitter queries for performance
-	const transactionsMap = new Map<number, Transaction>();
+	const transactionsMap = new Map<string, Transaction>();
 
 	function getCaptureNode(match: Parser.QueryMatch, name: string): Parser.SyntaxNode | undefined {
 		for (const cap of match.captures) {
@@ -247,17 +271,19 @@ export async function findAllTransactions(
 		for (const m of matches) {
 			const txnNode = getCaptureNode(m, 'transaction');
 			if (!txnNode) continue;
-			let txn = transactionsMap.get(txnNode.id);
+			const txnId = makeTransactionId(txnNode);
+			let txn = transactionsMap.get(txnId);
 			if (!txn) {
 				// initialize entry when first seen (may be via posting or header)
 				txn = {
-					node: txnNode,
 					date: '',
 					flag: undefined,
 					headerRange: computeHeaderRange(document, txnNode),
+					startIndex: txnNode.startIndex,
+					endIndex: txnNode.endIndex,
 					postings: [],
 				};
-				transactionsMap.set(txnNode.id, txn);
+				transactionsMap.set(txnId, txn);
 			}
 
 			// If this match includes header captures, set date/flag
@@ -280,8 +306,13 @@ export async function findAllTransactions(
 				}
 
 				txn.postings.push({
-					node: postingNode,
 					account: accountText ?? postingNode.childForFieldName('account')?.text ?? '',
+					postingStartLine: postingNode.startPosition.row,
+					accountEndPosition: (() => {
+						const accountNode = getCaptureNode(m, 'account') ?? postingNode.childForFieldName('account');
+						return accountNode ? makePosition(accountNode.endPosition) : undefined;
+					})(),
+					amountCurrencyColumn: (amountNode?.children ?? []).find(child => child.type === 'currency')?.startPosition.column,
 					amount: amountNode ? parseAmount(amountNode) : undefined,
 					cost: costSpecNode ? parseCostSpec(costSpecNode) : undefined,
 					price,
@@ -305,12 +336,19 @@ export async function findAllTransactions(
 			const flagNode = node.childForFieldName('txn');
 			const flag = flagNode ? flagNode.text : undefined;
 			const headerRange = computeHeaderRange(document, node);
-			transactionsMap.set(node.id, { node, date, flag, headerRange, postings: [] });
+			transactionsMap.set(makeTransactionId(node), {
+				date,
+				flag,
+				headerRange,
+				startIndex: node.startIndex,
+				endIndex: node.endIndex,
+				postings: [],
+			});
 		}
 	}
 
 	const result = Array.from(transactionsMap.values());
-	lruCache.set(key, result);
+	allTransactionsCache.set(tree, result);
 	return result;
 }
 
@@ -319,9 +357,9 @@ export async function findTransactionsIntersectingRange(
 	document: TextDocument,
 	range: Range,
 ): Promise<Transaction[]> {
-	const rootNode = tree.rootNode;
-	const key = makeTransactionsCacheKey(rootNode.id, document.version, range);
-	const cached = lruCache.get(key);
+	const rangeCache = getTreeRangeCache(tree);
+	const key = makeTransactionsCacheKey(document.version, range);
+	const cached = rangeCache.get(key);
 	if (cached) {
 		return cached;
 	}
@@ -331,13 +369,13 @@ export async function findTransactionsIntersectingRange(
 	const startOffset = document.offsetAt(range.start);
 	const rawEndOffset = document.offsetAt(range.end);
 	const endLookupOffset = Math.max(startOffset, rawEndOffset - 1);
-	const candidateTransactions = new Map<number, Parser.SyntaxNode>();
+	const candidateTransactions = new Map<string, Parser.SyntaxNode>();
 
 	const transactionQuery = TreeQuery.getQueryByTokenName('transaction');
 	const captures = await transactionQuery.captures(tree, startPosition, endPosition);
 	for (const capture of captures) {
 		if (capture.node.type === 'transaction') {
-			candidateTransactions.set(capture.node.id, capture.node);
+			candidateTransactions.set(makeTransactionId(capture.node), capture.node);
 		}
 	}
 
@@ -348,7 +386,7 @@ export async function findTransactionsIntersectingRange(
 	for (const boundaryNode of boundaryNodes) {
 		const transactionNode = findAncestorOfType(boundaryNode, 'transaction');
 		if (transactionNode) {
-			candidateTransactions.set(transactionNode.id, transactionNode);
+			candidateTransactions.set(makeTransactionId(transactionNode), transactionNode);
 		}
 	}
 
@@ -357,7 +395,7 @@ export async function findTransactionsIntersectingRange(
 		.sort((left, right) => left.startIndex - right.startIndex)
 		.map(transactionNode => materializeTransaction(document, transactionNode));
 
-	lruCache.set(key, result);
+	rangeCache.set(key, result);
 	return result;
 }
 
