@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.182
+
+- chore(lsp-client): bump version to 0.0.182 ([8931f10](https://github.com/fengkx/beancount-lsp/commit/8931f10))
+- fix(lsp-server): drop stale tree-sitter node cache ([e36d3d7](https://github.com/fengkx/beancount-lsp/commit/e36d3d7))
+- fix(lsp-server): preserve fallback tail rank ([d55d9ed](https://github.com/fengkx/beancount-lsp/commit/d55d9ed))
+- fix(lsp-client): pin minimatch for vsce ([47887ae](https://github.com/fengkx/beancount-lsp/commit/47887ae))
+
 ## v0.0.180
 
 - chore(lsp-client): bump version to 0.0.180 ([8ed60a0](https://github.com/fengkx/beancount-lsp/commit/8ed60a0))
