@@ -15,7 +15,7 @@
 		"@codingame/monaco-vscode-rollup-vsix-plugin": "^26.2.1",
 		"@types/pako": "^2.0.4",
 		"@types/vscode": "^1.99.1",
-		"typescript": "~5.9.3",
+		"typescript": "~6.0.3",
 		"vite": "npm:rolldown-vite@^7.3.1"
 	},
 	"dependencies": {

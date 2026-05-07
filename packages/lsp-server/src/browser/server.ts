@@ -5,7 +5,7 @@ import {
 	ProposedFeatures,
 } from 'vscode-languageserver/browser';
 
-import { DocumentStore } from 'src/common/document-store';
+import { DocumentStore } from '../common/document-store';
 import { ServerOptions, startServer } from '../common/startServer';
 import { createBrowserBeancountManager } from './beancount-manager';
 import { factory } from './storage';

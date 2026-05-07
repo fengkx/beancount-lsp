@@ -1,7 +1,7 @@
 import { TOKEN_MODIFIERS, TOKEN_TYPES } from '@bean-lsp/shared';
-import { DocumentStore } from 'src/common/document-store';
-import { TreeQuery } from 'src/common/language';
-import { Trees } from 'src/common/trees';
+import { DocumentStore } from '../../document-store';
+import { TreeQuery } from '../../language';
+import { Trees } from '../../trees';
 import {
 	Connection,
 	SemanticTokens,

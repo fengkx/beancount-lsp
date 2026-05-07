@@ -1,6 +1,6 @@
 import { glob } from 'fast-glob';
 import { readFile } from 'fs/promises';
-import { DocumentStore } from 'src/common/document-store';
+import { DocumentStore } from '../common/document-store';
 import { pathToFileURL } from 'url';
 import { createConnection, ProposedFeatures } from 'vscode-languageserver/node';
 import { URI } from 'vscode-uri';
