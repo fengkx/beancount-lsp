@@ -43,7 +43,7 @@
 		"pinyin-pro": "^3.28.0",
 		"ts-pattern": "^5.9.0",
 		"type-fest": "^5.4.4",
-		"vitest": "^4.0.18",
+		"vitest": "^4.1.0",
 		"vscode-languageserver": "^9.0.1",
 		"vscode-languageserver-textdocument": "^1.0.11",
 		"vscode-uri": "^3.0.8",
