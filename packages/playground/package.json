@@ -26,7 +26,7 @@
 		"@codingame/monaco-vscode-files-service-override": "^26.2.1",
 		"@codingame/monaco-vscode-json-default-extension": "^26.2.1",
 		"@codingame/monaco-vscode-languages-service-override": "^26.2.1",
-		"@codingame/monaco-vscode-search-service-override": "^26.2.1",
+		"@codingame/monaco-vscode-search-service-override": "^33.0.9",
 		"@codingame/monaco-vscode-textmate-service-override": "^26.2.1",
 		"@codingame/monaco-vscode-theme-defaults-default-extension": "^26.2.1",
 		"@codingame/monaco-vscode-theme-service-override": "^26.2.1",
