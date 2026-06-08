@@ -4,7 +4,7 @@ packages:
 catalogs:
   build:
     tsup: ^8.5.1
-    tsx: ^4.21.0
+    tsx: ^4.22.4
     turbo: ^2.8.12
   dev:
     nano-staged: ^0.9.0
