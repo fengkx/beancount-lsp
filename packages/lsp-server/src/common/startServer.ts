@@ -32,6 +32,8 @@ import { Trees } from './trees';
 import Db from '@bean-lsp/storage';
 import { SymbolInfo } from './features/symbol-extractors';
 import { SymbolIndex } from './features/symbol-index';
+import { LedgerContextRegistry } from './ledger/context-registry';
+import { ContextualBeancountManager } from './ledger/contextual-beancount-manager';
 import { registerCustomMessageHandlers } from './messages';
 import { BeancountOptionsManager } from './utils/beancount-options';
 import { globalEventBus, GlobalEvents } from './utils/event-bus';
@@ -81,10 +83,13 @@ export function startServer(
 	const features: Feature[] = [];
 
 	let symbolIndex: SymbolIndex;
+	let optionsManager: BeancountOptionsManager;
 	let beanMgr: RealBeancountManager | undefined;
+	let contextRegistry: LedgerContextRegistry;
 
 	connection.onInitialize(async (params: InitializeParams): Promise<InitializeResult> => {
 		documents.setInitializeParams(params);
+		contextRegistry = new LedgerContextRegistry(connection, documents);
 		const result: InitializeResult = {
 			capabilities: {
 				textDocumentSync: TextDocumentSyncKind.Incremental,
@@ -149,8 +154,10 @@ export function startServer(
 		connection.onExit(() => factory.destroy(symbolStorage));
 
 		const trees = new Trees(documents);
-		const optionsManager = BeancountOptionsManager.getInstance();
+		optionsManager = BeancountOptionsManager.getInstance();
+		optionsManager.setWorkspaceFolders((params.workspaceFolders ?? []).map(folder => folder.uri));
 		symbolIndex = new SymbolIndex(documents, trees, symbolStorage, optionsManager);
+		symbolIndex.setWorkspaceFolders((params.workspaceFolders ?? []).map(folder => folder.uri));
 
 		// 创建PriceMap实例
 		const priceMap = new PriceMap(symbolIndex, trees, documents);
@@ -171,7 +178,7 @@ export function startServer(
 		};
 
 		if (typeof beanMgrFactory === 'function') {
-			beanMgr = beanMgrFactory(connection, documents);
+			beanMgr = new ContextualBeancountManager(connection, documents, contextRegistry, beanMgrFactory);
 		}
 		features.push(new DiagnosticsFeature(documents, trees, optionsManager, beanMgr));
 		features.push(new HoverFeature(documents, trees, priceMap, symbolIndex, beanMgr));
@@ -222,12 +229,13 @@ export function startServer(
 		});
 
 		// Clean up resources on exit
-	connection.onExit(() => {
-		beanMgr?.dispose?.();
-		if (debouncedUpdateTimer) {
-			clearTimeout(debouncedUpdateTimer);
-			debouncedUpdateTimer = undefined;
-		}
+		connection.onExit(() => {
+			beanMgr?.dispose?.();
+			contextRegistry.dispose();
+			if (debouncedUpdateTimer) {
+				clearTimeout(debouncedUpdateTimer);
+				debouncedUpdateTimer = undefined;
+			}
 			indexTimeConsumedUnsubscribe();
 			documentChangeUnsubscribe.dispose();
 		});
@@ -289,6 +297,42 @@ export function startServer(
 				serverLogger.debug(`Failed to refresh inlay hints after runtime change: ${String(error)}`);
 			});
 		};
+		const hoverFeature = features.find(f => f instanceof HoverFeature) as HoverFeature | undefined;
+		const applyScopedPriceConfiguration = async (scopeUri: string) => {
+			if (!hoverFeature) return;
+			const config = await connection.workspace.getConfiguration({ scopeUri, section: 'beanLsp' });
+			hoverFeature.setPriceMapMainCurrency(config.mainCurrency ?? '', scopeUri);
+			hoverFeature.setPriceMapAllowedCurrencies(config.currencys ?? [], scopeUri);
+		};
+		const refreshLedgerContexts = async () => {
+			const previousContexts = [...contextRegistry.all];
+			await contextRegistry.refreshConfiguration();
+			const activeContextIds = new Set(contextRegistry.all.map(context => context.id));
+			for (const context of previousContexts) {
+				if (activeContextIds.has(context.id)) continue;
+				sendRuntimeStatus({ mode: 'off', scopeUri: context.workspace.uri, contextId: context.id });
+			}
+			const folders = await connection.workspace.getWorkspaceFolders() ?? [];
+			const workspaceUris = folders.map(folder => folder.uri);
+			symbolIndex.setWorkspaceFolders(workspaceUris);
+			optionsManager.setWorkspaceFolders(workspaceUris);
+			if (beanMgr instanceof ContextualBeancountManager) beanMgr.reconcileContexts();
+			for (const context of contextRegistry.all) {
+				await symbolIndex.initFiles([context.mainFileUri]);
+				await beanMgr?.setMainFile(context.mainFileUri);
+				await applyScopedPriceConfiguration(context.workspace.uri);
+				sendRuntimeStatus({
+					...beanMgr?.getRuntimeStatus(context.workspace.uri) ?? { mode: 'off' },
+					scopeUri: context.workspace.uri,
+					contextId: context.id,
+				});
+			}
+		};
+		if (hasWorkspaceFolderCapability) {
+			connection.workspace.onDidChangeWorkspaceFolders(() => {
+				void refreshLedgerContexts();
+			});
+		}
 		globalEventBus.on<BeancountRuntimeStatusParams>(
 			GlobalEvents.BeancountModeChanged,
 			(status) => {
@@ -303,7 +347,17 @@ export function startServer(
 			refreshInlayHints,
 		);
 		if (beanMgr) {
-			sendRuntimeStatus(beanMgr.getRuntimeStatus());
+			if (contextRegistry.all.length > 0) {
+				for (const context of contextRegistry.all) {
+					sendRuntimeStatus({
+						...beanMgr.getRuntimeStatus(context.workspace.uri),
+						scopeUri: context.workspace.uri,
+						contextId: context.id,
+					});
+				}
+			} else {
+				sendRuntimeStatus({ mode: 'off' });
+			}
 		} else {
 			sendRuntimeStatus({ mode: 'off' });
 		}
@@ -314,15 +368,21 @@ export function startServer(
 			await symbolIndex.unleashFiles([]);
 		});
 
-		const mainBeanFile = await documents.getMainBeanFileUri();
+		await contextRegistry.initialize();
+		const mainBeanFile = contextRegistry.all.length === 1 ? contextRegistry.all[0]!.mainFileUri : null;
 		serverLogger.info(`mainBeanFile ${mainBeanFile}`);
-		await documents.refetchBeanFiles();
 		let initFiles = documents.beanFiles;
 
-		if (mainBeanFile) {
-			await symbolIndex.initFiles([mainBeanFile]);
-			await beanMgr?.setMainFile?.(mainBeanFile);
-			initFiles = initFiles.filter(f => f !== mainBeanFile);
+		for (const context of contextRegistry.all) {
+			await symbolIndex.initFiles([context.mainFileUri]);
+			await beanMgr?.setMainFile?.(context.mainFileUri);
+			await applyScopedPriceConfiguration(context.workspace.uri);
+			sendRuntimeStatus({
+				...beanMgr?.getRuntimeStatus(context.workspace.uri) ?? { mode: 'off' },
+				scopeUri: context.workspace.uri,
+				contextId: context.id,
+			});
+			initFiles = initFiles.filter(f => f !== context.mainFileUri);
 		}
 
 		await symbolIndex.initFiles(initFiles);
@@ -335,9 +395,9 @@ export function startServer(
 			// Get initial configuration for trace server setting and resource-scoped settings
 			// Use mainBeanFile as scopeUri if available, otherwise use first workspace folder
 			const scopeUri = mainBeanFile || (await connection.workspace.getWorkspaceFolders())?.[0]?.uri;
-			const config = await connection.workspace.getConfiguration({ 
-				scopeUri, 
-				section: 'beanLsp' 
+			const config = await connection.workspace.getConfiguration({
+				scopeUri,
+				section: 'beanLsp',
 			});
 			if (config.trace && config.trace.server) {
 				const logLevel = mapTraceServerToLogLevel(config.trace.server);
@@ -373,12 +433,13 @@ export function startServer(
 			connection.onDidChangeConfiguration(async _ => {
 				if (hasConfigurationCapability) {
 					globalEventBus.emit(GlobalEvents.ConfigurationChanged);
+					await refreshLedgerContexts();
 					// Use mainBeanFile as scopeUri if available
 					const mainFile = await documents.getMainBeanFileUri();
 					const scopeUri = mainFile || (await connection.workspace.getWorkspaceFolders())?.[0]?.uri;
-					const config = await connection.workspace.getConfiguration({ 
-						scopeUri, 
-						section: 'beanLsp' 
+					const config = await connection.workspace.getConfiguration({
+						scopeUri,
+						section: 'beanLsp',
 					});
 					if (config.trace && config.trace.server) {
 						const logLevel = mapTraceServerToLogLevel(config.trace.server);

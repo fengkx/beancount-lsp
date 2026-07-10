@@ -42,3 +42,40 @@ jobs:
 
       - name: Run tests
         run: pnpm test 
+
+  node-runtime-integration:
+    name: Node Runtime Integration (Beancount v3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          python -m pip install 'beancount>=3,<4'
+
+      - name: Run live-buffer integration
+        env:
+          BEANCOUNT_RUNTIME_INTEGRATION: '1'
+          BEANCOUNT_PYTHON: python
+        run: pnpm --filter beancount-lsp-server exec vitest run src/test/node/live-buffer-runtime.integration.test.ts

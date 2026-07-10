@@ -16,6 +16,8 @@ import { URI, Utils as UriUtils } from 'vscode-uri';
 
 export interface TextDocumentChange2 {
 	document: TextDocument;
+	/** True when the client replaced the complete document instead of sending ranges. */
+	fullContent: boolean;
 	changes: {
 		range: Range;
 		rangeOffset: number;
@@ -51,12 +53,12 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 		super({
 			create: TextDocument.create,
 			update: (doc, changes, version) => {
-				let incremental = true;
-				const event: TextDocumentChange2 = { document: doc, changes: [] };
+				const event: TextDocumentChange2 = { document: doc, fullContent: false, changes: [] };
 				const result = TextDocument.update(doc, changes, version);
+				event.document = result;
 				for (const change of changes) {
 					if (!TextDocumentContentChangeEvent.isIncremental(change)) {
-						incremental = false;
+						event.fullContent = true;
 						break;
 					}
 					const rangeOffset = doc.offsetAt(change.range.start);
@@ -67,9 +69,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 						rangeLength: change.rangeLength ?? doc.offsetAt(change.range.end) - rangeOffset,
 					});
 				}
-				if (incremental) {
-					this._onDidChangeContent2.fire(event);
-				}
+				this._onDidChangeContent2.fire(event);
 
 				return result;
 			},
@@ -84,44 +84,74 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 	private _createAdaptiveDebouncedListener<T>(
 		source: Event<T>,
 		listener: (e: T) => void | Promise<void>,
+		getKey: (e: T) => string,
 		options?: AdaptiveDebounceOptions,
 	) {
 		const minDelay = options?.minDelayMs ?? 150;
 		const maxDelay = options?.maxDelayMs ?? 15 * 1000;
 		const multiplier = options?.multiplier ?? 2;
 
-		let lastDurationMs = minDelay;
-		let timer: NodeJS.Timeout | undefined;
-		let latestEvent: T | undefined;
+		type DebounceState = {
+			lastDurationMs: number;
+			timer?: ReturnType<typeof setTimeout>;
+			latestEvent?: T;
+			running: boolean;
+		};
+
+		const states = new Map<string, DebounceState>();
 		let disposed = false;
 
-		const schedule = () => {
-			if (timer) clearTimeout(timer);
-			const delay = Math.max(minDelay, Math.min(maxDelay, lastDurationMs));
-			timer = setTimeout(async () => {
-				timer = undefined;
-				if (disposed || latestEvent === undefined) return;
+		const schedule = (state: DebounceState) => {
+			if (state.running) return;
+			if (state.timer) clearTimeout(state.timer);
+			const delay = Math.max(minDelay, Math.min(maxDelay, state.lastDurationMs));
+			state.timer = setTimeout(async () => {
+				state.timer = undefined;
+				if (disposed || state.latestEvent === undefined) return;
+
+				const event = state.latestEvent;
+				state.latestEvent = undefined;
+				state.running = true;
 				const started = Date.now();
 				try {
-					await Promise.resolve(listener(latestEvent));
+					await Promise.resolve(listener(event));
 				} catch (err) {
 					this.logger.debug(`adaptive debounced listener error: ${String(err)}`);
 				} finally {
 					const duration = Date.now() - started;
-					lastDurationMs = Math.max(minDelay, Math.min(maxDelay, Math.floor(duration * multiplier)));
+					state.lastDurationMs = Math.max(
+						minDelay,
+						Math.min(maxDelay, Math.floor(duration * multiplier)),
+					);
+					state.running = false;
+					if (!disposed && state.latestEvent !== undefined) {
+						schedule(state);
+					}
 				}
 			}, delay);
 		};
 
 		const subscription = source(e => {
-			latestEvent = e;
-			schedule();
+			const key = getKey(e);
+			let state = states.get(key);
+			if (!state) {
+				state = {
+					lastDurationMs: minDelay,
+					running: false,
+				};
+				states.set(key, state);
+			}
+			state.latestEvent = e;
+			schedule(state);
 		});
 
 		return {
 			dispose: () => {
 				disposed = true;
-				if (timer) clearTimeout(timer);
+				for (const state of states.values()) {
+					if (state.timer) clearTimeout(state.timer);
+				}
+				states.clear();
 				// subscription is a Disposable-like with dispose()
 				(subscription as unknown as { dispose: () => void }).dispose();
 			},
@@ -139,6 +169,7 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 		return this._createAdaptiveDebouncedListener(
 			this.onDidChangeContent as unknown as Event<TextDocumentChangeEvent<TextDocument>>,
 			listener,
+			e => e.document.uri,
 			options,
 		);
 	}
@@ -149,20 +180,29 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 
 	private readonly _documentsCache = new LRUMap<string, TextDocument>(200);
 
-	async refetchBeanFiles(): Promise<void> {
+	async refetchBeanFiles(workspaceFolder?: WorkspaceFolder): Promise<void> {
 		// Check if client supports ListBeanFile capability
 		// @ts-expect-error customMessage is not part of the protocol
 		if (!this._initializeParams?.capabilities?.customMessage?.[CustomMessages.ListBeanFile]) {
-			if (!this._initializeParams?.workspaceFolders?.[0]) {
+			const folders = workspaceFolder
+				? [workspaceFolder]
+				: (this._initializeParams?.workspaceFolders ?? []);
+			if (folders.length === 0) {
 				this._beanFiles = [];
 				return;
 			}
-			this._beanFiles = await this.fallbackListBeanFiles(this._initializeParams.workspaceFolders[0]);
+			const files = await Promise.all(folders.map(folder => this.fallbackListBeanFiles(folder)));
+			this._beanFiles = [...new Set(files.flat())];
 			return;
 		}
 
-		const files = await this._connection.sendRequest<string[]>(CustomMessages.ListBeanFile);
-		this._beanFiles = files;
+		const files = await this._connection.sendRequest<string[]>(
+			CustomMessages.ListBeanFile,
+			workspaceFolder ? { workspaceUri: workspaceFolder.uri } : undefined,
+		);
+		this._beanFiles = workspaceFolder
+			? files.filter(uri => this.isUriWithin(uri, workspaceFolder.uri))
+			: files;
 	}
 
 	protected async fallbackListBeanFiles(_workspaceFolder: WorkspaceFolder): Promise<string[]> {
@@ -172,6 +212,10 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 
 	get beanFiles(): string[] {
 		return this._beanFiles;
+	}
+
+	getBeanFilesFor(workspaceUri: string): string[] {
+		return this._beanFiles.filter(uri => this.isUriWithin(uri, workspaceUri));
 	}
 
 	private override get(uri: string): TextDocument | undefined {
@@ -222,32 +266,36 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 	}
 
 	private async getConfiguration(scopeUri?: string) {
-		const config = await this._connection.workspace.getConfiguration({ 
-			scopeUri, 
-			section: 'beanLsp' 
+		const config = await this._connection.workspace.getConfiguration({
+			scopeUri,
+			section: 'beanLsp',
 		});
 		this.logger.info(config);
 		return config;
 	}
 
-	public async getMainBeanFileUri(): Promise<string | null> {
+	public async getWorkspaceFolderFor(scopeUri?: string): Promise<WorkspaceFolder | null> {
 		const workspace = await this._connection.workspace.getWorkspaceFolders();
-
-		if (!workspace) {
-			// just open a file
+		if (!workspace || workspace.length === 0) {
 			return null;
 		}
-
-		const rootUri = workspace[0]?.uri;
-
-		if (!rootUri) {
-			return null;
+		if (!scopeUri) {
+			return workspace.length === 1 ? workspace[0]! : null;
 		}
+		return workspace
+			.filter(folder => this.isUriWithin(scopeUri, folder.uri))
+			.sort((left, right) => right.uri.length - left.uri.length)[0] ?? null;
+	}
+
+	public async getMainBeanFileUriFor(scopeUri?: string): Promise<string | null> {
+		const workspaceFolder = await this.getWorkspaceFolderFor(scopeUri);
+		if (!workspaceFolder) return null;
+		const rootUri = workspaceFolder.uri;
 
 		// Use workspace folder URI as scopeUri for configuration
 		const config = await this.getConfiguration(rootUri);
 
-		if (workspace && !config.mainBeanFile) {
+		if (!config.mainBeanFile) {
 			this._connection!.window.showWarningMessage(
 				`Using default 'main.bean' as mainBeanFile, You should configure 'beanLsp.mainBeanFile'`,
 			);
@@ -256,5 +304,14 @@ export class DocumentStore extends TextDocuments<TextDocument> {
 		const mainAbsPath = UriUtils.joinPath(URI.parse(rootUri), config.mainBeanFile ?? 'main.bean');
 
 		return mainAbsPath.toString() as string;
+	}
+
+	public async getMainBeanFileUri(): Promise<string | null> {
+		return this.getMainBeanFileUriFor();
+	}
+
+	private isUriWithin(candidate: string, parent: string): boolean {
+		const normalizedParent = parent.endsWith('/') ? parent : `${parent}/`;
+		return candidate === parent || candidate.startsWith(normalizedParent);
 	}
 }

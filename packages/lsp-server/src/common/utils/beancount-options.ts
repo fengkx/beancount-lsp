@@ -7,8 +7,8 @@ import { parseExpression } from './expression-parser';
 // Create a logger for the options manager
 const logger = new Logger('BeancountOptions');
 
-export type SupportedOption = 
-	| 'infer_tolerance_from_cost' 
+export type SupportedOption =
+	| 'infer_tolerance_from_cost'
 	| 'inferred_tolerance_multiplier'
 	| 'name_assets'
 	| 'name_liabilities'
@@ -76,6 +76,7 @@ export class BeancountOptionsManager {
 	private sourceOptions: Map<string, Map<string, string>> = new Map();
 	private effectiveOptions: Map<SupportedOption, BeancountOption> = new Map();
 	private _onOptionChange = new Emitter<OptionsChangeEvent>();
+	private workspaceUris: string[] = [];
 
 	/** Event fired when an option changes */
 	public readonly onOptionChange = this._onOptionChange.event.bind(this._onOptionChange);
@@ -113,17 +114,49 @@ export class BeancountOptionsManager {
 		return BeancountOptionsManager._instance;
 	}
 
+	public setWorkspaceFolders(workspaceUris: string[]): void {
+		this.workspaceUris = [...workspaceUris].sort((a, b) => b.length - a.length);
+	}
+
 	/**
 	 * Get the value of a Beancount option
 	 * @param name The option name
 	 * @returns The option value, or undefined if not found
 	 */
-	public getOption(name: SupportedOption): BeancountOption {
+	public getOption(name: SupportedOption, scopeUri?: string): BeancountOption {
+		if (scopeUri) {
+			const scoped = this.getScopedOption(name, scopeUri);
+			if (scoped) return scoped;
+		}
 		return this.effectiveOptions.get(name) ?? new BeancountOption({
 			value: this.DEFAULT_OPTIONS[name],
 			source: undefined,
 			isDefault: true,
 		});
+	}
+
+	private getScopedOption(name: SupportedOption, scopeUri: string): BeancountOption | undefined {
+		const workspaceUri = this.workspaceUris.find(uri => {
+			const root = uri.endsWith('/') ? uri : `${uri}/`;
+			return scopeUri === uri || scopeUri.startsWith(root);
+		});
+		let selected: { source: string; value: string } | undefined;
+		const sources = [...this.sourceOptions.keys()].sort((left, right) => left.localeCompare(right));
+		for (const source of sources) {
+			const options = this.sourceOptions.get(source);
+			if (!options) continue;
+			const value = options.get(name);
+			if (value === undefined || source === '__legacy__') continue;
+			const sourceMatchesScope = workspaceUri
+				? source === workspaceUri
+					|| source.startsWith(workspaceUri.endsWith('/') ? workspaceUri : `${workspaceUri}/`)
+				: source === scopeUri;
+			if (!sourceMatchesScope) continue;
+			selected = { source, value };
+		}
+		return selected
+			? new BeancountOption({ value: selected.value, source: selected.source, isDefault: false })
+			: undefined;
 	}
 
 	/**
@@ -207,13 +240,13 @@ export class BeancountOptionsManager {
 	 * Get the set of valid root account names based on current options
 	 * @returns Set of valid root account names
 	 */
-	public getValidRootAccounts(): Set<string> {
+	public getValidRootAccounts(scopeUri?: string): Set<string> {
 		return new Set([
-			this.getOption('name_assets').asString(),
-			this.getOption('name_liabilities').asString(),
-			this.getOption('name_equity').asString(),
-			this.getOption('name_income').asString(),
-			this.getOption('name_expenses').asString(),
+			this.getOption('name_assets', scopeUri).asString(),
+			this.getOption('name_liabilities', scopeUri).asString(),
+			this.getOption('name_equity', scopeUri).asString(),
+			this.getOption('name_income', scopeUri).asString(),
+			this.getOption('name_expenses', scopeUri).asString(),
 		]);
 	}
 }

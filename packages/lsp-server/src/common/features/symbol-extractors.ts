@@ -26,6 +26,8 @@ export const SymbolKey = {
 export interface SymbolInfo {
 	[SymbolKey.TYPE]: typeof SymbolType[keyof typeof SymbolType];
 	_uri: string;
+	/** Owning workspace URI. Used to isolate symbols in multi-root workspaces. */
+	_workspace?: string;
 	name: string;
 	// Use a compact array representation instead of full lsp.Range object
 	// Format: [startLine, startChar, endLine, endChar]

@@ -53,6 +53,7 @@ The extension provides several configuration options to customize its behavior:
   - `verbose`: Shows all log messages (most verbose)
 - `beanLsp.mainBeanFile`: Specifies the main Beancount file to use for analysis. This should be relative to the workspace root. Default is "main.bean".
 - `beanLsp.python3Path`: Path to Python 3 executable. If empty, the system default Python 3 will be used. This Python installation should have the beancount package installed. Default is empty (uses system default).
+- `beanLsp.localRuntime.liveBuffers`: Evaluate unsaved editor buffers in the local Python runtime through a private temporary shadow workspace. Default is true; disable it to use save-only evaluation.
 - `beanLsp.browserWasmBeancount.enabled`: Enable browser-side Beancount WASM diagnostics (beancheck). Values: `off` (disable), `v2` (Beancount v2), `v3` (Beancount v3). Default is `off`.
 - `beanLsp.browserWasmBeancount.extraPythonPackages`: Python packages to install in the browser-side Beancount WASM runtime via micropip (e.g. fava-plugins for plugin support). Useful when your ledger uses custom plugin modules. Default is `["fava-plugins"]`.
 - `beancount.diagnostics.tolerance`: Tolerance value for transaction balancing. Set to 0 for exact matching. Default is 0.005.

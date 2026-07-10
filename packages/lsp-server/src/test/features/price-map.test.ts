@@ -24,8 +24,8 @@ vi.mock('../../common/document-store', () => ({
 vi.mock('../../common/trees', () => ({
 	Trees: class {},
 }));
-import { SymbolKey, SymbolType } from '../../common/features/symbol-extractors';
 import { PriceMap } from '../../common/features/prices-index/price-map';
+import { SymbolKey, SymbolType } from '../../common/features/symbol-extractors';
 import { InMemoryDocumentStore } from '../utils/test-server-harness';
 
 function sym(uri: string, name: string, line: number) {
@@ -84,10 +84,13 @@ describe('PriceMap correctness', () => {
 		const first = await priceMap.getConvertedPrice('HOOL', 'AAPL');
 		expect(first?.conversionRate.toString()).toBe('0.5');
 
-		docs.set(uri, [
-			'2024-01-01 price HOOL 300 USD',
-			'2024-01-10 price AAPL 200 USD',
-		].join('\n'));
+		docs.set(
+			uri,
+			[
+				'2024-01-01 price HOOL 300 USD',
+				'2024-01-10 price AAPL 200 USD',
+			].join('\n'),
+		);
 
 		const stale = await priceMap.getConvertedPrice('HOOL', 'AAPL');
 		expect(stale?.conversionRate.toString()).toBe('0.5');
@@ -95,5 +98,33 @@ describe('PriceMap correctness', () => {
 		priceMap.invalidateAllCaches();
 		const refreshed = await priceMap.getConvertedPrice('HOOL', 'AAPL');
 		expect(refreshed?.conversionRate.toString()).toBe('1.5');
+	});
+
+	it('isolates declarations and conversion caches by workspace', async () => {
+		const oneUri = 'file:///one/prices.bean';
+		const twoUri = 'file:///two/prices.bean';
+		const docs = new InMemoryDocumentStore({
+			[oneUri]: '2024-01-01 price HOOL 100 USD',
+			[twoUri]: '2024-01-01 price HOOL 200 USD',
+		});
+		const declarations = [sym(oneUri, 'HOOL', 0), sym(twoUri, 'HOOL', 0)];
+		const symbolIndex = {
+			getWorkspaceForUri(uri: string) {
+				return uri.startsWith('file:///one') ? 'file:///one' : 'file:///two';
+			},
+			async getPricesDeclarations(query: { name?: string }, scopeUri?: string) {
+				return declarations.filter(declaration =>
+					(!query.name || declaration.name === query.name)
+					&& (!scopeUri || declaration._uri.startsWith(scopeUri))
+				);
+			},
+		} as unknown as import('../../common/features/symbol-index').SymbolIndex;
+		const priceMap = new PriceMap(symbolIndex, {} as never, docs as never);
+
+		const one = await priceMap.getConvertedPrice('HOOL', 'USD', undefined, oneUri);
+		const two = await priceMap.getConvertedPrice('HOOL', 'USD', undefined, twoUri);
+
+		expect(one?.conversionRate.toString()).toBe('100');
+		expect(two?.conversionRate.toString()).toBe('200');
 	});
 });

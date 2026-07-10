@@ -18,7 +18,7 @@ const logger = new Logger('hover');
 
 export class HoverFeature implements Feature {
 	connection: lsp.Connection | null = null;
-	private includeSubaccountBalance = false;
+	private includeSubaccountBalances = new Map<string, boolean>();
 
 	constructor(
 		private readonly documents: DocumentStore,
@@ -40,47 +40,42 @@ export class HoverFeature implements Feature {
 		});
 
 		globalEventBus.on(GlobalEvents.ConfigurationChanged, () => {
-			this.updateIncludeSubaccountBalance(connection);
+			this.includeSubaccountBalances.clear();
 		});
-		this.updateIncludeSubaccountBalance(connection);
 	}
 
-	private async updateIncludeSubaccountBalance(connection: lsp.Connection): Promise<void> {
+	private async getIncludeSubaccountBalance(scopeUri: string): Promise<boolean> {
+		const workspaceUri = this.symbolIndex.getWorkspaceForUri(scopeUri) ?? scopeUri;
+		const cached = this.includeSubaccountBalances.get(workspaceUri);
+		if (cached !== undefined) return cached;
 		try {
-			// Use first workspace folder as scopeUri for global configuration
-			const scopeUri = (await connection.workspace.getWorkspaceFolders())?.[0]?.uri;
-			const config = await connection.workspace.getConfiguration({ 
-				scopeUri, 
-				section: 'beanLsp' 
+			const config = await this.connection?.workspace.getConfiguration({
+				scopeUri,
+				section: 'beanLsp',
 			});
-			if (config.hover !== undefined) {
-				const includeSubaccountBalance = config.hover?.includeSubaccountBalance ?? false; // Default to false if not specified
-				this.setIncludeSubaccountBalance(includeSubaccountBalance);
-				logger.info(`Hover balance include subaccounts ${includeSubaccountBalance ? 'enabled' : 'disabled'}`);
-			}
+			const include = config?.hover?.includeSubaccountBalance ?? false;
+			this.includeSubaccountBalances.set(workspaceUri, include);
+			return include;
 		} catch (error) {
 			logger.error('Error updating hover configuration:', error);
+			return false;
 		}
-	}
-
-	private setIncludeSubaccountBalance(include: boolean): void {
-		this.includeSubaccountBalance = include;
 	}
 
 	/**
 	 * Sets the main currency for PriceMap
 	 * @param currency The main currency code
 	 */
-	setPriceMapMainCurrency(currency: string): void {
-		this.priceMap.setMainCurrency(currency);
+	setPriceMapMainCurrency(currency: string, scopeUri?: string): void {
+		this.priceMap.setMainCurrency(currency, scopeUri);
 	}
 
 	/**
 	 * Sets the allowed currencies for PriceMap
 	 * @param currencies List of allowed currency codes
 	 */
-	setPriceMapAllowedCurrencies(currencies: string[]): void {
-		this.priceMap.setAllowedCurrencies(currencies);
+	setPriceMapAllowedCurrencies(currencies: string[], scopeUri?: string): void {
+		this.priceMap.setAllowedCurrencies(currencies, scopeUri);
 	}
 
 	private async onHover(
@@ -112,7 +107,7 @@ export class HoverFeature implements Feature {
 			);
 
 			// Create hover content for account
-			const contents = await this.createAccountHoverContents(accountAtPosition);
+			const contents = await this.createAccountHoverContents(accountAtPosition, document.uri);
 
 			return {
 				contents,
@@ -138,7 +133,7 @@ export class HoverFeature implements Feature {
 			);
 
 			// Create hover content for tag
-			const contents = await this.createTagHoverContents(tagAtPosition);
+			const contents = await this.createTagHoverContents(tagAtPosition, document.uri);
 
 			return {
 				contents,
@@ -164,7 +159,7 @@ export class HoverFeature implements Feature {
 			);
 
 			// Create hover content for commodity
-			const contents = await this.createCommodityHoverContents(commodityAtPosition);
+			const contents = await this.createCommodityHoverContents(commodityAtPosition, document.uri);
 
 			return {
 				contents,
@@ -178,7 +173,7 @@ export class HoverFeature implements Feature {
 			logger.debug(`Found price at position: ${JSON.stringify(priceAtPosition)}`);
 
 			// Create hover content for price
-			const contents = await this.createPriceHoverContents(priceAtPosition);
+			const contents = await this.createPriceHoverContents(priceAtPosition, document.uri);
 
 			return {
 				contents,
@@ -189,9 +184,9 @@ export class HoverFeature implements Feature {
 		return null;
 	}
 
-	private async createCommodityHoverContents(commodity: string): Promise<lsp.MarkupContent> {
+	private async createCommodityHoverContents(commodity: string, scopeUri: string): Promise<lsp.MarkupContent> {
 		// Get the latest price
-		const latestPrice = await this.priceMap.getPriceByCommodity(commodity);
+		const latestPrice = await this.priceMap.getPriceByCommodity(commodity, undefined, scopeUri);
 
 		// Generate price information
 		let result = '';
@@ -210,7 +205,7 @@ export class HoverFeature implements Feature {
 			try {
 				// Use the original currency of the price instead of converting to main currency
 				const originalCurrency = latestPrice.price.currency;
-				const priceTrend = await this.priceMap.getPriceTrend(commodity, originalCurrency, 30);
+				const priceTrend = await this.priceMap.getPriceTrend(commodity, originalCurrency, 30, scopeUri);
 
 				if (priceTrend.dates.length > 0) {
 					// Add small label for the chart
@@ -469,7 +464,7 @@ export class HoverFeature implements Feature {
 		return result.join('\n');
 	}
 
-	private getAccountBalance(account: string): string {
+	private async getAccountBalance(account: string, scopeUri: string): Promise<string> {
 		const getBalanceStr = (balances: Amount[]): string => {
 			let result = '';
 			if (balances.length === 0) {
@@ -491,7 +486,8 @@ export class HoverFeature implements Feature {
 		};
 		let result = '';
 		try {
-			const balances = this.beanMgr!.getBalance(account, this.includeSubaccountBalance);
+			const includeSubaccountBalance = await this.getIncludeSubaccountBalance(scopeUri);
+			const balances = this.beanMgr!.getBalanceSnapshot(account, includeSubaccountBalance, scopeUri).value;
 			if (balances.length === 0) {
 				return result;
 			}
@@ -500,11 +496,11 @@ export class HoverFeature implements Feature {
 			result += getBalanceStr(balances);
 			result += '\n\n';
 
-			if (!this.includeSubaccountBalance) {
+			if (!includeSubaccountBalance) {
 				return result;
 			}
 
-			const subaccountBalances = this.beanMgr!.getSubaccountBalances(account);
+			const subaccountBalances = this.beanMgr!.getSubaccountBalances(account, scopeUri);
 			if (subaccountBalances.size <= 1) {
 				return result;
 			}
@@ -531,7 +527,7 @@ export class HoverFeature implements Feature {
 	 * @param account The account name to generate hover content for
 	 * @returns Markdown-formatted hover content
 	 */
-	private async createAccountHoverContents(account: string): Promise<lsp.MarkupContent> {
+	private async createAccountHoverContents(account: string, scopeUri: string): Promise<lsp.MarkupContent> {
 		try {
 			// Access symbolIndex to get detailed information
 			const symbolIndex = this.priceMap['symbolIndex'];
@@ -544,7 +540,7 @@ export class HoverFeature implements Feature {
 			result += `**${account}**${spacer}\n\n`;
 
 			// Get account usage count and file appearance information
-			const usageCountsMap = await symbolIndex.getAccountUsageCounts();
+			const usageCountsMap = await symbolIndex.getAccountUsageCounts(scopeUri);
 			const usageCount = usageCountsMap.get(account) || 0;
 
 			// Create a horizontal stats display
@@ -554,7 +550,7 @@ export class HoverFeature implements Feature {
 
 			// Find account definition to get opening date
 			let openingDate = '';
-			const accountDefinitions = await symbolIndex.getAccountDefinitions();
+			const accountDefinitions = await symbolIndex.getAccountDefinitions(scopeUri);
 			const accountDef = accountDefinitions.find(def => def.name === account);
 
 			// Extract opening date from account definition
@@ -581,8 +577,8 @@ export class HoverFeature implements Feature {
 
 			// Retrieve all account-related symbols
 			const accountSymbols = await Promise.all([
-				symbolIndex.findAsync({ [SymbolKey.TYPE]: SymbolType.ACCOUNT_USAGE }),
-				symbolIndex.findAsync({ [SymbolKey.TYPE]: SymbolType.ACCOUNT_DEFINITION }),
+				symbolIndex.findAsync({ [SymbolKey.TYPE]: SymbolType.ACCOUNT_USAGE }, scopeUri),
+				symbolIndex.findAsync({ [SymbolKey.TYPE]: SymbolType.ACCOUNT_DEFINITION }, scopeUri),
 			]);
 
 			// Display file usage information
@@ -595,8 +591,8 @@ export class HoverFeature implements Feature {
 			result += `${stats.join('  ·  ')}\n\n\n`;
 
 			// Add account balance information if beanMgr is available and enabled
-			if (this.beanMgr?.isEnabled()) {
-				result += this.getAccountBalance(account);
+			if (this.beanMgr?.isEnabled(scopeUri)) {
+				result += await this.getAccountBalance(account, scopeUri);
 			}
 
 			// Account hierarchy visualization with tree-like structure
@@ -753,6 +749,7 @@ export class HoverFeature implements Feature {
 	 */
 	private async createPriceHoverContents(
 		priceInfo: { commodity: string; targetCurrency: string; amount: string; date: string; range: lsp.Range },
+		scopeUri: string,
 	): Promise<lsp.MarkupContent> {
 		try {
 			const { commodity, targetCurrency, amount, date } = priceInfo;
@@ -764,7 +761,7 @@ export class HoverFeature implements Feature {
 			result += `**${commodity} to ${targetCurrency}** - ${numericAmount} ${targetCurrency} (${date})\n\n`;
 
 			// Add commodity price history summary
-			const priceHistory = await this.priceMap.getPriceHistoryByCommodity(commodity);
+			const priceHistory = await this.priceMap.getPriceHistoryByCommodity(commodity, scopeUri);
 			if (priceHistory && priceHistory.length > 0) {
 				// Analyze currency usage
 				const uniqueCurrencies = new Set(
@@ -783,7 +780,7 @@ export class HoverFeature implements Feature {
 
 			// Get price trend data and display chart
 			try {
-				const priceTrend = await this.priceMap.getPriceTrend(commodity, targetCurrency, 30);
+				const priceTrend = await this.priceMap.getPriceTrend(commodity, targetCurrency, 30, scopeUri);
 
 				if (priceTrend.dates.length > 0) {
 					// Add price trend visualization
@@ -871,13 +868,13 @@ export class HoverFeature implements Feature {
 			result += '**Conversions:**\n\n';
 
 			// Get main currency
-			const mainCurrency = await this.priceMap.getMainCurrency();
+			const mainCurrency = await this.priceMap.getMainCurrency(scopeUri);
 
 			// Only convert to main currency if different from current currency
 			let hasAnyConversion = false;
 			if (mainCurrency && mainCurrency !== targetCurrency) {
 				// Use getConvertedPrice to get optimal conversion
-				const conversion = await this.priceMap.getConvertedPrice(commodity, mainCurrency, date);
+				const conversion = await this.priceMap.getConvertedPrice(commodity, mainCurrency, date, scopeUri);
 				if (conversion) {
 					hasAnyConversion = true;
 					const convertedAmount = conversion.conversionRate.toFixed(2);
@@ -903,7 +900,7 @@ export class HoverFeature implements Feature {
 
 			// Try to get the latest price for comparison
 			try {
-				const latestPrice = await this.priceMap.getPriceByCommodity(commodity);
+				const latestPrice = await this.priceMap.getPriceByCommodity(commodity, undefined, scopeUri);
 
 				if (
 					latestPrice
@@ -947,24 +944,24 @@ export class HoverFeature implements Feature {
 	/**
 	 * Create hover contents for a tag, showing usage statistics
 	 */
-	private async createTagHoverContents(tag: string): Promise<lsp.MarkupContent> {
+	private async createTagHoverContents(tag: string, scopeUri: string): Promise<lsp.MarkupContent> {
 		// Find all tag usages
 		const tagSymbols = await this.symbolIndex.findAsync({
 			[SymbolKey.TYPE]: SymbolType.TAG,
 			name: tag,
-		});
+		}, scopeUri);
 
 		// Find all pushtag usages
 		const pushtagSymbols = await this.symbolIndex.findAsync({
 			[SymbolKey.TYPE]: SymbolType.PUSHTAG,
 			name: tag,
-		});
+		}, scopeUri);
 
 		// Find all poptag usages
 		const poptagSymbols = await this.symbolIndex.findAsync({
 			[SymbolKey.TYPE]: SymbolType.POPTAG,
 			name: tag,
-		});
+		}, scopeUri);
 
 		// Total usage count
 		const totalUsages = tagSymbols.length + pushtagSymbols.length + poptagSymbols.length;

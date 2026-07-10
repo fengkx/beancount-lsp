@@ -240,19 +240,41 @@ function formatRuntimeStatusTooltip(status: BeancountRuntimeStatusParams): strin
 export function setupStatusBar(ctx: ExtensionContext<'browser' | 'node'>): void {
 	// Track the latest runtime status so we can restore it after transient states
 	let lastRuntimeStatus: BeancountRuntimeStatusParams | null = null;
+	const runtimeStatusByScope = new Map<string, BeancountRuntimeStatusParams>();
 
 	const applyRuntimeStatus = (status: BeancountRuntimeStatusParams) => {
-		lastRuntimeStatus = status;
 		ctx.statusBarItem.text = formatRuntimeStatusLabel(status);
 		ctx.statusBarItem.tooltip = formatRuntimeStatusTooltip(status);
 		ctx.statusBarItem.show();
 	};
 
+	const applyStatusForActiveEditor = () => {
+		const activeUri = vscode.window.activeTextEditor?.document.uri.toString();
+		if (activeUri) {
+			const scoped = [...runtimeStatusByScope.entries()]
+				.filter(([scope]) =>
+					activeUri === scope || activeUri.startsWith(scope.endsWith('/') ? scope : `${scope}/`)
+				)
+				.sort(([left], [right]) => right.length - left.length)[0]?.[1];
+			if (scoped) {
+				applyRuntimeStatus(scoped);
+				return;
+			}
+		}
+		if (lastRuntimeStatus) {
+			applyRuntimeStatus(lastRuntimeStatus);
+		} else {
+			ctx.statusBarItem.text = '$(check) Beancount LSP: Ready';
+			ctx.statusBarItem.tooltip = 'No runtime is configured for the active document';
+			ctx.statusBarItem.show();
+		}
+	};
+
 	// Update status bar when client state changes
 	ctx.client.onDidChangeState((event) => {
 		if (event.newState === State.Running) {
-			if (lastRuntimeStatus) {
-				applyRuntimeStatus(lastRuntimeStatus);
+			if (lastRuntimeStatus || runtimeStatusByScope.size > 0) {
+				applyStatusForActiveEditor();
 			} else {
 				ctx.statusBarItem.text = '$(check) Beancount LSP: Ready';
 				ctx.statusBarItem.tooltip = 'Beancount LSP is running';
@@ -273,9 +295,12 @@ export function setupStatusBar(ctx: ExtensionContext<'browser' | 'node'>): void 
 	ctx.client.onNotification(
 		CustomMessages.BeancountRuntimeStatus,
 		(params: BeancountRuntimeStatusParams) => {
-			applyRuntimeStatus(params);
+			if (params.scopeUri) runtimeStatusByScope.set(params.scopeUri, params);
+			else lastRuntimeStatus = params;
+			applyStatusForActiveEditor();
 		},
 	);
+	ctx.context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(applyStatusForActiveEditor));
 }
 
 /**
@@ -293,10 +318,16 @@ export function setupCustomMessageHandlers(ctx: ExtensionContext<'browser' | 'no
 		return originalInitialize(connection, params);
 	};
 
-	ctx.client.onRequest(CustomMessages.ListBeanFile, async () => {
+	ctx.client.onRequest(CustomMessages.ListBeanFile, async (params?: { workspaceUri?: string }) => {
 		const exclude = await generateExcludePattern();
 		const files = await vscode.workspace.findFiles('**/*.{bean,beancount}', exclude);
-		const uriStrings = files.map(f => {
+		const filtered = params?.workspaceUri
+			? files.filter(file => {
+				const root = params.workspaceUri!.endsWith('/') ? params.workspaceUri! : `${params.workspaceUri!}/`;
+				return file.toString().startsWith(root);
+			})
+			: files;
+		const uriStrings = filtered.map(f => {
 			return f.toString();
 		});
 		return uriStrings;

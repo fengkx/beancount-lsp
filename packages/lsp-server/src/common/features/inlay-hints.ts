@@ -5,7 +5,13 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
 import { findTransactionsIntersectingRange } from '../utils/ast-utils';
-import { checkTransactionBalance, hasBothCostAndPrice, hasEmptyCost, hasOnlyOneIncompleteAmount, Posting } from '../utils/balance-checker';
+import {
+	checkTransactionBalance,
+	hasBothCostAndPrice,
+	hasEmptyCost,
+	hasOnlyOneIncompleteAmount,
+	Posting,
+} from '../utils/balance-checker';
 import { Amount, Feature, RealBeancountManager } from './types';
 
 // Create a logger for this feature
@@ -71,7 +77,11 @@ export class InlayHintFeature implements Feature {
 	 * @param range The range to provide hints for
 	 * @returns Array of inlay hints
 	 */
-	private async provideInlayHints(document: TextDocument, range: Range, treeArg?: import('web-tree-sitter').Tree): Promise<InlayHint[]> {
+	private async provideInlayHints(
+		document: TextDocument,
+		range: Range,
+		treeArg?: import('web-tree-sitter').Tree,
+	): Promise<InlayHint[]> {
 		const hints: InlayHint[] = [];
 		const tree = treeArg ?? await this.trees.getParseTree(document);
 
@@ -86,7 +96,7 @@ export class InlayHintFeature implements Feature {
 			// Check if this transaction has exactly one posting without an amount
 			if (hasOnlyOneIncompleteAmount(transaction.postings)) {
 				const requiresPreciseHint = this.requiresPreciseHint(transaction.postings);
-				const usePreciseHint = this.canUsePreciseHint(transaction.postings);
+				const usePreciseHint = this.canUsePreciseHint(transaction.postings, document.uri);
 				// JS balance checker does not model cost+price or empty-cost semantics correctly.
 				if (requiresPreciseHint && !usePreciseHint) {
 					continue;
@@ -95,7 +105,12 @@ export class InlayHintFeature implements Feature {
 				const incompletePosting = transaction.postings.find(posting => !posting.amount);
 
 				if (incompletePosting) {
-					const formattedImbalances = await this.calculateHintAmounts(document, transaction, incompletePosting, usePreciseHint);
+					const formattedImbalances = await this.calculateHintAmounts(
+						document,
+						transaction,
+						incompletePosting,
+						usePreciseHint,
+					);
 					if (formattedImbalances.length === 0) {
 						continue;
 					}
@@ -173,7 +188,11 @@ export class InlayHintFeature implements Feature {
 		usePreciseHint: boolean,
 	): Promise<string[]> {
 		if (usePreciseHint) {
-			const preciseAmount = await this.getPreciseIncompletePostingHint(document, transaction.headerRange, incompletePosting);
+			const preciseAmount = await this.getPreciseIncompletePostingHint(
+				document,
+				transaction.headerRange,
+				incompletePosting,
+			);
 			if (!preciseAmount) {
 				return [];
 			}
@@ -191,8 +210,9 @@ export class InlayHintFeature implements Feature {
 		});
 	}
 
-	private canUsePreciseHint(postings: Posting[]): boolean {
-		return this.requiresPreciseHint(postings) && this.beanMgr?.canResolvePreciseIncompletePostingHint() === true;
+	private canUsePreciseHint(postings: Posting[], scopeUri: string): boolean {
+		return this.requiresPreciseHint(postings)
+			&& this.beanMgr?.canResolvePreciseIncompletePostingHint(scopeUri) === true;
 	}
 
 	private async getPreciseIncompletePostingHint(

@@ -52,9 +52,10 @@ export class RunBeanQueryTool extends ToolImpl<Request> {
 		_token: vscode.CancellationToken,
 	): Promise<vscode.LanguageModelToolResult> {
 		try {
+			const scopeUri = options.input.scopeUri ?? vscode.window.activeTextEditor?.document.uri.toString();
 			const response = await this.ctx.client.sendRequest<Response>(
 				CustomMessages.RunBeanQuery,
-				options.input,
+				{ ...options.input, scopeUri },
 			);
 
 			if (!response.success) {

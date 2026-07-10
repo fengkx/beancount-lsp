@@ -27,6 +27,10 @@ export class Trees {
 		// build edits when document changes
 		this._listener.push(
 			_documents.onDidChangeContent2((e) => {
+				if (e.fullContent) {
+					this.invalidateCache(e.document.uri);
+					return;
+				}
 				const info = this._cache.get(e.document.uri);
 				if (info) {
 					info.edits.push(Trees.asEdits(e));

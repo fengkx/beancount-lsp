@@ -48,8 +48,10 @@ export class ReferencesFeature {
 		const accountAtPosition = await positionUtils.getAccountAtPosition(this.trees, document, params.position);
 		if (accountAtPosition) {
 			logger.debug(`Found account at position: ${accountAtPosition}`);
-			const usages = await this.findAccountUsages(accountAtPosition);
-			const definitions = includeDeclaration ? await this.findAccountDefinitions(accountAtPosition) : [];
+			const usages = await this.findAccountUsages(accountAtPosition, document.uri);
+			const definitions = includeDeclaration
+				? await this.findAccountDefinitions(accountAtPosition, document.uri)
+				: [];
 			references = this.dedupLocations([...usages, ...definitions]);
 		}
 
@@ -57,8 +59,10 @@ export class ReferencesFeature {
 		const commodityAtPosition = await positionUtils.getCommodityAtPosition(this.trees, document, params.position);
 		if (commodityAtPosition && references.length === 0) {
 			logger.debug(`Found commodity at position: ${commodityAtPosition}`);
-			const usages = await this.findCommodityUsages(commodityAtPosition);
-			const definitions = includeDeclaration ? await this.findCommodityDefinitions(commodityAtPosition) : [];
+			const usages = await this.findCommodityUsages(commodityAtPosition, document.uri);
+			const definitions = includeDeclaration
+				? await this.findCommodityDefinitions(commodityAtPosition, document.uri)
+				: [];
 			references = this.dedupLocations([...usages, ...definitions]);
 		}
 
@@ -67,7 +71,7 @@ export class ReferencesFeature {
 		if (tagAtPosition && references.length === 0) {
 			logger.debug(`Found tag at position: ${tagAtPosition}`);
 			// Find all references to this tag
-			references = await this.findTagReferences(tagAtPosition);
+			references = await this.findTagReferences(tagAtPosition, document.uri);
 		}
 
 		// Try to find a pushtag at the position
@@ -75,7 +79,7 @@ export class ReferencesFeature {
 		if (pushtagAtPosition && references.length === 0) {
 			logger.debug(`Found pushtag at position: ${pushtagAtPosition}`);
 			// For pushtag, find all poptag references with the same name
-			references = await this.findPushTagReferences(pushtagAtPosition);
+			references = await this.findPushTagReferences(pushtagAtPosition, document.uri);
 		}
 
 		// Try to find a poptag at the position
@@ -83,7 +87,7 @@ export class ReferencesFeature {
 		if (poptagAtPosition && references.length === 0) {
 			logger.debug(`Found poptag at position: ${poptagAtPosition}`);
 			// For poptag, find all pushtag references with the same name
-			references = await this.findPopTagReferences(poptagAtPosition);
+			references = await this.findPopTagReferences(poptagAtPosition, document.uri);
 		}
 
 		// Try to find a payee at the position
@@ -91,7 +95,7 @@ export class ReferencesFeature {
 		if (payeeAtPosition && references.length === 0) {
 			logger.debug(`Found payee at position: ${payeeAtPosition}`);
 			// Find all references to this payee
-			references = await this.findPayeeReferences(payeeAtPosition);
+			references = await this.findPayeeReferences(payeeAtPosition, document.uri);
 		}
 
 		// Try to find a narration at the position
@@ -99,7 +103,7 @@ export class ReferencesFeature {
 		if (narrationAtPosition && references.length === 0) {
 			logger.debug(`Found narration at position: ${narrationAtPosition}`);
 			// Find all references to this narration
-			references = await this.findNarrationReferences(narrationAtPosition);
+			references = await this.findNarrationReferences(narrationAtPosition, document.uri);
 		}
 
 		// Try to find a link at the position
@@ -107,7 +111,7 @@ export class ReferencesFeature {
 		if (linkAtPosition && references.length === 0) {
 			logger.debug(`Found link at position: ${linkAtPosition}`);
 			// Find all references to this link
-			references = await this.findLinkReferences(linkAtPosition);
+			references = await this.findLinkReferences(linkAtPosition, document.uri);
 		}
 
 		logger.debug(`Found ${references.length} references at the current position`);
@@ -117,12 +121,12 @@ export class ReferencesFeature {
 	/**
 	 * Find all account usages
 	 */
-	private async findAccountUsages(accountName: string): Promise<lsp.Location[]> {
+	private async findAccountUsages(accountName: string, scopeUri: string): Promise<lsp.Location[]> {
 		// Find all account usage locations
 		const accountUsages = await this.symbolIndex.findAsync({
 			[SymbolKey.TYPE]: SymbolType.ACCOUNT_USAGE,
 			name: accountName,
-		}) as SymbolInfo[];
+		}, scopeUri) as SymbolInfo[];
 
 		const references: lsp.Location[] = [];
 
@@ -138,8 +142,8 @@ export class ReferencesFeature {
 		return references;
 	}
 
-	private async findAccountDefinitions(accountName: string): Promise<lsp.Location[]> {
-		const accountDefinitions = await this.symbolIndex.getAccountDefinitions() as SymbolInfo[];
+	private async findAccountDefinitions(accountName: string, scopeUri: string): Promise<lsp.Location[]> {
+		const accountDefinitions = await this.symbolIndex.getAccountDefinitions(scopeUri) as SymbolInfo[];
 		return accountDefinitions
 			.filter(def => def.name === accountName)
 			.map(def => ({
@@ -151,12 +155,12 @@ export class ReferencesFeature {
 	/**
 	 * Find all commodity usages
 	 */
-	private async findCommodityUsages(commodityName: string): Promise<lsp.Location[]> {
+	private async findCommodityUsages(commodityName: string, scopeUri: string): Promise<lsp.Location[]> {
 		// Find all commodity usage locations
 		const commodityUsages = await this.symbolIndex.findAsync({
 			[SymbolKey.TYPE]: SymbolType.COMMODITY,
 			name: commodityName,
-		}) as SymbolInfo[];
+		}, scopeUri) as SymbolInfo[];
 
 		const references: lsp.Location[] = [];
 
@@ -172,8 +176,8 @@ export class ReferencesFeature {
 		return references;
 	}
 
-	private async findCommodityDefinitions(commodityName: string): Promise<lsp.Location[]> {
-		const commodityDefinitions = await this.symbolIndex.getCommodityDefinitions() as SymbolInfo[];
+	private async findCommodityDefinitions(commodityName: string, scopeUri: string): Promise<lsp.Location[]> {
+		const commodityDefinitions = await this.symbolIndex.getCommodityDefinitions(scopeUri) as SymbolInfo[];
 		return commodityDefinitions
 			.filter(def => def.name === commodityName)
 			.map(def => ({
@@ -185,12 +189,12 @@ export class ReferencesFeature {
 	/**
 	 * Find all references to a specific tag
 	 */
-	private async findTagReferences(tagName: string): Promise<lsp.Location[]> {
+	private async findTagReferences(tagName: string, scopeUri: string): Promise<lsp.Location[]> {
 		// Find all tag usage locations
 		const tagUsages = await this.symbolIndex.findAsync({
 			[SymbolKey.TYPE]: SymbolType.TAG,
 			name: tagName,
-		}) as SymbolInfo[];
+		}, scopeUri) as SymbolInfo[];
 
 		const references: lsp.Location[] = [];
 
@@ -209,12 +213,12 @@ export class ReferencesFeature {
 	/**
 	 * Find all references to a specific payee
 	 */
-	private async findPayeeReferences(payeeName: string): Promise<lsp.Location[]> {
+	private async findPayeeReferences(payeeName: string, scopeUri: string): Promise<lsp.Location[]> {
 		// Find all payee usage locations
 		const payeeUsages = await this.symbolIndex.findAsync({
 			[SymbolKey.TYPE]: SymbolType.PAYEE,
 			name: payeeName,
-		}) as SymbolInfo[];
+		}, scopeUri) as SymbolInfo[];
 
 		const references: lsp.Location[] = [];
 
@@ -233,12 +237,12 @@ export class ReferencesFeature {
 	/**
 	 * Find all references to a specific payee
 	 */
-	private async findNarrationReferences(narrationName: string): Promise<lsp.Location[]> {
+	private async findNarrationReferences(narrationName: string, scopeUri: string): Promise<lsp.Location[]> {
 		// Find all narration usage locations
 		const narrationUsages = await this.symbolIndex.findAsync({
 			[SymbolKey.TYPE]: SymbolType.NARRATION,
 			name: narrationName,
-		}) as SymbolInfo[];
+		}, scopeUri) as SymbolInfo[];
 
 		const references: lsp.Location[] = [];
 
@@ -257,12 +261,12 @@ export class ReferencesFeature {
 	/**
 	 * Find all poptag references to a specific pushtag
 	 */
-	private async findPushTagReferences(tagName: string): Promise<lsp.Location[]> {
+	private async findPushTagReferences(tagName: string, scopeUri: string): Promise<lsp.Location[]> {
 		// Find all pushtag usage locations
 		const pushtagUsages = await this.symbolIndex.findAsync({
 			[SymbolKey.TYPE]: SymbolType.PUSHTAG,
 			name: tagName,
-		}) as SymbolInfo[];
+		}, scopeUri) as SymbolInfo[];
 
 		const references: lsp.Location[] = [];
 
@@ -281,12 +285,12 @@ export class ReferencesFeature {
 	/**
 	 * Find all pushtag references to a specific poptag
 	 */
-	private async findPopTagReferences(tagName: string): Promise<lsp.Location[]> {
+	private async findPopTagReferences(tagName: string, scopeUri: string): Promise<lsp.Location[]> {
 		// Find all poptag usage locations
 		const poptagUsages = await this.symbolIndex.findAsync({
 			[SymbolKey.TYPE]: SymbolType.POPTAG,
 			name: tagName,
-		}) as SymbolInfo[];
+		}, scopeUri) as SymbolInfo[];
 
 		const references: lsp.Location[] = [];
 
@@ -305,12 +309,12 @@ export class ReferencesFeature {
 	/**
 	 * Find all references to a specific link
 	 */
-	private async findLinkReferences(linkName: string): Promise<lsp.Location[]> {
+	private async findLinkReferences(linkName: string, scopeUri: string): Promise<lsp.Location[]> {
 		// Find all link usage locations
 		const linkUsages = await this.symbolIndex.findAsync({
 			[SymbolKey.TYPE]: SymbolType.LINK,
 			name: linkName,
-		}) as SymbolInfo[];
+		}, scopeUri) as SymbolInfo[];
 
 		const references: lsp.Location[] = [];
 
@@ -330,7 +334,8 @@ export class ReferencesFeature {
 		const seen = new Set<string>();
 		const result: lsp.Location[] = [];
 		for (const loc of locations) {
-			const key = `${loc.uri}:${loc.range.start.line}:${loc.range.start.character}:${loc.range.end.line}:${loc.range.end.character}`;
+			const key =
+				`${loc.uri}:${loc.range.start.line}:${loc.range.start.character}:${loc.range.end.line}:${loc.range.end.character}`;
 			if (seen.has(key)) continue;
 			seen.add(key);
 			result.push(loc);

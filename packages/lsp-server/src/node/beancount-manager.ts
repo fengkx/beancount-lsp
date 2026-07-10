@@ -8,6 +8,7 @@ import {
 	CancellationTokenSource,
 	Connection,
 	DidSaveTextDocumentParams,
+	FileChangeType,
 } from 'vscode-languageserver';
 import {
 	createMessageConnection,
@@ -16,6 +17,7 @@ import {
 	StreamMessageWriter,
 } from 'vscode-languageserver/node';
 import { URI } from 'vscode-uri';
+import { DocumentStore } from '../common/document-store';
 import {
 	Amount,
 	BeancountError,
@@ -23,9 +25,13 @@ import {
 	BeancountManagerFactory,
 	PreciseIncompletePostingHintParams,
 	RealBeancountManager,
+	RuntimeEvaluationState,
 } from '../common/features/types';
-import { globalEventBus, GlobalEvents } from '../common/utils/event-bus';
+import type { SourceSnapshot } from '../common/ledger/snapshots';
+import { SourceSnapshotService } from '../common/ledger/source-snapshot-service';
+import { globalEventBus, GlobalEvents, LedgerContextEvent } from '../common/utils/event-bus';
 import { expandPythonPath } from './python-path';
+import { ShadowWorkspace } from './shadow-workspace';
 
 // eslint-disable-next-line import-x/no-relative-packages
 import beanCheckPythonCode from './beancheck.py';
@@ -73,15 +79,24 @@ class BeancheckRpcClient {
 	private startPromise: Promise<void> | null = null;
 	private disposed = false;
 
-	constructor(private readonly python3Path: string, private readonly logger: Logger) {}
+	constructor(
+		private readonly python3Path: string,
+		private readonly workspaceRoot: string | undefined,
+		private readonly logger: Logger,
+	) {}
 
-	async runBeancheck(filePath: string, token: CancellationToken): Promise<BeancheckOutput> {
+	async runBeancheck(
+		filePath: string,
+		mode: 'diagnostics' | 'full',
+		token: CancellationToken,
+	): Promise<BeancheckOutput> {
 		await this.ensureProcess();
 		if (token.isCancellationRequested) {
 			throw createCancellationError();
 		}
 		return this.sendRequest<BeancheckOutput>('beancheck/run', {
 			file: filePath,
+			mode,
 		}, token);
 	}
 
@@ -151,7 +166,7 @@ class BeancheckRpcClient {
 		const child = spawn(
 			this.python3Path,
 			['-u', '-c', beanCheckPythonCode, '--rpc-stdio'],
-			{ stdio: ['pipe', 'pipe', 'pipe'] },
+			{ stdio: ['pipe', 'pipe', 'pipe'], cwd: this.workspaceRoot },
 		);
 		this.process = child;
 		const messageReader = new StreamMessageReader(child.stdout);
@@ -227,6 +242,7 @@ class BeancheckRpcClient {
 class BeancountManager implements RealBeancountManager {
 	private mainFile: string | null = null;
 	private result: BeancheckOutput | null = null;
+	private diagnosticsResult: Pick<BeancheckOutput, 'errors' | 'flags'> | null = null;
 	/** Stale result kept for SWR: non-diagnostic data (balances, pads) served from here while revalidating */
 	private staleResult: BeancheckOutput | null = null;
 	private padFileCache = new Map<string, Record<string, Amount[]> | null>();
@@ -234,15 +250,85 @@ class BeancountManager implements RealBeancountManager {
 	private inputGeneration = 0;
 	private queuedBeancheckGeneration = 0;
 	private appliedBeancheckGeneration = 0;
+	private appliedDiagnosticsGeneration = 0;
 	private hasPendingBeancheckRun = false;
 	private beancheckQueuePromise: Promise<void> | null = null;
 	private activeBeancheckTokenSource: CancellationTokenSource | null = null;
 	private activeBeancheckRunGeneration = 0;
 	private beancheckRpcClient: BeancheckRpcClient | null = null;
 	private beancheckRpcPythonPath: string | null = null;
+	private beancheckRpcWorkspaceRoot: string | null = null;
+	private sourceService: SourceSnapshotService | null = null;
+	private sourceSubscription: { dispose(): void } | null = null;
+	private readonly shadowWorkspace = new ShadowWorkspace();
+	private shadowSyncPromise: Promise<void> = Promise.resolve();
+	private liveBuffersEnabled = true;
+	private workspaceUri: string | null = null;
+	private hasWarnedLiveBufferFallback = false;
+	private hasUnsavedSavedFileInput = false;
+	private beancheckDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+	private diagnosticsDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+	private queuedDiagnosticsGeneration = 0;
+	private hasPendingDiagnosticsRun = false;
+	private diagnosticsQueuePromise: Promise<void> | null = null;
+	private activeDiagnosticsTokenSource: CancellationTokenSource | null = null;
+	private activeDiagnosticsRunGeneration = 0;
+	private recoveryTimer: ReturnType<typeof setTimeout> | null = null;
+	private lastRecoveryGeneration = -1;
+	private readonly subscriptions: Array<{ dispose(): void }> = [];
 
-	constructor(private connection: Connection) {
-		connection.onDidSaveTextDocument(this.onDocumentSaved.bind(this));
+	constructor(private connection: Connection, private readonly documents: DocumentStore) {
+		this.subscriptions.push(connection.onDidSaveTextDocument(this.onDocumentSaved.bind(this)));
+		this.subscriptions.push(documents.onDidChangeContent2(event => {
+			if (!this.workspaceUri || !event.document.uri.startsWith(this.workspaceUri)) {
+				if (
+					this.sourceService && this.isReferencedExternalUri(event.document.uri, this.sourceService.snapshot)
+				) {
+					this.hasUnsavedSavedFileInput = true;
+					this.fallbackToSavedFiles(new Error('an included file outside the workspace has unsaved changes'));
+				}
+				return;
+			}
+			if (!this.sourceService) {
+				this.hasUnsavedSavedFileInput = true;
+				this.markBeancheckInputChanged('unsaved-saved-file-input');
+				return;
+			}
+			this.sourceService.update(
+				event.document.uri,
+				event.document.getText(),
+				event.document.version,
+				'open-buffer',
+			);
+		}));
+		this.subscriptions.push(documents.onDidClose(event => {
+			if (!this.workspaceUri || !event.document.uri.startsWith(this.workspaceUri)) return;
+			if (!this.sourceService) {
+				this.hasUnsavedSavedFileInput = false;
+				this.markBeancheckInputChanged('closed-saved-file-input');
+				void this.scheduleDiagnosticsRevalidate();
+				void this.scheduleBeancheckRevalidate();
+				return;
+			}
+			this.documents.removeFile(event.document.uri);
+			void this.documents.retrieve(event.document.uri).then(document => {
+				this.sourceService?.update(event.document.uri, document.getText(), undefined, 'disk');
+			});
+		}));
+		this.subscriptions.push(connection.onDidChangeWatchedFiles(event => {
+			if (!this.sourceService || !this.workspaceUri) return;
+			for (const change of event.changes) {
+				if (!change.uri.startsWith(this.workspaceUri)) continue;
+				if (change.type === FileChangeType.Deleted) {
+					this.sourceService.remove(change.uri);
+					continue;
+				}
+				this.documents.removeFile(change.uri);
+				void this.documents.retrieve(change.uri).then(document => {
+					this.sourceService?.update(change.uri, document.getText(), undefined, 'disk');
+				});
+			}
+		}));
 	}
 
 	isEnabled(): boolean {
@@ -250,32 +336,85 @@ class BeancountManager implements RealBeancountManager {
 	}
 
 	canResolvePreciseIncompletePostingHint(): boolean {
-		// Local beancheck currently reads filesystem snapshots instead of unsaved editor buffers.
-		return false;
+		return this.liveBuffersEnabled
+			&& this.appliedBeancheckGeneration === this.inputGeneration
+			&& this.result !== null;
 	}
 
 	getRuntimeStatus(): BeancountRuntimeStatusParams {
-		return { mode: 'local' };
+		return { mode: 'local', scopeUri: this.workspaceUri ?? undefined };
+	}
+
+	getEvaluationState(): RuntimeEvaluationState {
+		return {
+			sourceRevision: this.inputGeneration,
+			diagnosticsRevision: this.diagnosticsResult ? this.appliedDiagnosticsGeneration : null,
+			derivedRevision: this.effectiveResult ? this.appliedBeancheckGeneration : null,
+			inputMode: this.liveBuffersEnabled ? 'live-buffers' : 'saved-files',
+		};
+	}
+
+	requestEvaluation(): void {
+		if (this.hasUnsavedSavedFileInput) return;
+		void this.scheduleDiagnosticsRevalidate(this.inputGeneration);
+		void this.scheduleBeancheckRevalidate(this.inputGeneration);
 	}
 
 	async setMainFile(mainFileUri: string): Promise<void> {
 		this.mainFile = URI.parse(mainFileUri).fsPath;
-		this.markBeancheckInputChanged('main-file-updated');
-		await this.scheduleBeancheckRevalidate();
+		const folder = await this.documents.getWorkspaceFolderFor(mainFileUri);
+		this.workspaceUri = folder?.uri ?? null;
+		const config = await this.connection.workspace.getConfiguration({
+			scopeUri: folder?.uri ?? mainFileUri,
+			section: 'beanLsp',
+		});
+		this.liveBuffersEnabled = config?.localRuntime?.liveBuffers ?? true;
+		this.hasUnsavedSavedFileInput = false;
+		if (folder && this.liveBuffersEnabled) {
+			try {
+				this.sourceSubscription?.dispose();
+				this.sourceService?.dispose();
+				this.sourceService = new SourceSnapshotService(this.documents, folder.uri, mainFileUri);
+				const snapshot = await this.sourceService.reset(this.documents.getBeanFilesFor(folder.uri));
+				if (this.hasDirtyExternalInclude(snapshot)) {
+					throw new Error('an included file outside the workspace has unsaved changes');
+				}
+				await this.shadowWorkspace.reset(snapshot);
+				this.markBeancheckInputChanged('shadow-reset');
+				this.sourceSubscription = this.sourceService.onDidChange(change => {
+					this.markBeancheckInputChanged('document-sync');
+					const generation = this.inputGeneration;
+					this.shadowSyncPromise = this.shadowSyncPromise
+						.then(() => this.shadowWorkspace.sync(change))
+						.catch(error => {
+							this.fallbackToSavedFiles(error);
+						});
+					void this.shadowSyncPromise.then(() => {
+						this.scheduleDiagnosticsDebounced(generation);
+						this.scheduleBeancheckDebounced(generation, 1200);
+					});
+				});
+			} catch (error) {
+				this.fallbackToSavedFiles(error);
+			}
+		} else {
+			this.markBeancheckInputChanged('main-file-updated');
+		}
+		await Promise.all([
+			this.scheduleDiagnosticsRevalidate(),
+			this.scheduleBeancheckRevalidate(),
+		]);
 	}
 
 	async getPython3Path(): Promise<string> {
-		// Use mainFile as scopeUri if available, otherwise use first workspace folder
-		const scopeUri = this.mainFile ? URI.file(this.mainFile).toString() : (await this.connection.workspace.getWorkspaceFolders())?.[0]?.uri;
+		const scopeUri = this.mainFile ? URI.file(this.mainFile).toString() : this.workspaceUri ?? undefined;
 		const config = await this.connection.workspace.getConfiguration({ scopeUri });
 		let python3Path = config?.beanLsp?.python3Path || config?.beancount?.python3Path || 'python3';
 		python3Path = expandPythonPath(python3Path);
 
 		if (python3Path !== 'python3' && !isAbsolute(python3Path)) {
-			const workspaceFolders = await this.connection.workspace.getWorkspaceFolders();
-			if (workspaceFolders && workspaceFolders.length > 0) {
-				// @ts-expect-error already check length
-				const workspacePath = URI.parse(workspaceFolders[0].uri).fsPath;
+			if (this.workspaceUri) {
+				const workspacePath = URI.parse(this.workspaceUri).fsPath;
 				python3Path = resolve(workspacePath, python3Path);
 			}
 		}
@@ -283,7 +422,10 @@ class BeancountManager implements RealBeancountManager {
 		return python3Path;
 	}
 
-	private async runBeanCheck(token: CancellationToken): Promise<BeancheckOutput | null> {
+	private async runBeanCheck(
+		token: CancellationToken,
+		mode: 'diagnostics' | 'full' = 'full',
+	): Promise<BeancheckOutput | null> {
 		if (!this.mainFile) {
 			return null;
 		}
@@ -297,15 +439,17 @@ class BeancountManager implements RealBeancountManager {
 		}
 
 		try {
+			await this.shadowSyncPromise;
 			const client = await this.ensureBeancheckRpcClient(python3Path);
 			if (token.isCancellationRequested) {
 				return null;
 			}
-			const result = await client.runBeancheck(this.mainFile, token);
+			const inputFile = this.liveBuffersEnabled ? this.shadowWorkspace.mainFilePath : this.mainFile;
+			const result = await client.runBeancheck(inputFile, mode, token);
 			if (token.isCancellationRequested) {
 				return null;
 			}
-			return result;
+			return this.liveBuffersEnabled ? this.rewriteShadowResult(result) : result;
 		} catch (error) {
 			if (this.isCancellationError(error)) {
 				return null;
@@ -317,15 +461,18 @@ class BeancountManager implements RealBeancountManager {
 	}
 
 	private async ensureBeancheckRpcClient(python3Path: string): Promise<BeancheckRpcClient> {
+		const workspaceRoot = this.workspaceUri ? URI.parse(this.workspaceUri).fsPath : undefined;
 		if (
 			this.beancheckRpcClient
 			&& this.beancheckRpcPythonPath === python3Path
+			&& this.beancheckRpcWorkspaceRoot === (workspaceRoot ?? null)
 		) {
 			return this.beancheckRpcClient;
 		}
 		this.disposeBeancheckRpcClient();
-		this.beancheckRpcClient = new BeancheckRpcClient(python3Path, this.logger);
+		this.beancheckRpcClient = new BeancheckRpcClient(python3Path, workspaceRoot, this.logger);
 		this.beancheckRpcPythonPath = python3Path;
+		this.beancheckRpcWorkspaceRoot = workspaceRoot ?? null;
 		return this.beancheckRpcClient;
 	}
 
@@ -333,14 +480,72 @@ class BeancountManager implements RealBeancountManager {
 		this.beancheckRpcClient?.dispose();
 		this.beancheckRpcClient = null;
 		this.beancheckRpcPythonPath = null;
+		this.beancheckRpcWorkspaceRoot = null;
 	}
 
 	private isCancellationError(error: unknown): boolean {
 		return error instanceof Error && error.name === 'CancellationError';
 	}
 
+	private fallbackToSavedFiles(error: unknown): void {
+		if ([...this.sourceService?.snapshot.files.values() ?? []].some(file => file.origin === 'open-buffer')) {
+			this.hasUnsavedSavedFileInput = true;
+		}
+		this.liveBuffersEnabled = false;
+		this.sourceSubscription?.dispose();
+		this.sourceSubscription = null;
+		this.sourceService?.dispose();
+		this.sourceService = null;
+		this.shadowSyncPromise = Promise.resolve();
+		this.markBeancheckInputChanged('live-buffer-fallback');
+		if (this.hasWarnedLiveBufferFallback) return;
+		this.hasWarnedLiveBufferFallback = true;
+		const message = `Live-buffer evaluation is unavailable; using saved files. ${asError(error).message}`;
+		this.logger.warn(message);
+		void this.connection.window.showWarningMessage(message);
+		if (!this.hasUnsavedSavedFileInput) {
+			void this.scheduleDiagnosticsRevalidate(this.inputGeneration);
+			void this.scheduleBeancheckRevalidate(this.inputGeneration);
+		}
+	}
+
+	private hasDirtyExternalInclude(snapshot: SourceSnapshot): boolean {
+		for (const rawIncludes of snapshot.includeGraph.unresolved.values()) {
+			for (const raw of rawIncludes) {
+				const uri = this.externalIncludeUri(raw);
+				if (uri && this.documents.isOpen(uri)) return true;
+			}
+		}
+		return false;
+	}
+
+	private isReferencedExternalUri(uri: string, snapshot: SourceSnapshot): boolean {
+		for (const rawIncludes of snapshot.includeGraph.unresolved.values()) {
+			for (const raw of rawIncludes) {
+				if (this.externalIncludeUri(raw) === uri) return true;
+			}
+		}
+		return false;
+	}
+
+	private externalIncludeUri(raw: string): string | null {
+		try {
+			if (raw.startsWith('file:')) return URI.parse(raw).toString();
+			if (raw.startsWith('/')) return URI.file(raw).toString();
+		} catch {
+			return null;
+		}
+		return null;
+	}
+
 	private markBeancheckInputChanged(reason: string): void {
+		if (this.recoveryTimer) clearTimeout(this.recoveryTimer);
+		this.recoveryTimer = null;
 		this.inputGeneration += 1;
+		if (this.diagnosticsResult && this.appliedDiagnosticsGeneration < this.inputGeneration) {
+			this.diagnosticsResult = null;
+			this.emitLedgerUpdate();
+		}
 
 		// Previous beancheck diagnostics no longer match the current on-disk snapshot.
 		// Keep stale result for SWR: non-diagnostic data (balances, pads) served from stale
@@ -349,7 +554,14 @@ class BeancountManager implements RealBeancountManager {
 			this.staleResult = this.result;
 			this.result = null;
 			this.padFileCache.clear();
-			globalEventBus.emit(GlobalEvents.BeancountUpdate);
+			this.emitLedgerUpdate();
+		}
+
+		if (
+			this.activeDiagnosticsTokenSource
+			&& this.activeDiagnosticsRunGeneration < this.inputGeneration
+		) {
+			this.activeDiagnosticsTokenSource.cancel();
 		}
 
 		if (
@@ -388,6 +600,68 @@ class BeancountManager implements RealBeancountManager {
 		await this.beancheckQueuePromise;
 	}
 
+	private async scheduleDiagnosticsRevalidate(targetGeneration = this.inputGeneration): Promise<void> {
+		if (!this.mainFile) return;
+		this.queuedDiagnosticsGeneration = Math.max(this.queuedDiagnosticsGeneration, targetGeneration);
+		this.hasPendingDiagnosticsRun = true;
+		if (
+			this.activeDiagnosticsTokenSource
+			&& this.activeDiagnosticsRunGeneration < this.queuedDiagnosticsGeneration
+		) {
+			this.activeDiagnosticsTokenSource.cancel();
+		}
+		if (!this.diagnosticsQueuePromise) {
+			this.diagnosticsQueuePromise = this.processDiagnosticsQueue().finally(() => {
+				this.diagnosticsQueuePromise = null;
+			});
+		}
+		await this.diagnosticsQueuePromise;
+	}
+
+	private async processDiagnosticsQueue(): Promise<void> {
+		while (this.hasPendingDiagnosticsRun) {
+			this.hasPendingDiagnosticsRun = false;
+			const targetGeneration = this.queuedDiagnosticsGeneration;
+			const tokenSource = new CancellationTokenSource();
+			this.activeDiagnosticsTokenSource = tokenSource;
+			this.activeDiagnosticsRunGeneration = targetGeneration;
+			try {
+				await this.revalidateDiagnostics(targetGeneration, tokenSource.token);
+			} finally {
+				if (this.activeDiagnosticsTokenSource === tokenSource) {
+					this.activeDiagnosticsTokenSource = null;
+					this.activeDiagnosticsRunGeneration = 0;
+				}
+				tokenSource.dispose();
+			}
+		}
+	}
+
+	private async revalidateDiagnostics(targetGeneration: number, token: CancellationToken): Promise<void> {
+		if (token.isCancellationRequested || targetGeneration !== this.inputGeneration) return;
+		const result = await this.runBeanCheck(token, 'diagnostics');
+		if (!result || token.isCancellationRequested || targetGeneration !== this.inputGeneration) return;
+		this.diagnosticsResult = { errors: result.errors, flags: result.flags };
+		this.appliedDiagnosticsGeneration = targetGeneration;
+		this.emitLedgerUpdate();
+	}
+
+	private scheduleBeancheckDebounced(targetGeneration: number, delayMs = 250): void {
+		if (this.beancheckDebounceTimer) clearTimeout(this.beancheckDebounceTimer);
+		this.beancheckDebounceTimer = setTimeout(() => {
+			this.beancheckDebounceTimer = null;
+			void this.scheduleBeancheckRevalidate(targetGeneration);
+		}, delayMs);
+	}
+
+	private scheduleDiagnosticsDebounced(targetGeneration: number): void {
+		if (this.diagnosticsDebounceTimer) clearTimeout(this.diagnosticsDebounceTimer);
+		this.diagnosticsDebounceTimer = setTimeout(() => {
+			this.diagnosticsDebounceTimer = null;
+			void this.scheduleDiagnosticsRevalidate(targetGeneration);
+		}, 250);
+	}
+
 	private async processBeancheckQueue(): Promise<void> {
 		while (this.hasPendingBeancheckRun) {
 			this.hasPendingBeancheckRun = false;
@@ -412,11 +686,34 @@ class BeancountManager implements RealBeancountManager {
 			return;
 		}
 
-		this.logger.info(`running beancheck generation=${targetGeneration}`);
+		const startedAt = Date.now();
+		const contextId = `${this.workspaceUri ?? 'standalone'}::${
+			this.mainFile ? URI.file(this.mainFile).toString() : ''
+		}`;
+		this.logger.info(
+			`running beancheck context=${contextId} revision=${targetGeneration} mode=full input=${
+				this.liveBuffersEnabled ? 'live-buffers' : 'saved-files'
+			}`,
+		);
 		const result = await this.runBeanCheck(token);
-		this.logger.info('received response for beancheck');
+		this.logger.info(
+			`received beancheck context=${contextId} revision=${targetGeneration} mode=full input=${
+				this.liveBuffersEnabled ? 'live-buffers' : 'saved-files'
+			} durationMs=${Date.now() - startedAt}`,
+		);
 
 		if (!result) {
+			if (
+				!token.isCancellationRequested
+				&& targetGeneration === this.inputGeneration
+				&& this.lastRecoveryGeneration !== targetGeneration
+			) {
+				this.lastRecoveryGeneration = targetGeneration;
+				this.recoveryTimer = setTimeout(() => {
+					this.recoveryTimer = null;
+					void this.scheduleBeancheckRevalidate(targetGeneration);
+				}, 1000);
+			}
 			return;
 		}
 		if (token.isCancellationRequested || targetGeneration !== this.inputGeneration) {
@@ -431,10 +728,22 @@ class BeancountManager implements RealBeancountManager {
 		}
 
 		this.result = result;
+		this.diagnosticsResult = { errors: result.errors, flags: result.flags };
+		this.appliedDiagnosticsGeneration = targetGeneration;
+		this.lastRecoveryGeneration = -1;
 		this.staleResult = null;
 		this.padFileCache.clear();
 		this.appliedBeancheckGeneration = targetGeneration;
-		globalEventBus.emit(GlobalEvents.BeancountUpdate);
+		this.emitLedgerUpdate();
+	}
+
+	private emitLedgerUpdate(): void {
+		globalEventBus.emit<LedgerContextEvent>(GlobalEvents.BeancountUpdate, {
+			contextId: `${this.workspaceUri ?? 'standalone'}::${
+				this.mainFile ? URI.file(this.mainFile).toString() : ''
+			}`,
+			sourceRevision: this.inputGeneration,
+		});
 	}
 
 	private onDocumentSaved(params: DidSaveTextDocumentParams): void {
@@ -445,8 +754,16 @@ class BeancountManager implements RealBeancountManager {
 		if (!params.textDocument.uri.endsWith('.bean') && !params.textDocument.uri.endsWith('.beancount')) {
 			return;
 		}
+		if (this.beancheckDebounceTimer) clearTimeout(this.beancheckDebounceTimer);
+		this.beancheckDebounceTimer = null;
+		if (this.diagnosticsDebounceTimer) clearTimeout(this.diagnosticsDebounceTimer);
+		this.diagnosticsDebounceTimer = null;
 
-		this.markBeancheckInputChanged('document-saved');
+		if (!this.liveBuffersEnabled) {
+			this.hasUnsavedSavedFileInput = false;
+			this.markBeancheckInputChanged('document-saved');
+		}
+		void this.scheduleDiagnosticsRevalidate();
 		void this.scheduleBeancheckRevalidate();
 	}
 
@@ -464,6 +781,17 @@ class BeancountManager implements RealBeancountManager {
 		const balances = includeSubaccountBalance ? accountDetails.balance_incl_subaccounts : accountDetails.balance;
 
 		return balances.map(balanceStr => this.parseAmountString(balanceStr));
+	}
+
+	getBalanceSnapshot(account: string, includeSubaccountBalance: boolean) {
+		const isFresh = this.appliedBeancheckGeneration === this.inputGeneration
+			&& !this.hasUnsavedSavedFileInput;
+		return {
+			value: this.getBalance(account, includeSubaccountBalance),
+			sourceRevision: this.appliedBeancheckGeneration,
+			freshness: isFresh ? 'fresh' as const : 'stale' as const,
+			inputMode: this.liveBuffersEnabled ? 'live-buffers' as const : 'saved-files' as const,
+		};
 	}
 
 	getSubaccountBalances(account: string): Map<string, Amount[]> {
@@ -512,17 +840,28 @@ class BeancountManager implements RealBeancountManager {
 		return filePads[lineKey] ?? [];
 	}
 
+	getPadAmountsSnapshot(filePath: string, line: number) {
+		const isFresh = this.appliedBeancheckGeneration === this.inputGeneration
+			&& !this.hasUnsavedSavedFileInput;
+		return {
+			value: this.getPadAmounts(filePath, line),
+			sourceRevision: this.appliedBeancheckGeneration,
+			freshness: isFresh ? 'fresh' as const : 'stale' as const,
+			inputMode: this.liveBuffersEnabled ? 'live-buffers' as const : 'saved-files' as const,
+		};
+	}
+
 	private parseAmountString(balanceStr: string): Amount {
 		const [number, currency] = balanceStr.trim().split(/\s+/) as [string, string];
 		return { number, currency };
 	}
 
 	getErrors(): BeancountError[] {
-		return this.result?.errors ?? [];
+		return this.diagnosticsResult?.errors ?? [];
 	}
 
 	getFlagged(): BeancountFlag[] {
-		return this.result?.flags ?? [];
+		return this.diagnosticsResult?.flags ?? [];
 	}
 
 	async runQuery(query: string): Promise<string> {
@@ -530,17 +869,31 @@ class BeancountManager implements RealBeancountManager {
 			throw new Error('No main file set. Please set a main Beancount file first.');
 		}
 
+		if (this.hasUnsavedSavedFileInput) {
+			throw new Error(
+				'Ledger evaluation only has saved-file input; save or close edited files before running a query.',
+			);
+		}
+		if (this.appliedBeancheckGeneration !== this.inputGeneration) {
+			await this.scheduleBeancheckRevalidate(this.inputGeneration);
+		}
+		if (this.appliedBeancheckGeneration !== this.inputGeneration) {
+			throw new Error('Ledger evaluation is not current; retry after validation completes.');
+		}
+		await this.shadowSyncPromise;
 		const python3Path = await this.getPython3Path();
 		const { stdout: prefix } = await $`${python3Path} -c ${'import sys; print(sys.prefix)'}`;
 
 		this.logger.info(`Running bean-query: ${query}`);
+		const inputFile = this.liveBuffersEnabled ? this.shadowWorkspace.mainFilePath : this.mainFile;
 
 		const { stdout } = await execa({
 			extendEnv: true,
+			cwd: this.workspaceUri ? URI.parse(this.workspaceUri).fsPath : undefined,
 			env: {
 				PATH: `${prefix}/bin` + ':' + process.env['PATH'],
 			},
-		})`bean-query ${this.mainFile} ${query}`;
+		})`bean-query ${inputFile} ${query}`;
 		return stdout;
 	}
 
@@ -553,10 +906,15 @@ class BeancountManager implements RealBeancountManager {
 		const client = await this.ensureBeancheckRpcClient(python3Path);
 		const tokenSource = new CancellationTokenSource();
 		try {
+			await this.shadowSyncPromise;
+			const inputFile = this.liveBuffersEnabled ? this.shadowWorkspace.mainFilePath : this.mainFile;
+			const targetFile = this.liveBuffersEnabled
+				? this.shadowWorkspace.mapSourcePath(params.targetUri)
+				: URI.parse(params.targetUri).fsPath;
 			return await client.interpolateIncompletePosting(
-				this.mainFile,
+				inputFile,
 				{
-					targetFile: URI.parse(params.targetUri).fsPath,
+					targetFile,
 					transactionLine: params.transactionStartLine + 1,
 					postingLine: params.postingStartLine + 1,
 					account: params.account,
@@ -575,12 +933,47 @@ class BeancountManager implements RealBeancountManager {
 	}
 
 	dispose(): void {
+		for (const subscription of this.subscriptions.splice(0)) subscription.dispose();
+		this.mainFile = null;
+		if (this.beancheckDebounceTimer) clearTimeout(this.beancheckDebounceTimer);
+		this.beancheckDebounceTimer = null;
+		if (this.diagnosticsDebounceTimer) clearTimeout(this.diagnosticsDebounceTimer);
+		this.diagnosticsDebounceTimer = null;
+		if (this.recoveryTimer) clearTimeout(this.recoveryTimer);
+		this.recoveryTimer = null;
+		this.activeDiagnosticsTokenSource?.cancel();
+		this.activeDiagnosticsTokenSource?.dispose();
+		this.activeDiagnosticsTokenSource = null;
+		this.activeDiagnosticsRunGeneration = 0;
 		this.activeBeancheckTokenSource?.cancel();
 		this.activeBeancheckTokenSource?.dispose();
 		this.activeBeancheckTokenSource = null;
 		this.activeBeancheckRunGeneration = 0;
 		this.disposeBeancheckRpcClient();
+		this.sourceSubscription?.dispose();
+		this.sourceSubscription = null;
+		this.sourceService?.dispose();
+		this.sourceService = null;
+		void this.shadowWorkspace.dispose();
+	}
+
+	private rewriteShadowResult(result: BeancheckOutput): BeancheckOutput {
+		const rewriteFile = (file: string) =>
+			file.endsWith('<load>') && this.mainFile
+				? this.mainFile
+				: this.shadowWorkspace.mapRuntimePath(file);
+		const pads: BeancheckOutput['pads'] = {};
+		for (const [file, lineMap] of Object.entries(result.pads ?? {})) {
+			pads[rewriteFile(file)] = lineMap;
+		}
+		return {
+			...result,
+			errors: result.errors.map(error => ({ ...error, file: rewriteFile(error.file) })),
+			flags: result.flags.map(flag => ({ ...flag, file: rewriteFile(flag.file) })),
+			pads,
+		};
 	}
 }
 
-export const beananagerFactory: BeancountManagerFactory = (connection: Connection, _documents) => new BeancountManager(connection);
+export const beananagerFactory: BeancountManagerFactory = (connection: Connection, documents) =>
+	new BeancountManager(connection, documents);

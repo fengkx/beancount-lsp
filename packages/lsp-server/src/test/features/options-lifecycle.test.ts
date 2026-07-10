@@ -49,4 +49,14 @@ describe('BeancountOptionsManager option lifecycle', () => {
 
 		expect(seen.filter(e => e.name === 'name_assets').map(e => e.value)).toEqual(['Asset', 'Assets']);
 	});
+
+	it('isolates effective options by workspace scope', () => {
+		const mgr = new BeancountOptionsManager();
+		mgr.setWorkspaceFolders(['file:///one', 'file:///two']);
+		mgr.replaceOptionsForSource('file:///one/main.bean', new Map([['name_assets', 'OneAssets']]));
+		mgr.replaceOptionsForSource('file:///two/main.bean', new Map([['name_assets', 'TwoAssets']]));
+
+		expect(mgr.getOption('name_assets', 'file:///one/account.bean').asString()).toBe('OneAssets');
+		expect(mgr.getOption('name_assets', 'file:///two/account.bean').asString()).toBe('TwoAssets');
+	});
 });

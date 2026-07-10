@@ -1,13 +1,13 @@
 import { Logger } from '@bean-lsp/shared/logger';
 import { add, formatDate, sub } from 'date-fns';
-import {
-	CompletionItem,
-	CompletionItemKind,
-	Position,
-	TextEdit,
-} from 'vscode-languageserver';
+import { CompletionItem, CompletionItemKind, Position, TextEdit } from 'vscode-languageserver';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
-import { SymbolIndex, type CompiledAccountCandidate } from '../symbol-index';
+import { type CompiledAccountCandidate, SymbolIndex } from '../symbol-index';
+import {
+	deriveAccountQueryFromLine,
+	shouldSuppressCurrencyForCurrentToken,
+	shouldTraceAccountQuery,
+} from './completion-context';
 import {
 	type AccountMatchRank,
 	compareAccountRank,
@@ -18,11 +18,6 @@ import {
 	rankSymbolLikeMatchTier,
 	rankTextMatchTier,
 } from './completion-ranking';
-import {
-	deriveAccountQueryFromLine,
-	shouldSuppressCurrencyForCurrentToken,
-	shouldTraceAccountQuery,
-} from './completion-context';
 
 const logger = new Logger('completions');
 
@@ -174,11 +169,14 @@ export async function addPayeesAndNarrations(
 		quotationStyle,
 		addSpaceAfter,
 	} = params;
+	const scopeUri = collector.document?.uri;
 	const [payees, narrations, payeeUsageCounts, narrationUsageCounts] = await Promise.all([
-		shouldIncludePayees ? collector.symbolIndex.getPayees(true, { waitTime: 100 }) : Promise.resolve([]),
-		collector.symbolIndex.getNarrations(true, { waitTime: 100 }),
-		shouldIncludePayees ? collector.symbolIndex.getPayeeUsageCounts() : Promise.resolve(new Map<string, number>()),
-		collector.symbolIndex.getNarrationUsageCounts(),
+		shouldIncludePayees ? collector.symbolIndex.getPayees(true, { waitTime: 100 }, scopeUri) : Promise.resolve([]),
+		collector.symbolIndex.getNarrations(true, { waitTime: 100 }, scopeUri),
+		shouldIncludePayees
+			? collector.symbolIndex.getPayeeUsageCounts(scopeUri)
+			: Promise.resolve(new Map<string, number>()),
+		collector.symbolIndex.getNarrationUsageCounts(scopeUri),
 	]);
 
 	const quote = quotationStyle === 'both' ? '"' : quotationStyle === 'end' ? '"' : '';
@@ -243,9 +241,10 @@ export async function addPayeesAndNarrations(
 }
 
 export async function addTagCompletions(collector: CompletionCollector): Promise<void> {
+	const scopeUri = collector.document?.uri;
 	const [tags, usageCounts] = await Promise.all([
-		collector.symbolIndex.getTags(),
-		collector.symbolIndex.getTagUsageCounts(),
+		collector.symbolIndex.getTags(scopeUri),
+		collector.symbolIndex.getTagUsageCounts(scopeUri),
 	]);
 	const query = collector.textCtx.tokenText.trim().toLowerCase();
 	const shouldAddPrefix = !collector.textCtx.afterHash;
@@ -276,9 +275,10 @@ export async function addCurrencyCompletions(collector: CompletionCollector): Pr
 	}
 	const query = collector.textCtx.tokenText.trim().toLowerCase();
 	const { startChar, endChar } = collector.textCtx.tokenRange;
+	const scopeUri = collector.document?.uri;
 	const [currencies, usageCounts] = await Promise.all([
-		collector.symbolIndex.getCommodities(),
-		collector.symbolIndex.getCommodityUsageCounts(),
+		collector.symbolIndex.getCommodities(scopeUri),
+		collector.symbolIndex.getCommodityUsageCounts(scopeUri),
 	]);
 	const rankedCurrencies = rankAndSortLabelItems({
 		items: currencies,
@@ -310,9 +310,12 @@ export async function addCurrencyCompletions(collector: CompletionCollector): Pr
 	});
 }
 
-async function getAccountCompletionSnapshotData(symbolIndex: SymbolIndex): Promise<AccountCompletionSnapshotData> {
+async function getAccountCompletionSnapshotData(
+	symbolIndex: SymbolIndex,
+	scopeUri?: string,
+): Promise<AccountCompletionSnapshotData> {
 	const startedAt = performance.now();
-	const snapshot = await symbolIndex.getAccountCompletionSnapshot();
+	const snapshot = await symbolIndex.getAccountCompletionSnapshot(scopeUri);
 	return {
 		accounts: snapshot.accounts,
 		usageCounts: snapshot.usageCounts,
@@ -356,7 +359,7 @@ export async function addAccountCompletions(collector: CompletionCollector): Pro
 	const accountMatchScores = new Map<string, number>();
 	const accountRanks = new Map<string, AccountMatchRank>();
 	const shouldTrace = shouldTraceAccountQuery(collector.textCtx.linePrefix, collector.textCtx.tokenText);
-	const snapshotData = await getAccountCompletionSnapshotData(collector.symbolIndex);
+	const snapshotData = await getAccountCompletionSnapshotData(collector.symbolIndex, collector.document?.uri);
 	const { accounts, usageCounts: accountUsageCounts, closedAccounts, fetchMs: snapshotFetchMs } = snapshotData;
 
 	if (shouldTrace) {
@@ -373,7 +376,9 @@ export async function addAccountCompletions(collector: CompletionCollector): Pro
 		}
 
 		const usageCount = accountUsageCounts.get(account.name) || 0;
-		const rank = hasActiveQuery ? rankCompiledAccountQuery(compiledQuery, account, usageCount) : makeEmptyAccountRank(usageCount);
+		const rank = hasActiveQuery
+			? rankCompiledAccountQuery(compiledQuery, account, usageCount)
+			: makeEmptyAccountRank(usageCount);
 		if (!rank) return false;
 		accountRanks.set(account.name, rank);
 		accountMatchScores.set(account.name, rank.tier * 100 + rank.rootQuality * 10 + (rank.tailHit ? 5 : 0));
@@ -439,15 +444,22 @@ export async function addAccountCompletions(collector: CompletionCollector): Pro
 	const totalMs = performance.now() - accountPerfStart;
 	if (shouldTrace || totalMs > 30) {
 		logger.info(
-			`[account-query-perf] snapshotFetchMs=${Math.round(snapshotFetchMs)} queryCompileMs=${Math.round(queryCompileMs)} rankFilterMs=${Math.round(rankFilterMs)} sortMs=${Math.round(sortMs)} buildItemsMs=${Math.round(buildItemsMs)} totalMs=${Math.round(totalMs)} accountsTotal=${accounts.length} accountsMatched=${filteredAccounts.length}`,
+			`[account-query-perf] snapshotFetchMs=${Math.round(snapshotFetchMs)} queryCompileMs=${
+				Math.round(queryCompileMs)
+			} rankFilterMs=${Math.round(rankFilterMs)} sortMs=${Math.round(sortMs)} buildItemsMs=${
+				Math.round(buildItemsMs)
+			} totalMs=${
+				Math.round(totalMs)
+			} accountsTotal=${accounts.length} accountsMatched=${filteredAccounts.length}`,
 		);
 	}
 }
 
 export async function addLinkCompletions(collector: CompletionCollector): Promise<void> {
+	const scopeUri = collector.document?.uri;
 	const [links, usageCounts] = await Promise.all([
-		collector.symbolIndex.getLinks(),
-		collector.symbolIndex.getLinkUsageCounts(),
+		collector.symbolIndex.getLinks(scopeUri),
+		collector.symbolIndex.getLinkUsageCounts(scopeUri),
 	]);
 	const query = collector.textCtx.tokenText.trim().toLowerCase();
 	const shouldAddPrefix = !collector.textCtx.afterCaret;

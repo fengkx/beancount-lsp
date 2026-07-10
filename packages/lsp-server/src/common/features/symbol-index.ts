@@ -63,7 +63,7 @@ export type AccountCompletionSnapshot = {
 
 export class SymbolIndex {
 	private logger = new Logger('index');
-	public findAsync: (query: Record<string, unknown>) => Promise<SymbolInfo[]>;
+	private workspaceUris: string[] = [];
 
 	constructor(
 		private readonly _documents: DocumentStore,
@@ -74,7 +74,30 @@ export class SymbolIndex {
 		// Initialize SWR caches
 		this._payeesCache = new SwrCache(() => this._fetchPayees(), 'index.payees');
 		this._narrationsCache = new SwrCache(() => this._fetchNarrations(), 'index.narrations');
-		this.findAsync = this._symbolInfoStorage.findAsync.bind(this._symbolInfoStorage);
+	}
+
+	setWorkspaceFolders(workspaceUris: readonly string[]): void {
+		this.workspaceUris = [...workspaceUris].sort((left, right) => right.length - left.length);
+		this.invalidateAccountCompletionSnapshot();
+	}
+
+	getWorkspaceForUri(uri: string): string | undefined {
+		return this.workspaceUris.find(workspaceUri => {
+			const root = workspaceUri.endsWith('/') ? workspaceUri : `${workspaceUri}/`;
+			return uri === workspaceUri || uri.startsWith(root);
+		});
+	}
+
+	findAsync(query: Record<string, unknown>, scopeUri?: string): Promise<SymbolInfo[]> {
+		const workspace = scopeUri ? this.getWorkspaceForUri(scopeUri) : undefined;
+		const scopedQuery = workspace
+			? { ...query, _workspace: workspace }
+			: scopeUri
+			? { ...query, _uri: scopeUri }
+			: query;
+		return this._symbolInfoStorage.findAsync(scopedQuery) as Promise<
+			SymbolInfo[]
+		>;
 	}
 
 	private readonly _syncQueue = new Queue();
@@ -229,6 +252,10 @@ export class SymbolIndex {
 		await this._processOptionsDirectives(document);
 
 		const symbols = await getSymbols(document, this._trees);
+		const workspace = this.getWorkspaceForUri(document.uri);
+		if (workspace) {
+			for (const symbol of symbols) symbol._workspace = workspace;
+		}
 
 		this.logger.debug(`We Found ${symbols.length} symbols in ${document.uri}`);
 
@@ -291,20 +318,20 @@ export class SymbolIndex {
 		}
 	}
 
-	public async getAccountDefinitions(): Promise<Readonly<SymbolInfo>[]> {
+	public async getAccountDefinitions(scopeUri?: string): Promise<Readonly<SymbolInfo>[]> {
 		this.logger.debug('[index] Getting account definitions');
-		const accountDefinitions = await this._symbolInfoStorage.findAsync({
+		const accountDefinitions = await this.findAsync({
 			[SymbolKey.TYPE]: SymbolType.ACCOUNT_DEFINITION,
-		});
+		}, scopeUri);
 		this.logger.debug(`[index] Found ${accountDefinitions.length} account definitions`);
 		return accountDefinitions;
 	}
 
-	public async getCommodityDefinitions(): Promise<Readonly<SymbolInfo>[]> {
+	public async getCommodityDefinitions(scopeUri?: string): Promise<Readonly<SymbolInfo>[]> {
 		this.logger.debug('[index] Getting commodity definitions');
-		const commodityDefinitions = await this._symbolInfoStorage.findAsync({
+		const commodityDefinitions = await this.findAsync({
 			[SymbolKey.TYPE]: SymbolType.CURRENCY_DEFINITION,
-		});
+		}, scopeUri);
 		this.logger.debug(`[index] Found ${commodityDefinitions.length} commodity definitions`);
 		return commodityDefinitions;
 	}
@@ -331,31 +358,31 @@ export class SymbolIndex {
 	 * // Get payees with immediate cache return (no waiting)
 	 * const payees = await symbolIndex.getPayees(true, { waitTime: 0 });
 	 */
-	public async getPayees(swr = false, options?: SwrOptions): Promise<string[]> {
+	public async getPayees(swr = false, options?: SwrOptions, scopeUri?: string): Promise<string[]> {
 		this.logger.debug('[index] Getting payees');
-		return this._payeesCache.get(swr, options);
+		return scopeUri ? this._fetchPayees(scopeUri) : this._payeesCache.get(swr, options);
 	}
 
-	private async _fetchPayees(): Promise<string[]> {
-		const payees = await this._symbolInfoStorage.findAsync({ [SymbolKey.TYPE]: SymbolType.PAYEE }) as SymbolInfo[];
+	private async _fetchPayees(scopeUri?: string): Promise<string[]> {
+		const payees = await this.findAsync({ [SymbolKey.TYPE]: SymbolType.PAYEE }, scopeUri);
 		const uniquePayees = [...new Set(payees.map(p => p.name))];
 		this.logger.debug(`[index] Found ${payees.length} payees (${uniquePayees.length} unique)`);
 		return uniquePayees;
 	}
 
-	public async getCommodities(): Promise<string[]> {
+	public async getCommodities(scopeUri?: string): Promise<string[]> {
 		this.logger.debug('[index] Getting commodities');
-		const commodities = await this._symbolInfoStorage.findAsync({
+		const commodities = await this.findAsync({
 			[SymbolKey.TYPE]: SymbolType.COMMODITY,
-		}) as SymbolInfo[];
+		}, scopeUri);
 		const uniqueCommodities = [...new Set(commodities.map(c => c.name))];
 		this.logger.debug(`[index] Found ${commodities.length} commodities (${uniqueCommodities.length} unique)`);
 		return uniqueCommodities;
 	}
 
-	public async getTags(): Promise<string[]> {
+	public async getTags(scopeUri?: string): Promise<string[]> {
 		this.logger.debug('[index] Getting tags');
-		const tags = await this._symbolInfoStorage.findAsync({ [SymbolKey.TYPE]: SymbolType.TAG }) as SymbolInfo[];
+		const tags = await this.findAsync({ [SymbolKey.TYPE]: SymbolType.TAG }, scopeUri);
 		const uniqueTags = [...new Set(tags.map(t => t.name))];
 		this.logger.debug(`[index] Found ${tags.length} tags (${uniqueTags.length} unique)`);
 		return uniqueTags;
@@ -364,9 +391,9 @@ export class SymbolIndex {
 	/**
 	 * Gets all unique links from the index
 	 */
-	public async getLinks(): Promise<string[]> {
+	public async getLinks(scopeUri?: string): Promise<string[]> {
 		this.logger.debug('[index] Getting links');
-		const links = await this._symbolInfoStorage.findAsync({ [SymbolKey.TYPE]: SymbolType.LINK }) as SymbolInfo[];
+		const links = await this.findAsync({ [SymbolKey.TYPE]: SymbolType.LINK }, scopeUri);
 		const uniqueLinks = [...new Set(links.map(l => l.name))];
 		this.logger.debug(`[index] Found ${links.length} links (${uniqueLinks.length} unique)`);
 		return uniqueLinks;
@@ -394,15 +421,15 @@ export class SymbolIndex {
 	 * // Get narrations with immediate cache return (no waiting)
 	 * const narrations = await symbolIndex.getNarrations(true, { waitTime: 0 });
 	 */
-	public async getNarrations(swr = false, options?: SwrOptions): Promise<string[]> {
+	public async getNarrations(swr = false, options?: SwrOptions, scopeUri?: string): Promise<string[]> {
 		this.logger.debug('[index] Getting narrations');
-		return this._narrationsCache.get(swr, options);
+		return scopeUri ? this._fetchNarrations(scopeUri) : this._narrationsCache.get(swr, options);
 	}
 
-	private async _fetchNarrations(): Promise<string[]> {
-		const narrations = await this._symbolInfoStorage.findAsync({
+	private async _fetchNarrations(scopeUri?: string): Promise<string[]> {
+		const narrations = await this.findAsync({
 			[SymbolKey.TYPE]: SymbolType.NARRATION,
-		}) as SymbolInfo[];
+		}, scopeUri);
 		const uniqueNarrations = [...new Set(narrations.map(n => n.name))];
 		this.logger.debug(`[index] Found ${narrations.length} narrations (${uniqueNarrations.length} unique)`);
 		return uniqueNarrations;
@@ -413,10 +440,10 @@ export class SymbolIndex {
 	 *
 	 * @returns A Map of account names to their usage counts
 	 */
-	public async getAccountUsageCounts(): Promise<Map<string, number>> {
+	public async getAccountUsageCounts(scopeUri?: string): Promise<Map<string, number>> {
 		this.logger.debug('[index] Getting account usage counts');
 		const [accountUsages] = await Promise.all([
-			this._symbolInfoStorage.findAsync({ [SymbolKey.TYPE]: SymbolType.ACCOUNT_USAGE }) as Promise<SymbolInfo[]>,
+			this.findAsync({ [SymbolKey.TYPE]: SymbolType.ACCOUNT_USAGE }, scopeUri),
 		]);
 
 		// Count occurrences of each account, excluding closed accounts
@@ -430,33 +457,36 @@ export class SymbolIndex {
 		return usageCounts;
 	}
 
-	public async getPayeeUsageCounts(): Promise<Map<string, number>> {
+	public async getPayeeUsageCounts(scopeUri?: string): Promise<Map<string, number>> {
 		this.logger.debug('[index] Getting payee usage counts');
-		return this.getUsageCountsByType(SymbolType.PAYEE);
+		return this.getUsageCountsByType(SymbolType.PAYEE, scopeUri);
 	}
 
-	public async getNarrationUsageCounts(): Promise<Map<string, number>> {
+	public async getNarrationUsageCounts(scopeUri?: string): Promise<Map<string, number>> {
 		this.logger.debug('[index] Getting narration usage counts');
-		return this.getUsageCountsByType(SymbolType.NARRATION);
+		return this.getUsageCountsByType(SymbolType.NARRATION, scopeUri);
 	}
 
-	public async getCommodityUsageCounts(): Promise<Map<string, number>> {
+	public async getCommodityUsageCounts(scopeUri?: string): Promise<Map<string, number>> {
 		this.logger.debug('[index] Getting commodity usage counts');
-		return this.getUsageCountsByType(SymbolType.COMMODITY);
+		return this.getUsageCountsByType(SymbolType.COMMODITY, scopeUri);
 	}
 
-	public async getTagUsageCounts(): Promise<Map<string, number>> {
+	public async getTagUsageCounts(scopeUri?: string): Promise<Map<string, number>> {
 		this.logger.debug('[index] Getting tag usage counts');
-		return this.getUsageCountsByType(SymbolType.TAG);
+		return this.getUsageCountsByType(SymbolType.TAG, scopeUri);
 	}
 
-	public async getLinkUsageCounts(): Promise<Map<string, number>> {
+	public async getLinkUsageCounts(scopeUri?: string): Promise<Map<string, number>> {
 		this.logger.debug('[index] Getting link usage counts');
-		return this.getUsageCountsByType(SymbolType.LINK);
+		return this.getUsageCountsByType(SymbolType.LINK, scopeUri);
 	}
 
-	private async getUsageCountsByType(type: typeof SymbolType[keyof typeof SymbolType]): Promise<Map<string, number>> {
-		const items = await this._symbolInfoStorage.findAsync({ [SymbolKey.TYPE]: type }) as SymbolInfo[];
+	private async getUsageCountsByType(
+		type: typeof SymbolType[keyof typeof SymbolType],
+		scopeUri?: string,
+	): Promise<Map<string, number>> {
+		const items = await this.findAsync({ [SymbolKey.TYPE]: type }, scopeUri);
 		const usageCounts = new Map<string, number>();
 		for (const item of items) {
 			const count = usageCounts.get(item.name) || 0;
@@ -470,11 +500,11 @@ export class SymbolIndex {
 	 *
 	 * @returns A Map of account names to their closing dates
 	 */
-	public async getClosedAccounts(): Promise<Map<string, string>> {
+	public async getClosedAccounts(scopeUri?: string): Promise<Map<string, string>> {
 		this.logger.debug('[index] Getting closed accounts');
-		const closedAccounts = await this._symbolInfoStorage.findAsync({
+		const closedAccounts = await this.findAsync({
 			[SymbolKey.TYPE]: SymbolType.ACCOUNT_CLOSE,
-		}) as SymbolInfo[];
+		}, scopeUri);
 
 		// Create a map of account names to their closing dates
 		const accountClosingDates = new Map<string, string>();
@@ -489,7 +519,8 @@ export class SymbolIndex {
 		return accountClosingDates;
 	}
 
-	public async getAccountCompletionSnapshot(): Promise<AccountCompletionSnapshot> {
+	public async getAccountCompletionSnapshot(scopeUri?: string): Promise<AccountCompletionSnapshot> {
+		if (scopeUri) return this._buildAccountCompletionSnapshot(scopeUri);
 		if (!this._accountCompletionSnapshotDirty && this._accountCompletionSnapshot) {
 			return this._accountCompletionSnapshot;
 		}
@@ -507,18 +538,18 @@ export class SymbolIndex {
 		}
 	}
 
-	private async _buildAccountCompletionSnapshot(): Promise<AccountCompletionSnapshot> {
+	private async _buildAccountCompletionSnapshot(scopeUri?: string): Promise<AccountCompletionSnapshot> {
 		const buildVersion = this._accountCompletionSnapshotVersionSource;
 		const [accountDefinitions, accountUsageSymbols, closedAccountSymbols] = await Promise.all([
-			this._symbolInfoStorage.findAsync({
+			this.findAsync({
 				[SymbolKey.TYPE]: SymbolType.ACCOUNT_DEFINITION,
-			}) as Promise<SymbolInfo[]>,
-			this._symbolInfoStorage.findAsync({
+			}, scopeUri),
+			this.findAsync({
 				[SymbolKey.TYPE]: SymbolType.ACCOUNT_USAGE,
-			}) as Promise<SymbolInfo[]>,
-			this._symbolInfoStorage.findAsync({
+			}, scopeUri),
+			this.findAsync({
 				[SymbolKey.TYPE]: SymbolType.ACCOUNT_CLOSE,
-			}) as Promise<SymbolInfo[]>,
+			}, scopeUri),
 		]);
 
 		const usageCounts = new Map<string, number>();
@@ -561,12 +592,12 @@ export class SymbolIndex {
 		};
 	}
 
-	public async getPricesDeclarations(query: { name?: string } = {}): Promise<SymbolInfo[]> {
+	public async getPricesDeclarations(query: { name?: string } = {}, scopeUri?: string): Promise<SymbolInfo[]> {
 		this.logger.debug('[index] Getting prices declarations');
-		const pricesDeclarations = await this._symbolInfoStorage.findAsync({
+		const pricesDeclarations = await this.findAsync({
 			[SymbolKey.TYPE]: SymbolType.PRICE,
 			...query,
-		}) as SymbolInfo[];
+		}, scopeUri);
 		this.logger.debug(`[index] Found ${pricesDeclarations.length} prices declarations`);
 		return pricesDeclarations;
 	}
@@ -576,8 +607,8 @@ export class SymbolIndex {
 	 * @param name Option name
 	 * @returns Option value and metadata, or undefined if not found
 	 */
-	public getOption(name: SupportedOption) {
-		return this._optionsManager.getOption(name);
+	public getOption(name: SupportedOption, scopeUri?: string) {
+		return this._optionsManager.getOption(name, scopeUri);
 	}
 
 	/**

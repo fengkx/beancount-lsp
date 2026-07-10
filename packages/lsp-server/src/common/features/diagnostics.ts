@@ -133,7 +133,7 @@ export class DiagnosticsFeature implements Feature {
 		'name_income',
 		'name_expenses',
 	]);
-	private config: DiagnosticsConfig = {
+	private readonly defaultConfig: DiagnosticsConfig = {
 		tolerance: 0.005, // Default tolerance
 		warnOnIncompleteTransaction: true, // Default to show warnings for incomplete transactions
 	};
@@ -164,11 +164,6 @@ export class DiagnosticsFeature implements Feature {
 
 		// Listen for configuration changes
 		globalEventBus.on(GlobalEvents.ConfigurationChanged, async () => {
-			// Use first workspace folder as scopeUri for global configuration
-			const scopeUri = (await connection.workspace.getWorkspaceFolders())?.[0]?.uri;
-			const loaded = await this.loadDiagnosticsConfig(connection, scopeUri);
-			this.applyDiagnosticsConfig(loaded, 'Updated');
-
 			// Re-validate all open documents with new configuration
 			await this.validateAllDocuments(connection);
 		});
@@ -181,11 +176,6 @@ export class DiagnosticsFeature implements Feature {
 
 		// Fetch the configuration initially
 		try {
-			// Use first workspace folder as scopeUri for global configuration
-			const scopeUri = (await connection.workspace.getWorkspaceFolders())?.[0]?.uri;
-			const loaded = await this.loadDiagnosticsConfig(connection, scopeUri);
-			this.applyDiagnosticsConfig(loaded, 'Initial');
-
 			// Validate all open documents initially
 			await this.validateAllDocuments(connection);
 
@@ -266,7 +256,11 @@ export class DiagnosticsFeature implements Feature {
 				source: DIAGNOSTIC_SOURCE_BEANCHECK,
 			} as Diagnostic;
 
-			const uri = file.includes('://') ? file : `file://${file}`;
+			const uri = file.includes('://')
+				? file
+				: file.endsWith('<load>')
+				? `${URI.file(file.slice(0, -'<load>'.length)).toString()}<load>`
+				: URI.file(file).toString();
 
 			if (diagnosticsFromBeancount[uri] === undefined) {
 				diagnosticsFromBeancount[uri] = [];
@@ -293,7 +287,8 @@ export class DiagnosticsFeature implements Feature {
 
 		if (suppressedCount > 0 && !this.hasShownBrowserCustomRootParityWarning) {
 			this.hasShownBrowserCustomRootParityWarning = true;
-			const message = 'Browser Beancount WASM runtime may not fully support custom non-ASCII root account names. Diagnostics were partially suppressed; switch to Local (Python) runtime for authoritative checks.';
+			const message =
+				'Browser Beancount WASM runtime may not fully support custom non-ASCII root account names. Diagnostics were partially suppressed; switch to Local (Python) runtime for authoritative checks.';
 			this.logger.warn(`${message} suppressed=${suppressedCount}`);
 			void this.connection?.window.showWarningMessage(message);
 		}
@@ -322,7 +317,9 @@ export class DiagnosticsFeature implements Feature {
 		if (isNotGitUri(document.uri)) {
 			const tokenSource = this.createValidationToken(document.uri);
 			try {
-				const diagnostics = await this.provideDiagnostics(document, tokenSource.token);
+				const loaded = await this.loadDiagnosticsConfig(connection, document.uri);
+				const config = { ...this.defaultConfig, ...loaded };
+				const diagnostics = await this.provideDiagnostics(document, tokenSource.token, config);
 				if (tokenSource.token.isCancellationRequested) {
 					return;
 				}
@@ -367,7 +364,11 @@ export class DiagnosticsFeature implements Feature {
 		return err instanceof Error && err.name === 'CancellationError';
 	}
 
-	private async provideDiagnostics(document: TextDocument, token: CancellationToken): Promise<Diagnostic[]> {
+	private async provideDiagnostics(
+		document: TextDocument,
+		token: CancellationToken,
+		config: DiagnosticsConfig,
+	): Promise<Diagnostic[]> {
 		this.throwIfCancelled(token);
 		const tree = await this.trees.getParseTree(document);
 		if (!tree) {
@@ -397,7 +398,7 @@ export class DiagnosticsFeature implements Feature {
 			for (const transaction of chunk) {
 				this.throwIfCancelled(token);
 				// Check for pending transactions (marked with '!')
-				if (transaction.flag === '!' && this.config.warnOnIncompleteTransaction) {
+				if (transaction.flag === '!' && config.warnOnIncompleteTransaction) {
 					diagnostics.push({
 						severity: DiagnosticSeverity.Warning,
 						range: transaction.headerRange,
@@ -425,7 +426,7 @@ export class DiagnosticsFeature implements Feature {
 				}
 
 				// Check transaction balance
-				const tolerance = this.getTolerance(transaction.postings);
+				const tolerance = this.getTolerance(transaction.postings, document.uri);
 				const result = checkTransactionBalance(transaction.postings, tolerance);
 				if (!result.isBalanced) {
 					const imbalanceMessages: string[] = [];
@@ -483,7 +484,7 @@ export class DiagnosticsFeature implements Feature {
 		}
 
 		// Validate account root names
-		await this.validateAccountRoots(tree, diagnostics, token);
+		await this.validateAccountRoots(tree, diagnostics, token, document.uri);
 		this.throwIfCancelled(token);
 
 		const beancountDiagnostics = this.diagnosticsFromBeancount[document.uri];
@@ -546,16 +547,17 @@ export class DiagnosticsFeature implements Feature {
 			}
 			return String(code);
 		};
-		const getKey = (d: Diagnostic) => [
-			d.range.start.line,
-			d.range.start.character,
-			d.range.end.line,
-			d.range.end.character,
-			d.severity ?? '',
-			serializeCode(d.code),
-			d.message,
-			d.source ?? '',
-		].join(':');
+		const getKey = (d: Diagnostic) =>
+			[
+				d.range.start.line,
+				d.range.start.character,
+				d.range.end.line,
+				d.range.end.character,
+				d.severity ?? '',
+				serializeCode(d.code),
+				d.message,
+				d.source ?? '',
+			].join(':');
 
 		[...preferred, ...if_missing].forEach(d => {
 			const key = getKey(d);
@@ -567,7 +569,10 @@ export class DiagnosticsFeature implements Feature {
 		return Array.from(seen.values());
 	}
 
-	private async loadDiagnosticsConfig(connection: Connection, scopeUri?: string): Promise<Partial<DiagnosticsConfig>> {
+	private async loadDiagnosticsConfig(
+		connection: Connection,
+		scopeUri?: string,
+	): Promise<Partial<DiagnosticsConfig>> {
 		const result: Partial<DiagnosticsConfig> = {};
 		const direct = await connection.workspace.getConfiguration({
 			scopeUri,
@@ -589,25 +594,14 @@ export class DiagnosticsFeature implements Feature {
 		return result;
 	}
 
-	private applyDiagnosticsConfig(config: Partial<DiagnosticsConfig>, logPrefix: 'Initial' | 'Updated'): void {
-		if (config.tolerance !== undefined) {
-			this.config.tolerance = config.tolerance;
-			this.logger.info(`${logPrefix} tolerance set to ${this.config.tolerance}`);
-		}
-		if (config.warnOnIncompleteTransaction !== undefined) {
-			this.config.warnOnIncompleteTransaction = config.warnOnIncompleteTransaction;
-			this.logger.info(`${logPrefix} warnOnIncompleteTransaction set to ${this.config.warnOnIncompleteTransaction}`);
-		}
-	}
-
-	private getTolerance(postings: Posting[]) {
-		if (this.optionsManager.getOption('infer_tolerance_from_cost').asBoolean()) {
+	private getTolerance(postings: Posting[], scopeUri: string) {
+		if (this.optionsManager.getOption('infer_tolerance_from_cost', scopeUri).asBoolean()) {
 			/**
 			 * Inferring Tolerances from Cost
 	  There is also a feature that expands the maximum tolerance inferred on transactions to include values on cost currencies inferred by postings held at-cost or converted at price. Those postings can imply a tolerance value by multiplying the smallest digit of the unit by the cost or price value and taking half of that value.
 	  For example, if a posting has an amount of "2.345 RGAGX {45.00 USD}" attached to it, it implies a tolerance of 0.001 x 45.00 / 2 = 0.045 USD and the sum of all such possible rounding errors is calculate for all postings held at cost or converted from a price, and the resulting tolerance is added to the list of candidates used to figure out the tolerance we should use for the given commodity (we use the maximum value of all the inferred tolerances).
 			 */
-			const inferredToleranceMultiplier = this.optionsManager.getOption('inferred_tolerance_multiplier')
+			const inferredToleranceMultiplier = this.optionsManager.getOption('inferred_tolerance_multiplier', scopeUri)
 				.asDecimal();
 			const allInferredTolerances = postings.filter(p => {
 				return p.amount && (p.cost || p.price);
@@ -723,32 +717,33 @@ export class DiagnosticsFeature implements Feature {
 		tree: import('web-tree-sitter').Tree,
 		diagnostics: Diagnostic[],
 		token: CancellationToken,
+		scopeUri: string,
 	): Promise<void> {
 		this.throwIfCancelled(token);
-		const validRoots = this.optionsManager.getValidRootAccounts();
-		
+		const validRoots = this.optionsManager.getValidRootAccounts(scopeUri);
+
 		// Query all account nodes
 		const accountQuery = TreeQuery.getQueryByTokenName('account');
 		const accountCaptures = await accountQuery.captures(tree);
 		this.throwIfCancelled(token);
-		
+
 		// Track seen accounts to avoid duplicate diagnostics
 		const seenAccounts = new Set<string>();
-		
+
 		for (const capture of accountCaptures) {
 			this.throwIfCancelled(token);
 			const accountNode = capture.node;
 			const accountName = accountNode.text;
-			
+
 			// Skip if we've already validated this account
 			if (seenAccounts.has(accountName)) {
 				continue;
 			}
 			seenAccounts.add(accountName);
-			
+
 			// Extract root account name (part before first colon)
 			const root = accountName.split(':')[0];
-			
+
 			// Check if root is valid (root should always exist, but check for safety)
 			if (root && !validRoots.has(root)) {
 				const validRootsList = Array.from(validRoots).sort().join(', ');

@@ -5,7 +5,6 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from 'web-tree-sitter';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
-import { globalEventBus, GlobalEvents } from '../utils/event-bus';
 import { Feature } from './types';
 
 // Constants for formatting
@@ -16,8 +15,6 @@ const CURRENCY_MIN_SPACING = 3; // Minimum spacing between account and currency 
 
 export class FormatterFeature implements Feature {
 	// Formatter configuration
-	private formatterEnabled = true;
-	private alignCurrency = false;
 	private readonly logger = new Logger('Formatter');
 
 	constructor(
@@ -28,14 +25,14 @@ export class FormatterFeature implements Feature {
 	register(connection: Connection): void {
 		// Register for document formatting if enabled
 		connection.onDocumentFormatting(async (params: DocumentFormattingParams) => {
-			// Check if formatter is enabled
-			if (!this.formatterEnabled) {
+			const config = await this.getFormatterConfig(connection, params.textDocument.uri);
+			if (!config.enabled) {
 				return [];
 			}
 
 			try {
 				const document = await this.documents.retrieve(params.textDocument.uri);
-				const edits = await this.formatBeancountDocument(document);
+				const edits = await this.formatBeancountDocument(document, config.alignCurrency);
 				// Workaround, reusing trees after formatting will get a wrong tree
 				this.trees.invalidateCache(params.textDocument.uri);
 				setTimeout(() => {
@@ -47,48 +44,34 @@ export class FormatterFeature implements Feature {
 				return [];
 			}
 		});
-
-		globalEventBus.on(GlobalEvents.ConfigurationChanged, () => {
-			this.updateFormatterConfig(connection);
-		});
-		this.updateFormatterConfig(connection);
 	}
 
 	/**
 	 * Update formatter configuration from server settings
 	 */
-	private async updateFormatterConfig(connection: Connection): Promise<void> {
+	private async getFormatterConfig(
+		connection: Connection,
+		scopeUri: string,
+	): Promise<{ enabled: boolean; alignCurrency: boolean }> {
 		try {
-			// Use first workspace folder as scopeUri for global configuration
-			const scopeUri = (await connection.workspace.getWorkspaceFolders())?.[0]?.uri;
-			const config = await connection.workspace.getConfiguration({ 
-				scopeUri, 
-				section: 'beanLsp' 
+			const config = await connection.workspace.getConfiguration({
+				scopeUri,
+				section: 'beanLsp',
 			});
-			if (config?.formatter !== undefined) {
-				const formatterEnabled = config.formatter?.enabled !== false; // Default to true if not specified
-				this.setFormatterEnabled(formatterEnabled);
-				this.alignCurrency = config.formatter?.alignCurrency === true;
-				this.logger.info(`Formatter ${formatterEnabled ? 'enabled' : 'disabled'}`);
-				this.logger.info(`Formatter alignCurrency ${this.alignCurrency ? 'enabled' : 'disabled'}`);
-			}
+			return {
+				enabled: config?.formatter?.enabled !== false,
+				alignCurrency: config?.formatter?.alignCurrency === true,
+			};
 		} catch (error) {
 			this.logger.error('Error updating formatter configuration:', error);
+			return { enabled: true, alignCurrency: false };
 		}
-	}
-
-	/**
-	 * Enable or disable the formatter
-	 * @param enabled Whether the formatter should be enabled
-	 */
-	private setFormatterEnabled(enabled: boolean): void {
-		this.formatterEnabled = enabled;
 	}
 
 	/**
 	 * Format a Beancount document
 	 */
-	async formatBeancountDocument(document: TextDocument): Promise<TextEdit[]> {
+	async formatBeancountDocument(document: TextDocument, alignCurrency = false): Promise<TextEdit[]> {
 		const edits: TextEdit[] = [];
 
 		// Retrieve the parse tree using Trees
@@ -99,16 +82,16 @@ export class FormatterFeature implements Feature {
 		}
 
 		// Format the document by processing each transaction separately
-		this.formatTransactions(document, tree, edits);
+		this.formatTransactions(document, tree, edits, alignCurrency);
 
 		// Align balance directives
-		this.formatBalances(document, tree, edits);
+		this.formatBalances(document, tree, edits, alignCurrency);
 
 		// Align price directives as well (currency or decimal point depending on setting)
-		this.formatPrices(document, tree, edits);
+		this.formatPrices(document, tree, edits, alignCurrency);
 
 		// Align custom directives that contain numbers/amounts
-		this.formatCustoms(document, tree, edits);
+		this.formatCustoms(document, tree, edits, alignCurrency);
 
 		// Format other directives (open, close, etc.)
 		this.formatDirectives(document, tree, edits);
@@ -119,7 +102,12 @@ export class FormatterFeature implements Feature {
 	/**
 	 * Format transactions in the document
 	 */
-	private formatTransactions(document: TextDocument, tree: Parser.Tree, edits: TextEdit[]): void {
+	private formatTransactions(
+		document: TextDocument,
+		tree: Parser.Tree,
+		edits: TextEdit[],
+		alignCurrency: boolean,
+	): void {
 		// Global alignment across all postings in document
 		const postings = tree.rootNode.descendantsOfType('posting');
 		if (postings.length === 0) return;
@@ -127,7 +115,7 @@ export class FormatterFeature implements Feature {
 		const positions = this.calculateAlignmentPositions(document, postings);
 
 		for (const posting of postings) {
-			this.formatPosting(document, posting, positions, edits);
+			this.formatPosting(document, posting, positions, edits, alignCurrency);
 		}
 	}
 
@@ -172,7 +160,7 @@ export class FormatterFeature implements Feature {
 	/**
 	 * Format price directives when alignCurrency is enabled.
 	 */
-	private formatPrices(document: TextDocument, tree: Parser.Tree, edits: TextEdit[]): void {
+	private formatPrices(document: TextDocument, tree: Parser.Tree, edits: TextEdit[], alignCurrency: boolean): void {
 		const prices = tree.rootNode.descendantsOfType('price');
 		if (prices.length === 0) return;
 
@@ -228,7 +216,7 @@ export class FormatterFeature implements Feature {
 			const numberText = document.getText({ start: amountStart, end: numberEndPos });
 			const numberWidth = this.calculateStringWidth(numberText.trim());
 
-			if (this.alignCurrency) {
+			if (alignCurrency) {
 				let neededSpaces = pos.currencyColumn - (prefixWidth + numberWidth + 1);
 				if (neededSpaces < 1) neededSpaces = 1;
 				const spaceRange = { start: baseCurrencyEnd, end: amountStart };
@@ -247,7 +235,12 @@ export class FormatterFeature implements Feature {
 	/**
 	 * Format custom directives: align embedded amount in custom_value_list if present.
 	 */
-	private formatCustoms(document: TextDocument, tree: Parser.Tree, edits: TextEdit[]): void {
+	private formatCustoms(
+		document: TextDocument,
+		tree: Parser.Tree,
+		edits: TextEdit[],
+		alignCurrency: boolean,
+	): void {
 		const customs = tree.rootNode.descendantsOfType('custom');
 		if (customs.length === 0) return;
 
@@ -309,7 +302,7 @@ export class FormatterFeature implements Feature {
 			else numberEndPos = amountEnd;
 			const numberText = document.getText({ start: amountStart, end: numberEndPos });
 			const numberWidth = this.calculateStringWidth(numberText.trim());
-			if (this.alignCurrency) {
+			if (alignCurrency) {
 				let neededSpaces = pos.currencyColumn - (prefixWidth + numberWidth + 1);
 				if (neededSpaces < 1) neededSpaces = 1;
 				edits.push(TextEdit.insert(amountStart, ' '.repeat(neededSpaces)));
@@ -325,7 +318,12 @@ export class FormatterFeature implements Feature {
 	/**
 	 * Format balance directives: align amount decimal points, currency and comments
 	 */
-	private formatBalances(document: TextDocument, tree: Parser.Tree, edits: TextEdit[]): void {
+	private formatBalances(
+		document: TextDocument,
+		tree: Parser.Tree,
+		edits: TextEdit[],
+		alignCurrency: boolean,
+	): void {
 		const balances = tree.rootNode.descendantsOfType('balance');
 		if (balances.length === 0) return;
 
@@ -374,7 +372,7 @@ export class FormatterFeature implements Feature {
 
 			// Space between account and amount
 			const spaceRange = { start: accountEndPos, end: amountStartPos };
-			if (!this.alignCurrency) {
+			if (!alignCurrency) {
 				const spaceNeeded = positions.decimalPointColumn - accountVisualEndCol - integerWidth;
 				const whitespace = ' '.repeat(Math.max(1, spaceNeeded));
 				edits.push(TextEdit.replace(spaceRange, whitespace));
@@ -621,6 +619,7 @@ export class FormatterFeature implements Feature {
 			decimalPointColumn: number;
 		},
 		edits: TextEdit[],
+		alignCurrency: boolean,
 	): void {
 		// Get child nodes that need alignment
 		const account = posting.childForFieldName('account');
@@ -677,7 +676,7 @@ export class FormatterFeature implements Feature {
 				end: amountStartPos,
 			};
 
-			if (!this.alignCurrency) {
+			if (!alignCurrency) {
 				// Implement decimal point alignment
 				const parts = amountText.split('.');
 				let integerPart = parts[0]?.trim() || '';

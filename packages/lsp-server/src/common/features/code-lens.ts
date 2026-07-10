@@ -13,7 +13,7 @@ import { Feature, RealBeancountManager } from './types';
 const logger = new Logger('CodeLens');
 
 export class CodeLensFeature implements Feature {
-	private codeLensConfig: { enable: boolean; accountBalance: boolean; pad: boolean } | null = null;
+	private codeLensConfigs = new Map<string, { enable: boolean; accountBalance: boolean; pad: boolean }>();
 	private connection: lsp.Connection | null = null;
 	private refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -28,7 +28,7 @@ export class CodeLensFeature implements Feature {
 		this.connection = connection;
 		connection.onCodeLens(async (params) => {
 			try {
-				if (!this.beanMgr?.isEnabled()) {
+				if (!this.beanMgr?.isEnabled(params.textDocument.uri)) {
 					logger.info('CodeLens feature disabled: beancount manager is disabled');
 					return [];
 				}
@@ -49,7 +49,7 @@ export class CodeLensFeature implements Feature {
 		});
 
 		globalEventBus.on(GlobalEvents.ConfigurationChanged, () => {
-			this.codeLensConfig = null; // Reset cache to force re-read on next request
+			this.codeLensConfigs.clear();
 		});
 
 		const unsubscribeLegacy = globalEventBus.on(GlobalEvents.BeancountUpdate, () => {
@@ -72,9 +72,6 @@ export class CodeLensFeature implements Feature {
 			return;
 		}
 		if (!this.refreshSupport) {
-			return;
-		}
-		if (this.codeLensConfig && !this.codeLensConfig.enable) {
 			return;
 		}
 		if (this.refreshTimer) {
@@ -109,27 +106,29 @@ export class CodeLensFeature implements Feature {
 		}
 
 		// Check if code lens is enabled
-		if (this.codeLensConfig === null) {
+		let codeLensConfig = this.codeLensConfigs.get(document.uri);
+		if (!codeLensConfig) {
 			if (this.connection) {
-				const config = await this.connection.workspace.getConfiguration({ 
-					scopeUri: document.uri, 
-					section: 'beanLsp.codeLens' 
+				const config = await this.connection.workspace.getConfiguration({
+					scopeUri: document.uri,
+					section: 'beanLsp.codeLens',
 				});
-				this.codeLensConfig = {
+				codeLensConfig = {
 					enable: config?.enable ?? true,
 					accountBalance: config?.accountBalance?.enable ?? true,
 					pad: config?.pad?.enable ?? true,
 				};
 			} else {
-				this.codeLensConfig = {
+				codeLensConfig = {
 					enable: true,
 					accountBalance: true,
 					pad: true,
 				};
 			}
+			this.codeLensConfigs.set(document.uri, codeLensConfig);
 		}
 
-		if (!this.codeLensConfig.enable) {
+		if (!codeLensConfig.enable) {
 			return [];
 		}
 
@@ -139,10 +138,10 @@ export class CodeLensFeature implements Feature {
 		}
 
 		const codeLenses: lsp.CodeLens[] = [];
-		if (this.codeLensConfig.accountBalance) {
+		if (codeLensConfig.accountBalance) {
 			codeLenses.push(...await this.getAccountDefinitionCodeLenses(tree, document));
 		}
-		if (this.codeLensConfig.pad) {
+		if (codeLensConfig.pad) {
 			codeLenses.push(...await this.getPadDirectiveCodeLenses(tree, document));
 		}
 		return codeLenses;
@@ -213,7 +212,7 @@ export class CodeLensFeature implements Feature {
 	}
 
 	private async resolveCodeLens(codeLens: lsp.CodeLens): Promise<lsp.CodeLens> {
-		if (!this.beanMgr?.isEnabled() || !codeLens.data) {
+		if (!codeLens.data) {
 			return codeLens;
 		}
 
@@ -224,10 +223,11 @@ export class CodeLensFeature implements Feature {
 			filePath?: string;
 			line?: number;
 		};
+		if (!data.uri || !this.beanMgr?.isEnabled(data.uri)) return codeLens;
 
 		if (data.kind === 'pad' && data.uri && typeof data.line === 'number') {
 			const filePath = data.filePath ?? URI.parse(data.uri).fsPath;
-			const amounts = this.beanMgr.getPadAmounts(filePath, data.line);
+			const amounts = this.beanMgr.getPadAmountsSnapshot(filePath, data.line, data.uri).value;
 
 			if (amounts === null) {
 				// Data not loaded yet, show loading indicator
@@ -262,7 +262,7 @@ export class CodeLensFeature implements Feature {
 
 		try {
 			// Get balance including subaccounts for a more complete view
-			const balances = this.beanMgr.getBalance(accountName, true);
+			const balances = this.beanMgr.getBalanceSnapshot(accountName, true, data.uri).value;
 
 			if (balances.length === 0) {
 				codeLens.command = {
@@ -277,7 +277,7 @@ export class CodeLensFeature implements Feature {
 			let balanceText = `💰 ${shortAccountName}: ${this.formatAmounts(balances)}`;
 
 			// Get subaccount count for additional info
-			const subaccountBalances = this.beanMgr.getSubaccountBalances(accountName);
+			const subaccountBalances = this.beanMgr.getSubaccountBalances(accountName, data.uri);
 			const subaccountCount = subaccountBalances.size - 1; // Exclude the account itself
 
 			if (subaccountCount > 0) {

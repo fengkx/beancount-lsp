@@ -1,15 +1,7 @@
 import { Logger } from '@bean-lsp/shared';
 import type { BeancountRuntimeStatusParams } from '@bean-lsp/shared';
-import type {
-	Connection,
-	DidChangeWatchedFilesParams,
-	DidSaveTextDocumentParams,
-} from 'vscode-languageserver';
-import {
-	CancellationToken,
-	CancellationTokenSource,
-	FileChangeType,
-} from 'vscode-languageserver';
+import type { Connection, DidChangeWatchedFilesParams, DidSaveTextDocumentParams } from 'vscode-languageserver';
+import { CancellationToken, CancellationTokenSource, FileChangeType } from 'vscode-languageserver';
 import { URI, Utils as UriUtils } from 'vscode-uri';
 import { DocumentStore } from '../common/document-store';
 import {
@@ -19,8 +11,9 @@ import {
 	BeancountManagerFactory,
 	PreciseIncompletePostingHintParams,
 	RealBeancountManager,
+	RuntimeEvaluationState,
 } from '../common/features/types';
-import { globalEventBus, GlobalEvents } from '../common/utils/event-bus';
+import { globalEventBus, GlobalEvents, LedgerContextEvent } from '../common/utils/event-bus';
 import type { BeancheckMode } from './beancount-worker-client';
 import { BeancountWorkerClient } from './beancount-worker-client';
 
@@ -58,6 +51,8 @@ type BeancheckDerivedResult = Pick<BeancheckOutput, 'pads' | 'general'>;
 
 class BeancountBrowserManager implements RealBeancountManager {
 	private mainFile: string | null = null;
+	private workspaceUri: string | null = null;
+	private runtimeContextDirectory = 'standalone';
 	private diagnosticsResult: BeancheckDiagnosticsResult | null = null;
 	private derivedResult: BeancheckDerivedResult | null = null;
 	/** Stale derived data kept for SWR while revalidating full beancheck. */
@@ -94,29 +89,38 @@ class BeancountBrowserManager implements RealBeancountManager {
 	private pendingSyncRemovals = new Set<string>();
 	private syncFlushTimer: ReturnType<typeof setTimeout> | null = null;
 	private syncFlushPromise: Promise<void> | null = null;
+	private readonly subscriptions: Array<{ dispose(): void }> = [];
+	private readonly unsubscribeCallbacks: Array<() => void> = [];
+	private runtimeRecoveryPromise: Promise<void> | null = null;
+	private readonly recoveryAttempts = new Set<string>();
 
 	constructor(
 		private readonly connection: Connection,
 		private readonly documents: DocumentStore,
 		private readonly workerUrl: string,
 	) {
-		connection.onDidSaveTextDocument(this.onDocumentSaved.bind(this));
-		globalEventBus.on(GlobalEvents.ConfigurationChanged, () => {
+		this.subscriptions.push(connection.onDidSaveTextDocument(this.onDocumentSaved.bind(this)));
+		this.unsubscribeCallbacks.push(globalEventBus.on(GlobalEvents.ConfigurationChanged, () => {
 			if (this.configDebounceTimer) {
-				
 				clearTimeout(this.configDebounceTimer);
 			}
 			this.configDebounceTimer = setTimeout(() => {
 				this.configDebounceTimer = undefined;
 				void this.refreshConfiguration();
 			}, BeancountBrowserManager.CONFIG_DEBOUNCE_MS);
-		});
-		connection.onDidChangeWatchedFiles(event => {
+		}));
+		this.subscriptions.push(connection.onDidChangeWatchedFiles(event => {
 			void this.handleWatchedFiles(event);
-		});
-		documents.onDidChangeContent2(event => {
+		}));
+		this.subscriptions.push(documents.onDidChangeContent2(event => {
 			void this.handleDocumentChange(event.document.uri, event.document.getText());
-		});
+		}));
+		this.subscriptions.push(documents.onDidClose(event => {
+			if (!this.workspaceUri || !event.document.uri.startsWith(this.workspaceUri)) return;
+			this.documents.removeFile(event.document.uri);
+			void this.documents.retrieve(event.document.uri)
+				.then(document => this.handleDocumentChange(event.document.uri, document.getText()));
+		}));
 	}
 
 	isEnabled(): boolean {
@@ -124,18 +128,41 @@ class BeancountBrowserManager implements RealBeancountManager {
 	}
 
 	canResolvePreciseIncompletePostingHint(): boolean {
-		return this.enabledMode !== 'off' && this.runtimeReady && !!this.workerClient && !!this.mainFile;
+		return this.enabledMode !== 'off'
+			&& this.runtimeReady
+			&& !!this.workerClient
+			&& !!this.mainFile
+			&& this.appliedFullGeneration === this.inputGeneration
+			&& this.derivedResult !== null;
 	}
 
 	getRuntimeStatus(): BeancountRuntimeStatusParams {
 		if (this.enabledMode === 'off') {
-			return { mode: 'off' };
+			return { mode: 'off', scopeUri: this.workspaceUri ?? undefined };
 		}
-		return { mode: 'wasm', version: this.enabledMode };
+		return { mode: 'wasm', version: this.enabledMode, scopeUri: this.workspaceUri ?? undefined };
+	}
+
+	getEvaluationState(): RuntimeEvaluationState {
+		return {
+			sourceRevision: this.inputGeneration,
+			diagnosticsRevision: this.diagnosticsResult ? this.appliedDiagnosticsGeneration : null,
+			derivedRevision: this.effectiveDerivedResult ? this.appliedFullGeneration : null,
+			inputMode: 'live-buffers',
+		};
+	}
+
+	requestEvaluation(): void {
+		void this.scheduleDiagnosticsRevalidate(this.inputGeneration);
+		void this.scheduleFullRevalidate(this.inputGeneration);
 	}
 
 	async setMainFile(mainFileUri: string): Promise<void> {
 		this.mainFile = mainFileUri;
+		this.workspaceUri = (await this.documents.getWorkspaceFolderFor(mainFileUri))?.uri ?? null;
+		this.runtimeContextDirectory = `ledger-${
+			this.hashContext(`${this.workspaceUri ?? 'standalone'}::${mainFileUri}`)
+		}`;
 		this.markBeancheckInputChanged('main-file-updated');
 		await this.refreshConfiguration();
 		await this.refreshFileTree();
@@ -146,9 +173,9 @@ class BeancountBrowserManager implements RealBeancountManager {
 	private async refreshConfiguration(): Promise<void> {
 		// Use mainFile as scopeUri if available, otherwise undefined
 		const scopeUri = this.mainFile ?? undefined;
-		const config = await this.connection.workspace.getConfiguration({ 
-			scopeUri, 
-			section: 'beanLsp' 
+		const config = await this.connection.workspace.getConfiguration({
+			scopeUri,
+			section: 'beanLsp',
 		});
 		const browserWasm = config?.browserWasmBeancount ?? {};
 		const requested = (browserWasm.enabled ?? 'off') as BrowserBeancountMode;
@@ -195,8 +222,8 @@ class BeancountBrowserManager implements RealBeancountManager {
 			this.queuedFullGeneration = 0;
 			this.appliedFullGeneration = 0;
 			this.hasPendingFullRun = false;
-			globalEventBus.emit(GlobalEvents.BeancountDiagnosticsUpdated);
-			globalEventBus.emit(GlobalEvents.BeancountDerivedDataUpdated);
+			this.emitLedgerEvent(GlobalEvents.BeancountDiagnosticsUpdated);
+			this.emitLedgerEvent(GlobalEvents.BeancountDerivedDataUpdated);
 			return;
 		}
 		// Runtime enabled is not enough; precise hints are safe only after init and file sync finish.
@@ -206,7 +233,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 		});
 		await this.refreshFileTree();
 		this.runtimeReady = true;
-		globalEventBus.emit(GlobalEvents.BeancountRuntimeReady);
+		this.emitLedgerEvent(GlobalEvents.BeancountRuntimeReady);
 		this.markBeancheckInputChanged('runtime-reconfigured');
 		await this.scheduleDiagnosticsRevalidate(this.inputGeneration, { immediate: true });
 		await this.scheduleFullRevalidate(this.inputGeneration, { immediate: true });
@@ -243,7 +270,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 
 		if (this.diagnosticsResult && this.appliedDiagnosticsGeneration < this.inputGeneration) {
 			this.diagnosticsResult = null;
-			globalEventBus.emit(GlobalEvents.BeancountDiagnosticsUpdated);
+			this.emitLedgerEvent(GlobalEvents.BeancountDiagnosticsUpdated);
 		}
 
 		// Keep stale derived data for SWR while revalidating the heavier full beancheck.
@@ -288,6 +315,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 		if (!this.isBeanFileUri(uri)) {
 			return;
 		}
+		if (this.workspaceUri && !this.isUriWithin(uri, this.workspaceUri)) return;
 		const changed = this.queueFileUpdate(uri, content);
 		if (changed) {
 			this.markBeancheckInputChanged('document-sync');
@@ -317,6 +345,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 			if (!this.isBeanFileUri(change.uri)) {
 				continue;
 			}
+			if (this.workspaceUri && !this.isUriWithin(change.uri, this.workspaceUri)) continue;
 			const name = this.normalizeFileName(change.uri);
 			if (change.type === FileChangeType.Deleted) {
 				removed.push(name);
@@ -342,7 +371,9 @@ class BeancountBrowserManager implements RealBeancountManager {
 	}
 
 	private async collectBeanFiles(): Promise<FileUpdate[]> {
-		const files = this.documents.beanFiles;
+		const files = this.workspaceUri
+			? this.documents.getBeanFilesFor(this.workspaceUri)
+			: this.documents.beanFiles;
 		const updates: FileUpdate[] = [];
 		for (const uri of files) {
 			const doc = await this.documents.retrieve(uri);
@@ -436,15 +467,28 @@ class BeancountBrowserManager implements RealBeancountManager {
 
 	private normalizeFileName(uri: string): string {
 		const parsed = URI.parse(uri);
-		const relativeBase = this.mainFile ? URI.parse(this.mainFile) : null;
+		const relativeBase = this.workspaceUri ? URI.parse(this.workspaceUri) : null;
 		if (relativeBase) {
-			const rootUri = UriUtils.dirname(relativeBase);
-			const relative = this.relativePath(rootUri, parsed);
+			const relative = this.relativePath(relativeBase, parsed);
 			if (relative) {
-				return relative;
+				return `${this.runtimeContextDirectory}/${relative}`;
 			}
 		}
-		return parsed.path.replace(/^\//, '');
+		return `${this.runtimeContextDirectory}/${parsed.path.replace(/^\//, '')}`;
+	}
+
+	private hashContext(value: string): string {
+		let hash = 2166136261;
+		for (let index = 0; index < value.length; index++) {
+			hash ^= value.charCodeAt(index);
+			hash = Math.imul(hash, 16777619);
+		}
+		return (hash >>> 0).toString(36);
+	}
+
+	private isUriWithin(candidate: string, parent: string): boolean {
+		const normalizedParent = parent.endsWith('/') ? parent : `${parent}/`;
+		return candidate === parent || candidate.startsWith(normalizedParent);
 	}
 
 	private relativePath(from: URI, to: URI): string | null {
@@ -539,6 +583,8 @@ class BeancountBrowserManager implements RealBeancountManager {
 			this.activeDiagnosticsRunGeneration = targetGeneration;
 			try {
 				await this.revalidateDiagnostics(targetGeneration, tokenSource.token);
+			} catch (error) {
+				await this.recoverRuntimeAfterFailure(error, targetGeneration, 'diagnostics');
 			} finally {
 				if (this.activeDiagnosticsTokenSource === tokenSource) {
 					this.activeDiagnosticsTokenSource = null;
@@ -583,7 +629,8 @@ class BeancountBrowserManager implements RealBeancountManager {
 			flags: rewritten.flags,
 		};
 		this.appliedDiagnosticsGeneration = targetGeneration;
-		globalEventBus.emit(GlobalEvents.BeancountDiagnosticsUpdated);
+		this.recoveryAttempts.delete(`${targetGeneration}:diagnostics`);
+		this.emitLedgerEvent(GlobalEvents.BeancountDiagnosticsUpdated);
 	}
 
 	private async scheduleFullRevalidate(
@@ -632,6 +679,8 @@ class BeancountBrowserManager implements RealBeancountManager {
 			this.activeFullRunGeneration = targetGeneration;
 			try {
 				await this.revalidateFull(targetGeneration, tokenSource.token);
+			} catch (error) {
+				await this.recoverRuntimeAfterFailure(error, targetGeneration, 'full');
 			} finally {
 				if (this.activeFullTokenSource === tokenSource) {
 					this.activeFullTokenSource = null;
@@ -676,7 +725,53 @@ class BeancountBrowserManager implements RealBeancountManager {
 		this.staleDerivedResult = null;
 		this.padFileCache.clear();
 		this.appliedFullGeneration = targetGeneration;
-		globalEventBus.emit(GlobalEvents.BeancountDerivedDataUpdated);
+		this.recoveryAttempts.delete(`${targetGeneration}:full`);
+		this.emitLedgerEvent(GlobalEvents.BeancountDerivedDataUpdated);
+	}
+
+	private async recoverRuntimeAfterFailure(
+		error: unknown,
+		generation: number,
+		mode: BeancheckMode,
+	): Promise<void> {
+		if (generation !== this.inputGeneration || this.enabledMode === 'off') return;
+		const attemptKey = `${generation}:${mode}`;
+		this.logger.error(
+			`browser runtime failed context=${this.workspaceUri ?? 'standalone'} revision=${generation} mode=${mode}: ${
+				String(error)
+			}`,
+		);
+		this.diagnosticsResult = null;
+		this.emitLedgerEvent(GlobalEvents.BeancountDiagnosticsUpdated);
+		if (this.recoveryAttempts.has(attemptKey)) return;
+		this.recoveryAttempts.add(attemptKey);
+		if (!this.runtimeRecoveryPromise) {
+			this.runtimeRecoveryPromise = (async () => {
+				if (this.enabledMode === 'off') return;
+				this.runtimeReady = false;
+				this.workerClient?.dispose();
+				this.workerClient = null;
+				await this.ensureWorker();
+				const workerClient = this.workerClient as BeancountWorkerClient | null;
+				if (!workerClient) throw new Error('browser runtime worker could not be recreated');
+				await workerClient.init(this.enabledMode, {
+					extraPythonPackages: this.extraPythonPackages,
+				});
+				await this.refreshFileTree();
+				this.runtimeReady = true;
+				this.emitLedgerEvent(GlobalEvents.BeancountRuntimeReady);
+			})().finally(() => {
+				this.runtimeRecoveryPromise = null;
+			});
+		}
+		try {
+			await this.runtimeRecoveryPromise;
+			if (generation !== this.inputGeneration) return;
+			if (mode === 'diagnostics') this.hasPendingDiagnosticsRun = true;
+			else this.hasPendingFullRun = true;
+		} catch (recoveryError) {
+			this.logger.error(`browser runtime recovery failed: ${String(recoveryError)}`);
+		}
 	}
 
 	private onDocumentSaved(params: DidSaveTextDocumentParams): void {
@@ -701,6 +796,15 @@ class BeancountBrowserManager implements RealBeancountManager {
 		}
 		const balances = includeSubaccountBalance ? accountDetails.balance_incl_subaccounts : accountDetails.balance;
 		return balances.map(balanceStr => this.parseAmountString(balanceStr));
+	}
+
+	getBalanceSnapshot(account: string, includeSubaccountBalance: boolean) {
+		return {
+			value: this.getBalance(account, includeSubaccountBalance),
+			sourceRevision: this.appliedFullGeneration,
+			freshness: this.appliedFullGeneration === this.inputGeneration ? 'fresh' as const : 'stale' as const,
+			inputMode: 'live-buffers' as const,
+		};
 	}
 
 	getSubaccountBalances(account: string): Map<string, Amount[]> {
@@ -741,6 +845,15 @@ class BeancountBrowserManager implements RealBeancountManager {
 		return filePads[lineKey] ?? [];
 	}
 
+	getPadAmountsSnapshot(filePath: string, line: number) {
+		return {
+			value: this.getPadAmounts(filePath, line),
+			sourceRevision: this.appliedFullGeneration,
+			freshness: this.appliedFullGeneration === this.inputGeneration ? 'fresh' as const : 'stale' as const,
+			inputMode: 'live-buffers' as const,
+		};
+	}
+
 	private parseAmountString(balanceStr: string): Amount {
 		const [number, currency] = balanceStr.trim().split(/\s+/) as [string, string];
 		return { number, currency };
@@ -758,10 +871,12 @@ class BeancountBrowserManager implements RealBeancountManager {
 		if (!this.mainFile) {
 			return result;
 		}
-		const rootUri = UriUtils.dirname(URI.parse(this.mainFile));
+		const rootUri = this.workspaceUri ? URI.parse(this.workspaceUri) : UriUtils.dirname(URI.parse(this.mainFile));
 		const rewrite = (filePath: string): string => {
-			if (filePath.startsWith('/work/')) {
-				const relative = filePath.replace(/^\/work\//, '');
+			if (filePath.endsWith('<load>')) return this.mainFile!;
+			const contextRoot = `/work/${this.runtimeContextDirectory}/`;
+			if (filePath.startsWith(contextRoot)) {
+				const relative = filePath.slice(contextRoot.length);
 				return UriUtils.joinPath(rootUri, relative).toString();
 			}
 			return filePath;
@@ -773,16 +888,16 @@ class BeancountBrowserManager implements RealBeancountManager {
 			flags: result.flags.map(flag => ({ ...flag, file: rewrite(flag.file) })),
 			pads: result.pads
 				? Object.fromEntries(
-						Object.entries(result.pads).flatMap(([key, value]) => {
-							const rewrittenUri = rewrite(key);
-							const rewrittenPath = this.normalizeDiagnosticPath(rewrittenUri);
-							return [
-								[key, value],
-								[rewrittenUri, value],
-								[rewrittenPath, value],
-							];
-						}),
-					)
+					Object.entries(result.pads).flatMap(([key, value]) => {
+						const rewrittenUri = rewrite(key);
+						const rewrittenPath = this.normalizeDiagnosticPath(rewrittenUri);
+						return [
+							[key, value],
+							[rewrittenUri, value],
+							[rewrittenPath, value],
+						];
+					}),
+				)
 				: result.pads,
 		};
 	}
@@ -831,7 +946,17 @@ class BeancountBrowserManager implements RealBeancountManager {
 		throw new Error('Bean-query is not available in the browser runtime.');
 	}
 
+	private emitLedgerEvent(event: GlobalEvents): void {
+		globalEventBus.emit<LedgerContextEvent>(event, {
+			contextId: `${this.workspaceUri ?? 'standalone'}::${this.mainFile ?? ''}`,
+			sourceRevision: this.inputGeneration,
+		});
+	}
+
 	dispose(): void {
+		for (const subscription of this.subscriptions.splice(0)) subscription.dispose();
+		for (const unsubscribe of this.unsubscribeCallbacks.splice(0)) unsubscribe();
+		this.mainFile = null;
 		if (this.configDebounceTimer) {
 			clearTimeout(this.configDebounceTimer);
 			this.configDebounceTimer = undefined;

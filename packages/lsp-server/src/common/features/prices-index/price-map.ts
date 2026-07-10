@@ -173,17 +173,19 @@ class BellmanFord {
 
 export class PriceMap {
 	private mainCurrency: string | null = null;
-	private currencyUsageCache: Map<string, number> = new Map();
-	private lastCurrencyUsageUpdate: number = 0;
+	private scopedMainCurrencies = new Map<string, string | null>();
+	private currencyUsageCaches = new Map<string, Map<string, number>>();
+	private lastCurrencyUsageUpdates = new Map<string, number>();
 	private allowedCurrencies: Set<string> | null = null;
+	private scopedAllowedCurrencies = new Map<string, Set<string> | null>();
 
 	// 直接使用Map存储转换图，不使用SWR缓存
-	private conversionGraph: Map<string, ConversionEdge[]> = new Map();
-	private lastConversionGraphUpdate: number = 0;
+	private conversionGraphs = new Map<string, Map<string, ConversionEdge[]>>();
+	private lastConversionGraphUpdates = new Map<string, number>();
 	private readonly GRAPH_CACHE_TTL = 5 * 60 * 1000; // 5分钟缓存过期时间
 
 	// 直接使用Map存储转换路径，不使用SWR缓存
-	private conversionPathCache: Map<string, Map<string, PriceConversionPath>> = new Map();
+	private conversionPathCaches = new Map<string, Map<string, Map<string, PriceConversionPath>>>();
 
 	constructor(
 		private readonly symbolIndex: SymbolIndex,
@@ -197,7 +199,13 @@ export class PriceMap {
 	 * Sets the main currency
 	 * @param currency The currency code
 	 */
-	setMainCurrency(currency: string): void {
+	setMainCurrency(currency: string, scopeUri?: string): void {
+		if (scopeUri) {
+			const scopeKey = this.getScopeKey(scopeUri);
+			this.scopedMainCurrencies.set(scopeKey, currency || null);
+			this.invalidateConversionCaches();
+			return;
+		}
 		if (this.mainCurrency !== currency) {
 			this.mainCurrency = currency;
 			// Clear conversion caches when main currency changes
@@ -209,7 +217,15 @@ export class PriceMap {
 	 * Sets the allowed currencies for conversion
 	 * @param currencies List of allowed currency codes
 	 */
-	setAllowedCurrencies(currencies: string[]): void {
+	setAllowedCurrencies(currencies: string[], scopeUri?: string): void {
+		if (scopeUri) {
+			this.scopedAllowedCurrencies.set(
+				this.getScopeKey(scopeUri),
+				currencies.length > 0 ? new Set(currencies) : null,
+			);
+			this.invalidateConversionCaches();
+			return;
+		}
 		// Convert to Set for faster lookups
 		this.allowedCurrencies = currencies.length > 0 ? new Set(currencies) : null;
 		// Clear conversion caches when allowed currencies change
@@ -221,52 +237,65 @@ export class PriceMap {
 	 * @param commodity The commodity code to check
 	 * @returns True if the commodity should be included in conversions
 	 */
-	private isCurrencyAllowed(commodity: string): boolean {
+	private isCurrencyAllowed(commodity: string, scopeUri?: string): boolean {
+		const allowed = scopeUri && this.scopedAllowedCurrencies.has(this.getScopeKey(scopeUri))
+			? this.scopedAllowedCurrencies.get(this.getScopeKey(scopeUri)) ?? null
+			: this.allowedCurrencies;
 		// If no allowed currencies are specified, all commodities are allowed
-		if (!this.allowedCurrencies) {
+		if (!allowed) {
 			return true;
 		}
 
 		// Only include commodities in the allowed currencies set
-		return this.allowedCurrencies.has(commodity);
+		return allowed.has(commodity);
 	}
 
 	/**
 	 * Invalidates conversion-related caches
 	 */
 	private invalidateConversionCaches(): void {
-		this.conversionGraph.clear();
-		this.lastConversionGraphUpdate = 0;
-		this.conversionPathCache.clear();
+		this.conversionGraphs.clear();
+		this.lastConversionGraphUpdates.clear();
+		this.conversionPathCaches.clear();
+	}
+
+	private getScopeKey(scopeUri?: string): string {
+		return scopeUri ? this.symbolIndex.getWorkspaceForUri(scopeUri) ?? scopeUri : '__global__';
 	}
 
 	/**
 	 * Gets the main currency
 	 * @returns The main currency code
 	 */
-	async getMainCurrency(): Promise<string> {
+	async getMainCurrency(scopeUri?: string): Promise<string> {
+		const scopeKey = scopeUri ? this.getScopeKey(scopeUri) : undefined;
+		if (scopeKey && this.scopedMainCurrencies.has(scopeKey)) {
+			return this.scopedMainCurrencies.get(scopeKey) ?? this.getMostUsedCurrency(scopeUri);
+		}
 		// If main currency is already set, return it directly
 		if (this.mainCurrency) {
 			return this.mainCurrency;
 		}
 
 		// Otherwise, use the most frequently used currency as default
-		return this.getMostUsedCurrency();
+		return this.getMostUsedCurrency(scopeUri);
 	}
 
 	/**
 	 * Gets the most frequently used currency
 	 * @returns The most frequently used currency code
 	 */
-	async getMostUsedCurrency(): Promise<string> {
+	async getMostUsedCurrency(scopeUri?: string): Promise<string> {
+		const scopeKey = this.getScopeKey(scopeUri);
+		const cachedUsage = this.currencyUsageCaches.get(scopeKey) ?? new Map<string, number>();
 		// If cache exists and is not expired (valid within 10 minutes), use the cache
 		const now = Date.now();
-		if (this.currencyUsageCache.size > 0 && now - this.lastCurrencyUsageUpdate < 10 * 60 * 1000) {
+		if (cachedUsage.size > 0 && now - (this.lastCurrencyUsageUpdates.get(scopeKey) ?? 0) < 10 * 60 * 1000) {
 			// Find the most used currency
 			let mostUsedCurrency = 'USD'; // Default to USD
 			let maxUsage = 0;
 
-			for (const [currency, usage] of this.currencyUsageCache.entries()) {
+			for (const [currency, usage] of cachedUsage.entries()) {
 				if (usage > maxUsage) {
 					maxUsage = usage;
 					mostUsedCurrency = currency;
@@ -281,7 +310,7 @@ export class PriceMap {
 
 		try {
 			// 1. Count currencies from price declarations
-			const allPriceDeclarations = await this.symbolIndex.getPricesDeclarations({});
+			const allPriceDeclarations = await this.symbolIndex.getPricesDeclarations({}, scopeUri);
 			for (const declaration of allPriceDeclarations) {
 				try {
 					const priceDeclaration = await this._parsePriceDeclaration(declaration);
@@ -301,7 +330,7 @@ export class PriceMap {
 			}
 
 			// 2. Count currencies from commodity definitions
-			const commodityDefinitions = await this.symbolIndex.getCommodities();
+			const commodityDefinitions = await this.symbolIndex.getCommodities(scopeUri);
 			for (const commodity of commodityDefinitions) {
 				if (commodity) {
 					currencyUsage.set(commodity, (currencyUsage.get(commodity) || 0) + 3); // Give higher weight to defined commodities
@@ -310,7 +339,13 @@ export class PriceMap {
 
 			// 3. Count currencies from transaction postings
 			// Get all documents
-			const documents = this.documents.all();
+			const scopeWorkspace = scopeUri ? this.symbolIndex.getWorkspaceForUri(scopeUri) : undefined;
+			const documents = this.documents.all().filter(document => {
+				if (!scopeUri) return true;
+				return scopeWorkspace
+					? this.symbolIndex.getWorkspaceForUri(document.uri) === scopeWorkspace
+					: document.uri === scopeUri;
+			});
 
 			for (const document of documents) {
 				try {
@@ -352,8 +387,8 @@ export class PriceMap {
 		}
 
 		// Update cache
-		this.currencyUsageCache = currencyUsage;
-		this.lastCurrencyUsageUpdate = now;
+		this.currencyUsageCaches.set(scopeKey, currencyUsage);
+		this.lastCurrencyUsageUpdates.set(scopeKey, now);
 
 		// Find the most used currency
 		let mostUsedCurrency = 'USD'; // Default to USD
@@ -375,12 +410,16 @@ export class PriceMap {
 	 * @param date The date, if not specified returns the latest price
 	 * @returns The price declaration object
 	 */
-	async getPriceByCommodity(commodity: string, date?: string): Promise<PriceDeclaration | undefined> {
+	async getPriceByCommodity(
+		commodity: string,
+		date?: string,
+		scopeUri?: string,
+	): Promise<PriceDeclaration | undefined> {
 		if (!commodity) {
 			return undefined;
 		}
 
-		const pricesDeclarations = await this.symbolIndex.getPricesDeclarations({ name: commodity });
+		const pricesDeclarations = await this.symbolIndex.getPricesDeclarations({ name: commodity }, scopeUri);
 
 		// Parse each declaration and filter out any that fail to parse
 		const prices: PriceDeclaration[] = [];
@@ -434,12 +473,12 @@ export class PriceMap {
 	 * @param commodity The commodity code
 	 * @returns Price list sorted by date (from newest to oldest)
 	 */
-	async getPriceHistoryByCommodity(commodity: string): Promise<PriceDeclaration[]> {
+	async getPriceHistoryByCommodity(commodity: string, scopeUri?: string): Promise<PriceDeclaration[]> {
 		if (!commodity) {
 			return [];
 		}
 
-		const pricesDeclarations = await this.symbolIndex.getPricesDeclarations({ name: commodity });
+		const pricesDeclarations = await this.symbolIndex.getPricesDeclarations({ name: commodity }, scopeUri);
 
 		// Parse each declaration and filter out any that fail to parse
 		const prices: PriceDeclaration[] = [];
@@ -463,7 +502,7 @@ export class PriceMap {
 	 * @param date The date, if not specified uses the latest price
 	 * @returns The conversion result, including path and rate
 	 */
-	async getConvertedPrice(commodity: string, targetCurrency: string, date?: string): Promise<
+	async getConvertedPrice(commodity: string, targetCurrency: string, date?: string, scopeUri?: string): Promise<
 		{
 			path: string[];
 			conversionRate: Big;
@@ -482,7 +521,7 @@ export class PriceMap {
 		}
 
 		// Try direct conversion
-		const directPrice = await this.getPriceByCommodity(commodity, date);
+		const directPrice = await this.getPriceByCommodity(commodity, date, scopeUri);
 		if (directPrice && directPrice.price && directPrice.price.currency === targetCurrency) {
 			const amount = parseExpression(directPrice.price.amount);
 			return {
@@ -492,7 +531,7 @@ export class PriceMap {
 		}
 
 		// Need multi-level conversion, use optimized algorithm to find the best conversion path
-		const conversionPath = await this._findOptimalConversionPath(commodity, targetCurrency, date);
+		const conversionPath = await this._findOptimalConversionPath(commodity, targetCurrency, date, scopeUri);
 		if (!conversionPath) {
 			return undefined;
 		}
@@ -508,21 +547,26 @@ export class PriceMap {
 	 * Build the currency conversion graph
 	 * @returns Currency conversion graph (adjacency list representation)
 	 */
-	private async _buildConversionGraph(): Promise<Map<string, ConversionEdge[]>> {
+	private async _buildConversionGraph(scopeUri?: string): Promise<Map<string, ConversionEdge[]>> {
 		logger.debug('Building currency conversion graph');
+		const scopeKey = this.getScopeKey(scopeUri);
+		const cachedGraph = this.conversionGraphs.get(scopeKey);
 
 		// Check if the cached graph is still valid
 		const now = Date.now();
-		if (this.conversionGraph.size > 0 && now - this.lastConversionGraphUpdate < this.GRAPH_CACHE_TTL) {
+		if (
+			cachedGraph && cachedGraph.size > 0
+			&& now - (this.lastConversionGraphUpdates.get(scopeKey) ?? 0) < this.GRAPH_CACHE_TTL
+		) {
 			logger.debug('Using cached conversion graph');
-			return this.conversionGraph;
+			return cachedGraph;
 		}
 
 		// Create currency conversion graph (adjacency list)
 		const graph = new Map<string, ConversionEdge[]>();
 
 		// Get all price declarations
-		const allPriceDeclarations = await this.symbolIndex.getPricesDeclarations({});
+		const allPriceDeclarations = await this.symbolIndex.getPricesDeclarations({}, scopeUri);
 
 		// Process each price declaration to build the conversion graph
 		for (const declaration of allPriceDeclarations) {
@@ -581,8 +625,8 @@ export class PriceMap {
 		}
 
 		// Update the cache
-		this.conversionGraph = graph;
-		this.lastConversionGraphUpdate = now;
+		this.conversionGraphs.set(scopeKey, graph);
+		this.lastConversionGraphUpdates.set(scopeKey, now);
 
 		logger.debug(`Conversion graph built with ${graph.size} currencies`);
 		return graph;
@@ -672,12 +716,19 @@ export class PriceMap {
 		fromCommodity: string,
 		toCurrency: string,
 		date?: string,
+		scopeUri?: string,
 	): Promise<PriceConversionPath | undefined> {
+		const scopeKey = this.getScopeKey(scopeUri);
+		let conversionPathCache = this.conversionPathCaches.get(scopeKey);
+		if (!conversionPathCache) {
+			conversionPathCache = new Map();
+			this.conversionPathCaches.set(scopeKey, conversionPathCache);
+		}
 		// Check if result already exists in cache
 		const fromCacheKey = `${fromCommodity}:${date || 'latest'}`;
 
-		if (this.conversionPathCache.has(fromCacheKey)) {
-			const toPathMap = this.conversionPathCache.get(fromCacheKey);
+		if (conversionPathCache.has(fromCacheKey)) {
+			const toPathMap = conversionPathCache.get(fromCacheKey);
 			if (toPathMap && toPathMap.has(toCurrency)) {
 				logger.debug(`Using cached conversion path from ${fromCommodity} to ${toCurrency}`);
 				return toPathMap.get(toCurrency);
@@ -687,7 +738,7 @@ export class PriceMap {
 		logger.debug(`Finding optimal conversion path from ${fromCommodity} to ${toCurrency}`);
 
 		// Get conversion graph
-		const graph = await this._buildConversionGraph();
+		const graph = await this._buildConversionGraph(scopeUri);
 
 		// Try direct conversion first (fast path)
 		const directRate = this.getDirectRate([fromCommodity, toCurrency], graph, date);
@@ -698,10 +749,10 @@ export class PriceMap {
 			};
 
 			// Update cache
-			if (!this.conversionPathCache.has(fromCacheKey)) {
-				this.conversionPathCache.set(fromCacheKey, new Map());
+			if (!conversionPathCache.has(fromCacheKey)) {
+				conversionPathCache.set(fromCacheKey, new Map());
 			}
-			this.conversionPathCache.get(fromCacheKey)?.set(toCurrency, result);
+			conversionPathCache.get(fromCacheKey)?.set(toCurrency, result);
 
 			return result;
 		}
@@ -720,7 +771,7 @@ export class PriceMap {
 		// Initialize Bellman-Ford
 		const bf = new BellmanFord(
 			allCurrencies.filter((currency) =>
-				this.isCurrencyAllowed(currency) || currency === fromCommodity || currency === toCurrency
+				this.isCurrencyAllowed(currency, scopeUri) || currency === fromCommodity || currency === toCurrency
 			),
 			edgesMap,
 			(baseQuote) => this.getDirectRate(baseQuote, graph, date),
@@ -749,10 +800,10 @@ export class PriceMap {
 		};
 
 		// Update cache
-		if (!this.conversionPathCache.has(fromCacheKey)) {
-			this.conversionPathCache.set(fromCacheKey, new Map());
+		if (!conversionPathCache.has(fromCacheKey)) {
+			conversionPathCache.set(fromCacheKey, new Map());
 		}
-		this.conversionPathCache.get(fromCacheKey)?.set(toCurrency, result);
+		conversionPathCache.get(fromCacheKey)?.set(toCurrency, result);
 
 		logger.debug(`Found conversion path: ${pathArray.join(' -> ')} with rate ${rate.toString()}`);
 		return result;
@@ -765,13 +816,13 @@ export class PriceMap {
 	 * @param days Number of days, default 30
 	 * @returns Price trend data
 	 */
-	async getPriceTrend(commodity: string, targetCurrency?: string, days: number = 30): Promise<{
+	async getPriceTrend(commodity: string, targetCurrency?: string, days: number = 30, scopeUri?: string): Promise<{
 		dates: string[];
 		prices: number[];
 		currency: string;
 	}> {
 		// Get commodity price history
-		const priceHistory = await this.getPriceHistoryByCommodity(commodity);
+		const priceHistory = await this.getPriceHistoryByCommodity(commodity, scopeUri);
 
 		// If no price history records, return empty data
 		if (priceHistory.length === 0) {
@@ -786,7 +837,7 @@ export class PriceMap {
 		// If no target currency provided, use main currency
 		let effectiveTargetCurrency = targetCurrency;
 		if (!effectiveTargetCurrency) {
-			effectiveTargetCurrency = await this.getMainCurrency();
+			effectiveTargetCurrency = await this.getMainCurrency(scopeUri);
 		}
 
 		// If no currency conversion needed or first price record's currency is the target currency
@@ -832,6 +883,7 @@ export class PriceMap {
 				commodity,
 				nonNullTargetCurrency,
 				priceData.date,
+				scopeUri,
 			);
 
 			if (convertedPrice) {
@@ -938,8 +990,8 @@ export class PriceMap {
 	 * Invalidates all caches
 	 */
 	invalidateAllCaches(): void {
-		this.currencyUsageCache.clear();
-		this.lastCurrencyUsageUpdate = 0;
+		this.currencyUsageCaches.clear();
+		this.lastCurrencyUsageUpdates.clear();
 		this.invalidateConversionCaches();
 	}
 }

@@ -148,6 +148,12 @@
 					"default": "",
 					"description": "Path to Python 3 executable. If empty, the system default Python 3 will be used. This Python installation should have the beancount package installed."
 				},
+				"beanLsp.localRuntime.liveBuffers": {
+					"scope": "resource",
+					"type": "boolean",
+					"default": true,
+					"description": "Evaluate unsaved Beancount editor buffers in the local Python runtime using a temporary shadow workspace. Disable to restore save-only evaluation."
+				},
 				"beanLsp.browserWasmBeancount.enabled": {
 					"scope": "resource",
 					"type": "string",

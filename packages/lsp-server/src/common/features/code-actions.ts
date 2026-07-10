@@ -50,7 +50,7 @@ export class CodeActionFeature implements Feature {
 			actions.push(exprCalculationAction);
 		}
 
-		if (this.beanMgr?.isEnabled()) {
+		if (this.beanMgr?.isEnabled(document.uri)) {
 			for (let line = params.range.start.line; line <= params.range.end.line; line++) {
 				// if (processedLines.has(line)) continue;
 				const text = this.getLineText(document, line);
@@ -63,7 +63,12 @@ export class CodeActionFeature implements Feature {
 
 				let amounts: { number: string; currency: string }[] = [];
 				try {
-					amounts = this.beanMgr.getBalance(accountText, false);
+					const result = this.beanMgr.getBalanceSnapshot(accountText, false, document.uri);
+					if (result.freshness !== 'fresh') {
+						this.beanMgr.requestEvaluation(document.uri);
+						continue;
+					}
+					amounts = result.value;
 				} catch (e) {
 					logger.debug(`fallback getBalance failed for ${accountText}: ${String(e)}`);
 					continue;

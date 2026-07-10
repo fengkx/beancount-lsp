@@ -20,16 +20,21 @@ export const CustomMessages = {
  * - `mode: 'wasm'`  – browser WASM runtime, `version` carries `'v2'` | `'v3'`
  * - `mode: 'local'` – node-side, using a local python / beancount installation
  */
+type RuntimeStatusScope = { scopeUri?: string; contextId?: string };
 export type BeancountRuntimeStatusParams =
-	| { mode: 'off' }
-	| { mode: 'wasm'; version: 'v2' | 'v3' }
-	| { mode: 'local' };
+	& RuntimeStatusScope
+	& (
+		| { mode: 'off' }
+		| { mode: 'wasm'; version: 'v2' | 'v3' }
+		| { mode: 'local' }
+	);
 
 export const GetAccountsSchema = {
 	request: z.object({
 		query: z.string().optional().describe(
 			'optional query keyword to filter accounts, if not provided, all accounts will be returned',
 		),
+		scopeUri: z.string().optional(),
 	}),
 	response: z.array(z.string()),
 };
@@ -39,6 +44,7 @@ export const GetPayeesSchema = {
 		query: z.string().optional().describe(
 			'optional query keyword to filter payees, if not provided, all payees will be returned',
 		),
+		scopeUri: z.string().optional(),
 	}),
 	response: z.array(z.string()),
 };
@@ -48,6 +54,7 @@ export const GetNarrationsSchema = {
 		query: z.string().optional().describe(
 			'optional query keyword to filter narrations, if not provided, all narrations will be returned',
 		),
+		scopeUri: z.string().optional(),
 	}),
 	response: z.array(z.string()),
 };
@@ -55,6 +62,7 @@ export const GetNarrationsSchema = {
 export const RunBeanQuerySchema = {
 	request: z.object({
 		query: z.string().describe(`The bean-query SQL query to execute. ${BQL_COLUMNS} \n\n ${BQL_FUNCTIONS}`),
+		scopeUri: z.string().optional().describe('workspace or document URI used to select a ledger context'),
 	}),
 	response: z.object({
 		success: z.boolean(),

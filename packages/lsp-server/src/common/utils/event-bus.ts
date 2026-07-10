@@ -149,6 +149,11 @@ export class EventBus<Events extends string> {
 // Create a singleton instance for global event bus
 export const globalEventBus = new EventBus<GlobalEvents>();
 
+export interface LedgerContextEvent {
+	contextId: string;
+	sourceRevision: number;
+}
+
 export const enum GlobalEvents {
 	ConfigurationChanged = 'configuration-changed',
 	BeancountUpdate = 'beancount-update',

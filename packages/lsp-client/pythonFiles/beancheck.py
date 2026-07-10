@@ -35,6 +35,10 @@ from decimal import Decimal
 import os
 import sys
 import traceback
+
+# Shadow workspace files are revisioned outside Beancount's cache lifecycle.
+os.environ["BEANCOUNT_DISABLE_LOAD_CACHE"] = "1"
+
 from beancount import loader
 from beancount.core import convert, flags
 from beancount.core.data import Transaction, Open, Close, Pad

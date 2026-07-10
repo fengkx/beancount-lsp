@@ -45,7 +45,7 @@ export class DefinitionFeature {
 		if (tagAtPosition) {
 			// Return tag usage locations
 			logger.debug(`Found tag at cursor: ${tagAtPosition}`);
-			return this.findTagUsages(tagAtPosition);
+			return this.findTagUsages(tagAtPosition, document.uri);
 		}
 
 		// Check for poptag at position (should navigate to the corresponding pushtag)
@@ -60,7 +60,7 @@ export class DefinitionFeature {
 		if (accountAtPosition) {
 			// Return account definition or usages
 			logger.debug(`Found account at cursor: ${accountAtPosition}`);
-			return this.findAccountDefinition(accountAtPosition);
+			return this.findAccountDefinition(accountAtPosition, document.uri);
 		}
 
 		// Check for commodity at position
@@ -68,7 +68,7 @@ export class DefinitionFeature {
 		if (commodityAtPosition) {
 			// Return commodity definition
 			logger.debug(`Found commodity at cursor: ${commodityAtPosition}`);
-			return this.findCommodityDefinition(commodityAtPosition);
+			return this.findCommodityDefinition(commodityAtPosition, document.uri);
 		}
 
 		// When cursor on payee and narration, we return a range include current position, which make vscode use the alternative command (usually go to references)
@@ -220,12 +220,12 @@ export class DefinitionFeature {
 		}
 	}
 
-	private async findTagUsages(tagName: string): Promise<lsp.Location[] | null> {
+	private async findTagUsages(tagName: string, scopeUri: string): Promise<lsp.Location[] | null> {
 		// Find all tag usages
 		const tagUsages = await this.symbolIndex.findAsync({
 			[SymbolKey.TYPE]: SymbolType.TAG,
 			name: tagName,
-		}) as SymbolInfo[];
+		}, scopeUri) as SymbolInfo[];
 
 		// If we don't have any tag usages, return null
 		if (tagUsages.length === 0) {
@@ -240,9 +240,9 @@ export class DefinitionFeature {
 		}));
 	}
 
-	private async findAccountDefinition(accountName: string): Promise<lsp.Location[] | null> {
+	private async findAccountDefinition(accountName: string, scopeUri: string): Promise<lsp.Location[] | null> {
 		// Get account definitions from index
-		const definitionsResult = await this.symbolIndex.getAccountDefinitions();
+		const definitionsResult = await this.symbolIndex.getAccountDefinitions(scopeUri);
 		const definitions = definitionsResult;
 
 		// Filter definitions to find the ones for this account
@@ -259,9 +259,9 @@ export class DefinitionFeature {
 		}));
 	}
 
-	private async findCommodityDefinition(commodityName: string): Promise<lsp.Location[] | null> {
+	private async findCommodityDefinition(commodityName: string, scopeUri: string): Promise<lsp.Location[] | null> {
 		// Get commodity definitions from index
-		const definitions = await this.symbolIndex.getCommodityDefinitions();
+		const definitions = await this.symbolIndex.getCommodityDefinitions(scopeUri);
 
 		// Filter definitions to find the ones for this commodity
 		const matchingDefinitions = definitions.filter(def => def.name === commodityName);
