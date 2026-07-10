@@ -5045,7 +5045,7 @@ snapshots:
       '@codingame/monaco-vscode-layout-service-override': 25.1.2
       '@codingame/monaco-vscode-quickaccess-service-override': 25.1.2
       '@vscode/iconv-lite-umd': 0.7.1
-      dompurify: 3.3.3
+      dompurify: 3.4.7
       jschardet: 3.1.4
       marked: 14.0.0
 

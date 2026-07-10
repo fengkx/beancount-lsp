@@ -11,6 +11,48 @@ import { Trees } from '../trees';
 // Create a logger for the document symbols module
 const logger = new Logger('document-symbols');
 
+function getStringContent(node: Parser.SyntaxNode | null): string | undefined {
+	if (!node) {
+		return undefined;
+	}
+
+	const text = node.text.startsWith('"') && node.text.endsWith('"')
+		? node.text.slice(1, -1)
+		: node.text;
+	return text.trim() ? text : undefined;
+}
+
+function createStringSymbol(
+	node: Parser.SyntaxNode | null,
+	kind: lsp.SymbolKind,
+): lsp.DocumentSymbol | null {
+	const name = getStringContent(node);
+	if (!node || !name) {
+		return null;
+	}
+
+	return {
+		name,
+		kind,
+		range: asLspRange(node),
+		selectionRange: asLspRange(node),
+	};
+}
+
+function filterEmptyDocumentSymbols(symbols: lsp.DocumentSymbol[]): lsp.DocumentSymbol[] {
+	return symbols.flatMap((symbol) => {
+		if (!symbol.name.trim()) {
+			return [];
+		}
+
+		if (!symbol.children) {
+			return [symbol];
+		}
+
+		return [{ ...symbol, children: filterEmptyDocumentSymbols(symbol.children) }];
+	});
+}
+
 export class DocumentSymbolsFeature {
 	constructor(
 		private readonly documents: DocumentStore,
@@ -63,7 +105,7 @@ export class DocumentSymbolsFeature {
 			this.getIncludeDirectiveSymbol(tree),
 		])).flat();
 
-		return symbols;
+		return filterEmptyDocumentSymbols(symbols);
 	}
 
 	private async getTransactionSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
@@ -81,15 +123,15 @@ export class DocumentSymbolsFeature {
 				const narration = capture.node.namedChild(3);
 
 				name = `${date.text}`;
-				if (payee && payee.text) {
-					const payeeText = payee.text.replace(/"/g, '');
+				const payeeText = getStringContent(payee);
+				if (payeeText) {
 					name += ` ${payeeText}`;
 				}
-				if (narration && narration.text) {
-					const narrationText = narration.text.replace(/"/g, '');
+				const narrationText = getStringContent(narration);
+				if (narrationText) {
 					// Only add narration if it's not too long or if there's no payee
-					if (!payee || narrationText.length < 30) {
-						name += payee ? `: ${narrationText}` : ` ${narrationText}`;
+					if (!payeeText || narrationText.length < 30) {
+						name += payeeText ? `: ${narrationText}` : ` ${narrationText}`;
 					}
 				}
 
@@ -485,13 +527,16 @@ export class DocumentSymbolsFeature {
 			const date = doc.childForFieldName('date');
 			const account = doc.childForFieldName('account');
 			const filename = doc.childForFieldName('filename');
+			const filenameText = getStringContent(filename);
 
 			let name = 'Document';
-			if (date && account && filename) {
-				const filenameText = filename.text.replace(/"/g, '');
-				// Get just the base filename without the path
-				const baseFilename = filenameText.split('/').pop() || filenameText;
-				name = `${date.text} Doc ${account.text} ${baseFilename}`;
+			if (date && account) {
+				name = `${date.text} Doc ${account.text}`;
+				if (filenameText) {
+					// Get just the base filename without the path
+					const baseFilename = filenameText.split('/').pop() || filenameText;
+					name += ` ${baseFilename}`;
+				}
 			}
 
 			const symbol: lsp.DocumentSymbol = {
@@ -512,12 +557,7 @@ export class DocumentSymbolsFeature {
 						range: asLspRange(account),
 						selectionRange: asLspRange(account),
 					},
-					filename && {
-						name: filename.text.replace(/"/g, ''),
-						kind: lsp.SymbolKind.File,
-						range: asLspRange(filename),
-						selectionRange: asLspRange(filename),
-					},
+					createStringSymbol(filename, lsp.SymbolKind.File),
 				].filter(Boolean) as lsp.DocumentSymbol[],
 			};
 			symbols.push(symbol);
@@ -539,12 +579,12 @@ export class DocumentSymbolsFeature {
 			const date = note.childForFieldName('date');
 			const account = note.childForFieldName('account');
 			const noteText = note.childForFieldName('note');
+			const noteContent = getStringContent(noteText);
 
 			let name = 'Note';
 			if (date && account) {
 				name = `${date.text} Note ${account.text}`;
-				if (noteText) {
-					const noteContent = noteText.text.replace(/"/g, '');
+				if (noteContent) {
 					// Truncate note content if it's too long
 					if (noteContent.length > 30) {
 						name += ` ${noteContent.substring(0, 27)}...`;
@@ -572,12 +612,7 @@ export class DocumentSymbolsFeature {
 						range: asLspRange(account),
 						selectionRange: asLspRange(account),
 					},
-					noteText && {
-						name: noteText.text.replace(/"/g, ''),
-						kind: lsp.SymbolKind.String,
-						range: asLspRange(noteText),
-						selectionRange: asLspRange(noteText),
-					},
+					createStringSymbol(noteText, lsp.SymbolKind.String),
 				].filter(Boolean) as lsp.DocumentSymbol[],
 			};
 			symbols.push(symbol);
@@ -599,13 +634,16 @@ export class DocumentSymbolsFeature {
 			const date = event.childForFieldName('date');
 			const type = event.childForFieldName('type');
 			const desc = event.childForFieldName('desc');
+			const typeText = getStringContent(type);
+			const descText = getStringContent(desc);
 
 			let name = 'Event';
-			if (date && type) {
-				const typeText = type.text.replace(/"/g, '');
-				name = `${date.text} Event ${typeText}`;
-				if (desc) {
-					const descText = desc.text.replace(/"/g, '');
+			if (date) {
+				name = `${date.text} Event`;
+				if (typeText) {
+					name += ` ${typeText}`;
+				}
+				if (descText) {
 					// Truncate description if it's too long
 					if (descText.length > 30) {
 						name += ` ${descText.substring(0, 27)}...`;
@@ -627,18 +665,8 @@ export class DocumentSymbolsFeature {
 						range: asLspRange(date),
 						selectionRange: asLspRange(date),
 					},
-					type && {
-						name: type.text.replace(/"/g, ''),
-						kind: lsp.SymbolKind.TypeParameter,
-						range: asLspRange(type),
-						selectionRange: asLspRange(type),
-					},
-					desc && {
-						name: desc.text.replace(/"/g, ''),
-						kind: lsp.SymbolKind.String,
-						range: asLspRange(desc),
-						selectionRange: asLspRange(desc),
-					},
+					createStringSymbol(type, lsp.SymbolKind.TypeParameter),
+					createStringSymbol(desc, lsp.SymbolKind.String),
 				].filter(Boolean) as lsp.DocumentSymbol[],
 			};
 			symbols.push(symbol);
@@ -660,10 +688,14 @@ export class DocumentSymbolsFeature {
 			const date = queryNode.childForFieldName('date');
 			const name = queryNode.childForFieldName('name');
 			const queryString = queryNode.childForFieldName('query');
+			const nameText = getStringContent(name);
 
 			let symbolName = 'Query';
-			if (date && name) {
-				symbolName = `${date.text} Query ${name.text.replace(/"/g, '')}`;
+			if (date) {
+				symbolName = `${date.text} Query`;
+				if (nameText) {
+					symbolName += ` ${nameText}`;
+				}
 			}
 
 			const symbol: lsp.DocumentSymbol = {
@@ -678,18 +710,8 @@ export class DocumentSymbolsFeature {
 						range: asLspRange(date),
 						selectionRange: asLspRange(date),
 					},
-					name && {
-						name: name.text.replace(/"/g, ''),
-						kind: lsp.SymbolKind.Key,
-						range: asLspRange(name),
-						selectionRange: asLspRange(name),
-					},
-					queryString && {
-						name: queryString.text.replace(/"/g, ''),
-						kind: lsp.SymbolKind.String,
-						range: asLspRange(queryString),
-						selectionRange: asLspRange(queryString),
-					},
+					createStringSymbol(name, lsp.SymbolKind.Key),
+					createStringSymbol(queryString, lsp.SymbolKind.String),
 				].filter(Boolean) as lsp.DocumentSymbol[],
 			};
 			symbols.push(symbol);
@@ -710,10 +732,14 @@ export class DocumentSymbolsFeature {
 			}
 			const date = custom.childForFieldName('date');
 			const name = custom.childForFieldName('name');
+			const nameText = getStringContent(name);
 
 			let symbolName = 'Custom';
-			if (date && name) {
-				symbolName = `${date.text} Custom ${name.text.replace(/"/g, '')}`;
+			if (date) {
+				symbolName = `${date.text} Custom`;
+				if (nameText) {
+					symbolName += ` ${nameText}`;
+				}
 			}
 
 			const symbol: lsp.DocumentSymbol = {
@@ -728,12 +754,7 @@ export class DocumentSymbolsFeature {
 						range: asLspRange(date),
 						selectionRange: asLspRange(date),
 					},
-					name && {
-						name: name.text.replace(/"/g, ''),
-						kind: lsp.SymbolKind.Key,
-						range: asLspRange(name),
-						selectionRange: asLspRange(name),
-					},
+					createStringSymbol(name, lsp.SymbolKind.Key),
 				].filter(Boolean) as lsp.DocumentSymbol[],
 			};
 			symbols.push(symbol);
@@ -755,10 +776,10 @@ export class DocumentSymbolsFeature {
 
 			// Include directive has a string parameter which is the file path
 			const filePath = include.namedChild(0);
+			const filePathText = getStringContent(filePath);
 
 			let name = 'Include';
-			if (filePath) {
-				const filePathText = filePath.text.replace(/"/g, '');
+			if (filePathText) {
 				// Get just the base filename without the path
 				const baseFilename = filePathText.split('/').pop() || filePathText;
 				name = `Include ${baseFilename}`;
@@ -770,12 +791,7 @@ export class DocumentSymbolsFeature {
 				range: asLspRange(include),
 				selectionRange: asLspRange(include),
 				children: [
-					filePath && {
-						name: filePath.text.replace(/"/g, ''),
-						kind: lsp.SymbolKind.File,
-						range: asLspRange(filePath),
-						selectionRange: asLspRange(filePath),
-					},
+					createStringSymbol(filePath, lsp.SymbolKind.File),
 				].filter(Boolean) as lsp.DocumentSymbol[],
 			};
 			symbols.push(symbol);
