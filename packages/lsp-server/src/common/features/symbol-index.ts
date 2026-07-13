@@ -1,15 +1,15 @@
 import { CancellationTokenSource } from 'vscode-languageserver';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { Tree } from 'web-tree-sitter';
 import { isInteresting, parallel, StopWatch } from '../common';
-import { DocumentStore } from '../document-store';
-import { StorageInstance } from '../startServer';
-import { Trees } from '../trees';
-import { getSymbolsFromTree, SymbolInfo, SymbolKey, SymbolType } from './symbol-extractors';
+import type { DocumentStore } from '../document-store';
+import type { StorageInstance } from '../startServer';
+import type { Trees } from '../trees';
+import { getSymbolsFromTree, type SymbolInfo, SymbolKey, SymbolType } from './symbol-extractors';
 
 import { Logger } from '@bean-lsp/shared';
 import { LRUMapWithDelete as LRUMap } from 'mnemonist';
-import { BeancountOptionsManager, SupportedOption } from '../utils/beancount-options';
+import type { BeancountOptionsManager, SupportedOption } from '../utils/beancount-options';
 import { globalEventBus, GlobalEvents } from '../utils/event-bus';
 import { SwrCache, SwrOptions } from '../utils/swr';
 import { getRecoverableTopLevelNodes } from '../utils/top-level-nodes';
@@ -60,6 +60,12 @@ export type AccountCompletionSnapshot = {
 	accounts: CompiledAccountCandidate[];
 	usageCounts: Map<string, number>;
 	closedAccounts: Map<string, string>;
+};
+
+type AccountCompletionSnapshotCacheEntry = {
+	version: number;
+	snapshot?: AccountCompletionSnapshot;
+	buildPromise?: Promise<AccountCompletionSnapshot>;
 };
 
 export class SymbolIndex {
@@ -115,10 +121,8 @@ export class SymbolIndex {
 
 	// LRU cache for text to filter text mapping
 	private readonly _filterTextCache = new LRUMap<string, string>(1000);
-	private _accountCompletionSnapshotDirty = true;
 	private _accountCompletionSnapshotVersionSource = 0;
-	private _accountCompletionSnapshot?: AccountCompletionSnapshot;
-	private _accountCompletionSnapshotBuildPromise?: Promise<AccountCompletionSnapshot>;
+	private readonly _accountCompletionSnapshots = new Map<string, AccountCompletionSnapshotCacheEntry>();
 
 	addSyncFile(uri: string): void {
 		this._syncQueue.enqueue(uri);
@@ -138,8 +142,8 @@ export class SymbolIndex {
 	}
 
 	private invalidateAccountCompletionSnapshot(): void {
-		this._accountCompletionSnapshotDirty = true;
 		this._accountCompletionSnapshotVersionSource++;
+		this._accountCompletionSnapshots.clear();
 	}
 
 	/**
@@ -529,22 +533,35 @@ export class SymbolIndex {
 	}
 
 	public async getAccountCompletionSnapshot(scopeUri?: string): Promise<AccountCompletionSnapshot> {
-		if (scopeUri) return this._buildAccountCompletionSnapshot(scopeUri);
-		if (!this._accountCompletionSnapshotDirty && this._accountCompletionSnapshot) {
-			return this._accountCompletionSnapshot;
+		const cacheKey = this.getAccountCompletionSnapshotCacheKey(scopeUri);
+		const version = this._accountCompletionSnapshotVersionSource;
+		const cached = this._accountCompletionSnapshots.get(cacheKey);
+		if (cached?.version === version) {
+			if (cached.snapshot) return cached.snapshot;
+			if (cached.buildPromise) return cached.buildPromise;
 		}
-		if (this._accountCompletionSnapshotBuildPromise) {
-			return this._accountCompletionSnapshotBuildPromise;
-		}
-		this._accountCompletionSnapshotBuildPromise = this._buildAccountCompletionSnapshot();
+
+		const entry: AccountCompletionSnapshotCacheEntry = { version };
+		entry.buildPromise = this._buildAccountCompletionSnapshot(scopeUri);
+		this._accountCompletionSnapshots.set(cacheKey, entry);
 		try {
-			const snapshot = await this._accountCompletionSnapshotBuildPromise;
-			this._accountCompletionSnapshot = snapshot;
-			this._accountCompletionSnapshotDirty = false;
+			const snapshot = await entry.buildPromise;
+			if (
+				this._accountCompletionSnapshotVersionSource === version
+				&& this._accountCompletionSnapshots.get(cacheKey) === entry
+			) {
+				entry.snapshot = snapshot;
+			}
 			return snapshot;
 		} finally {
-			this._accountCompletionSnapshotBuildPromise = undefined;
+			entry.buildPromise = undefined;
 		}
+	}
+
+	private getAccountCompletionSnapshotCacheKey(scopeUri?: string): string {
+		if (!scopeUri) return 'global';
+		const workspace = this.getWorkspaceForUri(scopeUri);
+		return workspace ? `workspace:${workspace}` : `uri:${scopeUri}`;
 	}
 
 	private async _buildAccountCompletionSnapshot(scopeUri?: string): Promise<AccountCompletionSnapshot> {

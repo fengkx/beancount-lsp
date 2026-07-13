@@ -1,9 +1,9 @@
 import * as lsp from 'vscode-languageserver';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { Tree } from 'web-tree-sitter';
 import { compactToRange, nodeToCompact } from '../common';
 import { TreeQuery } from '../language';
-import { Trees } from '../trees';
+import type { Trees } from '../trees';
 
 export const SymbolType = {
 	ACCOUNT_USAGE: 0,
