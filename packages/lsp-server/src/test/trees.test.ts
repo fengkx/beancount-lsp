@@ -116,6 +116,19 @@ describe('Trees incremental parsing', () => {
 		expect(harness.parser.parse).toHaveBeenLastCalledWith('ab');
 	});
 
+	it('returns a same-version tree without requesting the WASM parser again', async () => {
+		const harness = createHarness();
+		const currentDocument = document(1, 'a');
+		const first = await harness.trees.getParseTree(currentDocument);
+		mocks.getParser.mockClear();
+
+		const second = await harness.trees.getParseTree(currentDocument);
+
+		expect(second).toBe(first);
+		expect(mocks.getParser).not.toHaveBeenCalled();
+		expect(harness.parser.parse).toHaveBeenCalledOnce();
+	});
+
 	it('invalidates the cached tree after a full-content replacement', async () => {
 		const harness = createHarness();
 		await harness.trees.getParseTree(document(1, 'a'));

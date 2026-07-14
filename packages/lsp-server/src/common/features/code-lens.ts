@@ -2,12 +2,12 @@ import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { URI } from 'vscode-uri';
-import { Tree } from 'web-tree-sitter';
+import type { SyntaxNode } from 'web-tree-sitter';
 import { asLspRange } from '../common';
 import { DocumentStore } from '../document-store';
-import { TreeQuery } from '../language';
 import { Trees } from '../trees';
 import { globalEventBus, GlobalEvents } from '../utils/event-bus';
+import { getRecoverableTopLevelNodes } from '../utils/top-level-nodes';
 import { Feature, RealBeancountManager } from './types';
 
 const logger = new Logger('CodeLens');
@@ -139,31 +139,29 @@ export class CodeLensFeature implements Feature {
 
 		const codeLenses: lsp.CodeLens[] = [];
 		if (codeLensConfig.accountBalance) {
-			codeLenses.push(...await this.getAccountDefinitionCodeLenses(tree, document));
+			codeLenses.push(...this.getAccountDefinitionCodeLenses(
+				getRecoverableTopLevelNodes(tree, 'open'),
+				document,
+			));
 		}
 		if (codeLensConfig.pad) {
-			codeLenses.push(...await this.getPadDirectiveCodeLenses(tree, document));
+			codeLenses.push(...this.getPadDirectiveCodeLenses(
+				getRecoverableTopLevelNodes(tree, 'pad'),
+				document,
+			));
 		}
 		return codeLenses;
 	}
 
-	private async getAccountDefinitionCodeLenses(
-		tree: Tree,
+	private getAccountDefinitionCodeLenses(
+		openNodes: readonly SyntaxNode[],
 		document: TextDocument,
-	): Promise<lsp.CodeLens[]> {
+	): lsp.CodeLens[] {
 		const codeLenses: lsp.CodeLens[] = [];
 
-		// Find account definitions (open directives)
-		const accountDefinitionQuery = TreeQuery.getQueryByTokenName('account_definition');
-		const accountDefinitionCaptures = await accountDefinitionQuery.captures(tree);
-
-		for (const capture of accountDefinitionCaptures) {
-			const accountNode = capture.node;
-			const openDirective = accountNode.parent;
-
-			if (!openDirective || openDirective.type !== 'open') {
-				continue;
-			}
+		for (const openDirective of openNodes) {
+			const accountNode = openDirective.childForFieldName('account');
+			if (!accountNode) continue;
 
 			const accountName = accountNode.text;
 
@@ -181,21 +179,14 @@ export class CodeLensFeature implements Feature {
 		return codeLenses;
 	}
 
-	private async getPadDirectiveCodeLenses(
-		tree: Tree,
+	private getPadDirectiveCodeLenses(
+		padNodes: readonly SyntaxNode[],
 		document: TextDocument,
-	): Promise<lsp.CodeLens[]> {
+	): lsp.CodeLens[] {
 		const codeLenses: lsp.CodeLens[] = [];
-		const padQuery = TreeQuery.getQueryByTokenName('pad');
-		const padCaptures = await padQuery.captures(tree);
 		const filePath = URI.parse(document.uri).fsPath;
 
-		for (const capture of padCaptures) {
-			const pad = capture.node;
-			if (!pad || pad.type !== 'pad') {
-				continue;
-			}
-
+		for (const pad of padNodes) {
 			const fromAccount = pad.childForFieldName('from_account');
 			const range = asLspRange(fromAccount ?? pad);
 			const codeLens = this.createCodeLensAtEnd(range, {

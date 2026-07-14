@@ -1,17 +1,18 @@
 import { CancellationTokenSource } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { Tree } from 'web-tree-sitter';
 import { isInteresting, parallel, StopWatch } from '../common';
 import { DocumentStore } from '../document-store';
 import { StorageInstance } from '../startServer';
 import { Trees } from '../trees';
-import { getSymbols, SymbolInfo, SymbolKey, SymbolType } from './symbol-extractors';
+import { getSymbolsFromTree, SymbolInfo, SymbolKey, SymbolType } from './symbol-extractors';
 
 import { Logger } from '@bean-lsp/shared';
 import { LRUMapWithDelete as LRUMap } from 'mnemonist';
-import { TreeQuery } from '../language';
 import { BeancountOptionsManager, SupportedOption } from '../utils/beancount-options';
 import { globalEventBus, GlobalEvents } from '../utils/event-bus';
 import { SwrCache, SwrOptions } from '../utils/swr';
+import { getRecoverableTopLevelNodes } from '../utils/top-level-nodes';
 import { createAsciiFilterText, createFilterString } from './filter-text-utils';
 
 class Queue {
@@ -64,6 +65,7 @@ export type AccountCompletionSnapshot = {
 export class SymbolIndex {
 	private logger = new Logger('index');
 	private workspaceUris: string[] = [];
+	private readonly indexedTrees = new Map<string, Tree>();
 
 	constructor(
 		private readonly _documents: DocumentStore,
@@ -131,6 +133,7 @@ export class SymbolIndex {
 		this._asyncQueue.dequeue(uri);
 		this._symbolInfoStorage.removeSync({ _uri: uri });
 		this._optionsManager.clearOptionsForSource(uri);
+		this.indexedTrees.delete(uri);
 		this.invalidateAccountCompletionSnapshot();
 	}
 
@@ -247,11 +250,19 @@ export class SymbolIndex {
 
 	private async _doIndex(document: TextDocument) {
 		this.logger.debug(`[index] Indexing document: ${document.uri}`);
+		const tree = await this._trees.getParseTree(document);
+		if (!tree) {
+			throw new Error(`Failed to get parse tree for document: ${document.uri}`);
+		}
+		if (this.indexedTrees.get(document.uri) === tree) {
+			this.logger.debug(`[index] Skipping unchanged tree: ${document.uri}`);
+			return;
+		}
 
 		// Process options directives in this document
-		await this._processOptionsDirectives(document);
+		await this._processOptionsDirectives(document, tree);
 
-		const symbols = await getSymbols(document, this._trees);
+		const symbols = await getSymbolsFromTree(document, tree);
 		const workspace = this.getWorkspaceForUri(document.uri);
 		if (workspace) {
 			for (const symbol of symbols) symbol._workspace = workspace;
@@ -259,8 +270,12 @@ export class SymbolIndex {
 
 		this.logger.debug(`We Found ${symbols.length} symbols in ${document.uri}`);
 
-		this._symbolInfoStorage.removeSync({ _uri: document.uri });
-		await this._symbolInfoStorage.insertAsync(symbols);
+		await this._symbolInfoStorage.replaceAsync(
+			{ _uri: document.uri },
+			symbols,
+			symbol => symbol.name,
+		);
+		this.indexedTrees.set(document.uri, tree);
 		this.invalidateAccountCompletionSnapshot();
 	}
 
@@ -268,26 +283,20 @@ export class SymbolIndex {
 	 * Process option directives in a document and register them in the options manager
 	 * @param document The document to process
 	 */
-	private async _processOptionsDirectives(document: TextDocument): Promise<void> {
+	private async _processOptionsDirectives(
+		document: TextDocument,
+		knownTree?: Tree,
+	): Promise<void> {
 		try {
-			const tree = await this._trees.getParseTree(document);
+			const tree = knownTree ?? await this._trees.getParseTree(document);
 			if (!tree) {
 				this.logger.warn(`No syntax tree available for options processing: ${document.uri}`);
 				return;
 			}
 
-			const optionQuery = TreeQuery.getQueryByTokenName('option');
-			const optionCaptures = await optionQuery.captures(tree);
-
 			const options = new Map<string, string>();
 
-			for (const capture of optionCaptures) {
-				// Only process the option node itself, not its children
-				if (capture.name !== 'option' || capture.node.type !== 'option') {
-					continue;
-				}
-
-				const optionNode = capture.node;
+			for (const optionNode of getRecoverableTopLevelNodes(tree, 'option')) {
 				const keyNode = optionNode.childForFieldName('key');
 				const valueNode = optionNode.childForFieldName('value');
 

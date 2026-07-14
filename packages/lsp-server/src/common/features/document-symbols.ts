@@ -5,45 +5,10 @@ import * as Parser from 'web-tree-sitter';
 import { asLspRange } from '../common';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
+import { getRecoverableTopLevelNodes } from '../utils/top-level-nodes';
 
 // Create a logger for the document symbols module
 const logger = new Logger('document-symbols');
-const documentSymbolNodeTypes = new Set([
-	'transaction',
-	'commodity',
-	'open',
-	'price',
-	'balance',
-	'close',
-	'pad',
-	'document',
-	'note',
-	'event',
-	'query',
-	'custom',
-	'include',
-]);
-
-function groupDocumentSymbolNodes(root: Parser.SyntaxNode): Map<string, Parser.SyntaxNode[]> {
-	const nodesByType = new Map<string, Parser.SyntaxNode[]>();
-	function collect(node: Parser.SyntaxNode) {
-		if (documentSymbolNodeTypes.has(node.type)) {
-			const nodes = nodesByType.get(node.type);
-			if (nodes) nodes.push(node);
-			else nodesByType.set(node.type, [node]);
-			return;
-		}
-
-		// Valid directives are top-level nodes. Querying used to also find directives
-		// recovered below ERROR nodes, so retain that behavior only on the error path.
-		if (node.type === 'ERROR') {
-			for (const child of node.namedChildren) collect(child);
-		}
-	}
-
-	for (const node of root.namedChildren) collect(node);
-	return nodesByType;
-}
 
 function getStringContent(node: Parser.SyntaxNode | null): string | undefined {
 	if (!node) {
@@ -123,8 +88,7 @@ export class DocumentSymbolsFeature {
 			return [];
 		}
 
-		const nodesByType = groupDocumentSymbolNodes(tree.rootNode);
-		const nodes = (type: string) => nodesByType.get(type) ?? [];
+		const nodes = (type: string) => getRecoverableTopLevelNodes(tree, type);
 		const symbols = [
 			this.getTransactionSymbol(nodes('transaction')),
 			this.getCommodityDefinitionSymbol(nodes('commodity')),
@@ -144,7 +108,7 @@ export class DocumentSymbolsFeature {
 		return filterEmptyDocumentSymbols(symbols);
 	}
 
-	private getTransactionSymbol(transactionNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
+	private getTransactionSymbol(transactionNodes: readonly Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
 
 		for (const transactionNode of transactionNodes) {
@@ -211,7 +175,7 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private getCommodityDefinitionSymbol(commodityNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
+	private getCommodityDefinitionSymbol(commodityNodes: readonly Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
 
 		for (const commodity of commodityNodes) {
@@ -251,7 +215,7 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private getAccountDefinitionSymbol(openNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
+	private getAccountDefinitionSymbol(openNodes: readonly Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
 
 		for (const openDirective of openNodes) {
@@ -328,7 +292,7 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private getPriceDirectiveSymbol(priceNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
+	private getPriceDirectiveSymbol(priceNodes: readonly Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
 
 		for (const price of priceNodes) {
@@ -385,7 +349,7 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private getBalanceDirectiveSymbol(balanceNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
+	private getBalanceDirectiveSymbol(balanceNodes: readonly Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
 
 		for (const balance of balanceNodes) {
@@ -433,7 +397,7 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private getCloseDirectiveSymbol(closeNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
+	private getCloseDirectiveSymbol(closeNodes: readonly Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
 
 		for (const close of closeNodes) {
@@ -471,7 +435,7 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private getPadDirectiveSymbol(padNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
+	private getPadDirectiveSymbol(padNodes: readonly Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
 
 		for (const pad of padNodes) {
@@ -516,7 +480,7 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private getDocumentDirectiveSymbol(documentNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
+	private getDocumentDirectiveSymbol(documentNodes: readonly Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
 
 		for (const doc of documentNodes) {
@@ -562,7 +526,7 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private getNoteDirectiveSymbol(noteNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
+	private getNoteDirectiveSymbol(noteNodes: readonly Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
 
 		for (const note of noteNodes) {
@@ -611,7 +575,7 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private getEventDirectiveSymbol(eventNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
+	private getEventDirectiveSymbol(eventNodes: readonly Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
 
 		for (const event of eventNodes) {
@@ -659,7 +623,7 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private getQueryDirectiveSymbol(queryNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
+	private getQueryDirectiveSymbol(queryNodes: readonly Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
 
 		for (const queryNode of queryNodes) {
@@ -698,7 +662,7 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private getCustomDirectiveSymbol(customNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
+	private getCustomDirectiveSymbol(customNodes: readonly Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
 
 		for (const custom of customNodes) {
@@ -735,7 +699,7 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private getIncludeDirectiveSymbol(includeNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
+	private getIncludeDirectiveSymbol(includeNodes: readonly Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
 
 		for (const include of includeNodes) {

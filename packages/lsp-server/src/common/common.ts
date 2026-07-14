@@ -58,11 +58,13 @@ export const symbolMapping: SymbolMapping = new class {
 export function asLspRange(
 	node: Partial<Parser.SyntaxNode> & Required<Pick<Parser.SyntaxNode, 'startPosition' | 'endPosition'>>,
 ): lsp.Range {
+	const start = node.startPosition;
+	const end = node.endPosition;
 	return lsp.Range.create(
-		node.startPosition.row,
-		node.startPosition.column,
-		node.endPosition.row,
-		node.endPosition.column,
+		start.row,
+		start.column,
+		end.row,
+		end.column,
 	);
 }
 
@@ -79,7 +81,9 @@ export function rangeToCompact(range: lsp.Range): [number, number, number, numbe
  * This saves memory when storing many ranges in a database
  */
 export function nodeToCompact(node: Parser.SyntaxNode): [number, number, number, number] {
-	return [node.startPosition.row, node.startPosition.column, node.endPosition.row, node.endPosition.column];
+	const start = node.startPosition;
+	const end = node.endPosition;
+	return [start.row, start.column, end.row, end.column];
 }
 
 /**

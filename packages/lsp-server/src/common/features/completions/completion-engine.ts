@@ -89,13 +89,13 @@ export async function runCompletionEngine(args: RunCompletionEngineArgs): Promis
 	if (current.type === 'ERROR') {
 		let n = current.parent;
 		while (completionItems.length <= 0 && n) {
-			let childCount = n?.childCount ?? 0;
-			if (childCount === 1 && n!.child(0)?.type === 'ERROR') {
-				n = n!.previousNamedSibling;
-				childCount = n?.childCount ?? 0;
+			let children = n.children;
+			if (children.length === 1 && children[0]?.type === 'ERROR') {
+				n = n.previousNamedSibling;
+				children = n?.children ?? [];
 			}
-			if (childCount > 0) {
-				const childrenType = n!.children.map(c => c.type);
+			if (children.length > 0) {
+				const childrenType = children.map(c => c.type);
 				const validTypes = childrenType.filter(t => t !== 'ERROR' && t.length > 1);
 				const pp = match(
 					{
@@ -161,7 +161,13 @@ export async function runCompletionEngine(args: RunCompletionEngineArgs): Promis
 			if (completionItems.length > 0) {
 				break;
 			}
-			n = n?.children.filter(q => q.type !== 'ERROR')?.at?.(-1) ?? null;
+			n = null;
+			for (let index = children.length - 1; index >= 0; index--) {
+				if (children[index]?.type !== 'ERROR') {
+					n = children[index] ?? null;
+					break;
+				}
+			}
 		}
 	}
 

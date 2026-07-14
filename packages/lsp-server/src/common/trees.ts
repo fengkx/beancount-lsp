@@ -54,15 +54,16 @@ export class Trees {
 		if (typeof documentOrUri === 'string') {
 			documentOrUri = await this._documents.retrieve(documentOrUri);
 		}
-		const parser = await Trees.getParserInstance();
 		let info = this._cache.get(documentOrUri.uri);
 		try {
 			const version = documentOrUri.version;
-			const text = documentOrUri.getText();
 
 			if (info?.version === documentOrUri.version) {
 				return info.tree;
 			}
+
+			const parser = await Trees.getParserInstance();
+			const text = documentOrUri.getText();
 
 			if (!info) {
 				// never seen before, parse fresh
