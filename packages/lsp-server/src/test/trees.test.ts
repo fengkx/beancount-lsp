@@ -105,4 +105,25 @@ describe('Trees incremental parsing', () => {
 		expect(harness.firstTree.edit).not.toHaveBeenCalled();
 		expect(harness.parser.parse).toHaveBeenLastCalledWith('xy');
 	});
+
+	it('falls back to a full parse when a changed version has no recorded edit', async () => {
+		const harness = createHarness();
+		await harness.trees.getParseTree(document(1, 'a'));
+
+		await harness.trees.getParseTree(document(2, 'ab'));
+
+		expect(harness.firstTree.edit).not.toHaveBeenCalled();
+		expect(harness.parser.parse).toHaveBeenLastCalledWith('ab');
+	});
+
+	it('invalidates the cached tree after a full-content replacement', async () => {
+		const harness = createHarness();
+		await harness.trees.getParseTree(document(1, 'a'));
+
+		harness.fire({ document: document(2, 'replacement'), fullContent: true, changes: [] });
+		await harness.trees.getParseTree(document(2, 'replacement'));
+
+		expect(harness.firstTree.edit).not.toHaveBeenCalled();
+		expect(harness.parser.parse).toHaveBeenLastCalledWith('replacement');
+	});
 });

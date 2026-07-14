@@ -42,21 +42,15 @@ export class SelectionRangesFeature implements Feature {
 			const stack: Parser.SyntaxNode[] = [];
 			const offset = document.offsetAt(position);
 
-			let node = tree.rootNode;
-			stack.push(node);
-
-			while (true) {
-				const child = node.children.find(candidate => {
-					return candidate.startIndex <= offset && candidate.endIndex > offset;
-				});
-
-				if (child) {
-					stack.push(child);
-					node = child;
-					continue;
-				}
-				break;
+			const rootNode = tree.rootNode;
+			let node: Parser.SyntaxNode | null = offset < rootNode.endIndex
+				? rootNode.descendantForIndex(offset, offset + 1)
+				: rootNode;
+			while (node) {
+				stack.push(node);
+				node = node.parent;
 			}
+			stack.reverse();
 
 			let parent: SelectionRange | undefined;
 			for (const node of stack) {

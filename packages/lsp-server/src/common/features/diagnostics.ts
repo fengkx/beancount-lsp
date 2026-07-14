@@ -11,7 +11,6 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { URI } from 'vscode-uri';
 import { asLspRange } from '../common';
 import { DocumentStore } from '../document-store';
-import { TreeQuery } from '../language';
 import { Trees } from '../trees';
 import { findAllTransactions } from '../utils/ast-utils';
 import {
@@ -491,10 +490,10 @@ export class DiagnosticsFeature implements Feature {
 		if (!beancountDiagnostics) {
 			return diagnostics;
 		}
-		this.logger.info(beancountDiagnostics);
+		this.logger.debug(beancountDiagnostics);
 
 		const mergedDiagnostics = this.mergeAndDedupDiagnostics(beancountDiagnostics, diagnostics);
-		this.logger.info(mergedDiagnostics);
+		this.logger.debug(mergedDiagnostics);
 
 		return mergedDiagnostics;
 	}
@@ -722,17 +721,14 @@ export class DiagnosticsFeature implements Feature {
 		this.throwIfCancelled(token);
 		const validRoots = this.optionsManager.getValidRootAccounts(scopeUri);
 
-		// Query all account nodes
-		const accountQuery = TreeQuery.getQueryByTokenName('account');
-		const accountCaptures = await accountQuery.captures(tree);
+		const accountNodes = tree.rootNode.descendantsOfType('account');
 		this.throwIfCancelled(token);
 
 		// Track seen accounts to avoid duplicate diagnostics
 		const seenAccounts = new Set<string>();
 
-		for (const capture of accountCaptures) {
+		for (const accountNode of accountNodes) {
 			this.throwIfCancelled(token);
-			const accountNode = capture.node;
 			const accountName = accountNode.text;
 
 			// Skip if we've already validated this account

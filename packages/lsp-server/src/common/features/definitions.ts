@@ -5,6 +5,7 @@ import type Parser from 'web-tree-sitter';
 import { asLspRange } from '../common';
 import { DocumentStore } from '../document-store';
 import { Trees } from '../trees';
+import { getTagDirectiveIndex } from '../utils/tag-directives';
 import * as positionUtils from './position-utils';
 import { getRange, SymbolInfo, SymbolKey, SymbolType } from './symbol-extractors';
 import { SymbolIndex } from './symbol-index';
@@ -125,25 +126,17 @@ export class DefinitionFeature {
 			return null;
 		}
 
-		const tagName = this.extractTagName(poptagNode);
-		if (!tagName) {
-			return null;
-		}
-
-		const matchedPushtagNode = this.findMatchingPushtag(tree.rootNode, poptagNode, tagName);
-		if (!matchedPushtagNode) {
-			logger.debug(`No matching pushtag found for poptag: ${tagName}`);
-			return null;
-		}
-
-		const tagNode = matchedPushtagNode.child(1);
-		if (!tagNode) {
+		const directiveIndex = await getTagDirectiveIndex(tree);
+		const poptag = directiveIndex.get(poptagNode);
+		const matchedPushtag = directiveIndex.getPair(poptagNode);
+		if (!poptag || !matchedPushtag || matchedPushtag.type !== 'pushtag') {
+			logger.debug('No matching pushtag found for poptag');
 			return null;
 		}
 
 		return [{
 			uri: document.uri,
-			range: asLspRange(tagNode),
+			range: asLspRange(matchedPushtag.tagNode),
 		}];
 	}
 
@@ -156,68 +149,6 @@ export class DefinitionFeature {
 			current = current.parent;
 		}
 		return null;
-	}
-
-	private extractTagName(node: Parser.SyntaxNode): string | null {
-		const tagNode = node.child(1);
-		if (tagNode && tagNode.type === 'tag') {
-			return tagNode.text.startsWith('#') ? tagNode.text.substring(1) : tagNode.text;
-		}
-		return null;
-	}
-
-	private findMatchingPushtag(
-		rootNode: Parser.SyntaxNode,
-		poptagNode: Parser.SyntaxNode,
-		tagName: string,
-	): Parser.SyntaxNode | null {
-		const poptagOffset = poptagNode.startIndex;
-		const allNodes: Parser.SyntaxNode[] = [];
-		this.collectAllNodes(rootNode, allNodes);
-
-		// Process from current poptag backwards to preserve proper stack matching.
-		const relevantNodes = allNodes
-			.filter(node => {
-				if (node.type !== 'pushtag' && node.type !== 'poptag') return false;
-				return node.startIndex < poptagOffset;
-			})
-			.sort((a, b) => b.startIndex - a.startIndex);
-
-		const stack: Parser.SyntaxNode[] = [poptagNode];
-		for (const node of relevantNodes) {
-			if (node.type === 'poptag') {
-				stack.push(node);
-				continue;
-			}
-
-			const nodeTagName = this.extractTagName(node);
-			if (!nodeTagName) {
-				continue;
-			}
-
-			for (let i = stack.length - 1; i >= 0; i--) {
-				const stackTagName = this.extractTagName(stack[i]!);
-				if (stackTagName !== nodeTagName) {
-					continue;
-				}
-
-				if (stack[i] === poptagNode && nodeTagName === tagName) {
-					return node;
-				}
-
-				stack.splice(i, 1);
-				break;
-			}
-		}
-
-		return null;
-	}
-
-	private collectAllNodes(node: Parser.SyntaxNode, result: Parser.SyntaxNode[]): void {
-		result.push(node);
-		for (const child of node.children) {
-			this.collectAllNodes(child, result);
-		}
 	}
 
 	private async findTagUsages(tagName: string, scopeUri: string): Promise<lsp.Location[] | null> {

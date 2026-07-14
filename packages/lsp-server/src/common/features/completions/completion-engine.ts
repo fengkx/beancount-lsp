@@ -3,9 +3,9 @@ import type { CompletionItem, CompletionItemKind, Position } from 'vscode-langua
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type Parser from 'web-tree-sitter';
 import type { CompletionTextContextLike } from './completion-context';
+import type { PlaceholderKind, ReparseContext } from './completion-fallback';
 import type { CompletionIntentLike, IntentCompletionTextContextLike, TriggerInfoLike } from './completion-intents';
 import type { AddPayeesAndNarrationsParams, CompletionCollector } from './completion-providers';
-import type { PlaceholderKind, ReparseContext } from './completion-fallback';
 
 type CompletionScenario = {
 	placeholder: string;
@@ -16,8 +16,11 @@ type CompletionScenario = {
 };
 
 type EngineDeps = {
-	logger: { info: (msg: string) => void };
-	resolveCompletionIntent: (info: TriggerInfoLike, textCtx: IntentCompletionTextContextLike) => CompletionIntentLike[];
+	logger: { debug: (msg: string) => void };
+	resolveCompletionIntent: (
+		info: TriggerInfoLike,
+		textCtx: IntentCompletionTextContextLike,
+	) => CompletionIntentLike[];
 	shouldSuppressCurrencyForCurrentToken: (linePrefix: string) => boolean;
 	addTagCompletions: (collector: CompletionCollector) => Promise<void>;
 	addLinkCompletions: (collector: CompletionCollector) => Promise<void>;
@@ -51,7 +54,7 @@ export async function runCompletionEngine(args: RunCompletionEngineArgs): Promis
 	const { logger } = deps;
 	const completionItems = collector.completions;
 
-	logger.info(`Starting completion with info: ${JSON.stringify(info)}`);
+	logger.debug(`Starting completion with info: ${JSON.stringify(info)}`);
 	const intents = deps.resolveCompletionIntent(info, textCtx);
 	for (const intent of intents) {
 		const initialCount = completionItems.length;
@@ -108,7 +111,7 @@ export async function runCompletionEngine(args: RunCompletionEngineArgs): Promis
 						}
 						const initialCount = completionItems.length;
 						await deps.addCurrencyCompletions(collector);
-						logger.info(`Currencies added, items: ${completionItems.length - initialCount}`);
+						logger.debug(`Currencies added, items: ${completionItems.length - initialCount}`);
 					})
 					.with(
 						{
@@ -147,11 +150,11 @@ export async function runCompletionEngine(args: RunCompletionEngineArgs): Promis
 						async () => {
 							const initialCount = completionItems.length;
 							await deps.addAccountCompletions(collector);
-							logger.info(`Accounts added, items: ${completionItems.length - initialCount}`);
+							logger.debug(`Accounts added, items: ${completionItems.length - initialCount}`);
 						},
 					)
 					.otherwise(() => {
-						logger.info(`No matching branch found ${JSON.stringify(validTypes)}`);
+						logger.debug(`No matching branch found ${JSON.stringify(validTypes)}`);
 					});
 				await pp;
 			}
@@ -202,7 +205,7 @@ export async function runCompletionEngine(args: RunCompletionEngineArgs): Promis
 					placeholder: 'somekey: "value"',
 					kind: 'meta',
 					onSuccess: async () => {
-						logger.info('Fallback: metadata key_value context detected');
+						logger.debug('Fallback: metadata key_value context detected');
 					},
 					description: 'metadata_key_value',
 				},
@@ -227,7 +230,7 @@ export async function runCompletionEngine(args: RunCompletionEngineArgs): Promis
 					await scenario.onSuccess(ctx);
 					if (completionItems.length > initial) {
 						const ancestorTypes = Array.from(ctx.ancestors.keys()).join(' > ');
-						logger.info(
+						logger.debug(
 							`Fallback: ${scenario.description} (${ancestorTypes}), added ${
 								completionItems.length - initial
 							} items`,
@@ -237,10 +240,10 @@ export async function runCompletionEngine(args: RunCompletionEngineArgs): Promis
 				}
 			}
 		} catch (e) {
-			logger.info(`Fallback (placeholder reparse) failed: ${e}`);
+			logger.debug(`Fallback (placeholder reparse) failed: ${e}`);
 		}
 	}
 
-	logger.info(`Final completion items: ${completionItems.length}`);
+	logger.debug(`Final completion items: ${completionItems.length}`);
 	return completionItems;
 }

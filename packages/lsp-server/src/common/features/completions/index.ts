@@ -199,7 +199,7 @@ export class CompletionFeature implements Feature {
 			params.position,
 			params.context?.triggerCharacter as string | undefined,
 		);
-		logger.info(
+		logger.debug(
 			`[completion-context] requestId=${requestId} triggerKind=${params.context?.triggerKind ?? 'n/a'} triggerChar="${params.context?.triggerCharacter ?? ''}" token="${textCtx.tokenText}" range=${textCtx.tokenRange.startChar}-${textCtx.tokenRange.endChar} cursor=${params.position.character} isIncomplete=true`,
 		);
 		if (textCtx.tokenRange.endChar !== params.position.character) {
@@ -232,7 +232,7 @@ export class CompletionFeature implements Feature {
 			textCtx,
 			document,
 		);
-		logger.info(
+		logger.debug(
 			`[completion-context] requestId=${requestId} itemsCount=${completionItems.length}`,
 		);
 
@@ -298,6 +298,7 @@ export class CompletionFeature implements Feature {
 					placeholder,
 					kind,
 					ancestorTypes,
+					current.tree,
 				),
 				completionItemKind: CompletionItemKind,
 			},

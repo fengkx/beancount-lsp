@@ -20,6 +20,10 @@ vi.mock('../../common/features/symbol-index', () => ({
 	SymbolIndex: class {},
 }));
 
+vi.mock('../../common/utils/tag-directives', () => ({
+	getTagDirectiveIndex: vi.fn(),
+}));
+
 vi.mock('../../common/features/symbol-extractors', () => {
 	const SymbolType = {
 		ACCOUNT_USAGE: 0,

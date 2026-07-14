@@ -12,6 +12,16 @@ describe('nodeAtPosition', () => {
 		expect(descendantForPosition).toHaveBeenCalledWith({ row: 4, column: 7 });
 	});
 
+	it('does not probe before the beginning of the document for left bias', () => {
+		const candidate = { type: 'source_file' };
+		const descendantForPosition = vi.fn().mockReturnValue(candidate);
+
+		expect(nodeAtPosition({ descendantForPosition } as never, { line: 0, character: 0 }, true))
+			.toBe(candidate);
+		expect(descendantForPosition).toHaveBeenCalledOnce();
+		expect(descendantForPosition).toHaveBeenCalledWith({ row: 0, column: 0 });
+	});
+
 	it('preserves left bias when a node ends exactly at the cursor', () => {
 		const candidate = { type: 'posting' };
 		const leftCandidate = {

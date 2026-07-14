@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Range } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
@@ -35,11 +35,14 @@ type MockNode = {
 	startPosition: { row: number; column: number };
 	endPosition: { row: number; column: number };
 	parent: MockNode | null;
+	children: MockNode[];
 	childCount: number;
 	child: (index: number) => MockNode | null;
+	namedChildren: MockNode[];
 	namedChildCount: number;
 	namedChild: (index: number) => MockNode | null;
 	childForFieldName: (name: string) => MockNode | null;
+	descendantsOfType: (types: string | string[]) => MockNode[];
 	descendantForIndex?: (index: number) => MockNode;
 };
 
@@ -108,11 +111,28 @@ function createFixture(): Fixture {
 			startPosition: point(config.startIndex),
 			endPosition: point(config.endIndex ?? (config.startIndex + config.text.length)),
 			parent: null,
+			children,
 			childCount: children.length,
 			child: (index: number) => children[index] ?? null,
+			namedChildren,
 			namedChildCount: namedChildren.length,
 			namedChild: (index: number) => namedChildren[index] ?? null,
 			childForFieldName: (name: string) => fields[name] ?? null,
+			descendantsOfType: (types: string | string[]) => {
+				const acceptedTypes = new Set(Array.isArray(types) ? types : [types]);
+				const descendants: MockNode[] = [];
+				function visit(current: MockNode) {
+					for (const child of current.children) {
+						if (acceptedTypes.has(child.type)) descendants.push(child);
+						visit(child);
+					}
+				}
+				for (const child of children) {
+					if (acceptedTypes.has(child.type)) descendants.push(child);
+					visit(child);
+				}
+				return descendants;
+			},
 		};
 		for (const child of children) {
 			child.parent = node;
@@ -279,11 +299,14 @@ describe('findTransactionsIntersectingRange', () => {
 			startPosition: { row: 0, column: 0 },
 			endPosition: { row: 0, column: 0 },
 			parent: null,
+			children: [],
 			childCount: 0,
 			child: () => null,
+			namedChildren: [],
 			namedChildCount: 0,
 			namedChild: () => null,
 			childForFieldName: () => null,
+			descendantsOfType: () => [],
 		};
 		const costSpecNode: MockNode = {
 			id: nextNodeId++,
@@ -294,11 +317,14 @@ describe('findTransactionsIntersectingRange', () => {
 			startPosition: { row: 0, column: 0 },
 			endPosition: { row: 0, column: 2 },
 			parent: null,
+			children: [costCompListNode],
 			childCount: 1,
 			child: (index: number) => index === 0 ? costCompListNode : null,
+			namedChildren: [costCompListNode],
 			namedChildCount: 1,
 			namedChild: (index: number) => index === 0 ? costCompListNode : null,
 			childForFieldName: (name: string) => name === 'cost_comp_list' ? costCompListNode : null,
+			descendantsOfType: () => [],
 		};
 
 		expect(parseCostSpec(costSpecNode as never)).toEqual({
@@ -387,7 +413,10 @@ describe('findTransactionsIntersectingRange', () => {
 		const range = Range.create(0, 0, 6, 24);
 		const result = await findTransactionsIntersectingRange(fixture.tree as never, fixture.document, range);
 
-		expect(result.map(transaction => transaction.startIndex)).toEqual([fixture.txn1.startIndex, fixture.txn2.startIndex]);
+		expect(result.map(transaction => transaction.startIndex)).toEqual([
+			fixture.txn1.startIndex,
+			fixture.txn2.startIndex,
+		]);
 	});
 
 	it('uses range-specific cache keys', async () => {
