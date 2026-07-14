@@ -73,9 +73,12 @@ export class Trees {
 				// existing entry, apply deltas and parse incremental
 				const oldTree = info.tree;
 
-				const deltas = info.edits.flat();
-				if (deltas.length <= 1) {
-					deltas.forEach((delta) => oldTree.edit(delta));
+				const canParseIncrementally = info.edits.length > 0
+					&& info.edits.every(edits => edits.length === 1);
+				if (canParseIncrementally) {
+					for (const [delta] of info.edits) {
+						oldTree.edit(delta!);
+					}
 					info.tree = parser.parse(text, oldTree);
 				} else {
 					info.tree = parser.parse(text);

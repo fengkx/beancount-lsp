@@ -363,7 +363,7 @@ export async function addAccountCompletions(collector: CompletionCollector): Pro
 	const { accounts, usageCounts: accountUsageCounts, closedAccounts, fetchMs: snapshotFetchMs } = snapshotData;
 
 	if (shouldTrace) {
-		logger.info(
+		logger.debug(
 			`[account-query] source=${querySource} token="${collector.textCtx.tokenText}" lineDerived="${lineDerivedQuery}" query="${query}" range=${collector.textCtx.tokenRange.startChar}-${collector.textCtx.tokenRange.endChar}`,
 		);
 	}
@@ -407,7 +407,7 @@ export async function addAccountCompletions(collector: CompletionCollector): Pro
 			const usage = accountUsageCounts.get(account.name) || 0;
 			return `${account.name} (rank=${JSON.stringify(rank)}, usage=${usage})`;
 		});
-		logger.info(`[account-query] filtered=${filteredAccounts.length} rankTopN=${top.join(' | ')}`);
+		logger.debug(`[account-query] filtered=${filteredAccounts.length} rankTopN=${top.join(' | ')}`);
 	}
 
 	const buildItemsStart = performance.now();
@@ -443,7 +443,7 @@ export async function addAccountCompletions(collector: CompletionCollector): Pro
 	const buildItemsMs = performance.now() - buildItemsStart;
 	const totalMs = performance.now() - accountPerfStart;
 	if (shouldTrace || totalMs > 30) {
-		logger.info(
+		logger.debug(
 			`[account-query-perf] snapshotFetchMs=${Math.round(snapshotFetchMs)} queryCompileMs=${
 				Math.round(queryCompileMs)
 			} rankFilterMs=${Math.round(rankFilterMs)} sortMs=${Math.round(sortMs)} buildItemsMs=${

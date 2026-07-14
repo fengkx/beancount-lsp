@@ -1,15 +1,49 @@
 import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { Tree } from 'web-tree-sitter';
 import * as Parser from 'web-tree-sitter';
 import { asLspRange } from '../common';
 import { DocumentStore } from '../document-store';
-import { TreeQuery } from '../language';
 import { Trees } from '../trees';
 
 // Create a logger for the document symbols module
 const logger = new Logger('document-symbols');
+const documentSymbolNodeTypes = new Set([
+	'transaction',
+	'commodity',
+	'open',
+	'price',
+	'balance',
+	'close',
+	'pad',
+	'document',
+	'note',
+	'event',
+	'query',
+	'custom',
+	'include',
+]);
+
+function groupDocumentSymbolNodes(root: Parser.SyntaxNode): Map<string, Parser.SyntaxNode[]> {
+	const nodesByType = new Map<string, Parser.SyntaxNode[]>();
+	function collect(node: Parser.SyntaxNode) {
+		if (documentSymbolNodeTypes.has(node.type)) {
+			const nodes = nodesByType.get(node.type);
+			if (nodes) nodes.push(node);
+			else nodesByType.set(node.type, [node]);
+			return;
+		}
+
+		// Valid directives are top-level nodes. Querying used to also find directives
+		// recovered below ERROR nodes, so retain that behavior only on the error path.
+		if (node.type === 'ERROR') {
+			for (const child of node.namedChildren) collect(child);
+		}
+	}
+
+	for (const node of root.namedChildren) collect(node);
+	return nodesByType;
+}
 
 function getStringContent(node: Parser.SyntaxNode | null): string | undefined {
 	if (!node) {
@@ -89,38 +123,39 @@ export class DocumentSymbolsFeature {
 			return [];
 		}
 
-		const symbols = (await Promise.all([
-			this.getTransactionSymbol(tree),
-			this.getCommodityDefinitionSymbol(tree),
-			this.getAccountDefinitionSymbol(tree),
-			this.getPriceDirectiveSymbol(tree),
-			this.getBalanceDirectiveSymbol(tree),
-			this.getCloseDirectiveSymbol(tree),
-			this.getPadDirectiveSymbol(tree),
-			this.getDocumentDirectiveSymbol(tree),
-			this.getNoteDirectiveSymbol(tree),
-			this.getEventDirectiveSymbol(tree),
-			this.getQueryDirectiveSymbol(tree),
-			this.getCustomDirectiveSymbol(tree),
-			this.getIncludeDirectiveSymbol(tree),
-		])).flat();
+		const nodesByType = groupDocumentSymbolNodes(tree.rootNode);
+		const nodes = (type: string) => nodesByType.get(type) ?? [];
+		const symbols = [
+			this.getTransactionSymbol(nodes('transaction')),
+			this.getCommodityDefinitionSymbol(nodes('commodity')),
+			this.getAccountDefinitionSymbol(nodes('open')),
+			this.getPriceDirectiveSymbol(nodes('price')),
+			this.getBalanceDirectiveSymbol(nodes('balance')),
+			this.getCloseDirectiveSymbol(nodes('close')),
+			this.getPadDirectiveSymbol(nodes('pad')),
+			this.getDocumentDirectiveSymbol(nodes('document')),
+			this.getNoteDirectiveSymbol(nodes('note')),
+			this.getEventDirectiveSymbol(nodes('event')),
+			this.getQueryDirectiveSymbol(nodes('query')),
+			this.getCustomDirectiveSymbol(nodes('custom')),
+			this.getIncludeDirectiveSymbol(nodes('include')),
+		].flat();
 
 		return filterEmptyDocumentSymbols(symbols);
 	}
 
-	private async getTransactionSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
+	private getTransactionSymbol(transactionNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
-		const transactionQuery = TreeQuery.getQueryByTokenName('transaction');
-		const transactionCaptures = await transactionQuery.captures(tree);
 
-		for (const capture of transactionCaptures) {
-			const date = capture.node.childForFieldName('date');
+		for (const transactionNode of transactionNodes) {
+			const date = transactionNode.childForFieldName('date');
+			const namedChildren = transactionNode.namedChildren;
 			let name = 'Txn';
 			const children: lsp.DocumentSymbol[] = [];
 
-			if (date && capture.node.namedChild(0)?.type === 'date') {
-				const payee = capture.node.namedChild(2);
-				const narration = capture.node.namedChild(3);
+			if (date && namedChildren[0]?.type === 'date') {
+				const payee = namedChildren[2] ?? null;
+				const narration = namedChildren[3] ?? null;
 
 				name = `${date.text}`;
 				const payeeText = getStringContent(payee);
@@ -135,9 +170,9 @@ export class DocumentSymbolsFeature {
 					}
 				}
 
-				if (capture.node.namedChildCount > 4) {
-					for (let i = 4; i < capture.node.namedChildCount; i++) {
-						const posting = capture.node.namedChild(i);
+				if (namedChildren.length > 4) {
+					for (let i = 4; i < namedChildren.length; i++) {
+						const posting = namedChildren[i];
 						if (posting && posting.type === 'posting') {
 							const account = posting.childForFieldName('account');
 							const postingChildren: lsp.DocumentSymbol[] = [];
@@ -164,8 +199,8 @@ export class DocumentSymbolsFeature {
 			const symbol: lsp.DocumentSymbol = {
 				name,
 				kind: lsp.SymbolKind.Class,
-				range: asLspRange(capture.node),
-				selectionRange: asLspRange(capture.node),
+				range: asLspRange(transactionNode),
+				selectionRange: asLspRange(transactionNode),
 				children,
 			};
 			if (symbol.name) {
@@ -176,17 +211,13 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private async getCommodityDefinitionSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
+	private getCommodityDefinitionSymbol(commodityNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
-		const commodityDefinitionQuery = TreeQuery.getQueryByTokenName('currency_definition');
-		const commodityDefinitionCaptures = await commodityDefinitionQuery.captures(tree);
 
-		for (const capture of commodityDefinitionCaptures) {
-			const commodity = capture.node.parent;
-			if (!commodity || commodity.type !== 'commodity') {
-				continue;
-			}
-			const commodityName = capture.node.text;
+		for (const commodity of commodityNodes) {
+			const currencyNode = commodity.childForFieldName('currency');
+			if (!currencyNode) continue;
+			const commodityName = currencyNode.text;
 			const date = commodity.childForFieldName('date');
 
 			let name = `Commodity ${commodityName}`;
@@ -197,7 +228,7 @@ export class DocumentSymbolsFeature {
 			const symbol: lsp.DocumentSymbol = {
 				name,
 				kind: lsp.SymbolKind.Class,
-				range: asLspRange(commodity!),
+				range: asLspRange(commodity),
 				selectionRange: asLspRange(commodity),
 				children: [
 					date && {
@@ -209,8 +240,8 @@ export class DocumentSymbolsFeature {
 					{
 						name: commodityName,
 						kind: lsp.SymbolKind.Enum,
-						range: asLspRange(capture.node),
-						selectionRange: asLspRange(capture.node),
+						range: asLspRange(currencyNode),
+						selectionRange: asLspRange(currencyNode),
 					},
 				].filter(Boolean) as lsp.DocumentSymbol[],
 			};
@@ -220,17 +251,13 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private async getAccountDefinitionSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
+	private getAccountDefinitionSymbol(openNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
-		const accountDefinitionQuery = TreeQuery.getQueryByTokenName('account_definition');
-		const accountDefinitionCaptures = await accountDefinitionQuery.captures(tree);
 
-		for (const capture of accountDefinitionCaptures) {
-			const openDirective = capture.node.parent;
-			if (!openDirective || openDirective.type !== 'open') {
-				continue;
-			}
-			const accountName = capture.node.text;
+		for (const openDirective of openNodes) {
+			const accountNode = openDirective.childForFieldName('account');
+			if (!accountNode) continue;
+			const accountName = accountNode.text;
 			const date = openDirective.childForFieldName('date');
 			let name = `Open ${accountName}`;
 			if (date) {
@@ -242,9 +269,8 @@ export class DocumentSymbolsFeature {
 			let firstCurrency: Parser.SyntaxNode | null = null;
 			let lastCurrency: Parser.SyntaxNode | null = null;
 
-			for (let i = 0; i < openDirective.namedChildCount; i++) {
-				const child = openDirective.namedChild(i);
-				if (child && child.type === 'currency') {
+			for (const child of openDirective.namedChildren) {
+				if (child.type === 'currency') {
 					currencies.push(child);
 					if (!firstCurrency) firstCurrency = child;
 					lastCurrency = child;
@@ -279,7 +305,7 @@ export class DocumentSymbolsFeature {
 				name,
 				kind: lsp.SymbolKind.Class,
 				range: asLspRange(openDirective),
-				selectionRange: asLspRange(capture.node),
+				selectionRange: asLspRange(accountNode),
 				children: [
 					date && {
 						name: 'Date',
@@ -290,8 +316,8 @@ export class DocumentSymbolsFeature {
 					{
 						name: accountName,
 						kind: lsp.SymbolKind.Interface,
-						range: asLspRange(capture.node),
-						selectionRange: asLspRange(capture.node),
+						range: asLspRange(accountNode),
+						selectionRange: asLspRange(accountNode),
 					},
 					currencies.length > 0 ? currenciesSymbol : null,
 				].filter(Boolean) as lsp.DocumentSymbol[],
@@ -302,16 +328,10 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private async getPriceDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
+	private getPriceDirectiveSymbol(priceNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
-		const priceDirectiveQuery = TreeQuery.getQueryByTokenName('price');
-		const priceDirectiveCaptures = await priceDirectiveQuery.captures(tree);
 
-		for (const capture of priceDirectiveCaptures) {
-			const price = capture.node;
-			if (!price || price.type !== 'price') {
-				continue;
-			}
+		for (const price of priceNodes) {
 			const date = price.childForFieldName('date');
 			const currency = price.childForFieldName('currency');
 			const amount = price.childForFieldName('amount');
@@ -365,16 +385,10 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private async getBalanceDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
+	private getBalanceDirectiveSymbol(balanceNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
-		const balanceQuery = TreeQuery.getQueryByTokenName('balance');
-		const balanceCaptures = await balanceQuery.captures(tree);
 
-		for (const capture of balanceCaptures) {
-			const balance = capture.node;
-			if (!balance || balance.type !== 'balance') {
-				continue;
-			}
+		for (const balance of balanceNodes) {
 			const date = balance.childForFieldName('date');
 			const account = balance.childForFieldName('account');
 			const amount = balance.childForFieldName('amount');
@@ -419,16 +433,10 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private async getCloseDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
+	private getCloseDirectiveSymbol(closeNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
-		const closeQuery = TreeQuery.getQueryByTokenName('close');
-		const closeCaptures = await closeQuery.captures(tree);
 
-		for (const capture of closeCaptures) {
-			const close = capture.node;
-			if (!close || close.type !== 'close') {
-				continue;
-			}
+		for (const close of closeNodes) {
 			const date = close.childForFieldName('date');
 			const account = close.childForFieldName('account');
 
@@ -463,16 +471,10 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private async getPadDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
+	private getPadDirectiveSymbol(padNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
-		const padQuery = TreeQuery.getQueryByTokenName('pad');
-		const padCaptures = await padQuery.captures(tree);
 
-		for (const capture of padCaptures) {
-			const pad = capture.node;
-			if (!pad || pad.type !== 'pad') {
-				continue;
-			}
+		for (const pad of padNodes) {
 			const date = pad.childForFieldName('date');
 			const account = pad.childForFieldName('account');
 			const fromAccount = pad.childForFieldName('from_account');
@@ -514,16 +516,10 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private async getDocumentDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
+	private getDocumentDirectiveSymbol(documentNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
-		const documentQuery = TreeQuery.getQueryByTokenName('document');
-		const documentCaptures = await documentQuery.captures(tree);
 
-		for (const capture of documentCaptures) {
-			const doc = capture.node;
-			if (!doc || doc.type !== 'document') {
-				continue;
-			}
+		for (const doc of documentNodes) {
 			const date = doc.childForFieldName('date');
 			const account = doc.childForFieldName('account');
 			const filename = doc.childForFieldName('filename');
@@ -566,16 +562,10 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private async getNoteDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
+	private getNoteDirectiveSymbol(noteNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
-		const noteQuery = TreeQuery.getQueryByTokenName('note');
-		const noteCaptures = await noteQuery.captures(tree);
 
-		for (const capture of noteCaptures) {
-			const note = capture.node;
-			if (!note || note.type !== 'note') {
-				continue;
-			}
+		for (const note of noteNodes) {
 			const date = note.childForFieldName('date');
 			const account = note.childForFieldName('account');
 			const noteText = note.childForFieldName('note');
@@ -621,16 +611,10 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private async getEventDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
+	private getEventDirectiveSymbol(eventNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
-		const eventQuery = TreeQuery.getQueryByTokenName('event');
-		const eventCaptures = await eventQuery.captures(tree);
 
-		for (const capture of eventCaptures) {
-			const event = capture.node;
-			if (!event || event.type !== 'event') {
-				continue;
-			}
+		for (const event of eventNodes) {
 			const date = event.childForFieldName('date');
 			const type = event.childForFieldName('type');
 			const desc = event.childForFieldName('desc');
@@ -675,16 +659,10 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private async getQueryDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
+	private getQueryDirectiveSymbol(queryNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
-		const queryQuery = TreeQuery.getQueryByTokenName('query');
-		const queryCaptures = await queryQuery.captures(tree);
 
-		for (const capture of queryCaptures) {
-			const queryNode = capture.node;
-			if (!queryNode || queryNode.type !== 'query') {
-				continue;
-			}
+		for (const queryNode of queryNodes) {
 			const date = queryNode.childForFieldName('date');
 			const name = queryNode.childForFieldName('name');
 			const queryString = queryNode.childForFieldName('query');
@@ -720,16 +698,10 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private async getCustomDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
+	private getCustomDirectiveSymbol(customNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
-		const customQuery = TreeQuery.getQueryByTokenName('custom');
-		const customCaptures = await customQuery.captures(tree);
 
-		for (const capture of customCaptures) {
-			const custom = capture.node;
-			if (!custom || custom.type !== 'custom') {
-				continue;
-			}
+		for (const custom of customNodes) {
 			const date = custom.childForFieldName('date');
 			const name = custom.childForFieldName('name');
 			const nameText = getStringContent(name);
@@ -763,19 +735,12 @@ export class DocumentSymbolsFeature {
 		return symbols;
 	}
 
-	private async getIncludeDirectiveSymbol(tree: Tree): Promise<lsp.DocumentSymbol[]> {
+	private getIncludeDirectiveSymbol(includeNodes: Parser.SyntaxNode[]): lsp.DocumentSymbol[] {
 		const symbols: lsp.DocumentSymbol[] = [];
-		const includeQuery = TreeQuery.getQueryByTokenName('include');
-		const includeCaptures = await includeQuery.captures(tree);
 
-		for (const capture of includeCaptures) {
-			const include = capture.node;
-			if (!include || include.type !== 'include') {
-				continue;
-			}
-
+		for (const include of includeNodes) {
 			// Include directive has a string parameter which is the file path
-			const filePath = include.namedChild(0);
+			const filePath = include.namedChildren[0] ?? null;
 			const filePathText = getStringContent(filePath);
 
 			let name = 'Include';

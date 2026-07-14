@@ -1,24 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { DocumentSymbol } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-
-const mocks = vi.hoisted(() => ({
-	capturesByToken: new Map<string, Array<{ node: MockNode }>>(),
-}));
 
 vi.mock('@bean-lsp/shared', () => ({
 	Logger: class {
 		debug() {}
 		warn() {}
 		error() {}
-	},
-}));
-
-vi.mock('../../common/language', () => ({
-	TreeQuery: {
-		getQueryByTokenName: (name: string) => ({
-			captures: async () => mocks.capturesByToken.get(name) ?? [],
-		}),
 	},
 }));
 
@@ -29,6 +17,7 @@ type MockNode = {
 	text: string;
 	startPosition: { row: number; column: number };
 	endPosition: { row: number; column: number };
+	namedChildren: MockNode[];
 	namedChildCount: number;
 	childForFieldName: (name: string) => MockNode | null;
 	namedChild: (index: number) => MockNode | null;
@@ -40,6 +29,7 @@ function createLeaf(type: string, text: string, row: number, column: number): Mo
 		text,
 		startPosition: { row, column },
 		endPosition: { row, column: column + text.length },
+		namedChildren: [],
 		namedChildCount: 0,
 		childForFieldName: () => null,
 		namedChild: () => null,
@@ -57,6 +47,7 @@ function createDirective(
 		text: type,
 		startPosition: { row, column: 0 },
 		endPosition: { row, column: 80 },
+		namedChildren,
 		namedChildCount: namedChildren.length,
 		childForFieldName: name => fields[name] ?? null,
 		namedChild: index => namedChildren[index] ?? null,
@@ -64,12 +55,12 @@ function createDirective(
 }
 
 async function getDocumentSymbols(captures: Record<string, MockNode[]>): Promise<DocumentSymbol[]> {
-	for (const [token, nodes] of Object.entries(captures)) {
-		mocks.capturesByToken.set(token, nodes.map(node => ({ node })));
-	}
-
 	const document = TextDocument.create('file:///symbols.bean', 'beancount', 1, '');
-	const trees = { getParseTree: vi.fn().mockResolvedValue({}) };
+	const trees = {
+		getParseTree: vi.fn().mockResolvedValue({
+			rootNode: { namedChildren: Object.values(captures).flat() },
+		}),
+	};
 	const feature = new DocumentSymbolsFeature({} as never, trees as never);
 	const featureWithPrivateMethod = feature as unknown as {
 		getDocumentSymbols(document: TextDocument): Promise<DocumentSymbol[]>;
@@ -82,10 +73,6 @@ function collectNames(symbols: DocumentSymbol[]): string[] {
 }
 
 describe('DocumentSymbolsFeature', () => {
-	beforeEach(() => {
-		mocks.capturesByToken.clear();
-	});
-
 	it('omits the empty description symbol from an event', async () => {
 		const date = createLeaf('date', '2026-07-07', 72, 0);
 		const type = createLeaf('string', '"信用卡激活"', 72, 17);

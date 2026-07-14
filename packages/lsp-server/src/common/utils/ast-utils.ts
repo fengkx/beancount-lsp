@@ -27,22 +27,11 @@ export interface Transaction {
  */
 export function queryNodes(node: Parser.SyntaxNode, type: string): Parser.SyntaxNode[] {
 	const nodes: Parser.SyntaxNode[] = [];
-
-	// Use a recursive function to find all nodes of the given type
-	const findNodes = (current: Parser.SyntaxNode) => {
-		if (current.type === type) {
-			nodes.push(current);
-		}
-
-		for (let i = 0; i < current.childCount; i++) {
-			const child = current.child(i);
-			if (child) {
-				findNodes(child);
-			}
-		}
-	};
-
-	findNodes(node);
+	function visit(current: Parser.SyntaxNode) {
+		if (current.type === type) nodes.push(current);
+		for (const child of current.children) visit(child);
+	}
+	visit(node);
 	return nodes;
 }
 
@@ -50,29 +39,24 @@ export function queryNodes(node: Parser.SyntaxNode, type: string): Parser.Syntax
  * Find a child node by type
  */
 export function findChildByType(node: Parser.SyntaxNode, type: string): Parser.SyntaxNode | null {
-	for (let i = 0; i < node.childCount; i++) {
-		const child = node.child(i);
-		if (child && child.type === type) {
-			return child;
-		}
-	}
-	return null;
+	return node.children.find(child => child.type === type) ?? null;
+}
+
+function parseAmountChildren(namedChildren: Parser.SyntaxNode[]): { number: string; currency: string } | undefined {
+	const [numNode, currNode] = namedChildren;
+	if (!numNode || !currNode) return undefined;
+
+	return {
+		number: numNode.text,
+		currency: currNode.text,
+	};
 }
 
 /**
  * Parse amount node into number and currency
  */
 export function parseAmount(amountNode: Parser.SyntaxNode): { number: string; currency: string } | undefined {
-	const numNode = amountNode.namedChild(0);
-	const currNode = amountNode.namedChild(1);
-
-	if (numNode && currNode) {
-		return {
-			number: numNode.text,
-			currency: currNode.text,
-		};
-	}
-	return undefined;
+	return parseAmountChildren(amountNode.namedChildren);
 }
 
 /**
@@ -86,32 +70,33 @@ export function parseCostSpec(
 	// Check if this is a total cost (double brace) specification
 	const isTotalCost = costSpecNode.text.startsWith('{{') && costSpecNode.text.endsWith('}}');
 
-	// Extract cost components
-	const costCompListNode = costSpecNode.childForFieldName('cost_comp_list');
-	if (!costCompListNode) return { number: '', currency: '', isTotalCost };
+	// The grammar repeats this field for each component. childForFieldName preserves
+	// the existing first-component semantics, while reading children in one batch
+	// avoids a JS/WASM call for every child.
+	const firstCostComponent = costSpecNode.childForFieldName('cost_comp_list');
+	if (!firstCostComponent) return { number: '', currency: '', isTotalCost };
 
-	// Find a compound_amount node
-	const costCompNodes = queryNodes(costCompListNode, 'cost_comp');
+	let compoundAmountNode: Parser.SyntaxNode | undefined;
+	let dateNode: Parser.SyntaxNode | undefined;
+	for (const child of firstCostComponent.children) {
+		if (child.type === 'compound_amount') compoundAmountNode = child;
+		if (child.type === 'date') dateNode = child;
+	}
 
-	for (const compNode of costCompNodes) {
-		const compoundAmountNode = findChildByType(compNode, 'compound_amount');
-		const dateNode = findChildByType(compNode, 'date');
+	if (compoundAmountNode || dateNode) {
+		const perNode = compoundAmountNode?.childForFieldName('per');
+		const currencyNode = compoundAmountNode?.childForFieldName('currency');
 
-		if (compoundAmountNode || dateNode) {
-			const perNode = compoundAmountNode?.childForFieldName('per');
-			const currencyNode = compoundAmountNode?.childForFieldName('currency');
-
-			if ((perNode && currencyNode) || dateNode) {
-				try {
-					return {
-						number: perNode?.text,
-						currency: currencyNode?.text,
-						isTotalCost,
-						date: dateNode?.text,
-					};
-				} catch (e) {
-					logger.error(`Error parsing cost: ${e}`);
-				}
+		if ((perNode && currencyNode) || dateNode) {
+			try {
+				return {
+					number: perNode?.text,
+					currency: currencyNode?.text,
+					isTotalCost,
+					date: dateNode?.text,
+				};
+			} catch (e) {
+				logger.error(`Error parsing cost: ${e}`);
 			}
 		}
 	}
@@ -180,14 +165,30 @@ function computeHeaderRange(document: TextDocument, node: Parser.SyntaxNode): Ra
 }
 
 function inferPriceTypeFromPosting(postingNode: Parser.SyntaxNode): '@' | '@@' {
-	const atNode = findChildByType(postingNode, 'atat') || findChildByType(postingNode, 'at');
+	const atNode = postingNode.children.find(child => child.type === 'atat' || child.type === 'at');
 	return atNode && atNode.type === 'atat' ? '@@' : '@';
+}
+
+function parseAmountDetails(amountNode: Parser.SyntaxNode | undefined): {
+	amount: { number: string; currency: string } | undefined;
+	currencyNode: Parser.SyntaxNode | undefined;
+} {
+	if (!amountNode) return { amount: undefined, currencyNode: undefined };
+
+	const namedChildren = amountNode.namedChildren;
+	const likelyCurrencyNode = namedChildren[1];
+	return {
+		amount: parseAmountChildren(namedChildren),
+		currencyNode: likelyCurrencyNode?.type === 'currency'
+			? likelyCurrencyNode
+			: amountNode.children.find(child => child.type === 'currency'),
+	};
 }
 
 function materializePosting(postingNode: Parser.SyntaxNode): Posting {
 	const accountNode = postingNode.childForFieldName('account');
 	const amountNode = postingNode.childForFieldName('amount');
-	const currencyNode = (amountNode?.children ?? []).find(child => child.type === 'currency');
+	const { amount, currencyNode } = parseAmountDetails(amountNode ?? undefined);
 	const costSpecNode = postingNode.childForFieldName('cost_spec');
 	const priceNode = postingNode.childForFieldName('price_annotation');
 
@@ -196,20 +197,16 @@ function materializePosting(postingNode: Parser.SyntaxNode): Posting {
 		postingStartLine: postingNode.startPosition.row,
 		accountEndPosition: accountNode ? makePosition(accountNode.endPosition) : undefined,
 		amountCurrencyColumn: currencyNode?.startPosition.column,
-		amount: amountNode ? parseAmount(amountNode) : undefined,
+		amount,
 		cost: costSpecNode ? parseCostSpec(costSpecNode) : undefined,
 		price: priceNode ? parsePriceAnnotation(priceNode, inferPriceTypeFromPosting(postingNode)) : undefined,
 	};
 }
 
 function materializeTransaction(document: TextDocument, transactionNode: Parser.SyntaxNode): Transaction {
-	const postings: Posting[] = [];
-	for (let i = 0; i < transactionNode.namedChildCount; i++) {
-		const child = transactionNode.namedChild(i);
-		if (child?.type === 'posting') {
-			postings.push(materializePosting(child));
-		}
-	}
+	const postings = transactionNode.namedChildren
+		.filter(child => child.type === 'posting')
+		.map(materializePosting);
 
 	return {
 		date: transactionNode.childForFieldName('date')?.text ?? '',
@@ -251,25 +248,48 @@ export async function findAllTransactions(
 	// Aggregate using tree-sitter queries for performance
 	const transactionsMap = new Map<string, Transaction>();
 
-	function getCaptureNode(match: Parser.QueryMatch, name: string): Parser.SyntaxNode | undefined {
-		for (const cap of match.captures) {
-			if (cap.name === name) return cap.node;
-		}
-		return undefined;
-	}
-
-	function getCaptureText(match: Parser.QueryMatch, name: string): string | undefined {
-		const n = getCaptureNode(match, name);
-		return n ? n.text : undefined;
-	}
-
 	// Run combined query that yields both header and posting matches
 	try {
 		const q = TreeQuery.getQueryByTokenName('transaction_detail');
 		const matches = await q.matches(tree);
 
 		for (const m of matches) {
-			const txnNode = getCaptureNode(m, 'transaction');
+			let txnNode: Parser.SyntaxNode | undefined;
+			let dateNode: Parser.SyntaxNode | undefined;
+			let flagNode: Parser.SyntaxNode | undefined;
+			let postingNode: Parser.SyntaxNode | undefined;
+			let accountNode: Parser.SyntaxNode | undefined;
+			let amountNode: Parser.SyntaxNode | undefined;
+			let costSpecNode: Parser.SyntaxNode | undefined;
+			let priceAnnNode: Parser.SyntaxNode | undefined;
+			for (const capture of m.captures) {
+				switch (capture.name) {
+					case 'transaction':
+						txnNode = capture.node;
+						break;
+					case 'date':
+						dateNode = capture.node;
+						break;
+					case 'txn':
+						flagNode = capture.node;
+						break;
+					case 'posting':
+						postingNode = capture.node;
+						break;
+					case 'account':
+						accountNode = capture.node;
+						break;
+					case 'amount':
+						amountNode = capture.node;
+						break;
+					case 'cost_spec':
+						costSpecNode = capture.node;
+						break;
+					case 'price':
+						priceAnnNode = capture.node;
+						break;
+				}
+			}
 			if (!txnNode) continue;
 			const txnId = makeTransactionId(txnNode);
 			let txn = transactionsMap.get(txnId);
@@ -287,18 +307,18 @@ export async function findAllTransactions(
 			}
 
 			// If this match includes header captures, set date/flag
-			const dateText = getCaptureText(m, 'date');
-			const flagText = getCaptureText(m, 'txn');
+			const dateText = dateNode?.text;
+			const flagText = flagNode?.text;
 			if (dateText !== undefined) txn.date = dateText;
 			if (flagText !== undefined) txn.flag = flagText;
 
 			// If this match includes a posting capture, build Posting
-			const postingNode = getCaptureNode(m, 'posting');
 			if (postingNode) {
-				const accountText = getCaptureText(m, 'account');
-				const amountNode = getCaptureNode(m, 'amount') || postingNode.childForFieldName('amount');
-				const costSpecNode = getCaptureNode(m, 'cost_spec') || postingNode.childForFieldName('cost_spec');
-				const priceAnnNode = getCaptureNode(m, 'price') || postingNode.childForFieldName('price_annotation');
+				accountNode ??= postingNode.childForFieldName('account') ?? undefined;
+				amountNode ??= postingNode.childForFieldName('amount') ?? undefined;
+				costSpecNode ??= postingNode.childForFieldName('cost_spec') ?? undefined;
+				priceAnnNode ??= postingNode.childForFieldName('price_annotation') ?? undefined;
+				const { amount, currencyNode } = parseAmountDetails(amountNode);
 
 				let price: { type: '@' | '@@'; number: string; currency: string } | undefined;
 				if (priceAnnNode) {
@@ -306,14 +326,11 @@ export async function findAllTransactions(
 				}
 
 				txn.postings.push({
-					account: accountText ?? postingNode.childForFieldName('account')?.text ?? '',
+					account: accountNode?.text ?? '',
 					postingStartLine: postingNode.startPosition.row,
-					accountEndPosition: (() => {
-						const accountNode = getCaptureNode(m, 'account') ?? postingNode.childForFieldName('account');
-						return accountNode ? makePosition(accountNode.endPosition) : undefined;
-					})(),
-					amountCurrencyColumn: (amountNode?.children ?? []).find(child => child.type === 'currency')?.startPosition.column,
-					amount: amountNode ? parseAmount(amountNode) : undefined,
+					accountEndPosition: accountNode ? makePosition(accountNode.endPosition) : undefined,
+					amountCurrencyColumn: currencyNode?.startPosition.column,
+					amount,
 					cost: costSpecNode ? parseCostSpec(costSpecNode) : undefined,
 					price,
 				});

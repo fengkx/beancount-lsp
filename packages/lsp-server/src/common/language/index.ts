@@ -27,6 +27,7 @@ import pushtag from './queries/pushtag.scm';
 import query from './queries/query.scm';
 import string from './queries/string.scm';
 import tag from './queries/tag.scm';
+import tag_directives from './queries/tag_directives.scm';
 import transaction from './queries/transaction.scm';
 import transaction_detail from './queries/transaction_detail.scm';
 import txn from './queries/txn.scm';
@@ -68,6 +69,7 @@ const queryMap = {
 	query,
 	string,
 	tag,
+	tag_directives,
 	transaction,
 	txn,
 	transaction_detail,

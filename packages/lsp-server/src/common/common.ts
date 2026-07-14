@@ -120,18 +120,21 @@ export function nodeAtPosition(
 	position: lsp.Position,
 	leftBias: boolean = false,
 ): Parser.SyntaxNode {
-	for (const child of node.children) {
-		const range = asLspRange(child);
-		if (isBeforeOrEqual(range.start, position)) {
-			if (isBefore(position, range.end)) {
-				return nodeAtPosition(child, position, leftBias);
-			}
-			if (leftBias && isBeforeOrEqual(position, range.end)) {
-				return nodeAtPosition(child, position, leftBias);
-			}
-		}
+	const point = asTsPoint(position);
+	const candidate = node.descendantForPosition(point);
+	if (!leftBias || (position.line === 0 && position.character === 0)) {
+		return candidate;
 	}
-	return node;
+
+	const previousPoint = position.character > 0
+		? { row: position.line, column: position.character - 1 }
+		: { row: position.line - 1, column: 0x7FFF_FFFF };
+	const leftCandidate = node.descendantForPosition(previousPoint, point);
+
+	return leftCandidate.endPosition.row === point.row
+			&& leftCandidate.endPosition.column === point.column
+		? leftCandidate
+		: candidate;
 }
 
 export function isBeforeOrEqual(a: lsp.Position, b: lsp.Position): boolean {

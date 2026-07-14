@@ -79,6 +79,20 @@ function normalizePlaceholder(fullText: string, start: number, placeholder: stri
 	return text;
 }
 
+function advancePoint(point: Parser.Point, text: string): Parser.Point {
+	let row = point.row;
+	let column = point.column;
+	for (const char of text) {
+		if (char === '\n') {
+			row++;
+			column = 0;
+		} else {
+			column++;
+		}
+	}
+	return { row, column };
+}
+
 export async function reparseWithPlaceholder(
 	logger: Pick<Logger, 'debug'>,
 	document: TextDocument,
@@ -86,8 +100,10 @@ export async function reparseWithPlaceholder(
 	placeholder: string,
 	kind: PlaceholderKind,
 	ancestorTypes?: string[],
+	sourceTree?: Parser.Tree,
 ): Promise<ReparseContext | null> {
 	let vt: Parser.Tree | null = null;
+	let editedSourceTree: Parser.Tree | null = null;
 	try {
 		const fullText = document.getText();
 		const offset = document.offsetAt(position);
@@ -96,7 +112,25 @@ export async function reparseWithPlaceholder(
 		const virtualText = fullText.slice(0, start) + normalized + fullText.slice(end);
 		const { getParser } = await import('@bean-lsp/shared/parser');
 		const parser = await getParser();
-		vt = parser.parse(virtualText);
+		if (sourceTree) {
+			const startPosition = document.positionAt(start);
+			const endPosition = document.positionAt(end);
+			editedSourceTree = sourceTree.copy();
+			editedSourceTree.edit({
+				startIndex: start,
+				oldEndIndex: end,
+				newEndIndex: start + normalized.length,
+				startPosition: { row: startPosition.line, column: startPosition.character },
+				oldEndPosition: { row: endPosition.line, column: endPosition.character },
+				newEndPosition: advancePoint(
+					{ row: startPosition.line, column: startPosition.character },
+					normalized,
+				),
+			});
+			vt = parser.parse(virtualText, editedSourceTree);
+		} else {
+			vt = parser.parse(virtualText);
+		}
 		const phNode = vt.rootNode.descendantForIndex(start, start + normalized.length);
 		if (!phNode) return null;
 		const hasError = vt.rootNode.hasError();
@@ -131,6 +165,13 @@ export async function reparseWithPlaceholder(
 		logger.debug(`Placeholder reparse failed: ${e}`);
 		return null;
 	} finally {
+		if (editedSourceTree) {
+			try {
+				editedSourceTree.delete();
+			} catch {
+				// ignore
+			}
+		}
 		if (vt) {
 			try {
 				vt.delete();
