@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { nodeAtPosition } from '../common/common';
+import { asLspRange, nodeAtPosition, nodeToCompact } from '../common/common';
 
 describe('nodeAtPosition', () => {
 	it('uses tree-sitter native descendant lookup', () => {
@@ -68,5 +68,44 @@ describe('nodeAtPosition', () => {
 			{ row: 4, column: 0x7FFF_FFFF },
 			{ row: 5, column: 0 },
 		);
+	});
+});
+
+describe('tree-sitter range conversion', () => {
+	it('reads each WASM position once for compact ranges', () => {
+		const startPosition = vi.fn(() => ({ row: 1, column: 2 }));
+		const endPosition = vi.fn(() => ({ row: 3, column: 4 }));
+		const node = {
+			get startPosition() {
+				return startPosition();
+			},
+			get endPosition() {
+				return endPosition();
+			},
+		};
+
+		expect(nodeToCompact(node as never)).toEqual([1, 2, 3, 4]);
+		expect(startPosition).toHaveBeenCalledOnce();
+		expect(endPosition).toHaveBeenCalledOnce();
+	});
+
+	it('reads each WASM position once for LSP ranges', () => {
+		const startPosition = vi.fn(() => ({ row: 1, column: 2 }));
+		const endPosition = vi.fn(() => ({ row: 3, column: 4 }));
+		const node = {
+			get startPosition() {
+				return startPosition();
+			},
+			get endPosition() {
+				return endPosition();
+			},
+		};
+
+		expect(asLspRange(node as never)).toEqual({
+			start: { line: 1, character: 2 },
+			end: { line: 3, character: 4 },
+		});
+		expect(startPosition).toHaveBeenCalledOnce();
+		expect(endPosition).toHaveBeenCalledOnce();
 	});
 });

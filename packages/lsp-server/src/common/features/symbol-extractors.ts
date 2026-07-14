@@ -1,5 +1,6 @@
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { Tree } from 'web-tree-sitter';
 import { compactToRange, nodeToCompact } from '../common';
 import { TreeQuery } from '../language';
 import { Trees } from '../trees';
@@ -66,6 +67,13 @@ export async function getSymbols(
 	if (!tree) {
 		throw new Error(`Failed to get parse tree for document: ${textDocument.uri}`);
 	}
+	return getSymbolsFromTree(textDocument, tree);
+}
+
+export async function getSymbolsFromTree(
+	textDocument: TextDocument,
+	tree: Tree,
+): Promise<SymbolInfo[]> {
 	const query = TreeQuery.getQueryByTokenName('symbols');
 	const matches = await query.matches(tree);
 	const result: SymbolInfo[] = [];

@@ -86,6 +86,71 @@ class DataStore<Schema> {
 	}
 
 	/**
+	 * Replace matching documents, reusing IDs when all indexed values are equal.
+	 * The reuse key only narrows candidate lookup; indexed values are always
+	 * verified before an existing document is updated in place.
+	 */
+	async replaceAsync<T extends Schema>(
+		query: Query<Schema>,
+		docs: T[],
+		getReuseKey: (doc: Schema) => unknown,
+	): Promise<Document<T>[]> {
+		const existingDocuments = this.findSync(query);
+		if (existingDocuments.length === 0) return this.insertAsync(docs);
+
+		const existingByKey = new Map<unknown, Document<Schema>[]>();
+		for (const existing of existingDocuments) {
+			const key = getReuseKey(existing);
+			const bucket = existingByKey.get(key);
+			if (bucket) bucket.push(existing);
+			else existingByKey.set(key, [existing]);
+		}
+
+		const replacements: Document<T>[] = [];
+		for (const doc of docs) {
+			const bucket = existingByKey.get(getReuseKey(doc));
+			let reusableIndex = -1;
+			if (bucket) {
+				for (let index = bucket.length - 1; index >= 0; index--) {
+					if (this.haveEqualIndexValues(bucket[index]!, doc)) {
+						reusableIndex = index;
+						break;
+					}
+				}
+			}
+			if (!bucket || reusableIndex < 0) {
+				replacements.push(this.insertOne(doc));
+				continue;
+			}
+
+			const reusable = bucket[reusableIndex]!;
+			const last = bucket.pop();
+			if (reusableIndex < bucket.length) bucket[reusableIndex] = last!;
+			const replacement = { ...doc, _id: reusable._id } as Document<T>;
+			this.data.set(reusable._id, replacement as Document<Schema>);
+			replacements.push(replacement);
+		}
+
+		for (const bucket of existingByKey.values()) {
+			for (const existing of bucket) this.removeOne(existing._id);
+		}
+		return replacements;
+	}
+
+	private haveEqualIndexValues(left: Schema, right: Schema): boolean {
+		for (const [field, index] of this.indices) {
+			const leftValue = left[field as keyof Schema];
+			const rightValue = right[field as keyof Schema];
+			const leftIndexable = index.isIndexable(leftValue);
+			const rightIndexable = index.isIndexable(rightValue);
+			if (!leftIndexable && !rightIndexable) continue;
+			if (!leftIndexable || !rightIndexable) return false;
+			if (leftValue !== rightValue && !(Number.isNaN(leftValue) && Number.isNaN(rightValue))) return false;
+		}
+		return true;
+	}
+
+	/**
 	 * Insert a single document
 	 * @param doc Document to insert
 	 * @returns Inserted document with ID
