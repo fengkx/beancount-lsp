@@ -197,6 +197,21 @@ describe('Trees incremental parsing', () => {
 		second.dispose();
 	});
 
+	it('does not cache a parse that finishes after disposal', async () => {
+		const harness = createHarness();
+		let resolveParser!: (parser: typeof harness.parser) => void;
+		mocks.getParser.mockReset();
+		mocks.getParser.mockReturnValue(new Promise(resolve => resolveParser = resolve));
+		const pending = harness.trees.acquireParseTree(document(1, 'a'));
+
+		harness.trees.dispose();
+		resolveParser(harness.parser);
+
+		expect(await pending).toBeUndefined();
+		expect(harness.parser.parse).not.toHaveBeenCalled();
+		expect(await harness.trees.acquireParseTree(document(1, 'a'))).toBeUndefined();
+	});
+
 	it('deletes trees evicted from the LRU cache', async () => {
 		const store = createDocuments();
 		const parsedTrees = Array.from({ length: 101 }, createTree);

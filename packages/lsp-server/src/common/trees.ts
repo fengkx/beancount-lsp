@@ -53,6 +53,7 @@ export class Trees {
 	private readonly _cache = new LRUMap<string, Entry>(100);
 	private readonly _parseQueue = new Map<string, Promise<Entry | undefined>>();
 	private readonly _epochs = new Map<string, number>();
+	private _disposed = false;
 
 	private readonly _listener: Disposable[] = [];
 
@@ -88,6 +89,7 @@ export class Trees {
 	async acquireParseTree(
 		documentOrUri: TextDocument | string,
 	): Promise<ParseTreeLease | undefined> {
+		if (this._disposed) return undefined;
 		if (typeof documentOrUri === 'string') {
 			documentOrUri = await this._documents.retrieve(documentOrUri);
 		}
@@ -115,6 +117,8 @@ export class Trees {
 	}
 
 	dispose(): void {
+		if (this._disposed) return;
+		this._disposed = true;
 		for (const listener of this._listener.splice(0)) listener.dispose();
 		for (const entry of this._cache.values()) entry.retire();
 		this._cache.clear();
@@ -122,6 +126,7 @@ export class Trees {
 	}
 
 	private async getOrCreateEntry(document: TextDocument): Promise<Entry | undefined> {
+		if (this._disposed) return undefined;
 		const cached = this._cache.get(document.uri);
 		if (cached?.version === document.version) return cached;
 		if (cached && cached.version > document.version) return undefined;
@@ -148,6 +153,7 @@ export class Trees {
 		let incrementalBase: Parser.Tree | undefined;
 		try {
 			const parser = await Trees.getParserInstance();
+			if (this._disposed) return undefined;
 			if ((this._epochs.get(document.uri) ?? 0) !== epoch) return undefined;
 
 			const current = this._cache.get(document.uri);
