@@ -305,7 +305,7 @@ async function gzipCompressUtf8(text: string): Promise<Uint8Array> {
 async function gzipDecompressToUtf8(bytes: Uint8Array): Promise<string> {
 	// Prefer native DecompressionStream when available; fallback to pako.
 	if (typeof DecompressionStream === 'undefined') {
-		return pako.ungzip(bytes, { to: 'string' }) as string;
+		return pako.ungzip(bytes, { toText: true });
 	}
 	// Ensure we pass a Uint8Array backed by an ArrayBuffer (not SharedArrayBuffer).
 	const readable = new Blob([new Uint8Array(bytes)]).stream();
@@ -614,8 +614,6 @@ async function activateTargetExtension(): Promise<void> {
 
 	debugLog('[extensions] workbench local', extensionsWorkbenchService.local.map((ext) => ext.identifier.id));
 	debugLog('[extensions] workbench installed', extensionsWorkbenchService.installed.map((ext) => ext.identifier.id));
-
-	await extensionsWorkbenchService.openSearch('@builtin');
 
 	try {
 		await extensionService.activateById(new ExtensionIdentifier(TARGET_EXTENSION_ID), {

@@ -69,6 +69,9 @@ function shouldSuppressCustomRootParityDiagnostic(
 	diag: Diagnostic,
 	suppressibleRoots: Set<string>,
 ): boolean {
+	if (typeof diag.message !== 'string') {
+		return false;
+	}
 	const account = extractAccountFromBeancheckMessage(diag.message);
 	if (!account) {
 		return false;
