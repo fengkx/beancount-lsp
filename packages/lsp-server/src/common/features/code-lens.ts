@@ -132,25 +132,22 @@ export class CodeLensFeature implements Feature {
 			return [];
 		}
 
-		const tree = await this.trees.getParseTree(document);
-		if (!tree) {
-			return [];
-		}
-
-		const codeLenses: lsp.CodeLens[] = [];
-		if (codeLensConfig.accountBalance) {
-			codeLenses.push(...this.getAccountDefinitionCodeLenses(
-				getRecoverableTopLevelNodes(tree, 'open'),
-				document,
-			));
-		}
-		if (codeLensConfig.pad) {
-			codeLenses.push(...this.getPadDirectiveCodeLenses(
-				getRecoverableTopLevelNodes(tree, 'pad'),
-				document,
-			));
-		}
-		return codeLenses;
+		return await this.trees.withParseTree(document, tree => {
+			const codeLenses: lsp.CodeLens[] = [];
+			if (codeLensConfig.accountBalance) {
+				codeLenses.push(...this.getAccountDefinitionCodeLenses(
+					getRecoverableTopLevelNodes(tree, 'open'),
+					document,
+				));
+			}
+			if (codeLensConfig.pad) {
+				codeLenses.push(...this.getPadDirectiveCodeLenses(
+					getRecoverableTopLevelNodes(tree, 'pad'),
+					document,
+				));
+			}
+			return codeLenses;
+		}) ?? [];
 	}
 
 	private getAccountDefinitionCodeLenses(

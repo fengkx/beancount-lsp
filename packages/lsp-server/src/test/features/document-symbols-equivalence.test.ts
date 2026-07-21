@@ -135,7 +135,9 @@ describe('document symbol node collection equivalence', () => {
 			const document = TextDocument.create(`file:///symbols-${version}.bean`, 'beancount', version + 1, text);
 			const feature = new DocumentSymbolsFeature(
 				{} as never,
-				{ getParseTree: vi.fn().mockResolvedValue(tree) } as never,
+				{
+					withParseTree: vi.fn((_document, callback) => callback(tree)),
+				} as never,
 			) as unknown as FeatureInternals;
 
 			const expected = legacySymbols(feature, tree);

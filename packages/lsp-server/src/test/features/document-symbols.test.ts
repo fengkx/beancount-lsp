@@ -56,10 +56,11 @@ function createDirective(
 
 async function getDocumentSymbols(captures: Record<string, MockNode[]>): Promise<DocumentSymbol[]> {
 	const document = TextDocument.create('file:///symbols.bean', 'beancount', 1, '');
+	const tree = {
+		rootNode: { namedChildren: Object.values(captures).flat() },
+	};
 	const trees = {
-		getParseTree: vi.fn().mockResolvedValue({
-			rootNode: { namedChildren: Object.values(captures).flat() },
-		}),
+		withParseTree: vi.fn((_document, callback) => callback(tree)),
 	};
 	const feature = new DocumentSymbolsFeature({} as never, trees as never);
 	const featureWithPrivateMethod = feature as unknown as {

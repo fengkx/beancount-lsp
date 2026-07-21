@@ -46,40 +46,40 @@ export class LinkedEditingRangeFeature implements Feature {
 			return null;
 		}
 
-		const tree = await this.trees.getParseTree(document);
-		if (!tree) {
+		const result = await this.trees.withParseTree(document, async tree => {
+			const offset = document.offsetAt(position);
+			const node = tree.rootNode.descendantForIndex(offset);
+			if (!node) {
+				logger.debug(`${LOG_PREFIX} no syntax node at position`);
+				return null;
+			}
+
+			const directiveNode = this.findDirectiveNode(node);
+			if (directiveNode) {
+				const directiveIndex = await getTagDirectiveIndex(tree);
+				const directive = directiveIndex.get(directiveNode);
+				const pair = directiveIndex.getPair(directiveNode);
+				if (directive && pair) {
+					const pushtag = directive.type === 'pushtag' ? directive : pair;
+					const poptag = directive.type === 'poptag' ? directive : pair;
+					logger.debug(
+						`${LOG_PREFIX} matched pushtag '${pushtag.name}' L${pushtag.tagNode.startPosition.row} with poptag L${poptag.tagNode.startPosition.row}`,
+					);
+					return {
+						ranges: [asLspRange(pushtag.tagNode), asLspRange(poptag.tagNode)],
+						wordPattern: TAG_WORD_PATTERN,
+					};
+				}
+			}
+
+			logger.debug(`${LOG_PREFIX} no linked ranges produced`);
+			return null;
+		});
+		if (result === undefined) {
 			logger.warn(`${LOG_PREFIX} parse tree unavailable: ${textDocument.uri}`);
 			return null;
 		}
-
-		const offset = document.offsetAt(position);
-		const node = tree.rootNode.descendantForIndex(offset);
-
-		if (!node) {
-			logger.debug(`${LOG_PREFIX} no syntax node at position`);
-			return null;
-		}
-
-		const directiveNode = this.findDirectiveNode(node);
-		if (directiveNode) {
-			const directiveIndex = await getTagDirectiveIndex(tree);
-			const directive = directiveIndex.get(directiveNode);
-			const pair = directiveIndex.getPair(directiveNode);
-			if (directive && pair) {
-				const pushtag = directive.type === 'pushtag' ? directive : pair;
-				const poptag = directive.type === 'poptag' ? directive : pair;
-				logger.debug(
-					`${LOG_PREFIX} matched pushtag '${pushtag.name}' L${pushtag.tagNode.startPosition.row} with poptag L${poptag.tagNode.startPosition.row}`,
-				);
-				return {
-					ranges: [asLspRange(pushtag.tagNode), asLspRange(poptag.tagNode)],
-					wordPattern: TAG_WORD_PATTERN,
-				};
-			}
-		}
-
-		logger.debug(`${LOG_PREFIX} no linked ranges produced`);
-		return null;
+		return result;
 	}
 
 	private findDirectiveNode(node: Parser.SyntaxNode): Parser.SyntaxNode | null {

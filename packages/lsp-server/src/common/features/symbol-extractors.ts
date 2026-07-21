@@ -63,11 +63,14 @@ export async function getSymbols(
 	textDocument: TextDocument,
 	trees: Trees,
 ): Promise<SymbolInfo[]> {
-	const tree = await trees.getParseTree(textDocument);
-	if (!tree) {
+	const symbols = await trees.withParseTree(
+		textDocument,
+		tree => getSymbolsFromTree(textDocument, tree),
+	);
+	if (!symbols) {
 		throw new Error(`Failed to get parse tree for document: ${textDocument.uri}`);
 	}
-	return getSymbolsFromTree(textDocument, tree);
+	return symbols;
 }
 
 export async function getSymbolsFromTree(

@@ -49,7 +49,9 @@ async function expectFallbackContext(
 		sourceTree,
 	);
 
-	expect(result?.ancestors.has(ancestorType)).toBe(true);
+	expect(result?.ancestorTypes.has(ancestorType)).toBe(true);
+	expect(result).not.toHaveProperty('placeholderNode');
+	expect(result).not.toHaveProperty('ancestors');
 	expect(sourceTree.rootNode.text).toBe(text);
 	sourceTree.delete();
 }
@@ -113,6 +115,6 @@ describe('completion placeholder fallback', () => {
 			['open'],
 		);
 
-		expect(result?.ancestors.has('open')).toBe(true);
+		expect(result?.ancestorTypes.has('open')).toBe(true);
 	});
 });

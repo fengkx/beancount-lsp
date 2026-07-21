@@ -78,14 +78,14 @@ describe('SymbolIndex option extraction', () => {
 		const document = TextDocument.create('file:///single-tree.bean', 'beancount', 1, '');
 		const tree = parser.parse('');
 		const nextTree = parser.parse('');
-		const getParseTree = vi.fn()
-			.mockResolvedValueOnce(tree)
-			.mockResolvedValueOnce(tree)
-			.mockResolvedValueOnce(nextTree);
+		const withParseTree = vi.fn()
+			.mockImplementationOnce((_document, callback) => callback(tree))
+			.mockImplementationOnce((_document, callback) => callback(tree))
+			.mockImplementationOnce((_document, callback) => callback(nextTree));
 		const replaceAsync = vi.fn().mockResolvedValue([]);
 		const index = new SymbolIndex(
 			{} as never,
-			{ getParseTree } as never,
+			{ withParseTree } as never,
 			{ replaceAsync } as never,
 			new BeancountOptionsManager(),
 		) as unknown as SymbolIndexInternals;
@@ -94,7 +94,7 @@ describe('SymbolIndex option extraction', () => {
 		await index._doIndex(document);
 		await index._doIndex(document);
 
-		expect(getParseTree).toHaveBeenCalledTimes(3);
+		expect(withParseTree).toHaveBeenCalledTimes(3);
 		expect(mocks.matches).toHaveBeenCalledTimes(2);
 		expect(replaceAsync).toHaveBeenCalledTimes(2);
 		tree.delete();
@@ -119,7 +119,9 @@ describe('SymbolIndex option extraction', () => {
 			expectedManager.replaceOptionsForSource(uri, legacyOptions(text));
 			const index = new SymbolIndex(
 				{} as never,
-				{ getParseTree: vi.fn().mockResolvedValue(tree) } as never,
+				{
+					withParseTree: vi.fn((_document, callback) => callback(tree)),
+				} as never,
 				{} as never,
 				actualManager,
 			) as unknown as SymbolIndexInternals;

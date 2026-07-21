@@ -1,6 +1,7 @@
 import { Logger } from '@bean-lsp/shared';
 import * as lsp from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { SyntaxNode } from 'web-tree-sitter';
 import { asLspRange } from '../common';
 import { Trees } from '../trees';
 import { BeancountOptionsManager } from '../utils/beancount-options';
@@ -8,24 +9,26 @@ import { BeancountOptionsManager } from '../utils/beancount-options';
 // Create a logger for position utilities
 const logger = new Logger('position-utils');
 
-async function getNodeAtPosition(
+async function readNodeAtPosition<T>(
 	trees: Trees,
 	document: TextDocument,
 	position: lsp.Position,
-): Promise<import('web-tree-sitter').SyntaxNode | null> {
-	const tree = await trees.getParseTree(document);
-	if (!tree) {
+	reader: (node: SyntaxNode) => T,
+): Promise<T | undefined> {
+	const result = await trees.withParseTree(document, tree => {
+		const offset = document.offsetAt(position);
+		return reader(tree.rootNode.descendantForIndex(offset));
+	});
+	if (result === undefined) {
 		logger.warn(`Failed to get parse tree for document: ${document.uri}`);
-		return null;
 	}
-	const offset = document.offsetAt(position);
-	return tree.rootNode.descendantForIndex(offset);
+	return result;
 }
 
 function getNodeOrParentOfType(
-	node: import('web-tree-sitter').SyntaxNode | null,
+	node: SyntaxNode | null,
 	type: string,
-): import('web-tree-sitter').SyntaxNode | null {
+): SyntaxNode | null {
 	if (!node) return null;
 	if (node.type === type) return node;
 	if (node.parent && node.parent.type === type) return node.parent;
@@ -44,23 +47,23 @@ function isAccountLike(text: string): boolean {
 	// Get valid root accounts from options manager
 	const optionsManager = BeancountOptionsManager.getInstance();
 	const validRoots = optionsManager.getValidRootAccounts();
-	
+
 	// Split account name by colon
 	const parts = text.split(':');
 	if (parts.length < 2) {
 		return false;
 	}
-	
+
 	const root = parts[0];
 	if (!root) {
 		return false;
 	}
-	
+
 	// Check if root is in valid root accounts
 	if (!validRoots.has(root)) {
 		return false;
 	}
-	
+
 	// Validate sub-account format (must start with uppercase letter or number)
 	// Allow CJK characters and other Unicode characters as well
 	for (let i = 1; i < parts.length; i++) {
@@ -70,11 +73,13 @@ function isAccountLike(text: string): boolean {
 		}
 		// First character must be uppercase letter, number, or CJK character
 		const firstChar = part[0];
-		if (!firstChar || !(
-			(firstChar >= 'A' && firstChar <= 'Z') ||
-			(firstChar >= '0' && firstChar <= '9') ||
-			(firstChar >= '\u4E00' && firstChar <= '\u9FFF') // CJK Unified Ideographs
-		)) {
+		if (
+			!firstChar || !(
+				(firstChar >= 'A' && firstChar <= 'Z')
+				|| (firstChar >= '0' && firstChar <= '9')
+				|| (firstChar >= '\u4E00' && firstChar <= '\u9FFF') // CJK Unified Ideographs
+			)
+		) {
 			return false;
 		}
 		// Rest can be letters, numbers, dash, or CJK characters
@@ -82,7 +87,7 @@ function isAccountLike(text: string): boolean {
 			return false;
 		}
 	}
-	
+
 	return true;
 }
 
@@ -98,28 +103,22 @@ export async function getRangeAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<lsp.Range> {
-	const tree = await trees.getParseTree(document);
-	if (!tree) {
+	const range = await readNodeAtPosition(trees, document, position, node => {
+		if (!node) {
+			return {
+				start: position,
+				end: {
+					line: position.line,
+					character: position.character + 1,
+				},
+			};
+		}
+		return asLspRange(node);
+	});
+	if (!range) {
 		throw new Error(`Failed to get parse tree for document: ${document.uri}`);
 	}
-
-	// Get the node at the current position
-	const offset = document.offsetAt(position);
-	const node = tree.rootNode.descendantForIndex(offset);
-
-	if (!node) {
-		// 如果找不到节点，返回一个基于当前位置的默认范围
-		return {
-			start: position,
-			end: {
-				line: position.line,
-				character: position.character + 1,
-			},
-		};
-	}
-
-	// Create range using asLspRange
-	return asLspRange(node);
+	return range;
 }
 
 /**
@@ -130,17 +129,10 @@ export async function getAccountAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const node = await getNodeAtPosition(trees, document, position);
-	if (!node) return null;
-
-	if (node.type === 'account' || isAccountLike(node.text)) {
-		return node.text;
-	}
-
-	const parentAccount = getNodeOrParentOfType(node, 'account');
-	if (parentAccount) return parentAccount.text;
-
-	return null;
+	return await readNodeAtPosition(trees, document, position, node => {
+		if (node.type === 'account' || isAccountLike(node.text)) return node.text;
+		return getNodeOrParentOfType(node, 'account')?.text ?? null;
+	}) ?? null;
 }
 
 /**
@@ -151,13 +143,12 @@ export async function getCommodityAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const node = await getNodeAtPosition(trees, document, position);
-	if (!node) return null;
-
-	if (node.type === 'currency') return node.text;
-	if (node.parent && node.parent.type === 'currency') return node.parent.text;
-	if (isCurrencyLike(node.text)) return node.text;
-	return null;
+	return await readNodeAtPosition(trees, document, position, node => {
+		if (node.type === 'currency') return node.text;
+		if (node.parent?.type === 'currency') return node.parent.text;
+		if (isCurrencyLike(node.text)) return node.text;
+		return null;
+	}) ?? null;
 }
 
 /**
@@ -168,13 +159,12 @@ export async function getTagAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const node = await getNodeAtPosition(trees, document, position);
-	if (!node) return null;
-
-	const tagNode = getNodeOrParentOfType(node, 'tag');
-	if (tagNode) return stripPrefix(tagNode.text, '#');
-	if (node.text.startsWith('#')) return stripPrefix(node.text, '#');
-	return null;
+	return await readNodeAtPosition(trees, document, position, node => {
+		const tagNode = getNodeOrParentOfType(node, 'tag');
+		if (tagNode) return stripPrefix(tagNode.text, '#');
+		if (node.text.startsWith('#')) return stripPrefix(node.text, '#');
+		return null;
+	}) ?? null;
 }
 
 /**
@@ -185,12 +175,10 @@ export async function getPayeeAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const node = await getNodeAtPosition(trees, document, position);
-	if (!node) return null;
-
-	const payeeNode = getNodeOrParentOfType(node, 'payee');
-	if (payeeNode) return stripSurroundingQuotes(payeeNode.text);
-	return null;
+	return await readNodeAtPosition(trees, document, position, node => {
+		const payeeNode = getNodeOrParentOfType(node, 'payee');
+		return payeeNode ? stripSurroundingQuotes(payeeNode.text) : null;
+	}) ?? null;
 }
 
 /**
@@ -201,12 +189,10 @@ export async function getNarrationAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const node = await getNodeAtPosition(trees, document, position);
-	if (!node) return null;
-
-	const narrationNode = getNodeOrParentOfType(node, 'narration');
-	if (narrationNode) return stripSurroundingQuotes(narrationNode.text);
-	return null;
+	return await readNodeAtPosition(trees, document, position, node => {
+		const narrationNode = getNodeOrParentOfType(node, 'narration');
+		return narrationNode ? stripSurroundingQuotes(narrationNode.text) : null;
+	}) ?? null;
 }
 
 /**
@@ -217,20 +203,17 @@ export async function getPushTagAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const node = await getNodeAtPosition(trees, document, position);
-	if (!node) return null;
-
-	// Look on self or ancestors for a pushtag and extract its tag child
-	let current: import('web-tree-sitter').SyntaxNode | null = node;
-	while (current) {
-		if (current.type === 'pushtag') {
-			const tagNode = current.child(1);
-			if (tagNode && tagNode.type === 'tag') return stripPrefix(tagNode.text, '#');
+	return await readNodeAtPosition(trees, document, position, node => {
+		let current: SyntaxNode | null = node;
+		while (current) {
+			if (current.type === 'pushtag') {
+				const tagNode = current.child(1);
+				if (tagNode?.type === 'tag') return stripPrefix(tagNode.text, '#');
+			}
+			current = current.parent;
 		}
-		current = current.parent;
-	}
-
-	return null;
+		return null;
+	}) ?? null;
 }
 
 /**
@@ -241,20 +224,17 @@ export async function getPopTagAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const node = await getNodeAtPosition(trees, document, position);
-	if (!node) return null;
-
-	// Look on self or ancestors for a poptag and extract its tag child
-	let current: import('web-tree-sitter').SyntaxNode | null = node;
-	while (current) {
-		if (current.type === 'poptag') {
-			const tagNode = current.child(1);
-			if (tagNode && tagNode.type === 'tag') return stripPrefix(tagNode.text, '#');
+	return await readNodeAtPosition(trees, document, position, node => {
+		let current: SyntaxNode | null = node;
+		while (current) {
+			if (current.type === 'poptag') {
+				const tagNode = current.child(1);
+				if (tagNode?.type === 'tag') return stripPrefix(tagNode.text, '#');
+			}
+			current = current.parent;
 		}
-		current = current.parent;
-	}
-
-	return null;
+		return null;
+	}) ?? null;
 }
 
 /**
@@ -265,11 +245,10 @@ export async function getLinkAtPosition(
 	document: TextDocument,
 	position: lsp.Position,
 ): Promise<string | null> {
-	const node = await getNodeAtPosition(trees, document, position);
-	if (!node) return null;
-
-	const linkNode = getNodeOrParentOfType(node, 'link');
-	if (linkNode) return stripPrefix(linkNode.text, '^');
-	if (node.text.startsWith('^')) return stripPrefix(node.text, '^');
-	return null;
+	return await readNodeAtPosition(trees, document, position, node => {
+		const linkNode = getNodeOrParentOfType(node, 'link');
+		if (linkNode) return stripPrefix(linkNode.text, '^');
+		if (node.text.startsWith('^')) return stripPrefix(node.text, '^');
+		return null;
+	}) ?? null;
 }

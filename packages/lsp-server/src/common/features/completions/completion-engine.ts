@@ -235,7 +235,7 @@ export async function runCompletionEngine(args: RunCompletionEngineArgs): Promis
 				if (ctx) {
 					await scenario.onSuccess(ctx);
 					if (completionItems.length > initial) {
-						const ancestorTypes = Array.from(ctx.ancestors.keys()).join(' > ');
+						const ancestorTypes = Array.from(ctx.ancestorTypes).join(' > ');
 						logger.debug(
 							`Fallback: ${scenario.description} (${ancestorTypes}), added ${
 								completionItems.length - initial

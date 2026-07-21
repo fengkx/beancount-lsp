@@ -33,83 +33,78 @@ export class SemanticTokenFeature implements Feature {
 	protected async provideSemanticToken(params: SemanticTokensParams): Promise<SemanticTokens> {
 		const { uri } = params.textDocument;
 		const doc = await this.documents.retrieve(uri);
-		const tree = await this.trees.getParseTree(doc);
-		if (!tree) {
-			return { data: [] };
-		}
-		const cached = this.tokensByTree.get(tree);
-		if (cached) return cached;
+		return await this.trees.withParseTree(doc, async tree => {
+			const cached = this.tokensByTree.get(tree);
+			if (cached) return cached;
 
-		const tokenBuilder = new TokenBuilder();
+			const tokenBuilder = new TokenBuilder();
+			const matches = await TreeQuery.getQueryByTokenName('semantic_tokens').matches(tree);
 
-		// Single aggregated query for all semantic tokens
-		const matches = await TreeQuery.getQueryByTokenName('semantic_tokens').matches(tree);
+			for (const match of matches) {
+				for (const capture of match.captures) {
+					const node = capture.node;
+					if (!node) continue;
+					let tokenType: Parameters<typeof tokenBuilder.push>[3] | undefined;
+					let tokenModifiers = 0;
+					switch (capture.name) {
+						case 'string':
+							tokenType = 'string';
+							break;
+						case 'date':
+							tokenType = 'date';
+							break;
+						case 'txn':
+							tokenType = 'operator';
+							break;
+						case 'narration':
+						case 'payee':
+							tokenType = 'string';
+							break;
+						case 'account':
+							tokenType = 'account';
+							break;
+						case 'account_definition':
+							tokenType = 'account';
+							tokenModifiers = DEFINITION_MODIFIER;
+							break;
+						case 'number':
+							tokenType = 'number';
+							break;
+						case 'currency':
+							tokenType = 'currency';
+							break;
+						case 'keyword':
+							tokenType = 'keyword';
+							break;
+						case 'tag':
+							tokenType = 'tag';
+							break;
+						case 'link':
+							tokenType = 'link';
+							break;
+						case 'kv_key':
+							tokenType = 'kv_key';
+							break;
+						case 'bool':
+							tokenType = 'bool';
+							break;
+						case 'comment':
+							tokenType = 'comment';
+							break;
+						default:
+							continue;
+					}
 
-		for (const match of matches) {
-			for (const capture of match.captures) {
-				const node = capture.node;
-				if (!node) continue;
-				let tokenType: Parameters<typeof tokenBuilder.push>[3] | undefined;
-				let tokenModifiers = 0;
-				switch (capture.name) {
-					case 'string':
-						tokenType = 'string';
-						break;
-					case 'date':
-						tokenType = 'date';
-						break;
-					case 'txn':
-						tokenType = 'operator';
-						break;
-					case 'narration':
-					case 'payee':
-						tokenType = 'string';
-						break;
-					case 'account':
-						tokenType = 'account';
-						break;
-					case 'account_definition':
-						tokenType = 'account';
-						tokenModifiers = DEFINITION_MODIFIER;
-						break;
-					case 'number':
-						tokenType = 'number';
-						break;
-					case 'currency':
-						tokenType = 'currency';
-						break;
-					case 'keyword':
-						tokenType = 'keyword';
-						break;
-					case 'tag':
-						tokenType = 'tag';
-						break;
-					case 'link':
-						tokenType = 'link';
-						break;
-					case 'kv_key':
-						tokenType = 'kv_key';
-						break;
-					case 'bool':
-						tokenType = 'bool';
-						break;
-					case 'comment':
-						tokenType = 'comment';
-						break;
-					default:
-						continue;
+					const line = node.startPosition.row;
+					const startChar = node.startPosition.column;
+					const length = node.text.length;
+					tokenBuilder.push(line, startChar, length, tokenType, tokenModifiers);
 				}
-
-				const startPosition = node.startPosition;
-				const line = startPosition.row;
-				const startChar = startPosition.column;
-				const length = node.text.length;
-				tokenBuilder.push(line, startChar, length, tokenType, tokenModifiers);
 			}
-		}
 
-		const data = tokenBuilder.build();
-		this.tokensByTree.set(tree, data);
-		return data;
+			const data = tokenBuilder.build();
+			this.tokensByTree.set(tree, data);
+			return data;
+		}) ?? { data: [] };
 	}
 }

@@ -32,82 +32,87 @@ export class CodeActionFeature implements Feature {
 		if (!document) {
 			return [];
 		}
-		const tree = await this.trees.getParseTree(document);
-		if (!tree) {
+		const lease = await this.trees.acquireParseTree(document);
+		if (!lease) {
 			return [];
 		}
+		const tree = lease.tree;
 
-		const actions: lsp.CodeAction[] = [];
+		try {
+			const actions: lsp.CodeAction[] = [];
 
-		// Normalize localized numbers inside a transaction postings
-		const normalizeAction = await this.tryBuildNormalizeTransactionAction(tree, document, params.range);
-		if (normalizeAction) {
-			actions.push(normalizeAction);
-		}
+			// Normalize localized numbers inside a transaction postings
+			const normalizeAction = await this.tryBuildNormalizeTransactionAction(tree, document, params.range);
+			if (normalizeAction) {
+				actions.push(normalizeAction);
+			}
 
-		const exprCalculationAction = await this.tryBuildExprCalculationAction(tree, document, params.range);
-		if (exprCalculationAction) {
-			actions.push(exprCalculationAction);
-		}
+			const exprCalculationAction = await this.tryBuildExprCalculationAction(tree, document, params.range);
+			if (exprCalculationAction) {
+				actions.push(exprCalculationAction);
+			}
 
-		if (this.beanMgr?.isEnabled(document.uri)) {
-			for (let line = params.range.start.line; line <= params.range.end.line; line++) {
-				// if (processedLines.has(line)) continue;
-				const text = this.getLineText(document, line);
-				if (!this.looksLikeBalanceLine(text)) continue;
+			if (this.beanMgr?.isEnabled(document.uri)) {
+				for (let line = params.range.start.line; line <= params.range.end.line; line++) {
+					// if (processedLines.has(line)) continue;
+					const text = this.getLineText(document, line);
+					if (!this.looksLikeBalanceLine(text)) continue;
 
-				const accountNode = this.findNodeOfTypeAtLine(tree, 'account', line);
-				const dateNode = this.findNodeOfTypeAtLine(tree, 'date', line);
-				if (!accountNode || !dateNode) continue;
-				const accountText = accountNode.text;
+					const accountNode = this.findNodeOfTypeAtLine(tree, 'account', line);
+					const dateNode = this.findNodeOfTypeAtLine(tree, 'date', line);
+					if (!accountNode || !dateNode) continue;
+					const accountText = accountNode.text;
 
-				let amounts: { number: string; currency: string }[] = [];
-				try {
-					const result = this.beanMgr.getBalanceSnapshot(accountText, false, document.uri);
-					if (result.freshness !== 'fresh') {
-						this.beanMgr.requestEvaluation(document.uri);
+					let amounts: { number: string; currency: string }[] = [];
+					try {
+						const result = this.beanMgr.getBalanceSnapshot(accountText, false, document.uri);
+						if (result.freshness !== 'fresh') {
+							this.beanMgr.requestEvaluation(document.uri);
+							continue;
+						}
+						amounts = result.value;
+					} catch (e) {
+						logger.debug(`fallback getBalance failed for ${accountText}: ${String(e)}`);
 						continue;
 					}
-					amounts = result.value;
-				} catch (e) {
-					logger.debug(`fallback getBalance failed for ${accountText}: ${String(e)}`);
-					continue;
-				}
-				if (!amounts || amounts.length === 0) continue;
+					if (!amounts || amounts.length === 0) continue;
 
-				const diagsForLine = this.getDiagnosticsForLine(params, line);
+					const diagsForLine = this.getDiagnosticsForLine(params, line);
 
-				for (const amt of amounts) {
-					actions.push(
-						this.buildSingleCurrencyActionForLine(
-							document,
-							text,
-							accountNode,
-							`${amt.number} ${amt.currency}`,
-							diagsForLine,
-						),
-					);
-				}
+					for (const amt of amounts) {
+						actions.push(
+							this.buildSingleCurrencyActionForLine(
+								document,
+								text,
+								accountNode,
+								`${amt.number} ${amt.currency}`,
+								diagsForLine,
+							),
+						);
+					}
 
-				if (amounts.length > 1) {
-					const indent = this.lineIndent(document, line);
-					const dateText = dateNode.text;
-					actions.push(
-						this.buildMultiCurrencyAction(
-							document,
-							line,
-							indent,
-							dateText,
-							accountText,
-							amounts,
-							diagsForLine,
-						),
-					);
+					if (amounts.length > 1) {
+						const indent = this.lineIndent(document, line);
+						const dateText = dateNode.text;
+						actions.push(
+							this.buildMultiCurrencyAction(
+								document,
+								line,
+								indent,
+								dateText,
+								accountText,
+								amounts,
+								diagsForLine,
+							),
+						);
+					}
 				}
 			}
-		}
 
-		return actions;
+			return actions;
+		} finally {
+			lease.dispose();
+		}
 	}
 
 	private fullLineRange(document: TextDocument, line: number): lsp.Range {

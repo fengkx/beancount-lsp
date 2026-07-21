@@ -138,7 +138,12 @@ function baselineSemanticTokens(matches: QueryMatch[]): { data: number[] } {
 function createFeature(document: TextDocument, getTree: () => Tree): SemanticTokenFeatureInternals {
 	return new SemanticTokenFeature(
 		{ retrieve: async () => document } as never,
-		{ getParseTree: async () => getTree() } as never,
+		{
+			withParseTree: async (
+				_document: TextDocument | string,
+				callback: (tree: Tree) => unknown | Promise<unknown>,
+			) => await callback(getTree()),
+		} as never,
 	) as unknown as SemanticTokenFeatureInternals;
 }
 

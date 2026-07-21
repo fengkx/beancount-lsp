@@ -82,29 +82,28 @@ export class DocumentSymbolsFeature {
 	}
 
 	private async getDocumentSymbols(document: TextDocument): Promise<lsp.DocumentSymbol[]> {
-		const tree = await this.trees.getParseTree(document);
-		if (!tree) {
+		const symbols = await this.trees.withParseTree(document, tree => {
+			const nodes = (type: string) => getRecoverableTopLevelNodes(tree, type);
+			return [
+				this.getTransactionSymbol(nodes('transaction')),
+				this.getCommodityDefinitionSymbol(nodes('commodity')),
+				this.getAccountDefinitionSymbol(nodes('open')),
+				this.getPriceDirectiveSymbol(nodes('price')),
+				this.getBalanceDirectiveSymbol(nodes('balance')),
+				this.getCloseDirectiveSymbol(nodes('close')),
+				this.getPadDirectiveSymbol(nodes('pad')),
+				this.getDocumentDirectiveSymbol(nodes('document')),
+				this.getNoteDirectiveSymbol(nodes('note')),
+				this.getEventDirectiveSymbol(nodes('event')),
+				this.getQueryDirectiveSymbol(nodes('query')),
+				this.getCustomDirectiveSymbol(nodes('custom')),
+				this.getIncludeDirectiveSymbol(nodes('include')),
+			].flat();
+		});
+		if (!symbols) {
 			logger.warn(`Failed to get parse tree for document: ${document.uri}`);
 			return [];
 		}
-
-		const nodes = (type: string) => getRecoverableTopLevelNodes(tree, type);
-		const symbols = [
-			this.getTransactionSymbol(nodes('transaction')),
-			this.getCommodityDefinitionSymbol(nodes('commodity')),
-			this.getAccountDefinitionSymbol(nodes('open')),
-			this.getPriceDirectiveSymbol(nodes('price')),
-			this.getBalanceDirectiveSymbol(nodes('balance')),
-			this.getCloseDirectiveSymbol(nodes('close')),
-			this.getPadDirectiveSymbol(nodes('pad')),
-			this.getDocumentDirectiveSymbol(nodes('document')),
-			this.getNoteDirectiveSymbol(nodes('note')),
-			this.getEventDirectiveSymbol(nodes('event')),
-			this.getQueryDirectiveSymbol(nodes('query')),
-			this.getCustomDirectiveSymbol(nodes('custom')),
-			this.getIncludeDirectiveSymbol(nodes('include')),
-		].flat();
-
 		return filterEmptyDocumentSymbols(symbols);
 	}
 

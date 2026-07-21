@@ -31,37 +31,32 @@ export class SelectionRangesFeature implements Feature {
 
 	provideSelectionRanges = async (params: SelectionRangeParams): Promise<SelectionRange[]> => {
 		const document = await this._documents.retrieve(params.textDocument.uri);
-		const tree = await this._trees.getParseTree(document);
-		if (!tree) {
-			return [];
-		}
+		return await this._trees.withParseTree(document, tree => {
+			const result: SelectionRange[] = [];
 
-		const result: SelectionRange[] = [];
+			for (const position of params.positions) {
+				const stack: Parser.SyntaxNode[] = [];
+				const offset = document.offsetAt(position);
 
-		for (const position of params.positions) {
-			const stack: Parser.SyntaxNode[] = [];
-			const offset = document.offsetAt(position);
+				const rootNode = tree.rootNode;
+				let node: Parser.SyntaxNode | null = offset < rootNode.endIndex
+					? rootNode.descendantForIndex(offset, offset + 1)
+					: rootNode;
+				while (node) {
+					stack.push(node);
+					node = node.parent;
+				}
+				stack.reverse();
 
-			const rootNode = tree.rootNode;
-			let node: Parser.SyntaxNode | null = offset < rootNode.endIndex
-				? rootNode.descendantForIndex(offset, offset + 1)
-				: rootNode;
-			while (node) {
-				stack.push(node);
-				node = node.parent;
+				let parent: SelectionRange | undefined;
+				for (const node of stack) {
+					const range = SelectionRange.create(asLspRange(node), parent);
+					parent = range;
+				}
+				if (parent) result.push(parent);
 			}
-			stack.reverse();
 
-			let parent: SelectionRange | undefined;
-			for (const node of stack) {
-				const range = SelectionRange.create(asLspRange(node), parent);
-				parent = range;
-			}
-			if (parent) {
-				result.push(parent);
-			}
-		}
-
-		return result;
+			return result;
+		}) ?? [];
 	};
 }

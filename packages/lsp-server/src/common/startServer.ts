@@ -231,6 +231,7 @@ export function startServer(
 		// Clean up resources on exit
 		connection.onExit(() => {
 			beanMgr?.dispose?.();
+			trees.dispose();
 			contextRegistry.dispose();
 			if (debouncedUpdateTimer) {
 				clearTimeout(debouncedUpdateTimer);

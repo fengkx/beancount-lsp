@@ -61,7 +61,9 @@ describe('cached tag navigation', () => {
 	const tree = { rootNode: { descendantForIndex: vi.fn().mockReturnValue(popNode) } };
 	const document = { uri: 'file:///test.bean', offsetAt: vi.fn().mockReturnValue(20) };
 	const documents = { retrieve: vi.fn().mockResolvedValue(document) };
-	const trees = { getParseTree: vi.fn().mockResolvedValue(tree) };
+	const trees = {
+		withParseTree: vi.fn((_document, callback) => callback(tree)),
+	};
 
 	beforeEach(() => {
 		mocks.getTagDirectiveIndex.mockReset();
