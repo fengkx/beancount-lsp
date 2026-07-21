@@ -41,12 +41,6 @@ export class InlayHintFeature implements Feature {
 			async (params) => {
 				try {
 					const document = await this.documents.retrieve(params.textDocument.uri);
-					const tree = await this.trees.getParseTree(document);
-
-					if (!tree) {
-						return [];
-					}
-
 					if (this.inlayHintsEnabled === null) {
 						const beanLspSettings = await connection.workspace.getConfiguration({
 							scopeUri: params.textDocument.uri,
@@ -59,7 +53,7 @@ export class InlayHintFeature implements Feature {
 						return [];
 					}
 
-					return this.provideInlayHints(document, params.range, tree);
+					return this.provideInlayHints(document, params.range);
 				} catch (error) {
 					// Tree-sitter wasm can occasionally throw on stale node access during concurrent edits.
 					this.trees.invalidateCache(params.textDocument.uri);
@@ -83,11 +77,13 @@ export class InlayHintFeature implements Feature {
 		treeArg?: import('web-tree-sitter').Tree,
 	): Promise<InlayHint[]> {
 		const hints: InlayHint[] = [];
-		const tree = treeArg ?? await this.trees.getParseTree(document);
-
-		if (!tree) {
-			return hints;
+		if (!treeArg) {
+			return await this.trees.withParseTree(
+				document,
+				tree => this.provideInlayHints(document, range, tree),
+			) ?? hints;
 		}
+		const tree = treeArg;
 
 		const transactions = await findTransactionsIntersectingRange(tree, document, range);
 

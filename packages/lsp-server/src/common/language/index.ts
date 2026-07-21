@@ -168,7 +168,12 @@ export class TreeQuery {
 		endPosition?: Parser.Point,
 	): Promise<Parser.QueryMatch[]> {
 		const parser = await getParser();
-		return parser.getLanguage().query(query).matches(tree.rootNode, startPosition, endPosition);
+		const compiledQuery = parser.getLanguage().query(query);
+		try {
+			return compiledQuery.matches(tree.rootNode, startPosition, endPosition);
+		} finally {
+			compiledQuery.delete();
+		}
 	}
 
 	static async captures(
@@ -178,6 +183,11 @@ export class TreeQuery {
 		endPosition?: Parser.Point,
 	): Promise<Parser.QueryCapture[]> {
 		const parser = await getParser();
-		return parser.getLanguage().query(query).captures(tree.rootNode, startPosition, endPosition);
+		const compiledQuery = parser.getLanguage().query(query);
+		try {
+			return compiledQuery.captures(tree.rootNode, startPosition, endPosition);
+		} finally {
+			compiledQuery.delete();
+		}
 	}
 }

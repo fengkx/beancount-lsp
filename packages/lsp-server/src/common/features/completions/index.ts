@@ -12,7 +12,6 @@
  */
 
 import { Logger } from '@bean-lsp/shared/logger';
-import { globalEventBus, GlobalEvents } from '../../utils/event-bus';
 import {
 	CompletionItem,
 	CompletionItemKind,
@@ -26,13 +25,12 @@ import type Parser from 'web-tree-sitter';
 import { nodeAtPosition } from '../../common';
 import { DocumentStore } from '../../document-store';
 import { Trees } from '../../trees';
+import { globalEventBus, GlobalEvents } from '../../utils/event-bus';
 import { SymbolIndex } from '../symbol-index';
 import { Feature } from '../types';
+import { buildCompletionTextContext, shouldSuppressCurrencyForCurrentToken } from './completion-context';
 import { runCompletionEngine } from './completion-engine';
-import {
-	buildCompletionTextContext,
-	shouldSuppressCurrencyForCurrentToken,
-} from './completion-context';
+import { reparseWithPlaceholder } from './completion-fallback';
 import { resolveCompletionIntent } from './completion-intents';
 import {
 	addAccountCompletions,
@@ -44,7 +42,6 @@ import {
 	addTagCompletions,
 	type CompletionCollector,
 } from './completion-providers';
-import { reparseWithPlaceholder } from './completion-fallback';
 
 const Tuple = <T extends unknown[]>(xs: readonly [...T]): T => xs as T;
 
@@ -55,12 +52,14 @@ const Tuple = <T extends unknown[]>(xs: readonly [...T]): T => xs as T;
  * '"' - Payee/narration completions
  * '^' - Link completions
  */
-export const triggerCharacters = Tuple([
-	'2',
-	'#',
-	'"',
-	'^',
-] as const);
+export const triggerCharacters = Tuple(
+	[
+		'2',
+		'#',
+		'"',
+		'^',
+	] as const,
+);
 type TriggerCharacter = (typeof triggerCharacters)[number];
 
 /**
@@ -190,53 +189,62 @@ export class CompletionFeature implements Feature {
 	): Promise<CompletionItem[] | CompletionList | null> => {
 		const requestId = ++this.requestSeq;
 		const document = await this.documents.retrieve(params.textDocument.uri);
-		const tree = await this.trees.getParseTree(document);
-		if (!tree) {
+		const lease = await this.trees.acquireParseTree(document);
+		if (!lease) {
 			return CompletionList.create([]);
 		}
-		const textCtx = buildCompletionTextContext(
-			document,
-			params.position,
-			params.context?.triggerCharacter as string | undefined,
-		);
-		logger.debug(
-			`[completion-context] requestId=${requestId} triggerKind=${params.context?.triggerKind ?? 'n/a'} triggerChar="${params.context?.triggerCharacter ?? ''}" token="${textCtx.tokenText}" range=${textCtx.tokenRange.startChar}-${textCtx.tokenRange.endChar} cursor=${params.position.character} isIncomplete=true`,
-		);
-		if (textCtx.tokenRange.endChar !== params.position.character) {
-			logger.warn(
-				`[completion-context] requestId=${requestId} stale-range tokenEnd=${textCtx.tokenRange.endChar} cursor=${params.position.character}`,
+		const tree = lease.tree;
+		try {
+			const textCtx = buildCompletionTextContext(
+				document,
+				params.position,
+				params.context?.triggerCharacter as string | undefined,
 			);
-		}
-
-		// Check if this is a closing quote
-		if (params.context?.triggerCharacter === '"') {
-			if (!textCtx.inOpenQuote) {
-				return CompletionList.create([]); // Don't trigger completion for closing quotes
+			logger.debug(
+				`[completion-context] requestId=${requestId} triggerKind=${
+					params.context?.triggerKind ?? 'n/a'
+				} triggerChar="${
+					params.context?.triggerCharacter ?? ''
+				}" token="${textCtx.tokenText}" range=${textCtx.tokenRange.startChar}-${textCtx.tokenRange.endChar} cursor=${params.position.character} isIncomplete=true`,
+			);
+			if (textCtx.tokenRange.endChar !== params.position.character) {
+				logger.warn(
+					`[completion-context] requestId=${requestId} stale-range tokenEnd=${textCtx.tokenRange.endChar} cursor=${params.position.character}`,
+				);
 			}
+
+			// Check if this is a closing quote
+			if (params.context?.triggerCharacter === '"') {
+				if (!textCtx.inOpenQuote) {
+					return CompletionList.create([]); // Don't trigger completion for closing quotes
+				}
+			}
+
+			// Analyze the token at the current position
+			const current = nodeAtPosition(tree.rootNode, params.position, true);
+
+			// Get completion items based on the context
+			const completionItems = await this.calcCompletionItems(
+				{
+					currentType: current.type,
+					parentType: current.parent?.type,
+					triggerCharacter: params.context?.triggerCharacter as TriggerCharacter,
+					previousSiblingType: current.previousSibling?.type,
+					previousPreviousSiblingType: current.previousSibling?.previousSibling?.type,
+				},
+				params.position,
+				current,
+				textCtx,
+				document,
+			);
+			logger.debug(
+				`[completion-context] requestId=${requestId} itemsCount=${completionItems.length}`,
+			);
+
+			return CompletionList.create(completionItems, true);
+		} finally {
+			lease.dispose();
 		}
-
-		// Analyze the token at the current position
-		const current = nodeAtPosition(tree.rootNode, params.position, true);
-
-		// Get completion items based on the context
-		const completionItems = await this.calcCompletionItems(
-			{
-				currentType: current.type,
-				parentType: current.parent?.type,
-				triggerCharacter: params.context?.triggerCharacter as TriggerCharacter,
-				previousSiblingType: current.previousSibling?.type,
-				previousPreviousSiblingType: current.previousSibling?.previousSibling?.type,
-			},
-			params.position,
-			current,
-			textCtx,
-			document,
-		);
-		logger.debug(
-			`[completion-context] requestId=${requestId} itemsCount=${completionItems.length}`,
-		);
-
-		return CompletionList.create(completionItems, true);
 	};
 
 	/**
@@ -291,15 +299,16 @@ export class CompletionFeature implements Feature {
 				addAccountCompletions,
 				addDateCompletions,
 				addIdentifierCompletions,
-				reparseWithPlaceholder: (document, position, placeholder, kind, ancestorTypes) => reparseWithPlaceholder(
-					logger,
-					document,
-					position,
-					placeholder,
-					kind,
-					ancestorTypes,
-					current.tree,
-				),
+				reparseWithPlaceholder: (document, position, placeholder, kind, ancestorTypes) =>
+					reparseWithPlaceholder(
+						logger,
+						document,
+						position,
+						placeholder,
+						kind,
+						ancestorTypes,
+						current.tree,
+					),
 				completionItemKind: CompletionItemKind,
 			},
 		});

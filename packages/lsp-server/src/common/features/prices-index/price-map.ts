@@ -349,35 +349,30 @@ export class PriceMap {
 
 			for (const document of documents) {
 				try {
-					// Get parse tree
-					const tree = await this.trees.getParseTree(document);
-					if (!tree) continue;
+					await this.trees.withParseTree(document, async tree => {
+						const transactions = await findAllTransactions(tree, document);
+						for (const transaction of transactions) {
+							for (const posting of transaction.postings) {
+								// Count currency in amount
+								if (posting.amount?.currency) {
+									const currency = posting.amount.currency;
+									currencyUsage.set(currency, (currencyUsage.get(currency) || 0) + 2); // Give higher weight to currencies used in transactions
+								}
 
-					// Find all transactions and extract postings
-					const transactions = await findAllTransactions(tree, document);
+								// Count currency in cost
+								if (posting.cost?.currency) {
+									const currency = posting.cost.currency;
+									currencyUsage.set(currency, (currencyUsage.get(currency) || 0) + 2);
+								}
 
-					// Count currencies in each posting
-					for (const transaction of transactions) {
-						for (const posting of transaction.postings) {
-							// Count currency in amount
-							if (posting.amount?.currency) {
-								const currency = posting.amount.currency;
-								currencyUsage.set(currency, (currencyUsage.get(currency) || 0) + 2); // Give higher weight to currencies used in transactions
-							}
-
-							// Count currency in cost
-							if (posting.cost?.currency) {
-								const currency = posting.cost.currency;
-								currencyUsage.set(currency, (currencyUsage.get(currency) || 0) + 2);
-							}
-
-							// Count currency in price annotation
-							if (posting.price?.currency) {
-								const currency = posting.price.currency;
-								currencyUsage.set(currency, (currencyUsage.get(currency) || 0) + 1);
+								// Count currency in price annotation
+								if (posting.price?.currency) {
+									const currency = posting.price.currency;
+									currencyUsage.set(currency, (currencyUsage.get(currency) || 0) + 1);
+								}
 							}
 						}
-					}
+					});
 				} catch (error) {
 					logger.error(`Error analyzing transactions in document: ${error}`);
 				}

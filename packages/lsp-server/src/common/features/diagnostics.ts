@@ -372,133 +372,138 @@ export class DiagnosticsFeature implements Feature {
 		config: DiagnosticsConfig,
 	): Promise<Diagnostic[]> {
 		this.throwIfCancelled(token);
-		const tree = await this.trees.getParseTree(document);
-		if (!tree) {
+		const lease = await this.trees.acquireParseTree(document);
+		if (!lease) {
 			return [];
 		}
-		this.throwIfCancelled(token);
-
-		const diagnostics: Diagnostic[] = [];
-
-		const scheme = URI.parse(document.uri).scheme;
-
-		// We ignore git schemes because they lead to confusing diagnostics
-		if (scheme === 'git') {
-			return [];
-		}
-
-		// Find all transactions in the document
-		const transactions = await findAllTransactions(tree, document);
-		this.throwIfCancelled(token);
-
-		// Check each transaction for balance - with chunking for performance
-		const CHUNK_SIZE = 50; // Process transactions in chunks to avoid blocking UI
-		for (let i = 0; i < transactions.length; i += CHUNK_SIZE) {
+		const tree = lease.tree;
+		try {
 			this.throwIfCancelled(token);
-			const chunk = transactions.slice(i, i + CHUNK_SIZE);
 
-			for (const transaction of chunk) {
+			const diagnostics: Diagnostic[] = [];
+
+			const scheme = URI.parse(document.uri).scheme;
+
+			// We ignore git schemes because they lead to confusing diagnostics
+			if (scheme === 'git') {
+				return [];
+			}
+
+			// Find all transactions in the document
+			const transactions = await findAllTransactions(tree, document);
+			this.throwIfCancelled(token);
+
+			// Check each transaction for balance - with chunking for performance
+			const CHUNK_SIZE = 50; // Process transactions in chunks to avoid blocking UI
+			for (let i = 0; i < transactions.length; i += CHUNK_SIZE) {
 				this.throwIfCancelled(token);
-				// Check for pending transactions (marked with '!')
-				if (transaction.flag === '!' && config.warnOnIncompleteTransaction) {
-					diagnostics.push({
-						severity: DiagnosticSeverity.Warning,
-						range: transaction.headerRange,
-						message: `transaction flagged with "!": ${document.getText(transaction.headerRange)}`,
-						source: DIAGNOSTIC_SOURCE_LOCAL,
-					});
-				}
+				const chunk = transactions.slice(i, i + CHUNK_SIZE);
 
-				// Skip transactions with only one posting having no amount
-				// (Beancount will auto-compute this)
-				if (hasOnlyOneIncompleteAmount(transaction.postings)) {
-					continue;
-				}
-
-				// Check for both cost and price on the same posting (which is not allowed)
-				if (hasBothCostAndPrice(transaction.postings)) {
-					// TODO: We are currently not supporting this
-					continue;
-				}
-
-				// Check for empty cost
-				if (hasEmptyCost(transaction.postings)) {
-					// TODO: We are currently not supporting this
-					continue;
-				}
-
-				// Check transaction balance
-				const tolerance = this.getTolerance(transaction.postings, document.uri);
-				const result = checkTransactionBalance(transaction.postings, tolerance);
-				if (!result.isBalanced) {
-					const imbalanceMessages: string[] = [];
-
-					for (const imbalance of result.imbalances) {
-						const precision = imbalance.tolerance.toString().split('.')?.[1]?.length
-							?? Math.max(2, imbalance.difference.abs().toFixed().replace(/^0+\.?/, '').length);
-						const amount = imbalance.difference.toFixed(precision) || '0';
-						const currency = imbalance.currency || '';
-						imbalanceMessages.push(`${amount} ${currency}`);
+				for (const transaction of chunk) {
+					this.throwIfCancelled(token);
+					// Check for pending transactions (marked with '!')
+					if (transaction.flag === '!' && config.warnOnIncompleteTransaction) {
+						diagnostics.push({
+							severity: DiagnosticSeverity.Warning,
+							range: transaction.headerRange,
+							message: `transaction flagged with "!": ${document.getText(transaction.headerRange)}`,
+							source: DIAGNOSTIC_SOURCE_LOCAL,
+						});
 					}
 
+					// Skip transactions with only one posting having no amount
+					// (Beancount will auto-compute this)
+					if (hasOnlyOneIncompleteAmount(transaction.postings)) {
+						continue;
+					}
+
+					// Check for both cost and price on the same posting (which is not allowed)
+					if (hasBothCostAndPrice(transaction.postings)) {
+						// TODO: We are currently not supporting this
+						continue;
+					}
+
+					// Check for empty cost
+					if (hasEmptyCost(transaction.postings)) {
+						// TODO: We are currently not supporting this
+						continue;
+					}
+
+					// Check transaction balance
+					const tolerance = this.getTolerance(transaction.postings, document.uri);
+					const result = checkTransactionBalance(transaction.postings, tolerance);
+					if (!result.isBalanced) {
+						const imbalanceMessages: string[] = [];
+
+						for (const imbalance of result.imbalances) {
+							const precision = imbalance.tolerance.toString().split('.')?.[1]?.length
+								?? Math.max(2, imbalance.difference.abs().toFixed().replace(/^0+\.?/, '').length);
+							const amount = imbalance.difference.toFixed(precision) || '0';
+							const currency = imbalance.currency || '';
+							imbalanceMessages.push(`${amount} ${currency}`);
+						}
+
+						diagnostics.push({
+							severity: DiagnosticSeverity.Error,
+							range: transaction.headerRange,
+							message: `Transaction does not balance: ${imbalanceMessages.join(', ')}`,
+							source: DIAGNOSTIC_SOURCE_LOCAL,
+						});
+					}
+				}
+
+				// If there are more chunks to process, yield to the event loop
+				if (i + CHUNK_SIZE < transactions.length) {
+					await new Promise(resolve => setTimeout(resolve, 0));
+				}
+			}
+			this.throwIfCancelled(token);
+			if (document.lineCount <= 10000 && tree.rootNode.hasError()) {
+				// Skip the diagnostics tip if the document is too large to avoid performance issues
+				// But there is still code action to fix the incomplete balance lines
+
+				// Detect incomplete balance directives to offer quick fixes with a visible squiggle
+				// Heuristic: a line starts with DATE, contains 'balance' and an account,
+				// but lacks a "<number> <CURRENCY>" pair after the account.
+				const text = document.getText();
+				const lines = text.split(/\r?\n/);
+				const balanceHeadRe = /^\s*\d{4}-\d{2}-\d{2}\s+balance\b/;
+
+				for (let line = 0; line < lines.length; line++) {
+					const lineText = lines[line]!;
+					if (!balanceHeadRe.test(lineText)) continue;
+					if (this.balanceLineHasAmountAndCurrency(lineText)) continue;
+
 					diagnostics.push({
-						severity: DiagnosticSeverity.Error,
-						range: transaction.headerRange,
-						message: `Transaction does not balance: ${imbalanceMessages.join(', ')}`,
+						severity: DiagnosticSeverity.Information,
+						range: {
+							start: { line, character: 0 },
+							end: { line, character: Math.max(0, lineText.length) },
+						},
+						message: 'Balance line incomplete: quick fix can complete current account balance',
 						source: DIAGNOSTIC_SOURCE_LOCAL,
+						code: 'balance-missing-amount',
 					});
 				}
 			}
 
-			// If there are more chunks to process, yield to the event loop
-			if (i + CHUNK_SIZE < transactions.length) {
-				await new Promise(resolve => setTimeout(resolve, 0));
+			// Validate account root names
+			await this.validateAccountRoots(tree, diagnostics, token, document.uri);
+			this.throwIfCancelled(token);
+
+			const beancountDiagnostics = this.diagnosticsFromBeancount[document.uri];
+			if (!beancountDiagnostics) {
+				return diagnostics;
 			}
+			this.logger.debug(beancountDiagnostics);
+
+			const mergedDiagnostics = this.mergeAndDedupDiagnostics(beancountDiagnostics, diagnostics);
+			this.logger.debug(mergedDiagnostics);
+
+			return mergedDiagnostics;
+		} finally {
+			lease.dispose();
 		}
-		this.throwIfCancelled(token);
-		if (document.lineCount <= 10000 && tree.rootNode.hasError()) {
-			// Skip the diagnostics tip if the document is too large to avoid performance issues
-			// But there is still code action to fix the incomplete balance lines
-
-			// Detect incomplete balance directives to offer quick fixes with a visible squiggle
-			// Heuristic: a line starts with DATE, contains 'balance' and an account,
-			// but lacks a "<number> <CURRENCY>" pair after the account.
-			const text = document.getText();
-			const lines = text.split(/\r?\n/);
-			const balanceHeadRe = /^\s*\d{4}-\d{2}-\d{2}\s+balance\b/;
-
-			for (let line = 0; line < lines.length; line++) {
-				const lineText = lines[line]!;
-				if (!balanceHeadRe.test(lineText)) continue;
-				if (this.balanceLineHasAmountAndCurrency(lineText)) continue;
-
-				diagnostics.push({
-					severity: DiagnosticSeverity.Information,
-					range: {
-						start: { line, character: 0 },
-						end: { line, character: Math.max(0, lineText.length) },
-					},
-					message: 'Balance line incomplete: quick fix can complete current account balance',
-					source: DIAGNOSTIC_SOURCE_LOCAL,
-					code: 'balance-missing-amount',
-				});
-			}
-		}
-
-		// Validate account root names
-		await this.validateAccountRoots(tree, diagnostics, token, document.uri);
-		this.throwIfCancelled(token);
-
-		const beancountDiagnostics = this.diagnosticsFromBeancount[document.uri];
-		if (!beancountDiagnostics) {
-			return diagnostics;
-		}
-		this.logger.debug(beancountDiagnostics);
-
-		const mergedDiagnostics = this.mergeAndDedupDiagnostics(beancountDiagnostics, diagnostics);
-		this.logger.debug(mergedDiagnostics);
-
-		return mergedDiagnostics;
 	}
 
 	private balanceLineHasAmountAndCurrency(lineText: string): boolean {

@@ -71,7 +71,7 @@ type AccountCompletionSnapshotCacheEntry = {
 export class SymbolIndex {
 	private logger = new Logger('index');
 	private workspaceUris: string[] = [];
-	private readonly indexedTrees = new Map<string, Tree>();
+	private readonly indexedTrees = new WeakSet<Tree>();
 
 	constructor(
 		private readonly _documents: DocumentStore,
@@ -137,7 +137,6 @@ export class SymbolIndex {
 		this._asyncQueue.dequeue(uri);
 		this._symbolInfoStorage.removeSync({ _uri: uri });
 		this._optionsManager.clearOptionsForSource(uri);
-		this.indexedTrees.delete(uri);
 		this.invalidateAccountCompletionSnapshot();
 	}
 
@@ -254,33 +253,34 @@ export class SymbolIndex {
 
 	private async _doIndex(document: TextDocument) {
 		this.logger.debug(`[index] Indexing document: ${document.uri}`);
-		const tree = await this._trees.getParseTree(document);
-		if (!tree) {
+		const indexed = await this._trees.withParseTree(document, async tree => {
+			if (this.indexedTrees.has(tree)) {
+				this.logger.debug(`[index] Skipping unchanged tree: ${document.uri}`);
+				return false;
+			}
+
+			await this._processOptionsDirectives(document, tree);
+
+			const symbols = await getSymbolsFromTree(document, tree);
+			const workspace = this.getWorkspaceForUri(document.uri);
+			if (workspace) {
+				for (const symbol of symbols) symbol._workspace = workspace;
+			}
+
+			this.logger.debug(`We Found ${symbols.length} symbols in ${document.uri}`);
+
+			await this._symbolInfoStorage.replaceAsync(
+				{ _uri: document.uri },
+				symbols,
+				symbol => symbol.name,
+			);
+			this.indexedTrees.add(tree);
+			this.invalidateAccountCompletionSnapshot();
+			return true;
+		});
+		if (indexed === undefined) {
 			throw new Error(`Failed to get parse tree for document: ${document.uri}`);
 		}
-		if (this.indexedTrees.get(document.uri) === tree) {
-			this.logger.debug(`[index] Skipping unchanged tree: ${document.uri}`);
-			return;
-		}
-
-		// Process options directives in this document
-		await this._processOptionsDirectives(document, tree);
-
-		const symbols = await getSymbolsFromTree(document, tree);
-		const workspace = this.getWorkspaceForUri(document.uri);
-		if (workspace) {
-			for (const symbol of symbols) symbol._workspace = workspace;
-		}
-
-		this.logger.debug(`We Found ${symbols.length} symbols in ${document.uri}`);
-
-		await this._symbolInfoStorage.replaceAsync(
-			{ _uri: document.uri },
-			symbols,
-			symbol => symbol.name,
-		);
-		this.indexedTrees.set(document.uri, tree);
-		this.invalidateAccountCompletionSnapshot();
 	}
 
 	/**
@@ -292,42 +292,48 @@ export class SymbolIndex {
 		knownTree?: Tree,
 	): Promise<void> {
 		try {
-			const tree = knownTree ?? await this._trees.getParseTree(document);
-			if (!tree) {
-				this.logger.warn(`No syntax tree available for options processing: ${document.uri}`);
+			if (knownTree) {
+				this._processOptionsFromTree(document, knownTree);
 				return;
 			}
-
-			const options = new Map<string, string>();
-
-			for (const optionNode of getRecoverableTopLevelNodes(tree, 'option')) {
-				const keyNode = optionNode.childForFieldName('key');
-				const valueNode = optionNode.childForFieldName('value');
-
-				if (!keyNode || !valueNode) {
-					this.logger.warn(`Invalid option directive found in ${document.uri}`);
-					continue;
-				}
-
-				// Extract the key and value from the nodes (remove quotes)
-				let key = keyNode.text;
-				let value = valueNode.text;
-
-				// Remove surrounding quotes from key and value
-				key = key.replace(/^"(.*)"$/, '$1');
-				value = value.replace(/^"(.*)"$/, '$1');
-
-				options.set(key, value);
-				this.logger.debug(`Found option in ${document.uri}: ${key} = ${value}`);
-			}
-
-			this._optionsManager.replaceOptionsForSource(document.uri, options);
-
-			if (options.size > 0) {
-				this.logger.info(`Processed ${options.size} Beancount options in ${document.uri}`);
+			const processed = await this._trees.withParseTree(document, tree => {
+				this._processOptionsFromTree(document, tree);
+				return true;
+			});
+			if (!processed) {
+				this.logger.warn(`No syntax tree available for options processing: ${document.uri}`);
 			}
 		} catch (error) {
 			this.logger.error(`Error processing options in ${document.uri}: ${error}`);
+		}
+	}
+
+	private _processOptionsFromTree(document: TextDocument, tree: Tree): void {
+		const options = new Map<string, string>();
+
+		for (const optionNode of getRecoverableTopLevelNodes(tree, 'option')) {
+			const keyNode = optionNode.childForFieldName('key');
+			const valueNode = optionNode.childForFieldName('value');
+
+			if (!keyNode || !valueNode) {
+				this.logger.warn(`Invalid option directive found in ${document.uri}`);
+				continue;
+			}
+
+			let key = keyNode.text;
+			let value = valueNode.text;
+
+			key = key.replace(/^"(.*)"$/, '$1');
+			value = value.replace(/^"(.*)"$/, '$1');
+
+			options.set(key, value);
+			this.logger.debug(`Found option in ${document.uri}: ${key} = ${value}`);
+		}
+
+		this._optionsManager.replaceOptionsForSource(document.uri, options);
+
+		if (options.size > 0) {
+			this.logger.info(`Processed ${options.size} Beancount options in ${document.uri}`);
 		}
 	}
 

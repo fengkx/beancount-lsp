@@ -9,15 +9,50 @@ import { DocumentStore, TextDocumentChange2 } from './document-store';
 const logger = new Logger('trees');
 
 class Entry {
+	private readers = 0;
+	private retired = false;
+	private deleted = false;
+
 	constructor(
 		public version: number,
 		public tree: Parser.Tree,
 		public edits: Parser.Edit[][],
 	) {}
+
+	acquire(): () => void {
+		if (this.retired) {
+			throw new Error('Cannot acquire a retired parse tree');
+		}
+		this.readers++;
+		let released = false;
+		return () => {
+			if (released) return;
+			released = true;
+			this.readers--;
+			this.deleteIfUnused();
+		};
+	}
+
+	retire(): void {
+		this.retired = true;
+		this.deleteIfUnused();
+	}
+
+	private deleteIfUnused(): void {
+		if (!this.retired || this.readers > 0 || this.deleted) return;
+		this.deleted = true;
+		this.tree.delete();
+	}
+}
+
+export interface ParseTreeLease extends Disposable {
+	readonly tree: Parser.Tree;
 }
 
 export class Trees {
 	private readonly _cache = new LRUMap<string, Entry>(100);
+	private readonly _parseQueue = new Map<string, Promise<Entry | undefined>>();
+	private readonly _epochs = new Map<string, number>();
 
 	private readonly _listener: Disposable[] = [];
 
@@ -40,7 +75,9 @@ export class Trees {
 	}
 
 	public invalidateCache(uri: string) {
-		this._cache.delete(uri);
+		this._epochs.set(uri, (this._epochs.get(uri) ?? 0) + 1);
+		const entry = this._cache.remove<Entry | undefined>(uri);
+		entry?.retire();
 	}
 
 	private static async getParserInstance() {
@@ -48,57 +85,102 @@ export class Trees {
 		return parser;
 	}
 
-	async getParseTree(
+	async acquireParseTree(
 		documentOrUri: TextDocument | string,
-	): Promise<Parser.Tree | undefined> {
+	): Promise<ParseTreeLease | undefined> {
 		if (typeof documentOrUri === 'string') {
 			documentOrUri = await this._documents.retrieve(documentOrUri);
 		}
-		let info = this._cache.get(documentOrUri.uri);
+		const entry = await this.getOrCreateEntry(documentOrUri);
+		if (!entry) return undefined;
+
+		const release = entry.acquire();
+		return {
+			tree: entry.tree,
+			dispose: release,
+		};
+	}
+
+	async withParseTree<T>(
+		documentOrUri: TextDocument | string,
+		callback: (tree: Parser.Tree) => T | Promise<T>,
+	): Promise<T | undefined> {
+		const lease = await this.acquireParseTree(documentOrUri);
+		if (!lease) return undefined;
 		try {
-			const version = documentOrUri.version;
+			return await callback(lease.tree);
+		} finally {
+			lease.dispose();
+		}
+	}
 
-			if (info?.version === documentOrUri.version) {
-				return info.tree;
+	dispose(): void {
+		for (const listener of this._listener.splice(0)) listener.dispose();
+		for (const entry of this._cache.values()) entry.retire();
+		this._cache.clear();
+		this._parseQueue.clear();
+	}
+
+	private async getOrCreateEntry(document: TextDocument): Promise<Entry | undefined> {
+		const cached = this._cache.get(document.uri);
+		if (cached?.version === document.version) return cached;
+		if (cached && cached.version > document.version) return undefined;
+
+		const queued = this._parseQueue.get(document.uri);
+		if (queued) {
+			await queued;
+			return this.getOrCreateEntry(document);
+		}
+
+		const epoch = this._epochs.get(document.uri) ?? 0;
+		const pending = this.parseAndCache(document, epoch);
+		this._parseQueue.set(document.uri, pending);
+		try {
+			return await pending;
+		} finally {
+			if (this._parseQueue.get(document.uri) === pending) {
+				this._parseQueue.delete(document.uri);
 			}
+		}
+	}
 
+	private async parseAndCache(document: TextDocument, epoch: number): Promise<Entry | undefined> {
+		let incrementalBase: Parser.Tree | undefined;
+		try {
 			const parser = await Trees.getParserInstance();
-			const text = documentOrUri.getText();
+			if ((this._epochs.get(document.uri) ?? 0) !== epoch) return undefined;
 
-			if (!info) {
-				// never seen before, parse fresh
-				const tree = parser.parse(text);
-				info = new Entry(version, tree, []);
-				this._cache.set(documentOrUri.uri, info);
+			const current = this._cache.get(document.uri);
+			if (current?.version === document.version) return current;
+			if (current && current.version > document.version) return undefined;
+
+			const text = document.getText();
+			const canParseIncrementally = current
+				&& current.edits.length > 0
+				&& current.edits.every(edits => edits.length === 1);
+			let tree: Parser.Tree;
+			if (canParseIncrementally) {
+				incrementalBase = current.tree.copy();
+				for (const [delta] of current.edits) incrementalBase.edit(delta!);
+				tree = parser.parse(text, incrementalBase);
 			} else {
-				// existing entry, apply deltas and parse incremental
-				const oldTree = info.tree;
-
-				const canParseIncrementally = info.edits.length > 0
-					&& info.edits.every(edits => edits.length === 1);
-				if (canParseIncrementally) {
-					for (const [delta] of info.edits) {
-						oldTree.edit(delta!);
-					}
-					info.tree = parser.parse(text, oldTree);
-				} else {
-					info.tree = parser.parse(text);
-				}
-				info.edits.length = 0;
-
-				info.version = version;
-				oldTree.delete();
+				tree = parser.parse(text);
 			}
 
-			return info.tree;
+			const next = new Entry(document.version, tree, []);
+			const replaced = this._cache.setpop(document.uri, next);
+			replaced?.value.retire();
+			return next;
 		} catch (e) {
 			const errorObj = e as Error;
 			logger.error(
-				`Error parsing document: ${documentOrUri.uri} ${errorObj} ${errorObj.stack || ''}`,
+				`Error parsing document: ${document.uri} ${errorObj} ${errorObj.stack || ''}`,
 			);
-			logger.debug(`Error parsing text: ${documentOrUri.getText()}`);
-			this._cache.delete(documentOrUri.uri);
+			logger.debug(`Error parsing text: ${document.getText()}`);
+			this.invalidateCache(document.uri);
 			return undefined;
+		} finally {
+			incrementalBase?.delete();
 		}
 	}
 

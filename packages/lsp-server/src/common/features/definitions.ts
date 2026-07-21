@@ -115,29 +115,24 @@ export class DefinitionFeature {
 		document: TextDocument,
 		position: lsp.Position,
 	): Promise<lsp.Location[] | null> {
-		const tree = await this.trees.getParseTree(document);
-		if (!tree) {
-			return null;
-		}
+		return await this.trees.withParseTree(document, async tree => {
+			const node = tree.rootNode.descendantForIndex(document.offsetAt(position));
+			const poptagNode = this.findNodeOrParentOfType(node, 'poptag');
+			if (!poptagNode) return null;
 
-		const node = tree.rootNode.descendantForIndex(document.offsetAt(position));
-		const poptagNode = this.findNodeOrParentOfType(node, 'poptag');
-		if (!poptagNode) {
-			return null;
-		}
+			const directiveIndex = await getTagDirectiveIndex(tree);
+			const poptag = directiveIndex.get(poptagNode);
+			const matchedPushtag = directiveIndex.getPair(poptagNode);
+			if (!poptag || !matchedPushtag || matchedPushtag.type !== 'pushtag') {
+				logger.debug('No matching pushtag found for poptag');
+				return null;
+			}
 
-		const directiveIndex = await getTagDirectiveIndex(tree);
-		const poptag = directiveIndex.get(poptagNode);
-		const matchedPushtag = directiveIndex.getPair(poptagNode);
-		if (!poptag || !matchedPushtag || matchedPushtag.type !== 'pushtag') {
-			logger.debug('No matching pushtag found for poptag');
-			return null;
-		}
-
-		return [{
-			uri: document.uri,
-			range: asLspRange(matchedPushtag.tagNode),
-		}];
+			return [{
+				uri: document.uri,
+				range: asLspRange(matchedPushtag.tagNode),
+			}];
+		}) ?? null;
 	}
 
 	private findNodeOrParentOfType(node: Parser.SyntaxNode, type: 'pushtag' | 'poptag'): Parser.SyntaxNode | null {

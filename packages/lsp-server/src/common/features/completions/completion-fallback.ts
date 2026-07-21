@@ -4,8 +4,8 @@ import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type Parser from 'web-tree-sitter';
 
 export type ReparseContext = {
-	placeholderNode: Parser.SyntaxNode;
-	ancestors: Map<string, Parser.SyntaxNode>;
+	placeholderType: string;
+	ancestorTypes: ReadonlySet<string>;
 };
 
 export type PlaceholderKind = 'account' | 'tag' | 'link' | 'currency' | 'meta';
@@ -145,22 +145,22 @@ export async function reparseWithPlaceholder(
 			}
 		}
 
-		const ancestors = new Map<string, Parser.SyntaxNode>();
+		const ancestors = new Set<string>();
 		if (ancestorTypes && ancestorTypes.length > 0) {
 			for (const type of ancestorTypes) {
 				const ancestor = findNamedAncestor(phNode, type);
 				if (!ancestor) return null;
-				ancestors.set(type, ancestor);
+				ancestors.add(type);
 			}
 		} else {
 			let cur: Parser.SyntaxNode | null = phNode;
 			while (cur) {
-				if (cur.isNamed() && cur.type) ancestors.set(cur.type, cur);
+				if (cur.isNamed() && cur.type) ancestors.add(cur.type);
 				cur = cur.parent;
 			}
 		}
 
-		return { placeholderNode: phNode, ancestors };
+		return { placeholderType: phNode.type, ancestorTypes: ancestors };
 	} catch (e) {
 		logger.debug(`Placeholder reparse failed: ${e}`);
 		return null;

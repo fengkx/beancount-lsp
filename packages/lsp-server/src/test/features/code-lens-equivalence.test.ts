@@ -100,7 +100,9 @@ describe('CodeLens node collection equivalence', () => {
 			const tree = parser.parse(text);
 			const feature = new CodeLensFeature(
 				{ retrieve: vi.fn().mockResolvedValue(document) } as never,
-				{ getParseTree: vi.fn().mockResolvedValue(tree) } as never,
+				{
+					withParseTree: vi.fn((_document, callback) => callback(tree)),
+				} as never,
 			) as unknown as CodeLensInternals;
 
 			const actual = await feature.provideCodeLenses({ textDocument: { uri: document.uri } });

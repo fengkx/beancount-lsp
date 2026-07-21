@@ -66,12 +66,13 @@ export class DocumentLinksFeature {
 	 */
 	private async findIncludeLinks(document: TextDocument): Promise<lsp.DocumentLink[]> {
 		const links: lsp.DocumentLink[] = [];
-		const tree = await this.trees.getParseTree(document);
+		const lease = await this.trees.acquireParseTree(document);
 
-		if (!tree) {
+		if (!lease) {
 			logger.warn(`Failed to get parse tree for document: ${document.uri}`);
 			return [];
 		}
+		const tree = lease.tree;
 
 		try {
 			// Use the include query to find all include directives
@@ -122,6 +123,8 @@ export class DocumentLinksFeature {
 			}
 		} catch (e) {
 			logger.error(`Error finding include links: ${e}`);
+		} finally {
+			lease.dispose();
 		}
 
 		return links;

@@ -23,7 +23,9 @@ describe('SelectionRangesFeature', () => {
 		const document = { offsetAt: vi.fn().mockReturnValue(123) };
 		const feature = new SelectionRangesFeature(
 			{ retrieve: vi.fn().mockResolvedValue(document) } as never,
-			{ getParseTree: vi.fn().mockResolvedValue({ rootNode: root }) } as never,
+			{
+				withParseTree: vi.fn((_document, callback) => callback({ rootNode: root })),
+			} as never,
 		);
 
 		const [result] = await feature.provideSelectionRanges({
@@ -43,7 +45,9 @@ describe('SelectionRangesFeature', () => {
 		const document = { offsetAt: vi.fn().mockReturnValue(200) };
 		const feature = new SelectionRangesFeature(
 			{ retrieve: vi.fn().mockResolvedValue(document) } as never,
-			{ getParseTree: vi.fn().mockResolvedValue({ rootNode: root }) } as never,
+			{
+				withParseTree: vi.fn((_document, callback) => callback({ rootNode: root })),
+			} as never,
 		);
 
 		const [result] = await feature.provideSelectionRanges({

@@ -72,31 +72,20 @@ export class FormatterFeature implements Feature {
 	 * Format a Beancount document
 	 */
 	async formatBeancountDocument(document: TextDocument, alignCurrency = false): Promise<TextEdit[]> {
-		const edits: TextEdit[] = [];
-
-		// Retrieve the parse tree using Trees
-		const tree = await this.trees.getParseTree(document);
-		if (!tree) {
-			this.logger.error('Failed to parse document');
+		const result = await this.trees.withParseTree(document, tree => {
+			const edits: TextEdit[] = [];
+			this.formatTransactions(document, tree, edits, alignCurrency);
+			this.formatBalances(document, tree, edits, alignCurrency);
+			this.formatPrices(document, tree, edits, alignCurrency);
+			this.formatCustoms(document, tree, edits, alignCurrency);
+			this.formatDirectives(document, tree, edits);
 			return edits;
+		});
+		if (!result) {
+			this.logger.error('Failed to parse document');
+			return [];
 		}
-
-		// Format the document by processing each transaction separately
-		this.formatTransactions(document, tree, edits, alignCurrency);
-
-		// Align balance directives
-		this.formatBalances(document, tree, edits, alignCurrency);
-
-		// Align price directives as well (currency or decimal point depending on setting)
-		this.formatPrices(document, tree, edits, alignCurrency);
-
-		// Align custom directives that contain numbers/amounts
-		this.formatCustoms(document, tree, edits, alignCurrency);
-
-		// Format other directives (open, close, etc.)
-		this.formatDirectives(document, tree, edits);
-
-		return edits;
+		return result;
 	}
 
 	/**
