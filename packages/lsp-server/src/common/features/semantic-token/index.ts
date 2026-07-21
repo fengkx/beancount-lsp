@@ -1,7 +1,4 @@
 import { TOKEN_MODIFIERS, TOKEN_TYPES } from '@bean-lsp/shared';
-import { DocumentStore } from '../../document-store';
-import { TreeQuery } from '../../language';
-import { Trees } from '../../trees';
 import {
 	Connection,
 	SemanticTokens,
@@ -9,12 +6,18 @@ import {
 	SemanticTokensRegistrationOptions,
 	SemanticTokensRegistrationType,
 } from 'vscode-languageserver';
+import type { Tree } from 'web-tree-sitter';
+import { DocumentStore } from '../../document-store';
+import { TreeQuery } from '../../language';
+import { Trees } from '../../trees';
 import { Feature } from '../types';
 import { TokenBuilder } from './token-builder';
 
 const DEFINITION_MODIFIER = 1 << TOKEN_MODIFIERS.indexOf('definition');
 
 export class SemanticTokenFeature implements Feature {
+	private readonly tokensByTree = new WeakMap<Tree, SemanticTokens>();
+
 	constructor(private readonly documents: DocumentStore, private readonly trees: Trees) {}
 	register(connection: Connection): void {
 		const semanticTokensRegistrationOptions: SemanticTokensRegistrationOptions = {
@@ -34,6 +37,8 @@ export class SemanticTokenFeature implements Feature {
 		if (!tree) {
 			return { data: [] };
 		}
+		const cached = this.tokensByTree.get(tree);
+		if (cached) return cached;
 
 		const tokenBuilder = new TokenBuilder();
 
@@ -95,14 +100,16 @@ export class SemanticTokenFeature implements Feature {
 						continue;
 				}
 
-				const line = node.startPosition.row;
-				const startChar = node.startPosition.column;
+				const startPosition = node.startPosition;
+				const line = startPosition.row;
+				const startChar = startPosition.column;
 				const length = node.text.length;
 				tokenBuilder.push(line, startChar, length, tokenType, tokenModifiers);
 			}
 		}
 
 		const data = tokenBuilder.build();
+		this.tokensByTree.set(tree, data);
 		return data;
 	}
 }
