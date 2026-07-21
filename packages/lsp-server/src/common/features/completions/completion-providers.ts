@@ -12,7 +12,6 @@ import {
 	type AccountMatchRank,
 	compareAccountRank,
 	compileAccountQuery,
-	makeEmptyAccountRank,
 	rankAndSortLabelItems,
 	rankCompiledAccountQuery,
 	rankSymbolLikeMatchTier,
@@ -50,6 +49,13 @@ type AccountCompletionSnapshotData = {
 	usageCounts: Map<string, number>;
 	closedAccounts: Map<string, string>;
 	fetchMs: number;
+};
+
+type RankedAccountCompletion = {
+	account: CompiledAccountCandidate;
+	rank?: AccountMatchRank;
+	usageCount: number;
+	matchScore?: number;
 };
 
 export function addCompletionItem(
@@ -356,8 +362,6 @@ export async function addAccountCompletions(collector: CompletionCollector): Pro
 	const queryCompileStart = performance.now();
 	const compiledQuery = compileAccountQuery(query);
 	const queryCompileMs = performance.now() - queryCompileStart;
-	const accountMatchScores = new Map<string, number>();
-	const accountRanks = new Map<string, AccountMatchRank>();
 	const shouldTrace = shouldTraceAccountQuery(collector.textCtx.linePrefix, collector.textCtx.tokenText);
 	const snapshotData = await getAccountCompletionSnapshotData(collector.symbolIndex, collector.document?.uri);
 	const { accounts, usageCounts: accountUsageCounts, closedAccounts, fetchMs: snapshotFetchMs } = snapshotData;
@@ -369,52 +373,54 @@ export async function addAccountCompletions(collector: CompletionCollector): Pro
 	}
 
 	const rankFilterStart = performance.now();
-	const filteredAccounts = accounts.filter((account) => {
+	const rankedAccounts: RankedAccountCompletion[] = [];
+	for (const account of accounts) {
 		if (currentDate && closedAccounts.has(account.name)) {
 			const closedDate = closedAccounts.get(account.name);
-			if (closedDate && currentDate >= closedDate) return false;
+			if (closedDate && currentDate >= closedDate) continue;
 		}
 
 		const usageCount = accountUsageCounts.get(account.name) || 0;
-		const rank = hasActiveQuery
-			? rankCompiledAccountQuery(compiledQuery, account, usageCount)
-			: makeEmptyAccountRank(usageCount);
-		if (!rank) return false;
-		accountRanks.set(account.name, rank);
-		accountMatchScores.set(account.name, rank.tier * 100 + rank.rootQuality * 10 + (rank.tailHit ? 5 : 0));
-		return true;
-	});
+		if (!hasActiveQuery) {
+			rankedAccounts.push({ account, usageCount });
+			continue;
+		}
+
+		const rank = rankCompiledAccountQuery(compiledQuery, account, usageCount);
+		if (!rank) continue;
+		rankedAccounts.push({
+			account,
+			rank,
+			usageCount,
+			matchScore: rank.tier * 100 + rank.rootQuality * 10 + (rank.tailHit ? 5 : 0),
+		});
+	}
 	const rankFilterMs = performance.now() - rankFilterStart;
 
 	const sortStart = performance.now();
-	filteredAccounts.sort((a, b) => {
-		const rankA = accountRanks.get(a.name);
-		const rankB = accountRanks.get(b.name);
+	rankedAccounts.sort((a, b) => {
+		const rankA = a.rank;
+		const rankB = b.rank;
 		if (rankA && rankB) {
 			const rankDiff = compareAccountRank(rankA, rankB);
 			if (rankDiff !== 0) return rankDiff;
 		}
-		const countA = accountUsageCounts.get(a.name) || 0;
-		const countB = accountUsageCounts.get(b.name) || 0;
-		if (countA !== countB) return countB - countA;
-		return a.name.localeCompare(b.name);
+		if (a.usageCount !== b.usageCount) return b.usageCount - a.usageCount;
+		return a.account.name.localeCompare(b.account.name);
 	});
 	const sortMs = performance.now() - sortStart;
 
 	if (shouldTrace) {
-		const top = filteredAccounts.slice(0, 8).map((account) => {
-			const rank = accountRanks.get(account.name);
-			const usage = accountUsageCounts.get(account.name) || 0;
-			return `${account.name} (rank=${JSON.stringify(rank)}, usage=${usage})`;
+		const top = rankedAccounts.slice(0, 8).map(({ account, rank, usageCount }) => {
+			return `${account.name} (rank=${JSON.stringify(rank)}, usage=${usageCount})`;
 		});
-		logger.debug(`[account-query] filtered=${filteredAccounts.length} rankTopN=${top.join(' | ')}`);
+		logger.debug(`[account-query] filtered=${rankedAccounts.length} rankTopN=${top.join(' | ')}`);
 	}
 
 	const buildItemsStart = performance.now();
-	filteredAccounts.forEach((account, index) => {
+	rankedAccounts.forEach(({ account, usageCount, matchScore }, index) => {
 		let detail = '';
 		const accountName = account.name;
-		const usageCount = accountUsageCounts.get(accountName) || 0;
 		if (usageCount > 0) {
 			detail += `Used ${usageCount} time${usageCount === 1 ? '' : 's'}`;
 		}
@@ -436,7 +442,7 @@ export async function addAccountCompletions(collector: CompletionCollector): Pro
 				accountName + ' ',
 			),
 			usageCount,
-			accountMatchScores.get(accountName),
+			matchScore,
 			String(index).padStart(7, '0'),
 		);
 	});
@@ -448,9 +454,7 @@ export async function addAccountCompletions(collector: CompletionCollector): Pro
 				Math.round(queryCompileMs)
 			} rankFilterMs=${Math.round(rankFilterMs)} sortMs=${Math.round(sortMs)} buildItemsMs=${
 				Math.round(buildItemsMs)
-			} totalMs=${
-				Math.round(totalMs)
-			} accountsTotal=${accounts.length} accountsMatched=${filteredAccounts.length}`,
+			} totalMs=${Math.round(totalMs)} accountsTotal=${accounts.length} accountsMatched=${rankedAccounts.length}`,
 		);
 	}
 }
