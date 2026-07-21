@@ -3,7 +3,7 @@
 	"version": "0.0.1",
 	"private": true,
 	"dependencies": {
-		"nanoid": "^5.1.6"
+		"nanoid": "^6.0.0"
 	},
 	"main": "./src/datastore.ts",
 	"types": "./src/datastore.ts",

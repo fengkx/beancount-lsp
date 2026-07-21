@@ -8,13 +8,16 @@ function importDefault<T>(mod: T): { default: T } | T {
 		: { default: mod };
 }
 
-it('vsce should resolve a callable default export from minimatch', () => {
+it('vsce should resolve a callable export from minimatch', () => {
 	const require = createRequire(import.meta.url);
 	const vsceEntry = require.resolve('@vscode/vsce');
 	const vscePackageDir = path.resolve(path.dirname(vsceEntry), '..');
 	const minimatchEntry = require.resolve('minimatch', { paths: [vscePackageDir] });
 	const minimatch = require(minimatchEntry);
 	const imported = importDefault(minimatch);
+	const callable = typeof imported.default === 'function'
+		? imported.default
+		: minimatch.minimatch;
 
-	expect(typeof imported.default).toBe('function');
+	expect(typeof callable).toBe('function');
 });

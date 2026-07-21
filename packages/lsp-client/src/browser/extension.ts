@@ -112,8 +112,8 @@ function createWorkerLanguageClient(context: vscode.ExtensionContext, clientOpti
 	return new LanguageClient(
 		'beanLsp',
 		'BeanCount Language Server (Browser)',
-		clientOptions,
 		worker,
+		clientOptions,
 	);
 }
 
