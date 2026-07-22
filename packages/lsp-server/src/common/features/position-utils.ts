@@ -43,10 +43,10 @@ function stripSurroundingQuotes(text: string): string {
 	return text.replace(/^"|"$/g, '');
 }
 
-function isAccountLike(text: string): boolean {
+function isAccountLike(text: string, scopeUri: string): boolean {
 	// Get valid root accounts from options manager
 	const optionsManager = BeancountOptionsManager.getInstance();
-	const validRoots = optionsManager.getValidRootAccounts();
+	const validRoots = optionsManager.getValidRootAccounts(scopeUri);
 
 	// Split account name by colon
 	const parts = text.split(':');
@@ -130,7 +130,7 @@ export async function getAccountAtPosition(
 	position: lsp.Position,
 ): Promise<string | null> {
 	return await readNodeAtPosition(trees, document, position, node => {
-		if (node.type === 'account' || isAccountLike(node.text)) return node.text;
+		if (node.type === 'account' || isAccountLike(node.text, document.uri)) return node.text;
 		return getNodeOrParentOfType(node, 'account')?.text ?? null;
 	}) ?? null;
 }

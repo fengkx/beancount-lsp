@@ -65,7 +65,7 @@ export class ShadowWorkspace {
 	private async writeSourceFile(file: SourceFileSnapshot): Promise<void> {
 		const runtimePath = this.runtimePathFor(file.uri);
 		await mkdir(dirname(runtimePath), { recursive: true, mode: 0o700 });
-		const text = this.rewriteManagedAbsoluteIncludes(file.text);
+		const text = this.rewriteIncludes(file.uri, file.text);
 		const tempPath = `${runtimePath}.tmp-${process.pid}-${Date.now()}`;
 		await writeFile(tempPath, text, { encoding: 'utf8', mode: 0o600 });
 		await rename(tempPath, runtimePath);
@@ -74,14 +74,17 @@ export class ShadowWorkspace {
 		this.runtimeToSource.set(resolve(runtimePath), fileURLToPath(file.uri));
 	}
 
-	private rewriteManagedAbsoluteIncludes(text: string): string {
+	private rewriteIncludes(sourceUri: string, text: string): string {
 		if (!this.originalRoot || !this.contextRoot) return text;
+		const sourceDirectory = dirname(fileURLToPath(sourceUri));
 		INCLUDE_PATTERN.lastIndex = 0;
-		return text.replace(INCLUDE_PATTERN, (whole, prefix: string, target: string, suffix: string) => {
-			if (!isAbsolute(target)) return whole;
-			const rel = relative(this.originalRoot!, resolve(target));
-			if (rel.startsWith('..') || isAbsolute(rel)) return whole;
-			return `${prefix}${join(this.contextRoot!, rel)}${suffix}`;
+		return text.replace(INCLUDE_PATTERN, (_whole, prefix: string, target: string, suffix: string) => {
+			const resolvedTarget = resolve(isAbsolute(target) ? target : join(sourceDirectory, target));
+			const rel = relative(this.originalRoot!, resolvedTarget);
+			const rewrittenTarget = rel.startsWith('..') || isAbsolute(rel) || rel.split(sep).includes('..')
+				? resolvedTarget
+				: join(this.contextRoot!, rel);
+			return `${prefix}${rewrittenTarget}${suffix}`;
 		});
 	}
 

@@ -77,6 +77,7 @@ export class BeancountOptionsManager {
 	private effectiveOptions: Map<SupportedOption, BeancountOption> = new Map();
 	private _onOptionChange = new Emitter<OptionsChangeEvent>();
 	private workspaceUris: string[] = [];
+	private workspaceMainFiles = new Map<string, string>();
 
 	/** Event fired when an option changes */
 	public readonly onOptionChange = this._onOptionChange.event.bind(this._onOptionChange);
@@ -118,6 +119,12 @@ export class BeancountOptionsManager {
 		this.workspaceUris = [...workspaceUris].sort((a, b) => b.length - a.length);
 	}
 
+	public setWorkspaceMainFiles(contexts: readonly { workspaceUri: string; mainFileUri: string }[]): void {
+		this.workspaceMainFiles = new Map(
+			contexts.map(context => [context.workspaceUri, context.mainFileUri]),
+		);
+	}
+
 	/**
 	 * Get the value of a Beancount option
 	 * @param name The option name
@@ -125,10 +132,13 @@ export class BeancountOptionsManager {
 	 */
 	public getOption(name: SupportedOption, scopeUri?: string): BeancountOption {
 		if (scopeUri) {
-			const scoped = this.getScopedOption(name, scopeUri);
-			if (scoped) return scoped;
+			return this.getScopedOption(name, scopeUri) ?? this.getDefaultOption(name);
 		}
-		return this.effectiveOptions.get(name) ?? new BeancountOption({
+		return this.effectiveOptions.get(name) ?? this.getDefaultOption(name);
+	}
+
+	private getDefaultOption(name: SupportedOption): BeancountOption {
+		return new BeancountOption({
 			value: this.DEFAULT_OPTIONS[name],
 			source: undefined,
 			isDefault: true,
@@ -140,23 +150,12 @@ export class BeancountOptionsManager {
 			const root = uri.endsWith('/') ? uri : `${uri}/`;
 			return scopeUri === uri || scopeUri.startsWith(root);
 		});
-		let selected: { source: string; value: string } | undefined;
-		const sources = [...this.sourceOptions.keys()].sort((left, right) => left.localeCompare(right));
-		for (const source of sources) {
-			const options = this.sourceOptions.get(source);
-			if (!options) continue;
-			const value = options.get(name);
-			if (value === undefined || source === '__legacy__') continue;
-			const sourceMatchesScope = workspaceUri
-				? source === workspaceUri
-					|| source.startsWith(workspaceUri.endsWith('/') ? workspaceUri : `${workspaceUri}/`)
-				: source === scopeUri;
-			if (!sourceMatchesScope) continue;
-			selected = { source, value };
-		}
-		return selected
-			? new BeancountOption({ value: selected.value, source: selected.source, isDefault: false })
-			: undefined;
+		const source = workspaceUri ? this.workspaceMainFiles.get(workspaceUri) : scopeUri;
+		if (!source) return undefined;
+		const value = this.sourceOptions.get(source)?.get(name);
+		return value === undefined
+			? undefined
+			: new BeancountOption({ value, source, isDefault: false });
 	}
 
 	/**
@@ -174,15 +173,19 @@ export class BeancountOptionsManager {
 	}
 
 	public replaceOptionsForSource(source: string, options: Map<string, string>): void {
+		const previous = this.sourceOptions.get(source) ?? new Map<string, string>();
 		this.sourceOptions.set(source, new Map(options));
-		this.recomputeEffectiveOptions();
+		const emitted = this.recomputeEffectiveOptions();
+		this.emitScopedSourceChanges(source, previous, options, emitted);
 	}
 
 	public clearOptionsForSource(source: string): void {
+		const previous = this.sourceOptions.get(source);
 		if (!this.sourceOptions.delete(source)) {
 			return;
 		}
-		this.recomputeEffectiveOptions();
+		const emitted = this.recomputeEffectiveOptions();
+		this.emitScopedSourceChanges(source, previous!, new Map(), emitted);
 	}
 
 	private isSupportedOption(name: string): name is SupportedOption {
@@ -195,7 +198,31 @@ export class BeancountOptionsManager {
 		return a.value === b.value && a.source === b.source && a.isDefault === b.isDefault;
 	}
 
-	private recomputeEffectiveOptions(): void {
+	private emitScopedSourceChanges(
+		source: string,
+		previous: Map<string, string>,
+		next: Map<string, string>,
+		alreadyEmitted: ReadonlySet<SupportedOption>,
+	): void {
+		if (![...this.workspaceMainFiles.values()].includes(source)) return;
+		for (const name of new Set([...previous.keys(), ...next.keys()])) {
+			if (!this.isSupportedOption(name) || alreadyEmitted.has(name)) continue;
+			const previousValue = previous.get(name);
+			const nextValue = next.get(name);
+			if (previousValue === nextValue) continue;
+			this._onOptionChange.fire({
+				name,
+				option: nextValue === undefined
+					? this.getDefaultOption(name)
+					: new BeancountOption({ value: nextValue, source, isDefault: false }),
+				previousOption: previousValue === undefined
+					? undefined
+					: new BeancountOption({ value: previousValue, source, isDefault: false }),
+			});
+		}
+	}
+
+	private recomputeEffectiveOptions(): Set<SupportedOption> {
 		const next = new Map<SupportedOption, BeancountOption>();
 		const sources = Array.from(this.sourceOptions.keys()).sort((a, b) => a.localeCompare(b));
 		for (const source of sources) {
@@ -211,6 +238,7 @@ export class BeancountOptionsManager {
 			...Array.from(this.effectiveOptions.keys()),
 			...Array.from(next.keys()),
 		]);
+		const emitted = new Set<SupportedOption>();
 		for (const name of changed) {
 			const previousOption = this.effectiveOptions.get(name);
 			const nextOption = next.get(name) ?? new BeancountOption({
@@ -231,9 +259,11 @@ export class BeancountOptionsManager {
 				option: nextOption,
 				previousOption,
 			});
+			emitted.add(name);
 		}
 
 		this.effectiveOptions = next;
+		return emitted;
 	}
 
 	/**

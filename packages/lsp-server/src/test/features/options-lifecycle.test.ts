@@ -53,10 +53,55 @@ describe('BeancountOptionsManager option lifecycle', () => {
 	it('isolates effective options by workspace scope', () => {
 		const mgr = new BeancountOptionsManager();
 		mgr.setWorkspaceFolders(['file:///one', 'file:///two']);
+		mgr.setWorkspaceMainFiles([
+			{ workspaceUri: 'file:///one', mainFileUri: 'file:///one/main.bean' },
+			{ workspaceUri: 'file:///two', mainFileUri: 'file:///two/main.bean' },
+		]);
 		mgr.replaceOptionsForSource('file:///one/main.bean', new Map([['name_assets', 'OneAssets']]));
 		mgr.replaceOptionsForSource('file:///two/main.bean', new Map([['name_assets', 'TwoAssets']]));
 
 		expect(mgr.getOption('name_assets', 'file:///one/account.bean').asString()).toBe('OneAssets');
 		expect(mgr.getOption('name_assets', 'file:///two/account.bean').asString()).toBe('TwoAssets');
+	});
+
+	it('uses only the top-level main file options for a workspace scope', () => {
+		const mgr = new BeancountOptionsManager();
+		mgr.setWorkspaceFolders(['file:///one']);
+		mgr.setWorkspaceMainFiles([
+			{ workspaceUri: 'file:///one', mainFileUri: 'file:///one/main.bean' },
+		]);
+		mgr.replaceOptionsForSource('file:///one/main.bean', new Map([['name_assets', 'MainAssets']]));
+		mgr.replaceOptionsForSource('file:///one/included.bean', new Map([['name_assets', 'IncludedAssets']]));
+
+		expect(mgr.getOption('name_assets', 'file:///one/included.bean').asString()).toBe('MainAssets');
+	});
+
+	it('falls back to defaults instead of another workspace option', () => {
+		const mgr = new BeancountOptionsManager();
+		mgr.setWorkspaceFolders(['file:///one', 'file:///two']);
+		mgr.setWorkspaceMainFiles([
+			{ workspaceUri: 'file:///one', mainFileUri: 'file:///one/main.bean' },
+			{ workspaceUri: 'file:///two', mainFileUri: 'file:///two/main.bean' },
+		]);
+		mgr.replaceOptionsForSource('file:///one/main.bean', new Map([['name_assets', 'OneAssets']]));
+
+		expect(mgr.getOption('name_assets', 'file:///two/account.bean').asString()).toBe('Assets');
+	});
+
+	it('emits changes when a main file option changes outside the global fallback', () => {
+		const mgr = new BeancountOptionsManager();
+		mgr.setWorkspaceFolders(['file:///one', 'file:///two']);
+		mgr.setWorkspaceMainFiles([
+			{ workspaceUri: 'file:///one', mainFileUri: 'file:///one/main.bean' },
+			{ workspaceUri: 'file:///two', mainFileUri: 'file:///two/main.bean' },
+		]);
+		mgr.replaceOptionsForSource('file:///one/main.bean', new Map([['name_assets', 'OneAssets']]));
+		mgr.replaceOptionsForSource('file:///two/main.bean', new Map([['name_assets', 'TwoAssets']]));
+		const seen: string[] = [];
+		mgr.onOptionChange(event => seen.push(event.option.asString()));
+
+		mgr.replaceOptionsForSource('file:///one/main.bean', new Map([['name_assets', 'UpdatedAssets']]));
+
+		expect(seen).toContain('UpdatedAssets');
 	});
 });
