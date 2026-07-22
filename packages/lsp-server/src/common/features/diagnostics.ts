@@ -281,10 +281,16 @@ export class DiagnosticsFeature implements Feature {
 
 			addDiagnostic(DiagnosticSeverity.Warning, f.line, f.file, f.message);
 		});
-		const { diagnosticsByUri, suppressedCount } = filterBeancheckDiagnosticsForBrowserCustomRootCompat(
-			diagnosticsFromBeancount,
-			this.getBrowserCustomRootCompatFilterInput(),
-		);
+		let suppressedCount = 0;
+		const diagnosticsByUri: Record<string, Diagnostic[]> = {};
+		for (const [uri, diagnostics] of Object.entries(diagnosticsFromBeancount)) {
+			const filtered = filterBeancheckDiagnosticsForBrowserCustomRootCompat(
+				{ [uri]: diagnostics },
+				this.getBrowserCustomRootCompatFilterInput(uri),
+			);
+			Object.assign(diagnosticsByUri, filtered.diagnosticsByUri);
+			suppressedCount += filtered.suppressedCount;
+		}
 		this.diagnosticsFromBeancount = diagnosticsByUri;
 
 		if (suppressedCount > 0 && !this.hasShownBrowserCustomRootParityWarning) {
@@ -296,12 +302,12 @@ export class DiagnosticsFeature implements Feature {
 		}
 	}
 
-	private getBrowserCustomRootCompatFilterInput(): BrowserCustomRootCompatFilterInput {
-		const runtimeMode = this.beanMgr?.getRuntimeStatus?.().mode ?? 'off';
-		const validRootAccounts = this.optionsManager.getValidRootAccounts();
+	private getBrowserCustomRootCompatFilterInput(scopeUri: string): BrowserCustomRootCompatFilterInput {
+		const runtimeMode = this.beanMgr?.getRuntimeStatus?.(scopeUri).mode ?? 'off';
+		const validRootAccounts = this.optionsManager.getValidRootAccounts(scopeUri);
 		const customNonAsciiRoots = new Set<string>();
 		for (const name of ROOT_OPTION_NAMES) {
-			const option = this.optionsManager.getOption(name);
+			const option = this.optionsManager.getOption(name, scopeUri);
 			const value = option.asString();
 			if (option.isDefault || !hasNonAscii(value) || DEFAULT_ROOT_NAMES.has(value)) {
 				continue;

@@ -16,7 +16,7 @@ import {
 	StreamMessageReader,
 	StreamMessageWriter,
 } from 'vscode-languageserver/node';
-import { URI } from 'vscode-uri';
+import { URI, Utils as UriUtils } from 'vscode-uri';
 import { DocumentStore } from '../common/document-store';
 import {
 	Amount,
@@ -510,9 +510,9 @@ class BeancountManager implements RealBeancountManager {
 	}
 
 	private hasDirtyExternalInclude(snapshot: SourceSnapshot): boolean {
-		for (const rawIncludes of snapshot.includeGraph.unresolved.values()) {
+		for (const [sourceUri, rawIncludes] of snapshot.includeGraph.unresolved) {
 			for (const raw of rawIncludes) {
-				const uri = this.externalIncludeUri(raw);
+				const uri = this.externalIncludeUri(sourceUri, raw);
 				if (uri && this.documents.isOpen(uri)) return true;
 			}
 		}
@@ -520,22 +520,22 @@ class BeancountManager implements RealBeancountManager {
 	}
 
 	private isReferencedExternalUri(uri: string, snapshot: SourceSnapshot): boolean {
-		for (const rawIncludes of snapshot.includeGraph.unresolved.values()) {
+		for (const [sourceUri, rawIncludes] of snapshot.includeGraph.unresolved) {
 			for (const raw of rawIncludes) {
-				if (this.externalIncludeUri(raw) === uri) return true;
+				if (this.externalIncludeUri(sourceUri, raw) === uri) return true;
 			}
 		}
 		return false;
 	}
 
-	private externalIncludeUri(raw: string): string | null {
+	private externalIncludeUri(sourceUri: string, raw: string): string | null {
 		try {
 			if (raw.startsWith('file:')) return URI.parse(raw).toString();
-			if (raw.startsWith('/')) return URI.file(raw).toString();
+			if (isAbsolute(raw)) return URI.file(raw).toString();
+			return UriUtils.resolvePath(UriUtils.dirname(URI.parse(sourceUri)), raw).toString();
 		} catch {
 			return null;
 		}
-		return null;
 	}
 
 	private markBeancheckInputChanged(reason: string): void {
