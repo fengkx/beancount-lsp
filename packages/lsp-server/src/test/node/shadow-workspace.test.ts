@@ -72,4 +72,31 @@ describe('ShadowWorkspace', () => {
 		expect(text).toContain(shadow.mapSourcePath(childUri));
 		await shadow.dispose();
 	});
+
+	it('resolves an external relative include from the declaring file', async () => {
+		const parentPath = await mkdtemp(join(tmpdir(), 'bean-shadow-test-'));
+		const rootPath = join(parentPath, 'ledger');
+		const mainPath = join(rootPath, 'main.bean');
+		const sharedPath = join(parentPath, 'shared.bean');
+		const workspaceUri = pathToFileURL(rootPath).toString();
+		const mainUri = pathToFileURL(mainPath).toString();
+		const shadow = new ShadowWorkspace();
+		await shadow.reset({
+			contextId: 'external-relative-context',
+			workspaceUri,
+			mainFileUri: mainUri,
+			revision: 1,
+			files: new Map([
+				[mainUri, { uri: mainUri, text: 'include "../shared.bean"\n', origin: 'disk' }],
+			]),
+			reachableUris: new Set([mainUri]),
+			includeGraph: {
+				edges: new Map(),
+				unresolved: new Map([[mainUri, ['../shared.bean']]]),
+			},
+		});
+
+		expect(await readFile(shadow.mainFilePath, 'utf8')).toBe(`include "${sharedPath}"\n`);
+		await shadow.dispose();
+	});
 });

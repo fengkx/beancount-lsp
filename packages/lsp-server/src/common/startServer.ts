@@ -316,6 +316,10 @@ export function startServer(
 			const workspaceUris = folders.map(folder => folder.uri);
 			symbolIndex.setWorkspaceFolders(workspaceUris);
 			optionsManager.setWorkspaceFolders(workspaceUris);
+			optionsManager.setWorkspaceMainFiles(contextRegistry.all.map(context => ({
+				workspaceUri: context.workspace.uri,
+				mainFileUri: context.mainFileUri,
+			})));
 			if (beanMgr instanceof ContextualBeancountManager) beanMgr.reconcileContexts();
 			for (const context of contextRegistry.all) {
 				await symbolIndex.initFiles([context.mainFileUri]);
@@ -369,6 +373,10 @@ export function startServer(
 		});
 
 		await contextRegistry.initialize();
+		optionsManager.setWorkspaceMainFiles(contextRegistry.all.map(context => ({
+			workspaceUri: context.workspace.uri,
+			mainFileUri: context.mainFileUri,
+		})));
 		const mainBeanFile = contextRegistry.all.length === 1 ? contextRegistry.all[0]!.mainFileUri : null;
 		serverLogger.info(`mainBeanFile ${mainBeanFile}`);
 		let initFiles = documents.beanFiles;
