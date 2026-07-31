@@ -135,7 +135,13 @@ export class ContextualBeancountManager implements RealBeancountManager {
 	private resolve(scopeUri?: string): RealBeancountManager | undefined {
 		if (scopeUri) {
 			const context = this.contexts.forDocument(scopeUri);
-			return context ? this.managers.get(context.id) : undefined;
+			if (context) return this.managers.get(context.id);
+
+			// A ledger may include files outside its workspace (or expose them through a
+			// symlink URI). With only one ledger there is no ambiguity, so preserve the
+			// single-ledger behavior instead of silently dropping runtime-backed data.
+			if (this.managers.size === 1) return this.managers.values().next().value;
+			return undefined;
 		}
 		return this.managers.size === 1 ? this.managers.values().next().value : undefined;
 	}
