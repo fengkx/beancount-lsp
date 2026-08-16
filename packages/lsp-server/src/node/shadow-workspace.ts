@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { chmod, mkdir, mkdtemp, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { access, chmod, mkdir, mkdtemp, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,11 +8,13 @@ import type { SourceFileSnapshot, SourceSnapshot, SourceSnapshotChange } from '.
 
 const SHADOW_PREFIX = 'beancount-lsp-';
 const MAX_OLD_SHADOW_AGE_MS = 24 * 60 * 60 * 1000;
+const SESSION_OWNER_FILE = '.owner.json';
 const INCLUDE_PATTERN = /(^\s*include\s+")([^"]+)("\s*$)/gm;
 
 export class ShadowWorkspace {
 	private sessionRoot?: string;
 	private contextRoot?: string;
+	private contextId?: string;
 	private originalRoot?: string;
 	private mainFileUri?: string;
 	private readonly runtimeToSource = new Map<string, string>();
@@ -22,6 +24,7 @@ export class ShadowWorkspace {
 		await this.ensureSessionRoot();
 		this.originalRoot = fileURLToPath(snapshot.workspaceUri);
 		this.mainFileUri = snapshot.mainFileUri;
+		this.contextId = snapshot.contextId;
 		const contextHash = createHash('sha256').update(snapshot.contextId).digest('hex').slice(0, 16);
 		this.contextRoot = join(this.sessionRoot!, contextHash);
 		await rm(this.contextRoot, { recursive: true, force: true });
@@ -29,6 +32,32 @@ export class ShadowWorkspace {
 		this.runtimeToSource.clear();
 		this.sourceToRuntime.clear();
 		for (const file of snapshot.files.values()) await this.writeSourceFile(file);
+	}
+
+	async ensureMaterialized(snapshot: SourceSnapshot): Promise<boolean> {
+		if (!snapshot.files.has(snapshot.mainFileUri)) {
+			throw new Error(`Main file is missing from the source snapshot: ${snapshot.mainFileUri}`);
+		}
+		if (
+			this.contextId !== snapshot.contextId
+			|| this.mainFileUri !== snapshot.mainFileUri
+			|| this.originalRoot !== fileURLToPath(snapshot.workspaceUri)
+			|| !await this.isMaterialized()
+		) {
+			await this.reset(snapshot);
+			return true;
+		}
+		return false;
+	}
+
+	async isMaterialized(): Promise<boolean> {
+		if (!this.sessionRoot || !this.contextRoot || !this.mainFileUri) return false;
+		try {
+			await access(this.mainFilePath);
+			return true;
+		} catch {
+			return false;
+		}
 	}
 
 	async sync(change: SourceSnapshotChange): Promise<void> {
@@ -99,16 +128,34 @@ export class ShadowWorkspace {
 	}
 
 	private async ensureSessionRoot(): Promise<void> {
-		if (this.sessionRoot) return;
+		if (this.sessionRoot) {
+			await mkdir(this.sessionRoot, { recursive: true, mode: 0o700 });
+			await chmod(this.sessionRoot, 0o700);
+			await this.writeSessionOwner();
+			return;
+		}
 		await ShadowWorkspace.cleanupOldSessions();
 		this.sessionRoot = await mkdtemp(join(tmpdir(), SHADOW_PREFIX));
 		await chmod(this.sessionRoot, 0o700);
+		await this.writeSessionOwner();
+	}
+
+	private async writeSessionOwner(): Promise<void> {
+		if (!this.sessionRoot) return;
+		await writeFile(
+			join(this.sessionRoot, SESSION_OWNER_FILE),
+			JSON.stringify({ pid: process.pid }),
+			{ encoding: 'utf8', mode: 0o600 },
+		);
 	}
 
 	async dispose(): Promise<void> {
 		if (this.sessionRoot) await rm(this.sessionRoot, { recursive: true, force: true });
 		this.sessionRoot = undefined;
 		this.contextRoot = undefined;
+		this.contextId = undefined;
+		this.originalRoot = undefined;
+		this.mainFileUri = undefined;
 		this.runtimeToSource.clear();
 		this.sourceToRuntime.clear();
 	}
@@ -125,13 +172,30 @@ export class ShadowWorkspace {
 				const path = join(tmpdir(), name);
 				try {
 					const info = await stat(path);
-					if (Date.now() - info.mtimeMs > MAX_OLD_SHADOW_AGE_MS) {
-						await rm(path, { recursive: true, force: true });
-					}
+					if (Date.now() - info.mtimeMs <= MAX_OLD_SHADOW_AGE_MS) return;
+					if (await ShadowWorkspace.hasLiveOwner(path)) return;
+					await rm(path, { recursive: true, force: true });
 				} catch {
 					// Another server may have removed the path concurrently.
 				}
 			}),
 		);
+	}
+
+	private static async hasLiveOwner(sessionRoot: string): Promise<boolean> {
+		try {
+			const owner = JSON.parse(await readFile(join(sessionRoot, SESSION_OWNER_FILE), 'utf8')) as {
+				pid?: unknown;
+			};
+			if (!Number.isSafeInteger(owner.pid) || (owner.pid as number) <= 0) return false;
+			try {
+				process.kill(owner.pid as number, 0);
+				return true;
+			} catch (error) {
+				return (error as NodeJS.ErrnoException).code === 'EPERM';
+			}
+		} catch {
+			return false;
+		}
 	}
 }

@@ -440,16 +440,34 @@ class BeancountManager implements RealBeancountManager {
 
 		try {
 			await this.shadowSyncPromise;
+			if (this.liveBuffersEnabled && await this.ensureShadowWorkspaceMaterialized()) {
+				this.logger.warn('Shadow workspace disappeared and was rebuilt before beancheck.');
+			}
 			const client = await this.ensureBeancheckRpcClient(python3Path);
 			if (token.isCancellationRequested) {
 				return null;
 			}
-			const inputFile = this.liveBuffersEnabled ? this.shadowWorkspace.mainFilePath : this.mainFile;
-			const result = await client.runBeancheck(inputFile, mode, token);
+			let usedShadowWorkspace = this.liveBuffersEnabled;
+			let inputFile = usedShadowWorkspace ? this.shadowWorkspace.mainFilePath : this.mainFile;
+			let result = await client.runBeancheck(inputFile, mode, token);
 			if (token.isCancellationRequested) {
 				return null;
 			}
-			return this.liveBuffersEnabled ? this.rewriteShadowResult(result) : result;
+
+			// macOS may purge os.tmpdir() while VS Code remains open for days. The
+			// loader reports that as a normal Beancount diagnostic, so recover here
+			// and retry once instead of publishing a false "main.bean does not exist".
+			if (usedShadowWorkspace && !await this.shadowWorkspace.isMaterialized()) {
+				this.logger.warn('Shadow workspace disappeared during beancheck; rebuilding and retrying once.');
+				await this.ensureShadowWorkspaceMaterialized();
+				if (token.isCancellationRequested || !this.liveBuffersEnabled) return null;
+				inputFile = this.shadowWorkspace.mainFilePath;
+				result = await client.runBeancheck(inputFile, mode, token);
+				if (token.isCancellationRequested) return null;
+				usedShadowWorkspace = true;
+			}
+
+			return usedShadowWorkspace ? this.rewriteShadowResult(result) : result;
 		} catch (error) {
 			if (this.isCancellationError(error)) {
 				return null;
@@ -458,6 +476,21 @@ class BeancountManager implements RealBeancountManager {
 			this.disposeBeancheckRpcClient();
 			return null;
 		}
+	}
+
+	private async ensureShadowWorkspaceMaterialized(): Promise<boolean> {
+		let rebuilt = false;
+		const operation = this.shadowSyncPromise.then(async () => {
+			const sourceService = this.sourceService;
+			if (!this.liveBuffersEnabled || !sourceService) return;
+			rebuilt = await this.shadowWorkspace.ensureMaterialized(sourceService.snapshot);
+		});
+		const guardedOperation = operation.catch(error => {
+			this.fallbackToSavedFiles(error);
+		});
+		this.shadowSyncPromise = guardedOperation;
+		await guardedOperation;
+		return rebuilt;
 	}
 
 	private async ensureBeancheckRpcClient(python3Path: string): Promise<BeancheckRpcClient> {
