@@ -1,0 +1,1398 @@
+{
+  "name": "haskell",
+  "displayName": "Haskell",
+  "description": "Haskell language support powered by the Haskell Language Server",
+  "version": "2.8.2",
+  "license": "MIT",
+  "publisher": "haskell",
+  "engines": {
+    "vscode": "^1.102.0"
+  },
+  "keywords": [
+    "language",
+    "haskell",
+    "cabal",
+    "stack",
+    "lsp",
+    "multi-root ready"
+  ],
+  "homepage": "https://github.com/haskell/vscode-haskell",
+  "repository": "https://github.com/haskell/vscode-haskell.git",
+  "bugs": {
+    "url": "https://github.com/haskell/vscode-haskell/issues"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters",
+    "Linters",
+    "Other"
+  ],
+  "icon": "images/hls-logo.png",
+  "galleryBanner": {
+    "color": "#22172A",
+    "theme": "dark"
+  },
+  "activationEvents": [
+    "onLanguage:haskell",
+    "onLanguage:literate haskell",
+    "onLanguage:cabal"
+  ],
+  "main": "./dist/extension",
+  "extensionPack": [
+    "haskell.language-haskell"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "haskell",
+        "aliases": [
+          "Haskell",
+          "haskell"
+        ],
+        "extensions": [
+          ".hs"
+        ]
+      },
+      {
+        "id": "cabal",
+        "aliases": [
+          "Cabal"
+        ],
+        "extensions": [
+          ".cabal"
+        ]
+      },
+      {
+        "id": "literate haskell",
+        "aliases": [
+          "Literate Haskell",
+          "literate Haskell"
+        ],
+        "extensions": [
+          ".lhs"
+        ]
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Haskell",
+      "properties": {
+        "haskell.formattingProvider": {
+          "scope": "resource",
+          "type": "string",
+          "enum": [
+            "brittany",
+            "floskell",
+            "fourmolu",
+            "ormolu",
+            "stylish-haskell",
+            "none"
+          ],
+          "default": "ormolu",
+          "description": "The formatter to use when formatting a document or range. Ensure the plugin is enabled."
+        },
+        "haskell.cabalFormattingProvider": {
+          "scope": "resource",
+          "type": "string",
+          "enum": [
+            "cabal-gild",
+            "cabal-fmt",
+            "none"
+          ],
+          "default": "cabal-gild",
+          "description": "The formatter to use when formatting a document or range of a cabal formatter. Ensure the plugin is enabled."
+        },
+        "haskell.openDocumentationInHackage": {
+          "scope": "resource",
+          "type": "boolean",
+          "default": true,
+          "description": "When opening 'Documentation' for external libraries, open in hackage by default. Set to false to instead open in vscode."
+        },
+        "haskell.openSourceInHackage": {
+          "scope": "resource",
+          "type": "boolean",
+          "default": true,
+          "description": "When opening 'Source' for external libraries, open in hackage by default. Set to false to instead open in vscode."
+        },
+        "haskell.trace.server": {
+          "scope": "resource",
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the language server."
+        },
+        "haskell.trace.client": {
+          "scope": "resource",
+          "type": "string",
+          "enum": [
+            "off",
+            "error",
+            "info",
+            "debug"
+          ],
+          "default": "info",
+          "description": "Sets the log level in the client side."
+        },
+        "haskell.logFile": {
+          "scope": "resource",
+          "type": "string",
+          "default": "",
+          "description": "If set, redirects the logs to a file."
+        },
+        "haskell.releasesURL": {
+          "scope": "resource",
+          "type": "string",
+          "default": "",
+          "description": "An optional URL to override where ghcup checks for HLS-GHC compatibility list (usually at: https://raw.githubusercontent.com/haskell/ghcup-metadata/master/hls-metadata-0.0.1.json)"
+        },
+        "haskell.metadataURL": {
+          "scope": "resource",
+          "type": "string",
+          "default": "",
+          "description": "An optional URL to override where ghcup checks for tool download info (usually at: https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-0.0.7.yaml)"
+        },
+        "haskell.releasesDownloadStoragePath": {
+          "scope": "resource",
+          "type": "string",
+          "default": "",
+          "markdownDescription": "An optional path where downloaded metadata will be stored. Check the default value [here](https://github.com/haskell/vscode-haskell#downloaded-binaries)"
+        },
+        "haskell.serverExecutablePath": {
+          "scope": "machine-overridable",
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Manually set a language server executable. Can be something on the $PATH or the full path to the executable itself. Works with `~,` `${HOME}` and `${workspaceFolder}`."
+        },
+        "haskell.serverExtraArgs": {
+          "scope": "resource",
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Pass additional arguments to the language server."
+        },
+        "haskell.ghcupExecutablePath": {
+          "scope": "resource",
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Manually set a ghcup executable path."
+        },
+        "haskell.serverEnvironment": {
+          "scope": "resource",
+          "type": "object",
+          "default": {},
+          "markdownDescription": "Define environment variables for the language server."
+        },
+        "haskell.promptBeforeDownloads": {
+          "scope": "machine",
+          "type": "boolean",
+          "default": "true",
+          "markdownDescription": "Prompt before performing any downloads."
+        },
+        "haskell.manageHLS": {
+          "scope": "resource",
+          "type": "string",
+          "default": "PATH",
+          "description": "How to manage/find HLS installations.",
+          "enum": [
+            "GHCup",
+            "PATH"
+          ],
+          "enumDescriptions": [
+            "Will use ghcup and manage Haskell toolchain in the default location (usually '~/.ghcup')",
+            "Discovers HLS and other executables in system PATH"
+          ]
+        },
+        "haskell.toolchain": {
+          "scope": "resource",
+          "type": "object",
+          "default": {},
+          "description": "When manageHLS is set to GHCup, this can overwrite the automatic toolchain configuration with a more specific one. When a tool is omitted, the extension will manage the version (for 'ghc' we try to figure out the version the project requires). The format is '{\"tool\": \"version\", ...}'. 'version' accepts all identifiers that 'ghcup' accepts."
+        },
+        "haskell.upgradeGHCup": {
+          "scope": "resource",
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to upgrade GHCup automatically when 'manageHLS' is set to 'GHCup'."
+        },
+        "haskell.checkProject": {
+          "scope": "resource",
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to typecheck the entire project on load. It could drive to bad performance in large projects."
+        },
+        "haskell.sessionLoading": {
+          "scope": "resource",
+          "type": "string",
+          "enum": [
+            "singleComponent",
+            "multipleComponents"
+          ],
+          "default": "multipleComponents",
+          "description": "Preferred approach for loading package components. Setting this to 'multiple components' allows the build tool (such as `cabal` or `stack`) to [load multiple components at once](https://github.com/haskell/cabal/pull/8726), which is a significant improvement.",
+          "enumDescriptions": [
+            "Prefer a multiple component session, if the build tool supports it. At the moment, only `cabal` supports multiple components session loading. If the `cabal` version does not support loading multiple components at once, we gracefully fall back to \"singleComponent\" mode.",
+            "You can force single component session loading if you encountered any issues."
+          ]
+        },
+        "haskell.supportCabalFiles": {
+          "scope": "resource",
+          "default": "automatic",
+          "type": "string",
+          "enum": [
+            "enable",
+            "disable",
+            "automatic"
+          ],
+          "description": "Enable Language Server support for `.cabal` files. Requires Haskell Language Server version >= 1.9.0.0.",
+          "enumDescriptions": [
+            "Enable Language Server support for `.cabal` files",
+            "Disable Language Server support for `.cabal` files",
+            "Enable Language Server support for `.cabal` files if the HLS version supports it."
+          ]
+        },
+        "haskell.maxCompletions": {
+          "scope": "resource",
+          "default": 40,
+          "type": "integer",
+          "description": "Maximum number of completions sent to the editor."
+        },
+        "haskell.plugin.alternateNumberFormat.globalOn": {
+          "default": true,
+          "description": "Enables alternateNumberFormat plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.cabal-fmt.config.path": {
+          "default": "cabal-fmt",
+          "markdownDescription": "Set path to 'cabal-fmt' executable",
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.cabal-gild.config.path": {
+          "default": "cabal-gild",
+          "markdownDescription": "Set path to 'cabal-gild' executable",
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.cabal.codeActionsOn": {
+          "default": true,
+          "description": "Enables cabal code actions",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.cabal.completionOn": {
+          "default": true,
+          "description": "Enables cabal completions",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.cabal.diagnosticsOn": {
+          "default": true,
+          "description": "Enables cabal diagnostics",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.cabal.hoverOn": {
+          "default": true,
+          "description": "Enables cabal hover",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.cabal.symbolsOn": {
+          "default": true,
+          "description": "Enables cabal symbols",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.cabalHaskellIntegration.globalOn": {
+          "default": true,
+          "description": "Enables cabalHaskellIntegration plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.callHierarchy.globalOn": {
+          "default": true,
+          "description": "Enables callHierarchy plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.changeTypeSignature.globalOn": {
+          "default": true,
+          "description": "Enables changeTypeSignature plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.class.codeActionsOn": {
+          "default": true,
+          "description": "Enables class code actions",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.class.codeLensOn": {
+          "default": true,
+          "description": "Enables class code lenses",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.eval.codeActionsOn": {
+          "default": true,
+          "description": "Enables eval code actions",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.eval.codeLensOn": {
+          "default": true,
+          "description": "Enables eval code lenses",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.eval.config.diff": {
+          "default": true,
+          "markdownDescription": "Enable the diff output (WAS/NOW) of eval lenses",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.eval.config.exception": {
+          "default": false,
+          "markdownDescription": "Enable marking exceptions with `*** Exception:` similarly to doctest and GHCi.",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.explicit-fields.codeActionsOn": {
+          "default": true,
+          "description": "Enables explicit-fields code actions",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.explicit-fields.inlayHintsOn": {
+          "default": true,
+          "description": "Enables explicit-fields inlay hints",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.explicit-fixity.globalOn": {
+          "default": true,
+          "description": "Enables explicit-fixity plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.fourmolu.config.external": {
+          "default": false,
+          "markdownDescription": "Call out to an external \"fourmolu\" executable, rather than using the bundled library.",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.fourmolu.config.path": {
+          "default": "fourmolu",
+          "markdownDescription": "Set path to executable (for \"external\" mode).",
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.gadt.globalOn": {
+          "default": true,
+          "description": "Enables gadt plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.ghcide-code-actions-bindings.globalOn": {
+          "default": true,
+          "description": "Enables ghcide-code-actions-bindings plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.ghcide-code-actions-fill-holes.globalOn": {
+          "default": true,
+          "description": "Enables ghcide-code-actions-fill-holes plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.ghcide-code-actions-imports-exports.globalOn": {
+          "default": true,
+          "description": "Enables ghcide-code-actions-imports-exports plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.ghcide-code-actions-type-signatures.globalOn": {
+          "default": true,
+          "description": "Enables ghcide-code-actions-type-signatures plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.ghcide-completions.config.autoExtendOn": {
+          "default": true,
+          "markdownDescription": "Extends the import list automatically when completing a out-of-scope identifier",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.ghcide-completions.config.snippetsOn": {
+          "default": true,
+          "markdownDescription": "Inserts snippets when using code completions",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.ghcide-completions.globalOn": {
+          "default": true,
+          "description": "Enables ghcide-completions plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.ghcide-hover-and-symbols.hoverOn": {
+          "default": true,
+          "description": "Enables ghcide-hover-and-symbols hover",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.ghcide-hover-and-symbols.symbolsOn": {
+          "default": true,
+          "description": "Enables ghcide-hover-and-symbols symbols",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.ghcide-type-lenses.config.mode": {
+          "default": "always",
+          "description": "Control how type lenses are shown",
+          "enum": [
+            "always",
+            "exported",
+            "diagnostics"
+          ],
+          "enumDescriptions": [
+            "Always displays type lenses of global bindings",
+            "Only display type lenses of exported global bindings",
+            "Follows error messages produced by GHC about missing signatures"
+          ],
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.ghcide-type-lenses.globalOn": {
+          "default": true,
+          "description": "Enables ghcide-type-lenses plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.hlint.codeActionsOn": {
+          "default": true,
+          "description": "Enables hlint code actions",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.hlint.config.flags": {
+          "default": [],
+          "markdownDescription": "Flags used by hlint",
+          "scope": "resource",
+          "type": "array"
+        },
+        "haskell.plugin.hlint.diagnosticsOn": {
+          "default": true,
+          "description": "Enables hlint diagnostics",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.importLens.codeActionsOn": {
+          "default": true,
+          "description": "Enables importLens code actions",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.importLens.codeLensOn": {
+          "default": true,
+          "description": "Enables importLens code lenses",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.importLens.inlayHintsOn": {
+          "default": true,
+          "description": "Enables importLens inlay hints",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.moduleName.globalOn": {
+          "default": true,
+          "description": "Enables moduleName plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.ormolu.config.external": {
+          "default": false,
+          "markdownDescription": "Call out to an external \"ormolu\" executable, rather than using the bundled library",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.overloaded-record-dot.globalOn": {
+          "default": true,
+          "description": "Enables overloaded-record-dot plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.pragmas-completion.globalOn": {
+          "default": true,
+          "description": "Enables pragmas-completion plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.pragmas-disable.globalOn": {
+          "default": true,
+          "description": "Enables pragmas-disable plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.pragmas-suggest.globalOn": {
+          "default": true,
+          "description": "Enables pragmas-suggest plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.qualifyImportedNames.globalOn": {
+          "default": true,
+          "description": "Enables qualifyImportedNames plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.rename.config.crossModule": {
+          "default": false,
+          "markdownDescription": "Enable experimental cross-module renaming",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.rename.globalOn": {
+          "default": true,
+          "description": "Enables rename plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.retrie.globalOn": {
+          "default": true,
+          "description": "Enables retrie plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.semanticTokens.config.classMethodToken": {
+          "default": "method",
+          "description": "LSP semantic token type to use for typeclass methods",
+          "enum": [
+            "namespace",
+            "type",
+            "class",
+            "enum",
+            "interface",
+            "struct",
+            "typeParameter",
+            "parameter",
+            "variable",
+            "property",
+            "enumMember",
+            "event",
+            "function",
+            "method",
+            "macro",
+            "keyword",
+            "modifier",
+            "comment",
+            "string",
+            "number",
+            "regexp",
+            "operator",
+            "decorator"
+          ],
+          "enumDescriptions": [
+            "LSP Semantic Token Type: namespace",
+            "LSP Semantic Token Type: type",
+            "LSP Semantic Token Type: class",
+            "LSP Semantic Token Type: enum",
+            "LSP Semantic Token Type: interface",
+            "LSP Semantic Token Type: struct",
+            "LSP Semantic Token Type: typeParameter",
+            "LSP Semantic Token Type: parameter",
+            "LSP Semantic Token Type: variable",
+            "LSP Semantic Token Type: property",
+            "LSP Semantic Token Type: enumMember",
+            "LSP Semantic Token Type: event",
+            "LSP Semantic Token Type: function",
+            "LSP Semantic Token Type: method",
+            "LSP Semantic Token Type: macro",
+            "LSP Semantic Token Type: keyword",
+            "LSP Semantic Token Type: modifier",
+            "LSP Semantic Token Type: comment",
+            "LSP Semantic Token Type: string",
+            "LSP Semantic Token Type: number",
+            "LSP Semantic Token Type: regexp",
+            "LSP Semantic Token Type: operator",
+            "LSP Semantic Token Type: decorator"
+          ],
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.semanticTokens.config.classToken": {
+          "default": "class",
+          "description": "LSP semantic token type to use for typeclasses",
+          "enum": [
+            "namespace",
+            "type",
+            "class",
+            "enum",
+            "interface",
+            "struct",
+            "typeParameter",
+            "parameter",
+            "variable",
+            "property",
+            "enumMember",
+            "event",
+            "function",
+            "method",
+            "macro",
+            "keyword",
+            "modifier",
+            "comment",
+            "string",
+            "number",
+            "regexp",
+            "operator",
+            "decorator"
+          ],
+          "enumDescriptions": [
+            "LSP Semantic Token Type: namespace",
+            "LSP Semantic Token Type: type",
+            "LSP Semantic Token Type: class",
+            "LSP Semantic Token Type: enum",
+            "LSP Semantic Token Type: interface",
+            "LSP Semantic Token Type: struct",
+            "LSP Semantic Token Type: typeParameter",
+            "LSP Semantic Token Type: parameter",
+            "LSP Semantic Token Type: variable",
+            "LSP Semantic Token Type: property",
+            "LSP Semantic Token Type: enumMember",
+            "LSP Semantic Token Type: event",
+            "LSP Semantic Token Type: function",
+            "LSP Semantic Token Type: method",
+            "LSP Semantic Token Type: macro",
+            "LSP Semantic Token Type: keyword",
+            "LSP Semantic Token Type: modifier",
+            "LSP Semantic Token Type: comment",
+            "LSP Semantic Token Type: string",
+            "LSP Semantic Token Type: number",
+            "LSP Semantic Token Type: regexp",
+            "LSP Semantic Token Type: operator",
+            "LSP Semantic Token Type: decorator"
+          ],
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.semanticTokens.config.dataConstructorToken": {
+          "default": "enumMember",
+          "description": "LSP semantic token type to use for data constructors",
+          "enum": [
+            "namespace",
+            "type",
+            "class",
+            "enum",
+            "interface",
+            "struct",
+            "typeParameter",
+            "parameter",
+            "variable",
+            "property",
+            "enumMember",
+            "event",
+            "function",
+            "method",
+            "macro",
+            "keyword",
+            "modifier",
+            "comment",
+            "string",
+            "number",
+            "regexp",
+            "operator",
+            "decorator"
+          ],
+          "enumDescriptions": [
+            "LSP Semantic Token Type: namespace",
+            "LSP Semantic Token Type: type",
+            "LSP Semantic Token Type: class",
+            "LSP Semantic Token Type: enum",
+            "LSP Semantic Token Type: interface",
+            "LSP Semantic Token Type: struct",
+            "LSP Semantic Token Type: typeParameter",
+            "LSP Semantic Token Type: parameter",
+            "LSP Semantic Token Type: variable",
+            "LSP Semantic Token Type: property",
+            "LSP Semantic Token Type: enumMember",
+            "LSP Semantic Token Type: event",
+            "LSP Semantic Token Type: function",
+            "LSP Semantic Token Type: method",
+            "LSP Semantic Token Type: macro",
+            "LSP Semantic Token Type: keyword",
+            "LSP Semantic Token Type: modifier",
+            "LSP Semantic Token Type: comment",
+            "LSP Semantic Token Type: string",
+            "LSP Semantic Token Type: number",
+            "LSP Semantic Token Type: regexp",
+            "LSP Semantic Token Type: operator",
+            "LSP Semantic Token Type: decorator"
+          ],
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.semanticTokens.config.functionToken": {
+          "default": "function",
+          "description": "LSP semantic token type to use for functions",
+          "enum": [
+            "namespace",
+            "type",
+            "class",
+            "enum",
+            "interface",
+            "struct",
+            "typeParameter",
+            "parameter",
+            "variable",
+            "property",
+            "enumMember",
+            "event",
+            "function",
+            "method",
+            "macro",
+            "keyword",
+            "modifier",
+            "comment",
+            "string",
+            "number",
+            "regexp",
+            "operator",
+            "decorator"
+          ],
+          "enumDescriptions": [
+            "LSP Semantic Token Type: namespace",
+            "LSP Semantic Token Type: type",
+            "LSP Semantic Token Type: class",
+            "LSP Semantic Token Type: enum",
+            "LSP Semantic Token Type: interface",
+            "LSP Semantic Token Type: struct",
+            "LSP Semantic Token Type: typeParameter",
+            "LSP Semantic Token Type: parameter",
+            "LSP Semantic Token Type: variable",
+            "LSP Semantic Token Type: property",
+            "LSP Semantic Token Type: enumMember",
+            "LSP Semantic Token Type: event",
+            "LSP Semantic Token Type: function",
+            "LSP Semantic Token Type: method",
+            "LSP Semantic Token Type: macro",
+            "LSP Semantic Token Type: keyword",
+            "LSP Semantic Token Type: modifier",
+            "LSP Semantic Token Type: comment",
+            "LSP Semantic Token Type: string",
+            "LSP Semantic Token Type: number",
+            "LSP Semantic Token Type: regexp",
+            "LSP Semantic Token Type: operator",
+            "LSP Semantic Token Type: decorator"
+          ],
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.semanticTokens.config.moduleToken": {
+          "default": "namespace",
+          "description": "LSP semantic token type to use for modules",
+          "enum": [
+            "namespace",
+            "type",
+            "class",
+            "enum",
+            "interface",
+            "struct",
+            "typeParameter",
+            "parameter",
+            "variable",
+            "property",
+            "enumMember",
+            "event",
+            "function",
+            "method",
+            "macro",
+            "keyword",
+            "modifier",
+            "comment",
+            "string",
+            "number",
+            "regexp",
+            "operator",
+            "decorator"
+          ],
+          "enumDescriptions": [
+            "LSP Semantic Token Type: namespace",
+            "LSP Semantic Token Type: type",
+            "LSP Semantic Token Type: class",
+            "LSP Semantic Token Type: enum",
+            "LSP Semantic Token Type: interface",
+            "LSP Semantic Token Type: struct",
+            "LSP Semantic Token Type: typeParameter",
+            "LSP Semantic Token Type: parameter",
+            "LSP Semantic Token Type: variable",
+            "LSP Semantic Token Type: property",
+            "LSP Semantic Token Type: enumMember",
+            "LSP Semantic Token Type: event",
+            "LSP Semantic Token Type: function",
+            "LSP Semantic Token Type: method",
+            "LSP Semantic Token Type: macro",
+            "LSP Semantic Token Type: keyword",
+            "LSP Semantic Token Type: modifier",
+            "LSP Semantic Token Type: comment",
+            "LSP Semantic Token Type: string",
+            "LSP Semantic Token Type: number",
+            "LSP Semantic Token Type: regexp",
+            "LSP Semantic Token Type: operator",
+            "LSP Semantic Token Type: decorator"
+          ],
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.semanticTokens.config.operatorToken": {
+          "default": "operator",
+          "description": "LSP semantic token type to use for operators",
+          "enum": [
+            "namespace",
+            "type",
+            "class",
+            "enum",
+            "interface",
+            "struct",
+            "typeParameter",
+            "parameter",
+            "variable",
+            "property",
+            "enumMember",
+            "event",
+            "function",
+            "method",
+            "macro",
+            "keyword",
+            "modifier",
+            "comment",
+            "string",
+            "number",
+            "regexp",
+            "operator",
+            "decorator"
+          ],
+          "enumDescriptions": [
+            "LSP Semantic Token Type: namespace",
+            "LSP Semantic Token Type: type",
+            "LSP Semantic Token Type: class",
+            "LSP Semantic Token Type: enum",
+            "LSP Semantic Token Type: interface",
+            "LSP Semantic Token Type: struct",
+            "LSP Semantic Token Type: typeParameter",
+            "LSP Semantic Token Type: parameter",
+            "LSP Semantic Token Type: variable",
+            "LSP Semantic Token Type: property",
+            "LSP Semantic Token Type: enumMember",
+            "LSP Semantic Token Type: event",
+            "LSP Semantic Token Type: function",
+            "LSP Semantic Token Type: method",
+            "LSP Semantic Token Type: macro",
+            "LSP Semantic Token Type: keyword",
+            "LSP Semantic Token Type: modifier",
+            "LSP Semantic Token Type: comment",
+            "LSP Semantic Token Type: string",
+            "LSP Semantic Token Type: number",
+            "LSP Semantic Token Type: regexp",
+            "LSP Semantic Token Type: operator",
+            "LSP Semantic Token Type: decorator"
+          ],
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.semanticTokens.config.patternSynonymToken": {
+          "default": "macro",
+          "description": "LSP semantic token type to use for pattern synonyms",
+          "enum": [
+            "namespace",
+            "type",
+            "class",
+            "enum",
+            "interface",
+            "struct",
+            "typeParameter",
+            "parameter",
+            "variable",
+            "property",
+            "enumMember",
+            "event",
+            "function",
+            "method",
+            "macro",
+            "keyword",
+            "modifier",
+            "comment",
+            "string",
+            "number",
+            "regexp",
+            "operator",
+            "decorator"
+          ],
+          "enumDescriptions": [
+            "LSP Semantic Token Type: namespace",
+            "LSP Semantic Token Type: type",
+            "LSP Semantic Token Type: class",
+            "LSP Semantic Token Type: enum",
+            "LSP Semantic Token Type: interface",
+            "LSP Semantic Token Type: struct",
+            "LSP Semantic Token Type: typeParameter",
+            "LSP Semantic Token Type: parameter",
+            "LSP Semantic Token Type: variable",
+            "LSP Semantic Token Type: property",
+            "LSP Semantic Token Type: enumMember",
+            "LSP Semantic Token Type: event",
+            "LSP Semantic Token Type: function",
+            "LSP Semantic Token Type: method",
+            "LSP Semantic Token Type: macro",
+            "LSP Semantic Token Type: keyword",
+            "LSP Semantic Token Type: modifier",
+            "LSP Semantic Token Type: comment",
+            "LSP Semantic Token Type: string",
+            "LSP Semantic Token Type: number",
+            "LSP Semantic Token Type: regexp",
+            "LSP Semantic Token Type: operator",
+            "LSP Semantic Token Type: decorator"
+          ],
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.semanticTokens.config.recordFieldToken": {
+          "default": "property",
+          "description": "LSP semantic token type to use for record fields",
+          "enum": [
+            "namespace",
+            "type",
+            "class",
+            "enum",
+            "interface",
+            "struct",
+            "typeParameter",
+            "parameter",
+            "variable",
+            "property",
+            "enumMember",
+            "event",
+            "function",
+            "method",
+            "macro",
+            "keyword",
+            "modifier",
+            "comment",
+            "string",
+            "number",
+            "regexp",
+            "operator",
+            "decorator"
+          ],
+          "enumDescriptions": [
+            "LSP Semantic Token Type: namespace",
+            "LSP Semantic Token Type: type",
+            "LSP Semantic Token Type: class",
+            "LSP Semantic Token Type: enum",
+            "LSP Semantic Token Type: interface",
+            "LSP Semantic Token Type: struct",
+            "LSP Semantic Token Type: typeParameter",
+            "LSP Semantic Token Type: parameter",
+            "LSP Semantic Token Type: variable",
+            "LSP Semantic Token Type: property",
+            "LSP Semantic Token Type: enumMember",
+            "LSP Semantic Token Type: event",
+            "LSP Semantic Token Type: function",
+            "LSP Semantic Token Type: method",
+            "LSP Semantic Token Type: macro",
+            "LSP Semantic Token Type: keyword",
+            "LSP Semantic Token Type: modifier",
+            "LSP Semantic Token Type: comment",
+            "LSP Semantic Token Type: string",
+            "LSP Semantic Token Type: number",
+            "LSP Semantic Token Type: regexp",
+            "LSP Semantic Token Type: operator",
+            "LSP Semantic Token Type: decorator"
+          ],
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.semanticTokens.config.typeConstructorToken": {
+          "default": "enum",
+          "description": "LSP semantic token type to use for type constructors",
+          "enum": [
+            "namespace",
+            "type",
+            "class",
+            "enum",
+            "interface",
+            "struct",
+            "typeParameter",
+            "parameter",
+            "variable",
+            "property",
+            "enumMember",
+            "event",
+            "function",
+            "method",
+            "macro",
+            "keyword",
+            "modifier",
+            "comment",
+            "string",
+            "number",
+            "regexp",
+            "operator",
+            "decorator"
+          ],
+          "enumDescriptions": [
+            "LSP Semantic Token Type: namespace",
+            "LSP Semantic Token Type: type",
+            "LSP Semantic Token Type: class",
+            "LSP Semantic Token Type: enum",
+            "LSP Semantic Token Type: interface",
+            "LSP Semantic Token Type: struct",
+            "LSP Semantic Token Type: typeParameter",
+            "LSP Semantic Token Type: parameter",
+            "LSP Semantic Token Type: variable",
+            "LSP Semantic Token Type: property",
+            "LSP Semantic Token Type: enumMember",
+            "LSP Semantic Token Type: event",
+            "LSP Semantic Token Type: function",
+            "LSP Semantic Token Type: method",
+            "LSP Semantic Token Type: macro",
+            "LSP Semantic Token Type: keyword",
+            "LSP Semantic Token Type: modifier",
+            "LSP Semantic Token Type: comment",
+            "LSP Semantic Token Type: string",
+            "LSP Semantic Token Type: number",
+            "LSP Semantic Token Type: regexp",
+            "LSP Semantic Token Type: operator",
+            "LSP Semantic Token Type: decorator"
+          ],
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.semanticTokens.config.typeFamilyToken": {
+          "default": "interface",
+          "description": "LSP semantic token type to use for type families",
+          "enum": [
+            "namespace",
+            "type",
+            "class",
+            "enum",
+            "interface",
+            "struct",
+            "typeParameter",
+            "parameter",
+            "variable",
+            "property",
+            "enumMember",
+            "event",
+            "function",
+            "method",
+            "macro",
+            "keyword",
+            "modifier",
+            "comment",
+            "string",
+            "number",
+            "regexp",
+            "operator",
+            "decorator"
+          ],
+          "enumDescriptions": [
+            "LSP Semantic Token Type: namespace",
+            "LSP Semantic Token Type: type",
+            "LSP Semantic Token Type: class",
+            "LSP Semantic Token Type: enum",
+            "LSP Semantic Token Type: interface",
+            "LSP Semantic Token Type: struct",
+            "LSP Semantic Token Type: typeParameter",
+            "LSP Semantic Token Type: parameter",
+            "LSP Semantic Token Type: variable",
+            "LSP Semantic Token Type: property",
+            "LSP Semantic Token Type: enumMember",
+            "LSP Semantic Token Type: event",
+            "LSP Semantic Token Type: function",
+            "LSP Semantic Token Type: method",
+            "LSP Semantic Token Type: macro",
+            "LSP Semantic Token Type: keyword",
+            "LSP Semantic Token Type: modifier",
+            "LSP Semantic Token Type: comment",
+            "LSP Semantic Token Type: string",
+            "LSP Semantic Token Type: number",
+            "LSP Semantic Token Type: regexp",
+            "LSP Semantic Token Type: operator",
+            "LSP Semantic Token Type: decorator"
+          ],
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.semanticTokens.config.typeSynonymToken": {
+          "default": "type",
+          "description": "LSP semantic token type to use for type synonyms",
+          "enum": [
+            "namespace",
+            "type",
+            "class",
+            "enum",
+            "interface",
+            "struct",
+            "typeParameter",
+            "parameter",
+            "variable",
+            "property",
+            "enumMember",
+            "event",
+            "function",
+            "method",
+            "macro",
+            "keyword",
+            "modifier",
+            "comment",
+            "string",
+            "number",
+            "regexp",
+            "operator",
+            "decorator"
+          ],
+          "enumDescriptions": [
+            "LSP Semantic Token Type: namespace",
+            "LSP Semantic Token Type: type",
+            "LSP Semantic Token Type: class",
+            "LSP Semantic Token Type: enum",
+            "LSP Semantic Token Type: interface",
+            "LSP Semantic Token Type: struct",
+            "LSP Semantic Token Type: typeParameter",
+            "LSP Semantic Token Type: parameter",
+            "LSP Semantic Token Type: variable",
+            "LSP Semantic Token Type: property",
+            "LSP Semantic Token Type: enumMember",
+            "LSP Semantic Token Type: event",
+            "LSP Semantic Token Type: function",
+            "LSP Semantic Token Type: method",
+            "LSP Semantic Token Type: macro",
+            "LSP Semantic Token Type: keyword",
+            "LSP Semantic Token Type: modifier",
+            "LSP Semantic Token Type: comment",
+            "LSP Semantic Token Type: string",
+            "LSP Semantic Token Type: number",
+            "LSP Semantic Token Type: regexp",
+            "LSP Semantic Token Type: operator",
+            "LSP Semantic Token Type: decorator"
+          ],
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.semanticTokens.config.typeVariableToken": {
+          "default": "typeParameter",
+          "description": "LSP semantic token type to use for type variables",
+          "enum": [
+            "namespace",
+            "type",
+            "class",
+            "enum",
+            "interface",
+            "struct",
+            "typeParameter",
+            "parameter",
+            "variable",
+            "property",
+            "enumMember",
+            "event",
+            "function",
+            "method",
+            "macro",
+            "keyword",
+            "modifier",
+            "comment",
+            "string",
+            "number",
+            "regexp",
+            "operator",
+            "decorator"
+          ],
+          "enumDescriptions": [
+            "LSP Semantic Token Type: namespace",
+            "LSP Semantic Token Type: type",
+            "LSP Semantic Token Type: class",
+            "LSP Semantic Token Type: enum",
+            "LSP Semantic Token Type: interface",
+            "LSP Semantic Token Type: struct",
+            "LSP Semantic Token Type: typeParameter",
+            "LSP Semantic Token Type: parameter",
+            "LSP Semantic Token Type: variable",
+            "LSP Semantic Token Type: property",
+            "LSP Semantic Token Type: enumMember",
+            "LSP Semantic Token Type: event",
+            "LSP Semantic Token Type: function",
+            "LSP Semantic Token Type: method",
+            "LSP Semantic Token Type: macro",
+            "LSP Semantic Token Type: keyword",
+            "LSP Semantic Token Type: modifier",
+            "LSP Semantic Token Type: comment",
+            "LSP Semantic Token Type: string",
+            "LSP Semantic Token Type: number",
+            "LSP Semantic Token Type: regexp",
+            "LSP Semantic Token Type: operator",
+            "LSP Semantic Token Type: decorator"
+          ],
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.semanticTokens.config.variableToken": {
+          "default": "variable",
+          "description": "LSP semantic token type to use for variables",
+          "enum": [
+            "namespace",
+            "type",
+            "class",
+            "enum",
+            "interface",
+            "struct",
+            "typeParameter",
+            "parameter",
+            "variable",
+            "property",
+            "enumMember",
+            "event",
+            "function",
+            "method",
+            "macro",
+            "keyword",
+            "modifier",
+            "comment",
+            "string",
+            "number",
+            "regexp",
+            "operator",
+            "decorator"
+          ],
+          "enumDescriptions": [
+            "LSP Semantic Token Type: namespace",
+            "LSP Semantic Token Type: type",
+            "LSP Semantic Token Type: class",
+            "LSP Semantic Token Type: enum",
+            "LSP Semantic Token Type: interface",
+            "LSP Semantic Token Type: struct",
+            "LSP Semantic Token Type: typeParameter",
+            "LSP Semantic Token Type: parameter",
+            "LSP Semantic Token Type: variable",
+            "LSP Semantic Token Type: property",
+            "LSP Semantic Token Type: enumMember",
+            "LSP Semantic Token Type: event",
+            "LSP Semantic Token Type: function",
+            "LSP Semantic Token Type: method",
+            "LSP Semantic Token Type: macro",
+            "LSP Semantic Token Type: keyword",
+            "LSP Semantic Token Type: modifier",
+            "LSP Semantic Token Type: comment",
+            "LSP Semantic Token Type: string",
+            "LSP Semantic Token Type: number",
+            "LSP Semantic Token Type: regexp",
+            "LSP Semantic Token Type: operator",
+            "LSP Semantic Token Type: decorator"
+          ],
+          "scope": "resource",
+          "type": "string"
+        },
+        "haskell.plugin.semanticTokens.globalOn": {
+          "default": false,
+          "description": "Enables semanticTokens plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.signatureHelp.globalOn": {
+          "default": true,
+          "description": "Enables signatureHelp plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.splice.globalOn": {
+          "default": true,
+          "description": "Enables splice plugin",
+          "scope": "resource",
+          "type": "boolean"
+        },
+        "haskell.plugin.stan.globalOn": {
+          "default": false,
+          "description": "Enables stan plugin",
+          "scope": "resource",
+          "type": "boolean"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "haskell.commands.restartExtension",
+        "title": "Haskell: Restart vscode-haskell extension",
+        "description": "Restart the vscode-haskell extension. Reloads configuration."
+      },
+      {
+        "command": "haskell.commands.restartServer",
+        "title": "Haskell: Restart Haskell LSP server",
+        "description": "Restart the Haskell LSP server"
+      },
+      {
+        "command": "haskell.commands.startServer",
+        "title": "Haskell: Start Haskell LSP server",
+        "description": "Start the Haskell LSP server"
+      },
+      {
+        "command": "haskell.commands.stopServer",
+        "title": "Haskell: Stop Haskell LSP server",
+        "description": "Stop the Haskell LSP server"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "webpack --mode production",
+    "package": "npx vsce package --out=dist/",
+    "build": "npm install",
+    "webpack": "webpack --mode none",
+    "watch": "webpack --mode development --watch",
+    "lint": "eslint -c eslint.config.mjs src",
+    "lint-fix": "eslint --fix -c eslint.config.mjs src",
+    "push-tag": "git tag -a $npm_package_version -m \"Version $npm_package_version\" && git push origin $npm_package_version",
+    "pretest": "tsc --alwaysStrict -p ./",
+    "format": "prettier . --write",
+    "test": "vscode-test"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "pretty-quick --staged"
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.9.1",
+    "@types/vscode": "^1.102.0",
+    "@types/which": "^3.0.4",
+    "@typescript-eslint/eslint-plugin": "^8.56.0",
+    "@typescript-eslint/parser": "^8.56.1",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "corepack": "^0.35.0",
+    "eslint": "^10.4.0",
+    "eslint-webpack-plugin": "^6.0.0",
+    "glob": "^13.0.6",
+    "globals": "^17.6.0",
+    "husky": "^9.1.7",
+    "mocha": "^11.7.5",
+    "prettier": "^3.8.1",
+    "ts-loader": "^9.5.7",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.60.0",
+    "webpack": "^5.107.2",
+    "webpack-cli": "^7.0.2"
+  },
+  "extensionDependencies": [],
+  "dependencies": {
+    "ts-pattern": "^5.9.0",
+    "vscode-languageclient": "^9.0.1",
+    "which": "^7.0.0"
+  },
+  "packageManager": "npm@11.9.0"
+}

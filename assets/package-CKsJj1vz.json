@@ -1,0 +1,1306 @@
+{
+	"name": "code-d",
+	"displayName": "D Programming Language (code-d)",
+	"description": "auto-complete, snippets, linter and formatter for dlang",
+	"version": "0.23.2",
+	"publisher": "webfreak",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Pure-D/code-d.git"
+	},
+	"icon": "images/dlogo-square.png",
+	"license": "MIT",
+	"engines": {
+		"vscode": "^1.57.0"
+	},
+	"categories": [
+		"Programming Languages",
+		"Snippets",
+		"Linters",
+		"Formatters",
+		"Other"
+	],
+	"activationEvents": [
+		"onLanguage:d",
+		"onLanguage:dml",
+		"onDebugResolve:d",
+		"onDebugDynamicConfigurations",
+		"onDebugInitialConfigurations",
+		"workspaceContains:dub.json",
+		"workspaceContains:dub.sdl",
+		"onCommand:code-d.switchConfiguration",
+		"onCommand:code-d.switchArchType",
+		"onCommand:code-d.switchBuildType",
+		"onCommand:code-d.switchCompiler",
+		"onCommand:code-d.killServer",
+		"onCommand:code-d.restartServer",
+		"onCommand:code-d.reloadImports",
+		"onCommand:code-d.stop",
+		"onCommand:code-d.insertDscanner",
+		"onCommand:code-d.rdmdCurrent",
+		"onCommand:code-d.generateCoverageReport",
+		"onCommand:code-d.showGCCalls",
+		"onCommand:dub.openSettingsEditor",
+		"onCommand:dub.closeSettingsEditor",
+		"onCommand:code-d.createProject",
+		"onCommand:code-d.addImport",
+		"onCommand:code-d.searchDocs",
+		"onCommand:code-d.openDocsAtCursor",
+		"onCommand:code-d.convertDubRecipe",
+		"onCommand:code-d.setupCompiler"
+	],
+	"main": "./out/extension",
+	"keywords": [
+		"d",
+		"dlang",
+		"d language",
+		"code-d",
+		"serve-d",
+		"d programming"
+	],
+	"bugs": {
+		"email": "code-d@webfreak.org",
+		"url": "https://github.com/Pure-D/code-d/issues"
+	},
+	"capabilities": {
+		"untrustedWorkspaces": {
+			"supported": "limited",
+			"description": "Per-project executable paths will be disabled",
+			"restrictedConfigurations": [
+				"d.servedPath",
+				"d.dcdClientPath",
+				"d.dcdServerPath",
+				"d.dubPath",
+				"d.dmdPath",
+				"d.dubCompiler"
+			]
+		}
+	},
+	"contributes": {
+		"keybindings": [
+			{
+				"command": "code-d.searchDocs",
+				"key": "ctrl-q ctrl-q",
+				"when": "editorTextFocus && editorLangId == 'd'"
+			},
+			{
+				"command": "code-d.sortImports",
+				"key": "ctrl-q ctrl-s",
+				"when": "editorTextFocus && editorLangId == 'd'"
+			}
+		],
+		"breakpoints": [
+			{
+				"language": "d"
+			}
+		],
+		"debuggers": [
+			{
+				"type": "code-d",
+				"label": "D (code-d: Native Debug / C++ / CodeLLDB)",
+				"configurationAttributes": {
+					"launch": {
+						"required": [
+							"program"
+						],
+						"properties": {
+							"cwd": {
+								"type": "string",
+								"description": "Absolute path to the program cwd.",
+								"default": "${workspaceFolder}"
+							},
+							"program": {
+								"type": "string",
+								"description": "Absolute or relative path to the program to run.",
+								"default": "${command:dubTarget}"
+							},
+							"args": {
+								"type": [
+									"array",
+									"string"
+								],
+								"items": {
+									"type": "string"
+								},
+								"description": "Command line arguments to pass to the program. Can be a string which is passed as-is to Native Debug or parsed for C++. Can also be an array which is concatenated using the platform variable or current executing platform on Native Debug or passed as-is for C++. Using a string for this on Native Debug means you can use pipes and such as they are handled by GDB.",
+								"default": []
+							},
+							"config": {
+								"type": "object",
+								"description": "Debug configuration members to overwrite launch settings.",
+								"default": {}
+							},
+							"dubBuild": {
+								"type": "boolean",
+								"description": "Build the active dub project before launching.",
+								"default": false
+							},
+							"platform": {
+								"type": "string",
+								"enum": [
+									"aix",
+									"android",
+									"darwin",
+									"freebsd",
+									"linux",
+									"openbsd",
+									"sunos",
+									"win32",
+									"cygwin"
+								],
+								"description": "Optional string to override the native nodejs process.platform. Changes how the debugger is invoked like how arguments are escaped, etc.",
+								"default": ""
+							},
+							"debugger": {
+								"type": "string",
+								"default": "autodetect",
+								"enum": [
+									"autodetect",
+									"gdb",
+									"lldb",
+									"mago",
+									"vsdbg",
+									"code-lldb",
+									"cpp-auto",
+									"cpp-gdb",
+									"cpp-lldb",
+									"nd-gdb",
+									"nd-lldb"
+								],
+								"enumDescriptions": [
+									"Automatically pick GDB, LLDB, Visual Studio debugger or Mago depending on platform and globally installed applications, automatically chooses the used debugger extension depending if they are installed. Prefers the C++ debug extension.",
+									"Use GDB with an automatically determined installed debugger extension. Prefers the C++ debug extension.",
+									"Use LLDB with an automatically determined installed debugger extension. Prefers the C++ debug extension.",
+									"Use Mago with an automatically determined installed debugger extension. Currently only supported as mago-mi by the Native Debug extension.",
+									"Use Visual Studio debugger with an automatically determined installed debugger extension. Currently only supported by the C++ extension on Windows.",
+									"Use GDB or LLDB through the C++ debug extension. (predetermined by C++ extension)",
+									"Use GDB through the C++ debug extension.",
+									"Use LLDB through the C++ debug extension.",
+									"Use GDB through the Native Debug debug extension.",
+									"Use LLDB through the Native Debug debug extension."
+								],
+								"description": "Changes which debugger engine / backend to use from the installed debuggers."
+							}
+						}
+					}
+				},
+				"initialConfigurations": [
+					{
+						"type": "code-d",
+						"request": "launch",
+						"name": "Debug D project",
+						"cwd": "${workspaceFolder}",
+						"program": "./executableBinaryName"
+					}
+				],
+				"configurationSnippets": [
+					{
+						"label": "DUB: Build & Launch",
+						"description": "Build & Launch the current DUB project through a debugger",
+						"body": {
+							"type": "code-d",
+							"request": "launch",
+							"dubBuild": true,
+							"name": "${1:Build & Debug DUB project}",
+							"cwd": "^\"\\${command:dubWorkingDirectory}\"",
+							"program": "^\"\\${command:dubTarget}\""
+						}
+					},
+					{
+						"label": "D: Launch",
+						"description": "Launch a D binary through a debugger",
+						"body": {
+							"type": "code-d",
+							"request": "launch",
+							"name": "${1:Debug D project}",
+							"cwd": "^\"\\${workspaceFolder}\"",
+							"program": "${2:./executableBinaryName}"
+						}
+					}
+				],
+				"variables": {
+					"dubPackageName": "code-d.getActiveDubPackageName",
+					"dubPackagePath": "code-d.getActiveDubPackagePath",
+					"dubWorkingDirectory": "code-d.getActiveDubWorkingDirectory",
+					"dubTarget": "code-d.getActiveDubTarget",
+					"dubTargetPath": "code-d.getActiveDubTargetPath",
+					"dubTargetName": "code-d.getActiveDubTargetName"
+				}
+			},
+			{
+				"type": "code-d__just_providing_initial_configuration_in_dropdown",
+				"label": "DUB (code-d: Native Debug / C++ / CodeLLDB)",
+				"initialConfigurations": [
+					{
+						"type": "code-d",
+						"request": "launch",
+						"dubBuild": true,
+						"name": "Build & Debug DUB project",
+						"cwd": "${command:dubWorkingDirectory}",
+						"program": "${command:dubTarget}"
+					}
+				]
+			}
+		],
+		"viewsWelcome": [
+			{
+				"view": "debug",
+				"contents": "You can run any D files (or D statements in an untitled file) through RDMD using this button, the command palette or by right-clicking a D file. To run or debug complex projects use DUB.\n[Run File with RDMD](command:code-d.rdmdCurrent)",
+				"when": "d.isActive"
+			}
+		],
+		"languages": [
+			{
+				"id": "d",
+				"extensions": [
+					".d",
+					".di"
+				],
+				"aliases": [
+					"D",
+					"Dlang"
+				],
+				"firstLine": "^#!.*(dub|rdmd)",
+				"configuration": "./lang-configs/d.json"
+			},
+			{
+				"id": "dpp",
+				"extensions": [
+					".dpp",
+					".d++"
+				],
+				"aliases": [
+					"D++"
+				],
+				"configuration": "./lang-configs/d.json"
+			},
+			{
+				"id": "dscript",
+				"aliases": [
+					"arsd.DScript"
+				],
+				"extensions": [
+					".dscript",
+					".ds"
+				],
+				"configuration": "./lang-configs/general.json"
+			},
+			{
+				"id": "dml",
+				"aliases": [
+					"DlangUI Markup Language"
+				],
+				"extensions": [
+					".dml"
+				],
+				"configuration": "./lang-configs/general.json"
+			},
+			{
+				"id": "sdl",
+				"aliases": [
+					"SDL",
+					"Simple Declarative Language"
+				],
+				"extensions": [
+					".sdl"
+				],
+				"configuration": "./lang-configs/general.json"
+			},
+			{
+				"id": "diet",
+				"aliases": [
+					"Diet"
+				],
+				"extensions": [
+					".dt"
+				],
+				"configuration": "./lang-configs/diet.json"
+			}
+		],
+		"grammars": [
+			{
+				"language": "d",
+				"scopeName": "source.d",
+				"path": "./syntaxes/d.json"
+			},
+			{
+				"language": "dscript",
+				"scopeName": "source.dscript",
+				"path": "./syntaxes/d.json"
+			},
+			{
+				"language": "dml",
+				"scopeName": "source.dml",
+				"path": "./syntaxes/dml.json"
+			},
+			{
+				"language": "sdl",
+				"scopeName": "source.sdl",
+				"path": "./syntaxes/sdl.json"
+			},
+			{
+				"language": "diet",
+				"scopeName": "source.diet",
+				"path": "./syntaxes/diet.json"
+			}
+		],
+		"snippets": [
+			{
+				"language": "diet",
+				"path": "./snippets/diet.json"
+			}
+		],
+		"configuration": {
+			"title": "D",
+			"type": "object",
+			"properties": {
+				"d.servedPath": {
+					"type": "string",
+					"scope": "machine-overridable",
+					"default": "serve-d",
+					"description": "Path of the serve-d executable. Path can be omitted if in $PATH or installed using code-d"
+				},
+				"d.stdlibPath": {
+					"scope": "machine-overridable",
+					"oneOf": [
+						{
+							"type": "array",
+							"items": {
+								"type": "string"
+							}
+						},
+						{
+							"type": "string"
+						}
+					],
+					"defaultSnippets": [
+						{
+							"label": "Choose based on platform",
+							"body": "auto"
+						},
+						{
+							"label": "Linux Default",
+							"body": [
+								"/usr/include/dmd/druntime/import",
+								"/usr/include/dmd/phobos"
+							]
+						},
+						{
+							"label": "ArchLinux Default",
+							"body": [
+								"/usr/include/dlang/dmd"
+							]
+						},
+						{
+							"label": "Windows Default",
+							"body": [
+								"C:\\D\\dmd2\\src\\druntime\\import",
+								"C:\\D\\dmd2\\src\\phobos"
+							]
+						},
+						{
+							"label": "OSX Default",
+							"body": [
+								"/Library/D/dmd/src/druntime/import",
+								"/Library/D/dmd/src/phobos"
+							]
+						}
+					],
+					"description": "Array of paths to phobos and D runtime for automatic inclusion for auto completion"
+				},
+				"d.dcdClientPath": {
+					"title": "DCD Client Path",
+					"type": "string",
+					"scope": "machine-overridable",
+					"default": "dcd-client",
+					"description": "Path of the dcd-client executable. Path can be omitted if in $PATH or installed using code-d"
+				},
+				"d.dcdServerPath": {
+					"title": "DCD Server Path",
+					"type": "string",
+					"scope": "machine-overridable",
+					"default": "dcd-server",
+					"description": "Path of the dcd-server executable. Path can be omitted if in $PATH or installed using code-d"
+				},
+				"d.dubPath": {
+					"type": "string",
+					"scope": "machine-overridable",
+					"default": "dub",
+					"description": "Path of the dub executable. Path can be omitted if in $PATH or installed using code-d"
+				},
+				"d.dmdPath": {
+					"type": "string",
+					"scope": "machine-overridable",
+					"default": "dmd",
+					"description": "Path of the dmd executable. Path can be omitted if in $PATH"
+				},
+				"d.enableLinting": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "If code-d should watch for file saves and report static analysis. Might interfere with other lint plugins or settings."
+				},
+				"d.enableSDLLinting": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "If code-d should report errors in your dub.sdl file."
+				},
+				"d.enableDubLinting": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "If code-d should build on save to check for compile errors."
+				},
+				"d.enableStaticLinting": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "If code-d should use DScanner to statically lint files."
+				},
+				"d.enableAutoComplete": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "Start dcd-server at startup and complete using dcd-client."
+				},
+				"d.enableFormatting": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "If the default formatting keybind should call dfmt on D files."
+				},
+				"d.enableDMDImportTiming": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "Add code lenses on import statements executing a dmd instance trying to compile that import statement to get the impact on compilation time by this import."
+				},
+				"d.enableCoverageDecoration": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "Automatically highlight tested/untested converage lines with light red/green backgrounds per line for *.lst files."
+				},
+				"d.enableGCProfilerDecorations": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "Automatically embed code lenses for all GC allocations based on profilegc.log."
+				},
+				"d.neverUseDub": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "If this is true then a custom workspace where you manually provide the import paths will always be used instead of dub. See d.projectImportPaths for setting import paths then. This is discouraged as it will remove most features like packages, building & compiler linting. If this is a standalone project with no external dependencies with a custom build system then this should be true."
+				},
+				"d.projectImportPaths": {
+					"type": "array",
+					"scope": "resource",
+					"items": {
+						"type": "string"
+					},
+					"default": [],
+					"description": "Setting for import paths in your workspace if not using dub. This will replace other paths. Its recommended to set this in your workspace settings instead of your user settings to keep it separate for each project."
+				},
+				"d.dubConfiguration": {
+					"type": "string",
+					"scope": "resource",
+					"description": "Sets the default configuration to use when starting up"
+				},
+				"d.dubArchType": {
+					"type": "string",
+					"scope": "resource",
+					"description": "Sets the default arch type to use when starting up"
+				},
+				"d.dubBuildType": {
+					"type": "string",
+					"scope": "resource",
+					"description": "Sets the default build type to use when starting up"
+				},
+				"d.dubCompiler": {
+					"type": "string",
+					"scope": "resource",
+					"description": "Sets the default compiler to use when starting up"
+				},
+				"d.overrideDfmtEditorconfig": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "Uses dfmt config options & vscode editor config instead of .editorconfig because of inconsistencies with the vscode editor settings."
+				},
+				"d.aggressiveUpdate": {
+					"type": "boolean",
+					"scope": "application",
+					"default": true,
+					"description": "Update/install outdated & missing tools without confirmation"
+				},
+				"d.argumentSnippets": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "When autocompleting functions automatically insert the signature as snippet which can be navigated using tab."
+				},
+				"d.betaStream": {
+					"type": "boolean",
+					"scope": "application",
+					"deprecationMessage": "This option has been replaced with \"d.servedReleaseChannel\":\"nightly\"",
+					"default": false,
+					"description": "Always get latest serve-d commit when starting vscode and an update is available."
+				},
+				"d.servedReleaseChannel": {
+					"type": "string",
+					"scope": "application",
+					"default": "stable",
+					"enum": [
+						"stable",
+						"beta",
+						"nightly",
+						"frozen"
+					],
+					"enumDescriptions": [
+						"Always fetch the latest pre-compiled stable release binaries from the serve-d GitHub repository",
+						"Always fetch the latest pre-compiled potentially unstable pre-release binaries from the serve-d GitHub repository",
+						"Always fetch the latest pre-compiled nightly binaries from the serve-d GitHub repository. These are being generated every night (UTC) if something changed and tests passed.",
+						"Don't do any update checks for serve-d (not recommended if you don't update serve-d outside code-d)"
+					],
+					"description": "Release channel (stable, beta, nightly) to automatically download serve-d binaries from. serve-d is the D language server used with code-d and provides all language functionality except syntax highlighting, which is provided by code-d."
+				},
+				"d.smartServedUpdates": {
+					"type": "boolean",
+					"scope": "application",
+					"default": true,
+					"description": "Randomly omits serve-d update checks to save bandwidth, lower startup delay and minimize breakage on new releases with quick fixes. Also avoids to update when working on fridays."
+				},
+				"d.scanAllFolders": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "Initialize an instance for every dub.sdl and dub.json file in all folders."
+				},
+				"d.disabledRootGlobs": {
+					"type": "array",
+					"scope": "resource",
+					"items": {
+						"type": "string"
+					},
+					"default": [],
+					"description": "Array of globs for disabling/preventing project instances by the d.scanAllFolders setting."
+				},
+				"d.extraRoots": {
+					"type": "array",
+					"scope": "resource",
+					"items": {
+						"type": "string"
+					},
+					"default": [],
+					"description": "Array of workspace-relative (or absolute) folders to force start a project instance in."
+				},
+				"d.alwaysShowDubStatusButtons": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "Switch to always show dub Configuration/Arch Type/Build Type/Compiler buttons in dub projects and not just when a D file is open."
+				},
+				"d.alwaysShowCoverageStatus": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "Switch to always show coverage status when available through lst files and not just when a D file is open."
+				},
+				"d.manyProjectsAction": {
+					"type": "string",
+					"scope": "resource",
+					"default": "ask",
+					"enum": [
+						"ask",
+						"skip",
+						"load"
+					],
+					"enumDescriptions": [
+						"Open a dialog box each time there are too many projects. (recommended for user-settings)",
+						"Never load any more projects than the d.manyProjectsThreshold setting specified. (this or \"load\" recommended only per-project)",
+						"Load all projects even if there are more than the d.manyProjectsThreshold setting specified. (this or \"skip\" recommended only per-project; never recommended for user-settings or large projects with many dub test projects)"
+					],
+					"description": "What to do when there are too many project roots to load from. The deepest folder paths are skipped for skip."
+				},
+				"d.manyProjectsThreshold": {
+					"type": "number",
+					"scope": "resource",
+					"default": 4,
+					"minimum": 0,
+					"description": "For how many projects to start triggering the manyProjectsAction to load or not load further projects."
+				},
+				"d.ignoreDebugHints": {
+					"type": "boolean",
+					"scope": "window",
+					"default": false,
+					"description": "If true, no hints will be shown when a project may be wrongly configured when trying to start debugging."
+				},
+				"d.lintOnFileOpen": {
+					"type": "string",
+					"scope": "resource",
+					"default": "project",
+					"enum": [
+						"always",
+						"project",
+						"never"
+					],
+					"enumDescriptions": [
+						"D-Scanner runs on every file that is opened immediately, also for any internal cross-project or external dependencies.",
+						"D-Scanner runs on every file only in the current project that is opened immediately. It then only starts on other files when changing something.",
+						"D-Scanner never runs when opening a file and only starts running when changing something."
+					],
+					"description": "Enables dscanner linting when opening a new file."
+				},
+				"d.dietContextCompletion": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "Enables parsing of //-context= in diet files to import local variables shared with the opened diet template."
+				},
+				"d.generateModuleNames": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "Automatically insert/replace the module name definition in the current file when creating or renaming a file."
+				},
+				"d.showUpdateChangelogs": {
+					"type": "boolean",
+					"scope": "application",
+					"default": true,
+					"description": "Open CHANGELOG.md on every code-d update (which also includes serve-d updates) to see new features."
+				},
+				"dfmt.alignSwitchStatements": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "Align labels, cases, and defaults with their enclosing switch."
+				},
+				"dfmt.braceStyle": {
+					"type": "string",
+					"scope": "resource",
+					"enum": [
+						"allman",
+						"otbs",
+						"stroustrup"
+					],
+					"enumDescriptions": [
+						"Curly braces always on separate lines",
+						"Curly braces on the same line as for example if or while statements. Else on same line as closing curly brace.",
+						"Curly braces on the same line as for example if or while statements, but a new line after the closing curly brace, even if there is an else"
+					],
+					"default": "allman",
+					"description": "See Wikipedia https://en.wikipedia.org/wiki/Brace_style"
+				},
+				"dfmt.outdentAttributes": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "Not yet implemented (on dfmt side)"
+				},
+				"dfmt.spaceAfterCast": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "Insert space after the closing paren of a cast expression."
+				},
+				"dfmt.splitOperatorAtLineEnd": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "Place operators on the end of the previous line when splitting lines."
+				},
+				"dfmt.selectiveImportSpace": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "Insert space after the module name and before the : for selective imports."
+				},
+				"dfmt.compactLabeledStatements": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "Place labels on the same line as the labeled switch, for, foreach, or while statement."
+				},
+				"dfmt.templateConstraintStyle": {
+					"type": "string",
+					"scope": "resource",
+					"enum": [
+						"conditional_newline_indent",
+						"conditional_newline",
+						"always_newline",
+						"always_newline_indent"
+					],
+					"enumDescriptions": [
+						"newline only if constraint will wrap, indent constraint",
+						"newline only if constraint will wrap",
+						"always add newline",
+						"always add newline and indent the constraint"
+					],
+					"default": "conditional_newline_indent",
+					"description": "Control the formatting of template constraints. See https://github.com/dlang-community/dfmt/issues/215"
+				},
+				"dfmt.spaceBeforeFunctionParameters": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "Insert space before the opening paren of a function parameter list."
+				},
+				"dfmt.singleTemplateConstraintIndent": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "Set if the constraints are indented by a single tab instead of two. Has only an effect if the style set to `always_newline_indent` or `conditional_newline_indent`."
+				},
+				"dfmt.spaceBeforeAAColon": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": false,
+					"description": "Adds a space after an associative array key before the `:` like in older dfmt versions."
+				},
+				"dfmt.keepLineBreaks": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "Keep existing line breaks if these don't violate other formatting rules."
+				},
+				"dfmt.singleIndent": {
+					"type": "boolean",
+					"scope": "resource",
+					"default": true,
+					"description": "Set if the code in parens is indented by a single tab instead of two."
+				},
+				"dscanner.ignoredKeys": {
+					"type": "array",
+					"scope": "resource",
+					"items": {
+						"type": "string",
+						"enum": [
+							"dscanner.bugs.backwards_slices",
+							"dscanner.bugs.if_else_same",
+							"dscanner.bugs.logic_operator_operands",
+							"dscanner.bugs.self_assignment",
+							"dscanner.confusing.argument_parameter_mismatch",
+							"dscanner.confusing.brexp",
+							"dscanner.confusing.builtin_property_names",
+							"dscanner.confusing.constructor_args",
+							"dscanner.confusing.function_attributes",
+							"dscanner.confusing.lambda_returns_lambda",
+							"dscanner.confusing.logical_precedence",
+							"dscanner.confusing.struct_constructor_default_args",
+							"dscanner.deprecated.delete_keyword",
+							"dscanner.deprecated.floating_point_operators",
+							"dscanner.if_statement",
+							"dscanner.performance.enum_array_literal",
+							"dscanner.style.allman",
+							"dscanner.style.alias_syntax",
+							"dscanner.style.doc_missing_params",
+							"dscanner.style.doc_missing_returns",
+							"dscanner.style.doc_non_existing_params",
+							"dscanner.style.explicitly_annotated_unittest",
+							"dscanner.style.has_public_example",
+							"dscanner.style.imports_sortedness",
+							"dscanner.style.long_line",
+							"dscanner.style.number_literals",
+							"dscanner.style.phobos_naming_convention",
+							"dscanner.style.undocumented_declaration",
+							"dscanner.suspicious.auto_ref_assignment",
+							"dscanner.suspicious.catch_em_all",
+							"dscanner.suspicious.comma_expression",
+							"dscanner.suspicious.incomplete_operator_overloading",
+							"dscanner.suspicious.incorrect_infinite_range",
+							"dscanner.suspicious.label_var_same_name",
+							"dscanner.suspicious.length_subtraction",
+							"dscanner.suspicious.local_imports",
+							"dscanner.suspicious.missing_return",
+							"dscanner.suspicious.object_const",
+							"dscanner.suspicious.redundant_attributes",
+							"dscanner.suspicious.redundant_parens",
+							"dscanner.suspicious.static_if_else",
+							"dscanner.suspicious.unmodified",
+							"dscanner.suspicious.unused_label",
+							"dscanner.suspicious.unused_parameter",
+							"dscanner.suspicious.unused_variable",
+							"dscanner.suspicious.useless_assert",
+							"dscanner.unnecessary.duplicate_attribute",
+							"dscanner.useless.final",
+							"dscanner.useless-initializer",
+							"dscanner.vcall_ctor",
+							"dscanner.syntax"
+						]
+					},
+					"description": "DScanner warnings to ignore in this project."
+				}
+			}
+		},
+		"menus": {
+			"editor/context": [
+				{
+					"when": "resourceLangId == d",
+					"command": "code-d.openDocsAtCursor",
+					"group": "navigation"
+				}
+			],
+			"explorer/context": [
+				{
+					"when": "resourceLangId == d",
+					"command": "code-d.rdmdCurrent",
+					"group": "1_modification"
+				}
+			],
+			"editor/title": [
+				{
+					"when": "resourceFilename =~ /dub\\.json|dub\\.sdl/",
+					"command": "code-d.convertDubRecipe",
+					"group": "navigation"
+				},
+				{
+					"when": "resourceFilename == 'dub.json'",
+					"command": "dub.openSettingsEditor",
+					"group": "navigation"
+				},
+				{
+					"when": "resourceScheme == dubsettings",
+					"command": "dub.closeSettingsEditor",
+					"group": "navigation"
+				}
+			],
+			"view/title": [
+				{
+					"command": "code-d.reloadImports",
+					"when": "view == dubDependencies",
+					"group": "navigation"
+				},
+				{
+					"command": "code-d.addDependency",
+					"when": "view == dubDependencies",
+					"group": "navigation"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "code-d.removeDependency",
+					"when": "view == dubDependencies && viewItem == root"
+				},
+				{
+					"command": "code-d.updateDependency",
+					"when": "view == dubDependencies && viewItem == root"
+				}
+			],
+			"commandPalette": [
+				{
+					"command": "code-d.addDependency",
+					"when": "false"
+				},
+				{
+					"command": "code-d.removeDependency",
+					"when": "false"
+				},
+				{
+					"command": "code-d.updateDependency",
+					"when": "false"
+				},
+				{
+					"command": "code-d.viewDubPackage",
+					"when": "false"
+				},
+				{
+					"command": "code-d.convertDubRecipe",
+					"when": "resourceFilename =~ /dub\\.json|dub\\.sdl/"
+				},
+				{
+					"command": "code-d.openDocsAtCursor",
+					"when": "false"
+				}
+			]
+		},
+		"views": {
+			"explorer": [
+				{
+					"id": "dubDependencies",
+					"name": "Dub Dependencies",
+					"when": "d.hasDubProject"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "code-d.addDependency",
+				"title": "Add Dependency",
+				"category": "code-d",
+				"icon": {
+					"light": "images/adddep-light.svg",
+					"dark": "images/adddep-dark.svg"
+				}
+			},
+			{
+				"command": "code-d.removeDependency",
+				"title": "Remove",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.updateDependency",
+				"title": "Update to latest version",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.viewDubPackage",
+				"title": "View Dub Package",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.switchConfiguration",
+				"title": "Switch Configuration",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.switchArchType",
+				"title": "Switch Arch Type",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.switchBuildType",
+				"title": "Switch Build Type",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.switchCompiler",
+				"title": "Switch Compiler",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.killServer",
+				"title": "Kill DCD Server",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.restartServer",
+				"title": "Restart DCD Server",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.reloadImports",
+				"title": "Reload import paths",
+				"category": "code-d",
+				"icon": {
+					"light": "images/refresh-light.svg",
+					"dark": "images/refresh-dark.svg"
+				}
+			},
+			{
+				"command": "code-d.insertDscanner",
+				"title": "Insert default dscanner.ini content",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.rdmdCurrent",
+				"title": "Run document using rdmd",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.generateCoverageReport",
+				"title": "Generate coverage report",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.showGCCalls",
+				"title": "Show GC calls from profilegc.log",
+				"category": "code-d"
+			},
+			{
+				"command": "dub.openSettingsEditor",
+				"title": "Open project settings",
+				"category": "code-d",
+				"icon": {
+					"light": "./images/edit-dub-inverse.svg",
+					"dark": "./images/edit-dub.svg"
+				}
+			},
+			{
+				"command": "dub.closeSettingsEditor",
+				"title": "Close project settings",
+				"category": "code-d",
+				"icon": {
+					"light": "./images/edit-source-inverse.svg",
+					"dark": "./images/edit-source.svg"
+				}
+			},
+			{
+				"command": "code-d.createProject",
+				"title": "Create new Project",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.sortImports",
+				"title": "Sort Active Import Block",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.implementMethods",
+				"title": "Implement selected interface/base class",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.ignoreDscannerKey",
+				"title": "Ignore DScanner warnings",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.searchDocs",
+				"title": "Search dpldocs for Phobos & Dependency documentation",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.openDocsAtCursor",
+				"title": "Search in dpldocs",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.convertDubRecipe",
+				"title": "Convert between dub.json/dub.sdl",
+				"category": "code-d",
+				"icon": {
+					"light": "./images/dub-convert-inverse.svg",
+					"dark": "./images/dub-convert.svg"
+				}
+			},
+			{
+				"command": "code-d.viewUserGuide",
+				"title": "Open User Guide / Documentation",
+				"category": "code-d"
+			},
+			{
+				"command": "code-d.setupCompiler",
+				"title": "Setup D Compiler",
+				"category": "code-d"
+			}
+		],
+		"jsonValidation": [
+			{
+				"fileMatch": "dub.json",
+				"url": "./json-validation/dub.schema.json"
+			}
+		],
+		"taskDefinitions": [
+			{
+				"type": "dub",
+				"required": [],
+				"properties": {
+					"run": {
+						"type": "boolean",
+						"default": false,
+						"description": "Whether to run the executable when running the task or not."
+					},
+					"test": {
+						"type": "boolean",
+						"default": false,
+						"description": "Build and run a test build."
+					},
+					"root": {
+						"type": "string",
+						"default": "",
+						"description": "Path to an alternative root to not compile the workspace relative to cwd."
+					},
+					"cwd": {
+						"type": "string",
+						"default": "",
+						"description": "Working directory where dub should be run relative to the workspace."
+					},
+					"overrides": {
+						"type": "array",
+						"default": [],
+						"items": {
+							"type": "string",
+							"pattern": "^[-a-zA-Z0-9_.]+/.+$"
+						},
+						"description": "--override-config values in format <dependency>/<config> to override the configuration for a certain dependency. For example \"vibe-d:tls/openssl-1.1\""
+					},
+					"force": {
+						"type": "boolean",
+						"default": false,
+						"description": "Set to true to add the --force flag to dub."
+					},
+					"compiler": {
+						"type": "string",
+						"examples": [
+							"$current"
+						],
+						"description": "Common name or path to compiler executable"
+					},
+					"archType": {
+						"type": "string",
+						"examples": [
+							"$current"
+						],
+						"description": "Arch type to compile with"
+					},
+					"buildType": {
+						"type": "string",
+						"examples": [
+							"$current"
+						],
+						"description": "Build type to compile with"
+					},
+					"configuration": {
+						"type": "string",
+						"examples": [
+							"$current"
+						],
+						"description": "Configuration to run"
+					},
+					"args": {
+						"$comment": "This is only here because vscode otherwise doesn't send this argument to the extension. Sadly the \"deprecated\" field is not actually represented in the UI yet.",
+						"type": "array",
+						"default": [],
+						"items": {
+							"type": "string"
+						},
+						"description": "**DEPRECATED** - use dub_args instead",
+						"deprecated": true
+					},
+					"dub_args": {
+						"type": "array",
+						"default": [],
+						"items": {
+							"type": "string"
+						},
+						"description": "Extra arguments to pass to dub"
+					},
+					"target_args": {
+						"type": "array",
+						"default": [],
+						"items": {
+							"type": "string"
+						},
+						"description": "Extra arguments to pass to the program (implemented by passing the arguments after a special `--` argument for DUB), only passed when run or test is set to true."
+					},
+					"_id": {
+						"type": "string",
+						"default": false,
+						"description": "Workaround for waiting for vscode tasks to finish as API"
+					}
+				}
+			}
+		],
+		"problemMatchers": [
+			{
+				"name": "dmd",
+				"owner": "d",
+				"fileLocation": [
+					"relative",
+					"${cwd}"
+				],
+				"pattern": {
+					"regexp": "^(.*?)(?:-mixin-\\d+)?\\((\\d+)(?:,\\s*(\\d+))?\\):\\s([Ww]arning|[Ee]rror|[Dd]eprecated|[Dd]eprecation|\\s{4,}):?\\s*(.*)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"message": 5
+				}
+			}
+		],
+		"walkthroughs": [
+			{
+				"id": "welcome",
+				"title": "Get Started with D Development",
+				"description": "Setup your development experience for the D programming language.",
+				"steps": [
+					{
+						"id": "welcome.installCompiler",
+						"title": "Install and choose a D compiler (DMD, LDC or GDC)",
+						"description": "Run the 'Setup D Compiler' command to choose which D compiler to use with code-d and DUB. You can find available compilers on [https://dlang.org/download.html](https://dlang.org/download.html)\n[Setup D Compiler](command:code-d.setupCompiler)",
+						"completionEvents": [
+							"onCommand:code-d.setupCompiler"
+						],
+						"media": {
+							"markdown": "res/walkthroughs/installCompiler.md"
+						}
+					},
+					{
+						"id": "welcome.userSettings",
+						"title": "Configure code-d",
+						"description": "Review some common user settings",
+						"media": {
+							"markdown": "res/walkthroughs/userSettings.md"
+						}
+					},
+					{
+						"id": "welcome.checkUserGuide",
+						"title": "Check out the user guide",
+						"description": "The included code-d user guide contains tutorials and a description on all features of code-d. Make sure you read it!\n[Open User Guide / Documentation](command:code-d.viewUserGuide)",
+						"completionEvents": [
+							"onCommand:code-d.viewUserGuide",
+							"onStepSelected"
+						],
+						"media": {
+							"markdown": "docs/index.md"
+						}
+					},
+					{
+						"id": "welcome.debugProject",
+						"title": "Run and Debug your first project",
+						"description": "Code-D includes debugging plugins to improve the D debugging experience. Get started with a project and debug it from code-d.",
+						"media": {
+							"markdown": "res/walkthroughs/debugProject.md"
+						}
+					}
+				]
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "tsc -p ./",
+		"vscode:uninstall": "node ./out/uninstall.js",
+		"compile": "tsc -p ./",
+		"lint": "tslint -p ./",
+		"watch": "tsc -watch -p ./",
+		"pretest": "npm run compile",
+		"test": "node ./out/test/runTest.js",
+		"grammar": "js-yaml syntaxes/dml.yml > syntaxes/dml.json; js-yaml syntaxes/diet.yml > syntaxes/diet.json; js-yaml syntaxes/d.yml > syntaxes/d.json; js-yaml syntaxes/sdl.yml > syntaxes/sdl.json; mocha out/test/ci"
+	},
+	"dependencies": {
+		"adm-zip": "^0.5.9",
+		"async": "^3.2.2",
+		"axios": "^0.24.0",
+		"code-d-api": "^0.2.1",
+		"expand-tilde": "^2.0.2",
+		"jsdom": "^17.0.0",
+		"jsonc-parser": "^3.0.0",
+		"line-by-line": "^0.1.6",
+		"mkdirp": "^1.0.4",
+		"ncp": "^2.0.0",
+		"rimraf": "^3.0.2",
+		"string-argv": "^0.3.1",
+		"vscode-languageclient": "^8.0.0-next.2",
+		"vscode-test-adapter-api": "^1.9.0",
+		"which": "^2.0.2",
+		"xmldom": "^0.6.0"
+	},
+	"devDependencies": {
+		"@types/expand-tilde": "^2.0.0",
+		"@types/glob": "^7.1.4",
+		"@types/jsdom": "^16.2.13",
+		"@types/mocha": "^9.0.0",
+		"@types/node": "^12.20.23",
+		"@types/parse5": "^5.0.3",
+		"@types/vscode": "^1.57.0",
+		"@types/which": "^2.0.1",
+		"glob": "^7.1.7",
+		"js-yaml": "^3.14.1",
+		"mocha": "^9.1.3",
+		"source-map-support": "^0.5.19",
+		"typescript": "^4.4.2",
+		"vscode-test": "^1.6.1",
+		"vscode-textmate": "^4.4.0"
+	},
+	"extensionDependencies": [
+		"hbenl.vscode-test-explorer"
+	],
+	"__metadata": {
+		"id": "bf217d41-312b-4d39-9536-82fd0d9c6f94",
+		"publisherDisplayName": "WebFreak",
+		"publisherId": "e054f80a-50f9-4d80-85c8-6ff87eef6c35"
+	}
+}
