@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.0.183
+
+- fix(ci): restore git push credentials ([c201d3b](https://github.com/fengkx/beancount-lsp/commit/c201d3b))
+- chore(lsp-client): bump version to 0.0.183 ([f9bf891](https://github.com/fengkx/beancount-lsp/commit/f9bf891))
+- Fix shadow workspace recovery ([1c7a169](https://github.com/fengkx/beancount-lsp/commit/1c7a169))
+- Fix balance hover for external ledger files ([e592149](https://github.com/fengkx/beancount-lsp/commit/e592149))
+- Add regression tests for completion providers ([98b0317](https://github.com/fengkx/beancount-lsp/commit/98b0317))
+- Merge branch 'doc-sync' of github.com:fengkx/beancount-lsp into doc-sync ([bb4b443](https://github.com/fengkx/beancount-lsp/commit/bb4b443))
+- Improve syntax tree cleanup and add stress tests ([e4f5a81](https://github.com/fengkx/beancount-lsp/commit/e4f5a81))
+- Fix scoped options and include resolution ([d34e5cf](https://github.com/fengkx/beancount-lsp/commit/d34e5cf))
+- Fix out-of-bounds access caused by syntax tree lifetime ([c46e8a9](https://github.com/fengkx/beancount-lsp/commit/c46e8a9))
+- Refactor completions and diagnostics ([507b0a2](https://github.com/fengkx/beancount-lsp/commit/507b0a2))
+- Optimize account completion sorting and cache semantic tokens ([4a422e7](https://github.com/fengkx/beancount-lsp/commit/4a422e7))
+- Cache account completion snapshots ([4c10a8b](https://github.com/fengkx/beancount-lsp/commit/4c10a8b))
+- Optimize tree node indexing and symbol extraction ([7ae803b](https://github.com/fengkx/beancount-lsp/commit/7ae803b))
+- Improve completion and document symbol queries ([7c67691](https://github.com/fengkx/beancount-lsp/commit/7c67691))
+- Fix empty document symbol names ([e6ace1f](https://github.com/fengkx/beancount-lsp/commit/e6ace1f))
+- 修复符号索引与文档符号空名称过滤 ([b77b2ea](https://github.com/fengkx/beancount-lsp/commit/b77b2ea))
+- 优化文档符号名称提取 ([441b137](https://github.com/fengkx/beancount-lsp/commit/441b137))
+- chore(deps-dev): bump vitest from 4.0.18 to 4.1.0 (#166) ([8d03d59](https://github.com/fengkx/beancount-lsp/commit/8d03d59))
+- fix: gh actions ([a09af9b](https://github.com/fengkx/beancount-lsp/commit/a09af9b))
+- chore: upgrade TypeScript to 6.0.3 ([deea013](https://github.com/fengkx/beancount-lsp/commit/deea013))
+
 ## v0.0.182
 
 - chore(lsp-client): bump version to 0.0.182 ([8931f10](https://github.com/fengkx/beancount-lsp/commit/8931f10))
