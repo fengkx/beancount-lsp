@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.0.184
+
+- chore(lsp-client): bump version to 0.0.184 ([fe4a491](https://github.com/fengkx/beancount-lsp/commit/fe4a491))
+
 ## v0.0.183
 
 - fix(ci): restore git push credentials ([c201d3b](https://github.com/fengkx/beancount-lsp/commit/c201d3b))
