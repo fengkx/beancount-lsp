@@ -22,3 +22,11 @@ it('wordPattern should match account query intermediate tokens', async () => {
 	expect(matchWhole(pattern, '^link-1')).toBe(true);
 	expect(matchWhole(pattern, 'USD')).toBe(true);
 });
+
+it('wordPattern should match mixed-case collapsed account shorthand', async () => {
+	const configText = await readFile(new URL('../language-configuration.json', import.meta.url), 'utf8');
+	const config = parse(configText) as { wordPattern: string };
+	const pattern = config.wordPattern;
+
+	expect(matchWhole(pattern, 'ABaC')).toBe(true);
+});
