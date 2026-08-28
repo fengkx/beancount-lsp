@@ -16,6 +16,7 @@
 		"watch": "tsup --watch --onSuccess \"node scripts/prepare-client-assets.js\"",
 		"typecheck": "tsc --noEmit true",
 		"test": "vitest run",
+		"test:wasm": "cross-env BEANCOUNT_WASM_PARSE_INTEGRATION=1 vitest run src/test/browser/incremental-parse-cache.wasm.test.ts",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
 		"prepublishOnly": "npm run build:npm"
@@ -41,6 +42,7 @@
 		"micromatch": "^4.0.8",
 		"mnemonist": "^0.40.4",
 		"pinyin-pro": "^3.28.1",
+		"pyodide": "0.29.3",
 		"ts-pattern": "^5.9.0",
 		"type-fest": "^5.8.0",
 		"vitest": "^4.1.10",
