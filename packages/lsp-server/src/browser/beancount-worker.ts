@@ -84,6 +84,11 @@ loader_module = beancheck_namespace.get("loader")
 if loader_module is not None:
     loader_module.initialize(False)
 
+install_parse_cache = beancheck_namespace.get("install_incremental_parse_cache")
+if install_parse_cache is None:
+    raise RuntimeError("install_incremental_parse_cache() is not defined in beancheck.py")
+install_parse_cache("/work")
+
 if "run_beancheck" not in beancheck_namespace:
     raise RuntimeError("run_beancheck() is not defined in beancheck.py")
 if "interpolate_incomplete_posting" not in beancheck_namespace:
@@ -102,6 +107,17 @@ beancheck_namespace["interpolate_incomplete_posting"](
     posting_line,
     posting_account,
 )
+`;
+
+const INVALIDATE_PARSE_CACHE_SCRIPT = String.raw`
+beancheck_namespace["invalidate_incremental_parse_cache"](
+    [os.path.join("/work", str(name).lstrip("/")) for name in parse_cache_changed_names]
+)
+del parse_cache_changed_names
+`;
+
+const CLEAR_PARSE_CACHE_SCRIPT = String.raw`
+beancheck_namespace["clear_incremental_parse_cache"]()
 `;
 
 let runtimeState: RuntimeState | null = null;
@@ -154,7 +170,9 @@ async function loadRuntime(
 	) {
 		return runtimePromise;
 	}
-	if (runtimePromise && (loadingVersion !== version || !samePackages(loadingExtraPackages ?? [], normalizedPackages))) {
+	if (
+		runtimePromise && (loadingVersion !== version || !samePackages(loadingExtraPackages ?? [], normalizedPackages))
+	) {
 		await runtimePromise;
 		return loadRuntime(version, normalizedPackages);
 	}
@@ -171,15 +189,16 @@ async function loadRuntime(
 		});
 
 		const fileTree = createFileTree(pyodide, { root: WORK_ROOT });
-		runtimeState = {
+		const nextState: RuntimeState = {
 			version,
 			extraPythonPackages: normalizedPackages,
-			pyodide,
+			pyodide: pyodide as unknown as PyodideRuntime,
 			fileTree,
 			beancheckLoaded: false,
 		};
+		runtimeState = nextState;
 		postStatus(`Runtime ready (${version}).`);
-		return runtimeState;
+		return nextState;
 	})();
 
 	try {
@@ -208,11 +227,21 @@ async function sync(updates: FileUpdate[], removed: string[]): Promise<void> {
 	if (removed.length > 0) {
 		runtime.fileTree.remove(removed);
 	}
+	if (runtime.beancheckLoaded && (updates.length > 0 || removed.length > 0)) {
+		runtime.pyodide.globals.set(
+			'parse_cache_changed_names',
+			[...updates.map(update => update.name), ...removed],
+		);
+		await runtime.pyodide.runPythonAsync(INVALIDATE_PARSE_CACHE_SCRIPT);
+	}
 }
 
 async function reset(files: FileUpdate[]): Promise<void> {
 	const runtime = await loadRuntime(runtimeState?.version ?? 'v3', runtimeState?.extraPythonPackages);
 	runtime.fileTree.reset(files);
+	if (runtime.beancheckLoaded) {
+		await runtime.pyodide.runPythonAsync(CLEAR_PARSE_CACHE_SCRIPT);
+	}
 }
 
 async function beancheck(entryFile: string, options?: { mode?: BeancheckMode }): Promise<string> {

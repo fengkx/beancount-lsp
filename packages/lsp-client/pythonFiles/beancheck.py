@@ -31,6 +31,7 @@ SOFTWARE.
 """ load beancount file and print errors
 """
 from collections import defaultdict
+import copy
 from decimal import Decimal
 import os
 import sys
@@ -44,6 +45,7 @@ from beancount.core import convert, flags
 from beancount.core.data import Transaction, Open, Close, Pad
 from beancount.core.inventory import Inventory
 from beancount.core.realization import realize
+from beancount.parser import parser as beancount_parser
 import json
 import argparse
 
@@ -52,6 +54,118 @@ reverse_flag_map = {
     for flag_name, flag_value in flags.__dict__.items()
     if flag_name.startswith("FLAG_")
 }
+
+
+_incremental_parse_cache = {}
+_incremental_parse_cache_roots = set()
+_incremental_parse_cache_original = None
+_incremental_parse_cache_hits = 0
+_incremental_parse_cache_misses = 0
+
+
+def _is_path_within(path, root):
+    try:
+        return os.path.commonpath((path, root)) == root
+    except ValueError:
+        return False
+
+
+def _clone_parsed_entry(entry):
+    replacements = {}
+    meta = getattr(entry, "meta", None)
+    if isinstance(meta, dict):
+        replacements["meta"] = meta.copy()
+
+    postings = getattr(entry, "postings", None)
+    if postings is not None:
+        replacements["postings"] = [
+            posting._replace(
+                meta=posting.meta.copy()
+                if isinstance(getattr(posting, "meta", None), dict)
+                else posting.meta
+            )
+            for posting in postings
+        ]
+
+    return entry._replace(**replacements) if replacements else entry
+
+
+def _clone_parse_result(result):
+    entries, errors, options = result
+    return (
+        [_clone_parsed_entry(entry) for entry in entries],
+        copy.deepcopy(errors),
+        copy.deepcopy(options),
+    )
+
+
+def _incremental_parse_cache_key(file, args, kwargs):
+    if not isinstance(file, (str, os.PathLike)):
+        return None
+    if args or any(key != "encoding" for key in kwargs):
+        return None
+
+    filename = os.path.normcase(os.path.abspath(os.fspath(file)))
+    if not any(_is_path_within(filename, root) for root in _incremental_parse_cache_roots):
+        return None
+    return filename, kwargs.get("encoding")
+
+
+def install_incremental_parse_cache(root):
+    """Cache independent parser output while leaving all semantic passes global."""
+    global _incremental_parse_cache_original
+
+    normalized_root = os.path.normcase(os.path.abspath(os.fspath(root)))
+    _incremental_parse_cache_roots.add(normalized_root)
+    if _incremental_parse_cache_original is not None:
+        return
+
+    _incremental_parse_cache_original = beancount_parser.parse_file
+
+    def cached_parse_file(file, *args, **kwargs):
+        global _incremental_parse_cache_hits, _incremental_parse_cache_misses
+
+        key = _incremental_parse_cache_key(file, args, kwargs)
+        if key is None:
+            return _incremental_parse_cache_original(file, *args, **kwargs)
+
+        cached = _incremental_parse_cache.get(key)
+        if cached is None:
+            cached = _incremental_parse_cache_original(file, *args, **kwargs)
+            _incremental_parse_cache[key] = cached
+            _incremental_parse_cache_misses += 1
+        else:
+            _incremental_parse_cache_hits += 1
+        # Booking and plugins receive fresh containers so they cannot mutate the
+        # canonical parser cache retained for later evaluations.
+        return _clone_parse_result(cached)
+
+    beancount_parser.parse_file = cached_parse_file
+
+
+def invalidate_incremental_parse_cache(paths):
+    normalized_paths = {
+        os.path.normcase(os.path.abspath(os.fspath(path))) for path in paths
+    }
+    for key in list(_incremental_parse_cache):
+        if key[0] in normalized_paths:
+            del _incremental_parse_cache[key]
+
+
+def clear_incremental_parse_cache():
+    global _incremental_parse_cache_hits, _incremental_parse_cache_misses
+
+    _incremental_parse_cache.clear()
+    _incremental_parse_cache_hits = 0
+    _incremental_parse_cache_misses = 0
+
+
+def get_incremental_parse_cache_stats():
+    return {
+        "entries": len(_incremental_parse_cache),
+        "hits": _incremental_parse_cache_hits,
+        "misses": _incremental_parse_cache_misses,
+    }
 
 
 def get_flag_metadata(thing):
