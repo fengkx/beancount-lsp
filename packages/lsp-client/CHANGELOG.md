@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.185
+
+- chore(lsp-client): bump version to 0.0.185 ([d45bcb4](https://github.com/fengkx/beancount-lsp/commit/d45bcb4))
+- Cache browser Beancount parsing ([5e4175e](https://github.com/fengkx/beancount-lsp/commit/5e4175e))
+
 ## v0.0.184
 
 - chore(lsp-client): bump version to 0.0.184 ([fe4a491](https://github.com/fengkx/beancount-lsp/commit/fe4a491))
