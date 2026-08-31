@@ -22,7 +22,7 @@ const account = capture(
 	),
 );
 
-const commodity = capture(atomic(/[A-Z][A-Z0-9'\._\-]{0,22}[A-Z0-9]*/u));
+const commodity = capture(atomic(/[A-Z][A-Z0-9\._\-]{0,22}[A-Z0-9]*/u));
 
 const tag = capture(atomic(/(#[\w\-]+)/u));
 
