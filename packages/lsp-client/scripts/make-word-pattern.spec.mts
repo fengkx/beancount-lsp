@@ -41,7 +41,7 @@ describe('wordPattern generation', () => {
 
 	it('combines the four token classes in the specified order', () => {
 		expect(buildSourcePattern()).toBe(
-			"(?:[12]\\d{3}[-/]\\d{0,2}(?:[-/]\\d{0,2})?)|(?:[+-]?(?:\\d[\\d,]*(?:\\.\\d*)?|\\.\\d+))|(?:[#^][A-Za-z0-9_./-]+)|(?:\\p{L}[\\p{L}\\p{N}'._/:：-]*)",
+			"(?:[12]\\d{3}[-/]\\d{0,2}(?:[-/]\\d{0,2})?)|(?:[+-]?(?:\\d(?:[\\d,]*\\d)?(?:\\.\\d*)?|\\.\\d+))|(?:[#^][A-Za-z0-9_./-]+)|(?:\\p{L}[\\p{L}\\p{N}'._/:：-]*)",
 		);
 	});
 });
@@ -118,6 +118,7 @@ describe('wordPattern boundaries', () => {
 		expect(extractWords(pattern, '#tag-1,')).toEqual(['#tag-1']);
 		expect(extractWords(pattern, '^link/path.v2;')).toEqual(['^link/path.v2']);
 		expect(extractWords(pattern, '1,234.50 USD')).toEqual(['1,234.50', 'USD']);
+		expect(extractWords(pattern, '1, USD')).toEqual(['1', 'USD']);
 		expect(extractWords(pattern, 'foo@bar')).toEqual(['foo', 'bar']);
 	});
 

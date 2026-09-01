@@ -122,7 +122,7 @@ The alternatives must be combined with non-capturing groups:
 
 ```js
 const date = /[12]\d{3}[-/]\d{0,2}(?:[-/]\d{0,2})?/u;
-const number = /[+-]?(?:\d[\d,]*(?:\.\d*)?|\.\d+)/u;
+const number = /[+-]?(?:\d(?:[\d,]*\d)?(?:\.\d*)?|\.\d+)/u;
 const tagOrLink = /[#^][A-Za-z0-9_./-]+/u;
 const symbol = /\p{L}[\p{L}\p{N}'._/:：-]*/u;
 
@@ -167,6 +167,9 @@ intermediate states:
 - `.5`
 - `1.`
 - `1,234.50`
+
+Grouping commas are retained only when they occur between digits. For example,
+`1,234.50` is one word, while `1, USD` produces the words `1` and `USD`.
 
 The sign belongs to the number only when a number follows. Arithmetic operators
 between tokens remain boundaries. Whitespace is never part of the number.
@@ -247,6 +250,7 @@ Expected extraction examples:
 | `#tag-1,`        | `#tag-1`                                |
 | `^link/path.v2;` | `^link/path.v2`                         |
 | `1,234.50 USD`   | `1,234.50`, `USD`                       |
+| `1, USD`         | `1`, `USD`                              |
 | `foo@bar`        | `foo`, `bar`                            |
 
 Here `␠` denotes one trailing ASCII space in the input.

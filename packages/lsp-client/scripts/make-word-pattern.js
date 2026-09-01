@@ -7,7 +7,7 @@ const { applyEdits, modify, parse } = require('jsonc-parser');
 // Keep the alternatives broad enough for interactive input. Parser validation
 // and completion intent remain server responsibilities.
 const date = /[12]\d{3}[-/]\d{0,2}(?:[-/]\d{0,2})?/u;
-const number = /[+-]?(?:\d[\d,]*(?:\.\d*)?|\.\d+)/u;
+const number = /[+-]?(?:\d(?:[\d,]*\d)?(?:\.\d*)?|\.\d+)/u;
 const tagOrLink = /[#^][A-Za-z0-9_./-]+/u;
 const symbol = /\p{L}[\p{L}\p{N}'._/:：-]*/u;
 
