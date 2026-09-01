@@ -1,65 +1,108 @@
 #!/usr/bin/env node
-const rewritePattern = require('regexpu-core');
-const { modify, applyEdits } = require('jsonc-parser');
-const { capture, atomic, either } = require('compose-regexp');
-
-// https://flems.io/#0=N4IgZglgNgpgziAXAbVAOwIYFsZJAOgAsAXLKEAGhAGMB7NYmBvEAXwvW10QICsEqdBk2J4IWAA60ATsQAEwDMVpYI1CnOoYJxAK7SYGgEa1daACYbqhDNIDKMYhrBQMAczga4MAI66m1IZycLpgkAAeGjAQxIQw0qxyYNIqcgDkdJK03gC0Bm4w4RIAAgAM+ABs+KVpADpo9UJw8mi6WEbxcgC8mtp6BgAUSipqAwD0OQD8tbXmAFQz+NOzANRyc2MAlJsA3PWN9M1yGNR0ZvI9Wjr6MEPKqtTjAwPIAII5AFoAum+fGDkAL1KOQAnDMcl85psBigZhJgAAZXSsH5wxGseEAOVY4MhmxWmy2m32aCa8kyWFo5hiAE9ur1roNhg9xr9vmzgSC6rV8AB9XHAUoUABMwtYHNBkKJewapMO8mI7npV36t2ZozGAwAxMgZgB3XEE6UkslyKAQNAAa2VfRudxGjzGMwAerragbahCVsbZaaTmcGAAFWwXBmq+0ssZsn7-AGo92GxBEk3yuRoGRYDBQADqMnMNsZavuGuQsa+3u2MoOaDgtFg+CgtDcA1a7Xiu2rtfrjeb-tMDA7cprdZgDabAwpVNpxKHXdHPYGircg6aI7HzfNVpXhzXC7752Dsm3w+74-T0kzObzM878gMISgoeisXiLbaHWkGn3DCsKkp1OIGkNCXDRN0tL9Tn7YhDycNMMyzXNpHMGdV1PZt710R8Z0oEBvFgahiAgQ48AAZkQUo2A4EBMBwPB8GoOABBoehGGYHg2C+VggA
-const number = capture(atomic(/-?\d*\.?\d+ */u));
-
-// Account query token for completion interaction:
-// - L:
-// - L:1507
-// - L:1507:
-// - L：1507
-// - Liabilities:1507
-const accountQuery = capture(
-	atomic(/[A-Za-z][A-Za-z0-9\-]*(?:(?::|：)[\p{L}\p{N}._\-\/]*)+/u),
-);
-
-const account = capture(
-	atomic(
-		/(([A-Z][A-Za-z0-9\-]*)(:[\p{Lu}\u{4E00}-\u{9FFF}\u{3400}-\u{4DBF}\u{F900}-\u{FAFF}\u{20000}-\u{2A6DF}\u{2A700}-\u{2B73F}\u{2B740}-\u{2B81F}\u{2B820}-\u{2CEAF}\u{2F800}-\u{2FA1F}\u{3040}-\u{309F}\u{30A0}-\u{30FF}\u{AC00}-\u{D7AF}][\p{L}\p{N}\u{4E00}-\u{9FFF}\u{3400}-\u{4DBF}\u{F900}-\u{FAFF}\u{20000}-\u{2A6DF}\u{2A700}-\u{2B73F}\u{2B740}-\u{2B81F}\u{2B820}-\u{2CEAF}\u{2F800}-\u{2FA1F}\u{3040}-\u{309F}\u{30A0}-\u{30FF}\u{AC00}-\u{D7AF}\-]*))+/u,
-	),
-);
-
-const commodity = capture(atomic(/[A-Z][A-Z0-9'\._\-]{0,22}[A-Z0-9]*/u));
-
-const tag = capture(atomic(/(#[\w\-]+)/u));
-
-const link = capture(atomic(/\^[\w\-]+/u));
-
-const accountPart = capture(atomic(/[A-Z][a-z][\w\-]+:/u));
-
-const normalWord = capture(atomic(/[a-z]+/u));
-
-const regex = either(number, accountQuery, account, commodity, tag, link, accountPart, normalWord);
-
 const fs = require('fs');
 const path = require('path');
+const rewritePattern = require('regexpu-core');
+const { applyEdits, modify, parse } = require('jsonc-parser');
 
-const rewritten = rewritePattern(regex.source, 'u', { unicodeFlag: 'transform' });
-console.log('[INFO] Rewritten regex for wordPattern:');
-console.log(rewritten);
+// Keep the alternatives broad enough for interactive input. Parser validation
+// and completion intent remain server responsibilities.
+const date = /[12]\d{3}[-/]\d{0,2}(?:[-/]\d{0,2})?/u;
+const number = /[+-]?(?:\d[\d,]*(?:\.\d*)?|\.\d+)/u;
+const tagOrLink = /[#^][A-Za-z0-9_./-]+/u;
+const symbol = /\p{L}[\p{L}\p{N}'._/:：-]*/u;
 
-// Write to language-configuration.json
+// The order is part of the word model: date and number prefixes must win over
+// their shorter delimiter-free matches.
+const tokenPatterns = Object.freeze([date, number, tagOrLink, symbol]);
+
 const configPath = path.join(__dirname, '..', 'language-configuration.json');
-let configText;
-try {
-	configText = fs.readFileSync(configPath, 'utf8');
-} catch (err) {
-	console.error('[ERROR] Failed to read language-configuration.json:', err);
-	process.exit(1);
+
+function buildSourcePattern() {
+	return tokenPatterns.map((pattern) => `(?:${pattern.source})`).join('|');
 }
 
-const edits = modify(configText, ['wordPattern'], rewritten, {
-	formattingOptions: { keepLines: true },
-});
-const newText = applyEdits(configText, edits);
-
-try {
-	fs.writeFileSync(configPath, newText);
-	console.log('[SUCCESS] language-configuration.json updated successfully.');
-} catch (err) {
-	console.error('[ERROR] Failed to write language-configuration.json:', err);
-	process.exit(1);
+function buildWordPattern() {
+	return rewritePattern(buildSourcePattern(), 'u', {
+		unicodeFlag: 'transform',
+	});
 }
+
+function readConfig() {
+	try {
+		return fs.readFileSync(configPath, 'utf8');
+	} catch (error) {
+		throw new Error(`Failed to read ${configPath}: ${error.message}`);
+	}
+}
+
+function getConfiguredWordPattern(configText) {
+	const config = parse(configText);
+	if (typeof config.wordPattern !== 'string') {
+		throw new Error(`Missing string property "wordPattern" in ${configPath}`);
+	}
+	return config.wordPattern;
+}
+
+function updateConfig(configText, wordPattern) {
+	const edits = modify(configText, ['wordPattern'], wordPattern, {
+		formattingOptions: { keepLines: true },
+	});
+	return applyEdits(configText, edits);
+}
+
+function generate() {
+	const configText = readConfig();
+	const newText = updateConfig(configText, buildWordPattern());
+
+	if (newText !== configText) {
+		fs.writeFileSync(configPath, newText);
+	}
+
+	console.log('[SUCCESS] language-configuration.json is synchronized.');
+}
+
+function check() {
+	const configText = readConfig();
+	const configuredWordPattern = getConfiguredWordPattern(configText);
+	const generatedWordPattern = buildWordPattern();
+
+	if (configuredWordPattern !== generatedWordPattern) {
+		console.error(
+			'[ERROR] language-configuration.json is out of sync with make-word-pattern.js. Run the generator to update it.',
+		);
+		process.exitCode = 1;
+		return;
+	}
+
+	console.log('[SUCCESS] language-configuration.json matches the wordPattern source.');
+}
+
+function main(args = process.argv.slice(2)) {
+	if (args.length === 0) {
+		generate();
+		return;
+	}
+
+	if (args.length === 1 && args[0] === '--check') {
+		check();
+		return;
+	}
+
+	console.error('Usage: node scripts/make-word-pattern.js [--check]');
+	process.exitCode = 1;
+}
+
+if (require.main === module) {
+	try {
+		main();
+	} catch (error) {
+		console.error(`[ERROR] ${error.message}`);
+		process.exitCode = 1;
+	}
+}
+
+module.exports = {
+	buildSourcePattern,
+	buildWordPattern,
+	tokenPatterns,
+};
