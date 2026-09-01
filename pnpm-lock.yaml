@@ -213,9 +213,6 @@ importers:
       '@vscode/vsce':
         specifier: ^3.9.2
         version: 3.9.2
-      compose-regexp:
-        specifier: ^0.7.1
-        version: 0.7.1
       dprint:
         specifier: ^0.55.2
         version: 0.55.2
@@ -2468,9 +2465,6 @@ packages:
   comment-parser@1.4.7:
     resolution: {integrity: sha512-0h+uSNtQGW3D98eQt3jJ8L06Fves8hncB4V/PKdw/Qb8Hnk19VaKuTr55UNRYiSoVa7WwrFls+rh3ux9agmkeQ==}
     engines: {node: '>= 12.0.0'}
-
-  compose-regexp@0.7.1:
-    resolution: {integrity: sha512-laUG/OKNdZ4ovzcD//Y/UgE0C83jkfvnFYBe4fcAcqWMmO4uuyGplJrNi7V3ZFVOhwKSPN5Y/6LiItumLJd3EQ==}
 
   confbox@0.1.8:
     resolution: {integrity: sha512-RMtmw0iFkeR4YV+fUOSucriAQNb9g8zFR52MWCtl+cCZOFRNL6zeB395vPzFhEjjn4fMxXudmELnl/KF/WrK6w==}
@@ -6516,8 +6510,6 @@ snapshots:
   commander@4.1.1: {}
 
   comment-parser@1.4.7: {}
-
-  compose-regexp@0.7.1: {}
 
   confbox@0.1.8: {}
 
