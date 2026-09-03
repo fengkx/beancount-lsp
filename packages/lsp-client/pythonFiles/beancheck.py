@@ -34,6 +34,7 @@ from collections import defaultdict
 import copy
 from decimal import Decimal
 import os
+import re
 import sys
 import traceback
 
@@ -42,7 +43,7 @@ os.environ["BEANCOUNT_DISABLE_LOAD_CACHE"] = "1"
 
 from beancount import loader
 from beancount.core import convert, flags
-from beancount.core.data import Transaction, Open, Close, Pad
+from beancount.core.data import Balance, Close, Open, Pad, Price, Transaction
 from beancount.core.inventory import Inventory
 from beancount.core.realization import realize
 from beancount.parser import parser as beancount_parser
@@ -225,15 +226,107 @@ def _collect_account_cost_balances(real_root):
     return own_cost_by_account, total_cost_by_account
 
 
+_SYNTHETIC_FILENAME_RE = re.compile(r"^<[^/<>]+>$")
+_CHECK_COMMODITY_ERROR_RE = re.compile(
+    r"^Missing Commodity directive for '(.+)' in '(.+)'$"
+)
+_PRICE_CONTEXT = "Price Directive Context"
+
+
+def _location_from_meta(meta):
+    if not isinstance(meta, dict):
+        return None
+    filename = meta.get("filename")
+    lineno = meta.get("lineno")
+    if not filename or not isinstance(lineno, int) or lineno < 1:
+        return None
+    return filename, lineno
+
+
+def _collect_commodity_locations(entries):
+    locations = {}
+
+    def record(context, currency, meta, fallback_meta=None):
+        if not context or not currency or (context, currency) in locations:
+            return
+        location = _location_from_meta(meta) or _location_from_meta(fallback_meta)
+        if location:
+            locations[(context, currency)] = location
+
+    for entry in entries:
+        if isinstance(entry, Open):
+            for currency in entry.currencies or ():
+                record(entry.account, currency, entry.meta)
+        elif isinstance(entry, Transaction):
+            for posting in entry.postings:
+                for amount in (posting.units, posting.cost, posting.price):
+                    record(
+                        posting.account,
+                        getattr(amount, "currency", None),
+                        posting.meta,
+                        entry.meta,
+                    )
+        elif isinstance(entry, Balance):
+            record(entry.account, entry.amount.currency, entry.meta)
+        elif isinstance(entry, Price):
+            record(_PRICE_CONTEXT, entry.currency, entry.meta)
+            record(_PRICE_CONTEXT, entry.amount.currency, entry.meta)
+
+    return locations
+
+
+def get_error_metadata(error, commodity_locations, fallback_file):
+    source = getattr(error, "source", None) or {}
+    filename = source.get("filename")
+    lineno = source.get("lineno")
+    if filename and not _SYNTHETIC_FILENAME_RE.fullmatch(filename):
+        return {
+            "file": filename,
+            "line": lineno if isinstance(lineno, int) and lineno > 0 else 1,
+            "message": error.message,
+        }
+
+    entry_location = _location_from_meta(
+        getattr(getattr(error, "entry", None), "meta", None)
+    )
+    if entry_location:
+        return {
+            "file": entry_location[0],
+            "line": entry_location[1],
+            "message": error.message,
+        }
+
+    if filename == "<check_commodity>":
+        match = _CHECK_COMMODITY_ERROR_RE.fullmatch(error.message)
+        if match:
+            currency, context = match.groups()
+            location = commodity_locations.get((context, currency))
+            if location:
+                return {
+                    "file": location[0],
+                    "line": location[1],
+                    "message": error.message,
+                }
+
+    return {"file": fallback_file, "line": 1, "message": error.message}
+
+
 def run_beancheck(file: str, payee_narration: bool = False, mode: str = "full"):
     entries, errors, options = loader.load_file(file)
     completePayeeNarration = payee_narration
     diagnostics_only = mode == "diagnostics"
     ZERO = Decimal(0)
 
+    has_check_commodity_error = any(
+        (getattr(error, "source", None) or {}).get("filename")
+        == "<check_commodity>"
+        for error in errors
+    )
+    commodity_locations = (
+        _collect_commodity_locations(entries) if has_check_commodity_error else {}
+    )
     error_list = [
-        {"file": e.source["filename"], "line": e.source["lineno"], "message": e.message}
-        for e in errors
+        get_error_metadata(error, commodity_locations, file) for error in errors
     ]
 
     general = {}
