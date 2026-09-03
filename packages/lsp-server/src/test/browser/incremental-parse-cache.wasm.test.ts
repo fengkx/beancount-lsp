@@ -212,6 +212,46 @@ describe.runIf(runIntegration)('incremental parse cache in Beancount WASM', () =
 			clearCache(pyodide);
 		});
 
+		it('locates synthetic check_commodity errors at the first real occurrence', async () => {
+			files.reset([
+				{
+					name: 'main.bean',
+					content: [
+						'include "accounts.bean"',
+						'include "entries/trade.bean"',
+						'plugin "beancount.plugins.check_commodity"',
+						'',
+					].join('\n'),
+				},
+				{
+					name: 'accounts.bean',
+					content: [
+						'2000-01-01 commodity USD',
+						'2000-01-01 open Assets:Broker',
+						'2000-01-01 open Assets:Cash USD',
+						'',
+					].join('\n'),
+				},
+				{
+					name: 'entries/trade.bean',
+					content: [
+						'2001-01-01 * "Buy"',
+						'  Assets:Broker 1 BRK {503.58 USD}',
+						'  Assets:Cash -503.58 USD',
+						'',
+					].join('\n'),
+				},
+			]);
+
+			const result = await runBeancheck(pyodide, 'diagnostics', false);
+			const diagnostic = result.errors.find(error => error.message.includes("Commodity directive for 'BRK'"));
+
+			expect(diagnostic).toMatchObject({
+				file: '/work/entries/trade.bean',
+				line: 2,
+			});
+		});
+
 		it('matches a clean parse through account, include, plugin, error, and removal changes', async () => {
 			files.reset([
 				{ name: 'main.bean', content: mainFile() },

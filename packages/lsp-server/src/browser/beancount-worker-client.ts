@@ -43,6 +43,9 @@ export class BeancountWorkerClient {
 	private worker: Worker | null = null;
 	private api: WorkerApi | null = null;
 	private readyPromise: Promise<void> | null = null;
+	// Pyodide calls share a filesystem and temporary globals, so overlapping RPCs
+	// can overwrite or delete another operation's inputs.
+	private operationQueue: Promise<void> = Promise.resolve();
 	private disposed = false;
 
 	constructor(workerUrl: string, onStatus?: (message: string) => void) {
@@ -121,29 +124,43 @@ export class BeancountWorkerClient {
 		}
 	}
 
+	private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+		const result = this.operationQueue.then(operation);
+		this.operationQueue = result.then(() => undefined, () => undefined);
+		return result;
+	}
+
 	async init(
 		version: BeancountVersion,
 		options?: {
 			extraPythonPackages?: string[];
 		},
 	): Promise<void> {
-		await this.ensureReady();
-		return this.api!.init(version, options);
+		return this.enqueue(async () => {
+			await this.ensureReady();
+			return this.api!.init(version, options);
+		});
 	}
 
 	async sync(updates: FileUpdate[], removed: string[]): Promise<void> {
-		await this.ensureReady();
-		return this.api!.sync(updates, removed);
+		return this.enqueue(async () => {
+			await this.ensureReady();
+			return this.api!.sync(updates, removed);
+		});
 	}
 
 	async reset(files: FileUpdate[]): Promise<void> {
-		await this.ensureReady();
-		return this.api!.reset(files);
+		return this.enqueue(async () => {
+			await this.ensureReady();
+			return this.api!.reset(files);
+		});
 	}
 
 	async beancheck(entryFile: string, options?: { mode?: BeancheckMode }): Promise<string> {
-		await this.ensureReady();
-		return this.api!.beancheck(entryFile, options);
+		return this.enqueue(async () => {
+			await this.ensureReady();
+			return this.api!.beancheck(entryFile, options);
+		});
 	}
 
 	async interpolateIncompletePosting(
@@ -153,14 +170,16 @@ export class BeancountWorkerClient {
 		postingLine: number,
 		account: string,
 	): Promise<InterpolatedPostingAmount | null> {
-		await this.ensureReady();
-		return this.api!.interpolateIncompletePosting(
-			entryFile,
-			targetFile,
-			transactionLine,
-			postingLine,
-			account,
-		);
+		return this.enqueue(async () => {
+			await this.ensureReady();
+			return this.api!.interpolateIncompletePosting(
+				entryFile,
+				targetFile,
+				transactionLine,
+				postingLine,
+				account,
+			);
+		});
 	}
 
 	dispose(): void {
