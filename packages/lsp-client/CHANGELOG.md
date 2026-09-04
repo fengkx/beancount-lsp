@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.0.187
+
+- chore(lsp-client): bump version to 0.0.187 ([a1b3531](https://github.com/fengkx/beancount-lsp/commit/a1b3531))
+- fix(lsp-server): preserve diagnostics while evaluating ([97da29b](https://github.com/fengkx/beancount-lsp/commit/97da29b))
+- fix(beancheck): preserve source locations and serialize worker calls ([e59484f](https://github.com/fengkx/beancount-lsp/commit/e59484f))
+- fix(lsp-client): keep commas out of numeric words ([eca492c](https://github.com/fengkx/beancount-lsp/commit/eca492c))
+- fix(lsp-client): preserve complete account query words ([8de5d8c](https://github.com/fengkx/beancount-lsp/commit/8de5d8c))
+- test(lsp-client): cover mixed-case account shorthand ([7b13f40](https://github.com/fengkx/beancount-lsp/commit/7b13f40))
+
 ## v0.0.185
 
 - chore(lsp-client): bump version to 0.0.185 ([d45bcb4](https://github.com/fengkx/beancount-lsp/commit/d45bcb4))
