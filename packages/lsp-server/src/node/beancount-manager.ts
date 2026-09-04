@@ -251,6 +251,7 @@ class BeancountManager implements RealBeancountManager {
 	private queuedBeancheckGeneration = 0;
 	private appliedBeancheckGeneration = 0;
 	private appliedDiagnosticsGeneration = 0;
+	private diagnosticsStatus: RuntimeEvaluationState['diagnosticsStatus'] = 'pending';
 	private hasPendingBeancheckRun = false;
 	private beancheckQueuePromise: Promise<void> | null = null;
 	private activeBeancheckTokenSource: CancellationTokenSource | null = null;
@@ -349,6 +350,7 @@ class BeancountManager implements RealBeancountManager {
 		return {
 			sourceRevision: this.inputGeneration,
 			diagnosticsRevision: this.diagnosticsResult ? this.appliedDiagnosticsGeneration : null,
+			diagnosticsStatus: this.diagnosticsStatus,
 			derivedRevision: this.effectiveResult ? this.appliedBeancheckGeneration : null,
 			inputMode: this.liveBuffersEnabled ? 'live-buffers' : 'saved-files',
 		};
@@ -575,14 +577,13 @@ class BeancountManager implements RealBeancountManager {
 		if (this.recoveryTimer) clearTimeout(this.recoveryTimer);
 		this.recoveryTimer = null;
 		this.inputGeneration += 1;
-		if (this.diagnosticsResult && this.appliedDiagnosticsGeneration < this.inputGeneration) {
-			this.diagnosticsResult = null;
-			this.emitLedgerUpdate();
-		}
+		this.diagnosticsStatus = 'pending';
+		// Keep the previous diagnostics published while the replacement is pending.
+		// VS Code tracks their decorations through edits; the generation mismatch
+		// still marks them as stale for consumers that require a fresh result.
 
-		// Previous beancheck diagnostics no longer match the current on-disk snapshot.
 		// Keep stale result for SWR: non-diagnostic data (balances, pads) served from stale
-		// while diagnostics are cleared immediately.
+		// while the fresh beancheck is running.
 		if (this.result && this.appliedBeancheckGeneration < this.inputGeneration) {
 			this.staleResult = this.result;
 			this.result = null;
@@ -673,9 +674,22 @@ class BeancountManager implements RealBeancountManager {
 	private async revalidateDiagnostics(targetGeneration: number, token: CancellationToken): Promise<void> {
 		if (token.isCancellationRequested || targetGeneration !== this.inputGeneration) return;
 		const result = await this.runBeanCheck(token, 'diagnostics');
-		if (!result || token.isCancellationRequested || targetGeneration !== this.inputGeneration) return;
+		if (!result) {
+			if (!token.isCancellationRequested && targetGeneration === this.inputGeneration) {
+				this.markDiagnosticsFailed();
+			}
+			return;
+		}
+		if (token.isCancellationRequested || targetGeneration !== this.inputGeneration) return;
 		this.diagnosticsResult = { errors: result.errors, flags: result.flags };
 		this.appliedDiagnosticsGeneration = targetGeneration;
+		this.diagnosticsStatus = 'fresh';
+		this.emitLedgerUpdate();
+	}
+
+	private markDiagnosticsFailed(): void {
+		this.diagnosticsResult = null;
+		this.diagnosticsStatus = 'failed';
 		this.emitLedgerUpdate();
 	}
 
@@ -763,6 +777,7 @@ class BeancountManager implements RealBeancountManager {
 		this.result = result;
 		this.diagnosticsResult = { errors: result.errors, flags: result.flags };
 		this.appliedDiagnosticsGeneration = targetGeneration;
+		this.diagnosticsStatus = 'fresh';
 		this.lastRecoveryGeneration = -1;
 		this.staleResult = null;
 		this.padFileCache.clear();

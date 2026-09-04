@@ -325,10 +325,13 @@ export class DiagnosticsFeature implements Feature {
 		if (isNotGitUri(document.uri)) {
 			const tokenSource = this.createValidationToken(document.uri);
 			try {
+				if (!this.canPublishDiagnostics(document.uri)) {
+					return;
+				}
 				const loaded = await this.loadDiagnosticsConfig(connection, document.uri);
 				const config = { ...this.defaultConfig, ...loaded };
 				const diagnostics = await this.provideDiagnostics(document, tokenSource.token, config);
-				if (tokenSource.token.isCancellationRequested) {
+				if (tokenSource.token.isCancellationRequested || !this.canPublishDiagnostics(document.uri)) {
 					return;
 				}
 				connection.sendDiagnostics({
@@ -347,6 +350,15 @@ export class DiagnosticsFeature implements Feature {
 				tokenSource.dispose();
 			}
 		}
+	}
+
+	private canPublishDiagnostics(uri: string): boolean {
+		if (!this.beanMgr?.isEnabled(uri)) {
+			return true;
+		}
+		const state = this.beanMgr.getEvaluationState(uri);
+		return state.diagnosticsStatus === 'failed'
+			|| state.diagnosticsRevision === state.sourceRevision;
 	}
 
 	private createValidationToken(uri: string): CancellationTokenSource {

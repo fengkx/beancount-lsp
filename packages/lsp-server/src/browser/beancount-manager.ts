@@ -73,6 +73,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 	private inputGeneration = 0;
 	private queuedDiagnosticsGeneration = 0;
 	private appliedDiagnosticsGeneration = 0;
+	private diagnosticsStatus: RuntimeEvaluationState['diagnosticsStatus'] = 'pending';
 	private hasPendingDiagnosticsRun = false;
 	private diagnosticsQueuePromise: Promise<void> | null = null;
 	private activeDiagnosticsTokenSource: CancellationTokenSource | null = null;
@@ -147,6 +148,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 		return {
 			sourceRevision: this.inputGeneration,
 			diagnosticsRevision: this.diagnosticsResult ? this.appliedDiagnosticsGeneration : null,
+			diagnosticsStatus: this.diagnosticsStatus,
 			derivedRevision: this.effectiveDerivedResult ? this.appliedFullGeneration : null,
 			inputMode: 'live-buffers',
 		};
@@ -218,6 +220,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 			this.inputGeneration = 0;
 			this.queuedDiagnosticsGeneration = 0;
 			this.appliedDiagnosticsGeneration = 0;
+			this.diagnosticsStatus = 'failed';
 			this.hasPendingDiagnosticsRun = false;
 			this.queuedFullGeneration = 0;
 			this.appliedFullGeneration = 0;
@@ -267,11 +270,11 @@ class BeancountBrowserManager implements RealBeancountManager {
 
 	private markBeancheckInputChanged(reason: string): void {
 		this.inputGeneration += 1;
+		this.diagnosticsStatus = 'pending';
 
-		if (this.diagnosticsResult && this.appliedDiagnosticsGeneration < this.inputGeneration) {
-			this.diagnosticsResult = null;
-			this.emitLedgerEvent(GlobalEvents.BeancountDiagnosticsUpdated);
-		}
+		// Keep the previous diagnostics published while the replacement is pending.
+		// VS Code tracks their decorations through edits; the generation mismatch
+		// still marks them as stale for consumers that require a fresh result.
 
 		// Keep stale derived data for SWR while revalidating the heavier full beancheck.
 		if (this.derivedResult && this.appliedFullGeneration < this.inputGeneration) {
@@ -602,6 +605,9 @@ class BeancountBrowserManager implements RealBeancountManager {
 		this.logger.info(`running browser beancheck diagnostics generation=${targetGeneration}`);
 		const r = await this.runBeanCheckDiagnostics(token);
 		if (!r) {
+			if (!token.isCancellationRequested && targetGeneration === this.inputGeneration) {
+				this.markDiagnosticsFailed();
+			}
 			return;
 		}
 
@@ -616,8 +622,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 		try {
 			parsed = JSON.parse(r) as BeancheckOutput;
 		} catch (error) {
-			this.logger.error(`failed to parse browser beancheck result: ${String(error)}`);
-			return;
+			throw new Error(`failed to parse browser beancheck result: ${String(error)}`, { cause: error });
 		}
 		if (token.isCancellationRequested || targetGeneration !== this.inputGeneration) {
 			return;
@@ -629,6 +634,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 			flags: rewritten.flags,
 		};
 		this.appliedDiagnosticsGeneration = targetGeneration;
+		this.diagnosticsStatus = 'fresh';
 		this.recoveryAttempts.delete(`${targetGeneration}:diagnostics`);
 		this.emitLedgerEvent(GlobalEvents.BeancountDiagnosticsUpdated);
 	}
@@ -741,9 +747,10 @@ class BeancountBrowserManager implements RealBeancountManager {
 				String(error)
 			}`,
 		);
-		this.diagnosticsResult = null;
-		this.emitLedgerEvent(GlobalEvents.BeancountDiagnosticsUpdated);
-		if (this.recoveryAttempts.has(attemptKey)) return;
+		if (this.recoveryAttempts.has(attemptKey)) {
+			if (mode === 'diagnostics') this.markDiagnosticsFailed();
+			return;
+		}
 		this.recoveryAttempts.add(attemptKey);
 		if (!this.runtimeRecoveryPromise) {
 			this.runtimeRecoveryPromise = (async () => {
@@ -771,7 +778,14 @@ class BeancountBrowserManager implements RealBeancountManager {
 			else this.hasPendingFullRun = true;
 		} catch (recoveryError) {
 			this.logger.error(`browser runtime recovery failed: ${String(recoveryError)}`);
+			if (mode === 'diagnostics') this.markDiagnosticsFailed();
 		}
+	}
+
+	private markDiagnosticsFailed(): void {
+		this.diagnosticsResult = null;
+		this.diagnosticsStatus = 'failed';
+		this.emitLedgerEvent(GlobalEvents.BeancountDiagnosticsUpdated);
 	}
 
 	private onDocumentSaved(params: DidSaveTextDocumentParams): void {

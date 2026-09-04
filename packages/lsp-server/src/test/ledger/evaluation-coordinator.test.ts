@@ -82,7 +82,7 @@ class TestAdapter implements LedgerRuntimeAdapter {
 }
 
 describe('LedgerEvaluationCoordinator', () => {
-	it('invalidates diagnostics, retains stale derived data, and applies only the latest revision', async () => {
+	it('retains stale results and applies only the latest revision', async () => {
 		vi.useFakeTimers();
 		const workspaceUri = 'file:///ledger';
 		const mainFileUri = `${workspaceUri}/main.bean`;
@@ -102,7 +102,8 @@ describe('LedgerEvaluationCoordinator', () => {
 		expect(coordinator.derivedSnapshot?.state).toBe('fresh');
 
 		source.update(mainFileUri, 'option "title" "two"\n', 2);
-		expect(coordinator.diagnosticsSnapshot).toBeUndefined();
+		expect(coordinator.diagnosticsSnapshot).toMatchObject({ sourceRevision: 1, state: 'stale' });
+		expect(coordinator.isFresh('diagnostics')).toBe(false);
 		expect(coordinator.derivedSnapshot?.state).toBe('stale');
 		source.update(mainFileUri, 'option "title" "three"\n', 3);
 		await vi.runAllTimersAsync();

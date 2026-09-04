@@ -35,6 +35,7 @@ export interface PreciseIncompletePostingHintParams {
 export interface RuntimeEvaluationState {
 	sourceRevision: SourceRevision;
 	diagnosticsRevision: SourceRevision | null;
+	diagnosticsStatus: 'fresh' | 'pending' | 'failed';
 	derivedRevision: SourceRevision | null;
 	inputMode: RuntimeInputMode;
 }

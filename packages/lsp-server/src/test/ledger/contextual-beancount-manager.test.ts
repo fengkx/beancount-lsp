@@ -10,6 +10,7 @@ function createRuntime(balance: string): RealBeancountManager {
 		getEvaluationState: () => ({
 			sourceRevision: 1,
 			diagnosticsRevision: 1,
+			diagnosticsStatus: 'fresh',
 			derivedRevision: 1,
 			inputMode: 'saved-files',
 		}),

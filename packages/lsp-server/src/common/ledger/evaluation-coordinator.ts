@@ -11,6 +11,7 @@ export interface EvaluationCoordinatorOptions {
 export class LedgerEvaluationCoordinator {
 	private readonly logger = new Logger('LedgerEvaluationCoordinator');
 	private diagnostics?: EvaluationSnapshot;
+	private staleDiagnostics?: EvaluationSnapshot;
 	private derived?: EvaluationSnapshot;
 	private staleDerived?: EvaluationSnapshot;
 	private diagnosticsTimer?: ReturnType<typeof setTimeout>;
@@ -43,7 +44,7 @@ export class LedgerEvaluationCoordinator {
 	}
 
 	get diagnosticsSnapshot(): EvaluationSnapshot | undefined {
-		return this.diagnostics;
+		return this.diagnostics ?? this.staleDiagnostics;
 	}
 
 	get derivedSnapshot(): EvaluationSnapshot | undefined {
@@ -89,7 +90,10 @@ export class LedgerEvaluationCoordinator {
 		revision: SourceRevision,
 		change: Parameters<LedgerRuntimeAdapter['sync']>[0],
 	): Promise<void> {
-		this.diagnostics = undefined;
+		if (this.diagnostics) {
+			this.staleDiagnostics = { ...this.diagnostics, state: 'stale' };
+			this.diagnostics = undefined;
+		}
 		if (this.derived) {
 			this.staleDerived = { ...this.derived, state: 'stale' };
 			this.derived = undefined;
@@ -207,6 +211,7 @@ export class LedgerEvaluationCoordinator {
 		};
 		if (mode === 'diagnostics') {
 			this.diagnostics = snapshot;
+			this.staleDiagnostics = undefined;
 		} else {
 			this.derived = snapshot;
 			this.staleDerived = undefined;

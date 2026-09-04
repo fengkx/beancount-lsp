@@ -22,6 +22,7 @@ vi.mock('../../common/utils/expression-parser', () => ({ validateExpression: () 
 
 import { DiagnosticSeverity } from 'vscode-languageserver';
 import { DiagnosticsFeature } from '../../common/features/diagnostics';
+import type { RuntimeEvaluationState } from '../../common/features/types';
 import { BeancountOptionsManager } from '../../common/utils/beancount-options';
 import { makeFakeConnection } from '../utils/test-server-harness';
 
@@ -89,6 +90,32 @@ describe('Diagnostics config and dedup correctness', () => {
 
 		const merged = (feature as any).mergeAndDedupDiagnostics(preferred, secondary);
 		expect(merged).toHaveLength(3);
+	});
+
+	it('publishes only when beancheck diagnostics match the current source revision', () => {
+		let diagnosticsRevision: number | null = 1;
+		let diagnosticsStatus: RuntimeEvaluationState['diagnosticsStatus'] = 'pending';
+		const beanMgr = {
+			isEnabled: () => true,
+			getEvaluationState: () => ({ sourceRevision: 2, diagnosticsRevision, diagnosticsStatus }),
+		};
+		const feature = new DiagnosticsFeature(
+			{} as never,
+			{} as never,
+			new BeancountOptionsManager(),
+			beanMgr as never,
+		);
+		const canPublishDiagnostics = (feature as unknown as {
+			canPublishDiagnostics(uri: string): boolean;
+		}).canPublishDiagnostics.bind(feature);
+
+		expect(canPublishDiagnostics('file:///main.bean')).toBe(false);
+		diagnosticsRevision = null;
+		diagnosticsStatus = 'failed';
+		expect(canPublishDiagnostics('file:///main.bean')).toBe(true);
+		diagnosticsRevision = 2;
+		diagnosticsStatus = 'fresh';
+		expect(canPublishDiagnostics('file:///main.bean')).toBe(true);
 	});
 
 	it('clears stale beancheck diagnostics for standalone URIs after errors are fixed', async () => {

@@ -17,6 +17,7 @@ import type { SnapshotResult } from './snapshots';
 const EMPTY_STATE: RuntimeEvaluationState = {
 	sourceRevision: 0,
 	diagnosticsRevision: null,
+	diagnosticsStatus: 'failed',
 	derivedRevision: null,
 	inputMode: 'saved-files',
 };
