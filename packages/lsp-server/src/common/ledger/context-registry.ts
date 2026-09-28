@@ -2,6 +2,7 @@ import { Logger } from '@bean-lsp/shared';
 import { Connection, FileChangeType, WorkspaceFolder } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 import { DocumentStore } from '../document-store';
+import { onDidChangeWatchedFiles } from '../utils/watched-files';
 import { SourceSnapshotService } from './source-snapshot-service';
 
 export interface LedgerSourceContext {
@@ -94,7 +95,7 @@ export class LedgerContextRegistry {
 				.then(document => context.sources.update(event.document.uri, document.getText(), undefined, 'disk'))
 				.catch(error => this.logger.debug(`failed to refresh closed document: ${String(error)}`));
 		}));
-		this.subscriptions.push(this.connection.onDidChangeWatchedFiles(event => {
+		this.subscriptions.push(onDidChangeWatchedFiles(this.connection, event => {
 			for (const change of event.changes) {
 				const context = this.forDocument(change.uri);
 				if (!context) continue;

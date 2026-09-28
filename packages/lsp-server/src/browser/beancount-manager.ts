@@ -14,6 +14,7 @@ import {
 	RuntimeEvaluationState,
 } from '../common/features/types';
 import { globalEventBus, GlobalEvents, LedgerContextEvent } from '../common/utils/event-bus';
+import { onDidChangeWatchedFiles } from '../common/utils/watched-files';
 import type { BeancheckMode } from './beancount-worker-client';
 import { BeancountWorkerClient } from './beancount-worker-client';
 
@@ -110,8 +111,11 @@ class BeancountBrowserManager implements RealBeancountManager {
 				void this.refreshConfiguration();
 			}, BeancountBrowserManager.CONFIG_DEBOUNCE_MS);
 		}));
-		this.subscriptions.push(connection.onDidChangeWatchedFiles(event => {
+		this.subscriptions.push(onDidChangeWatchedFiles(connection, event => {
 			void this.handleWatchedFiles(event);
+		}));
+		this.subscriptions.push(documents.onDidOpen(event => {
+			void this.handleDocumentChange(event.document.uri, event.document.getText());
 		}));
 		this.subscriptions.push(documents.onDidChangeContent2(event => {
 			void this.handleDocumentChange(event.document.uri, event.document.getText());
@@ -355,6 +359,7 @@ class BeancountBrowserManager implements RealBeancountManager {
 				this.lastFileSnapshot.delete(name);
 				continue;
 			}
+			this.documents.removeFile(change.uri);
 			const doc = await this.documents.retrieve(change.uri);
 			const content = doc.getText();
 			updates.push({ name, content });

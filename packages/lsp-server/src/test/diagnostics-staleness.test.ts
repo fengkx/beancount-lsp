@@ -11,9 +11,9 @@ vi.mock('@bean-lsp/shared', () => ({
 vi.mock('../node/beancheck.py', () => ({ default: '' }));
 
 import { CancellationToken, type Connection } from 'vscode-languageserver';
+import { createBrowserBeancountManager } from '../browser/beancount-manager';
 import type { DocumentStore } from '../common/document-store';
 import type { BeancountError, BeancountFlag, RealBeancountManager } from '../common/features/types';
-import { createBrowserBeancountManager } from '../browser/beancount-manager';
 import { beananagerFactory } from '../node/beancount-manager';
 
 type DiagnosticsManagerInternals = RealBeancountManager & {
@@ -37,6 +37,7 @@ function createDependencies(): { connection: Connection; documents: DocumentStor
 		onDidChangeWatchedFiles: () => disposable,
 	} as unknown as Connection;
 	const documents = {
+		onDidOpen: () => disposable,
 		onDidChangeContent2: () => disposable,
 		onDidClose: () => disposable,
 	} as unknown as DocumentStore;
@@ -53,8 +54,11 @@ function seedDiagnostics(manager: RealBeancountManager): DiagnosticsManagerInter
 }
 
 describe.each([
-	['browser', (connection: Connection, documents: DocumentStore) =>
-		createBrowserBeancountManager(connection, documents, 'worker.js')(connection, documents)],
+	[
+		'browser',
+		(connection: Connection, documents: DocumentStore) =>
+			createBrowserBeancountManager(connection, documents, 'worker.js')(connection, documents),
+	],
 	['node', (connection: Connection, documents: DocumentStore) => beananagerFactory(connection, documents)],
 ])('%s diagnostics staleness', (_runtime, createManager) => {
 	it('keeps the previous diagnostics visible while the new revision is pending', () => {

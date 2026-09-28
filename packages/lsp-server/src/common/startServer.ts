@@ -37,6 +37,7 @@ import { ContextualBeancountManager } from './ledger/contextual-beancount-manage
 import { registerCustomMessageHandlers } from './messages';
 import { BeancountOptionsManager } from './utils/beancount-options';
 import { globalEventBus, GlobalEvents } from './utils/event-bus';
+import { onDidChangeWatchedFiles } from './utils/watched-files';
 export type StorageInstance<T> = Db<T>;
 
 export interface IStorageFactory<T> {
@@ -241,7 +242,7 @@ export function startServer(
 			documentChangeUnsubscribe.dispose();
 		});
 
-		connection.onDidChangeWatchedFiles(e => {
+		onDidChangeWatchedFiles(connection, e => {
 			let shouldInvalidatePriceMap = false;
 			documents.refetchBeanFiles();
 			for (const { type, uri } of e.changes) {

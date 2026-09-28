@@ -30,6 +30,7 @@ import {
 import type { SourceSnapshot } from '../common/ledger/snapshots';
 import { SourceSnapshotService } from '../common/ledger/source-snapshot-service';
 import { globalEventBus, GlobalEvents, LedgerContextEvent } from '../common/utils/event-bus';
+import { onDidChangeWatchedFiles } from '../common/utils/watched-files';
 import { expandPythonPath } from './python-path';
 import { ShadowWorkspace } from './shadow-workspace';
 
@@ -316,7 +317,7 @@ class BeancountManager implements RealBeancountManager {
 				this.sourceService?.update(event.document.uri, document.getText(), undefined, 'disk');
 			});
 		}));
-		this.subscriptions.push(connection.onDidChangeWatchedFiles(event => {
+		this.subscriptions.push(onDidChangeWatchedFiles(connection, event => {
 			if (!this.sourceService || !this.workspaceUri) return;
 			for (const change of event.changes) {
 				if (!change.uri.startsWith(this.workspaceUri)) continue;
