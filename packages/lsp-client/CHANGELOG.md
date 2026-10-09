@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.189
+
+- chore(lsp-client): bump version to 0.0.189 ([807dc1c](https://github.com/fengkx/beancount-lsp/commit/807dc1c))
+- fix(lsp-server): exclude revision documents from diagnostics ([a68293a](https://github.com/fengkx/beancount-lsp/commit/a68293a))
+- fix: files cache ([5761b5c](https://github.com/fengkx/beancount-lsp/commit/5761b5c))
+
 ## v0.0.187
 
 - chore(lsp-client): bump version to 0.0.187 ([a1b3531](https://github.com/fengkx/beancount-lsp/commit/a1b3531))
