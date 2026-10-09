@@ -55,8 +55,10 @@ function hasNonAscii(text: string): boolean {
 	return false;
 }
 
-function isNotGitUri(uri: string): boolean {
-	return URI.parse(uri).scheme !== 'git';
+function supportsDiagnostics(uri: string): boolean {
+	// GitHub Repositories exposes revision contents separately from vscode-vfs working files.
+	const scheme = URI.parse(uri).scheme;
+	return scheme !== 'git' && scheme !== 'github';
 }
 
 function extractAccountFromBeancheckMessage(message: string): string | null {
@@ -205,7 +207,7 @@ export class DiagnosticsFeature implements Feature {
 			}),
 		);
 
-		const documentsInStore = new Set(this.documents.keys().filter(isNotGitUri));
+		const documentsInStore = new Set(this.documents.keys().filter(supportsDiagnostics));
 		const currentStandaloneUris = new Set<string>();
 		await Promise.all(
 			Object.entries(this.diagnosticsFromBeancount).map(async ([uri, diagnostics]) => {
@@ -213,6 +215,10 @@ export class DiagnosticsFeature implements Feature {
 					return;
 				}
 				uri = await this.resolveBeancountDiagnosticsUri(uri);
+				if (!supportsDiagnostics(uri)) {
+					await connection.sendDiagnostics({ uri, diagnostics: [] });
+					return;
+				}
 				currentStandaloneUris.add(uri);
 
 				await connection.sendDiagnostics({ uri, diagnostics });
@@ -322,33 +328,35 @@ export class DiagnosticsFeature implements Feature {
 	}
 
 	private async validateDocument(document: TextDocument, connection: Connection): Promise<void> {
-		if (isNotGitUri(document.uri)) {
-			const tokenSource = this.createValidationToken(document.uri);
-			try {
-				if (!this.canPublishDiagnostics(document.uri)) {
-					return;
-				}
-				const loaded = await this.loadDiagnosticsConfig(connection, document.uri);
-				const config = { ...this.defaultConfig, ...loaded };
-				const diagnostics = await this.provideDiagnostics(document, tokenSource.token, config);
-				if (tokenSource.token.isCancellationRequested || !this.canPublishDiagnostics(document.uri)) {
-					return;
-				}
-				connection.sendDiagnostics({
-					uri: document.uri,
-					diagnostics,
-				});
-			} catch (err) {
-				if (this.isCancellationError(err)) {
-					return;
-				}
-				this.logger.error(`Error validating document: ${err}`);
-			} finally {
-				if (this.validationTokenByUri.get(document.uri) === tokenSource) {
-					this.validationTokenByUri.delete(document.uri);
-				}
-				tokenSource.dispose();
+		if (!supportsDiagnostics(document.uri)) {
+			await connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
+			return;
+		}
+		const tokenSource = this.createValidationToken(document.uri);
+		try {
+			if (!this.canPublishDiagnostics(document.uri)) {
+				return;
 			}
+			const loaded = await this.loadDiagnosticsConfig(connection, document.uri);
+			const config = { ...this.defaultConfig, ...loaded };
+			const diagnostics = await this.provideDiagnostics(document, tokenSource.token, config);
+			if (tokenSource.token.isCancellationRequested || !this.canPublishDiagnostics(document.uri)) {
+				return;
+			}
+			connection.sendDiagnostics({
+				uri: document.uri,
+				diagnostics,
+			});
+		} catch (err) {
+			if (this.isCancellationError(err)) {
+				return;
+			}
+			this.logger.error(`Error validating document: ${err}`);
+		} finally {
+			if (this.validationTokenByUri.get(document.uri) === tokenSource) {
+				this.validationTokenByUri.delete(document.uri);
+			}
+			tokenSource.dispose();
 		}
 	}
 
@@ -400,10 +408,7 @@ export class DiagnosticsFeature implements Feature {
 
 			const diagnostics: Diagnostic[] = [];
 
-			const scheme = URI.parse(document.uri).scheme;
-
-			// We ignore git schemes because they lead to confusing diagnostics
-			if (scheme === 'git') {
+			if (!supportsDiagnostics(document.uri)) {
 				return [];
 			}
 

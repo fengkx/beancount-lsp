@@ -21,6 +21,7 @@ vi.mock('../../common/utils/balance-checker', () => ({
 vi.mock('../../common/utils/expression-parser', () => ({ validateExpression: () => true }));
 
 import { DiagnosticSeverity } from 'vscode-languageserver';
+import { TextDocument } from 'vscode-languageserver-textdocument';
 import { DiagnosticsFeature } from '../../common/features/diagnostics';
 import type { RuntimeEvaluationState } from '../../common/features/types';
 import { BeancountOptionsManager } from '../../common/utils/beancount-options';
@@ -157,5 +158,60 @@ describe('Diagnostics config and dedup correctness', () => {
 			uri: 'file:///workspace/main.bean',
 			diagnostics: [],
 		});
+	});
+});
+
+describe('revision document diagnostics', () => {
+	it.each(['github', 'git'])('clears %s snapshots while continuing to validate the working file', async (scheme) => {
+		const path = '://github/fengkx/beancount-assets/2026/10.bean';
+		const snapshot = TextDocument.create(`${scheme}${path}`, 'beancount', 1, '2026-10-09 ! "Gas"');
+		const working = TextDocument.create(`vscode-vfs${path}`, 'beancount', 2, '2026-10-09 * "Gas"');
+		const documents = {
+			all: () => [snapshot, working],
+			keys: () => [snapshot.uri, working.uri],
+		};
+		const feature = new DiagnosticsFeature(
+			documents as never,
+			{} as never,
+			new BeancountOptionsManager(),
+			undefined,
+		);
+		const internals = feature as any;
+		const warning = { message: 'transaction flagged with "!"' };
+		const provideDiagnostics = vi.spyOn(internals, 'provideDiagnostics').mockImplementation(
+			async (...args: unknown[]) => {
+				return (args[0] as TextDocument).getText().includes('!') ? [warning] : [];
+			},
+		);
+		const { connection, sentDiagnostics } = makeFakeConnection();
+
+		await internals.validateAllDocuments(connection);
+
+		expect(provideDiagnostics).toHaveBeenCalledTimes(1);
+		expect(provideDiagnostics.mock.calls[0]?.[0]).toBe(working);
+		expect(sentDiagnostics).toContainEqual({ uri: snapshot.uri, diagnostics: [] });
+		expect(sentDiagnostics).toContainEqual({ uri: working.uri, diagnostics: [] });
+
+		// Working resources must still publish warnings when a pending flag is introduced.
+		const pending = TextDocument.create(working.uri, 'beancount', 3, snapshot.getText());
+		await internals.validateDocument(pending, connection);
+		expect(sentDiagnostics.at(-1)).toEqual({ uri: working.uri, diagnostics: [warning] });
+	});
+
+	it.each(['github', 'git'])('clears standalone beancheck diagnostics for %s snapshots', async (scheme) => {
+		const uri = `${scheme}://github/fengkx/beancount-assets/2026/10.bean`;
+		const feature = new DiagnosticsFeature(
+			{ all: () => [], keys: () => [] } as never,
+			{} as never,
+			new BeancountOptionsManager(),
+			undefined,
+		);
+		const internals = feature as any;
+		internals.diagnosticsFromBeancount = { [uri]: [{ message: 'old diagnostic' }] };
+		const { connection, sentDiagnostics } = makeFakeConnection();
+
+		await internals.validateAllDocuments(connection);
+
+		expect(sentDiagnostics).toEqual([{ uri, diagnostics: [] }]);
 	});
 });
